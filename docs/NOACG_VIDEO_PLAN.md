@@ -382,6 +382,12 @@ place only when the design does something different with each mark.
 Pro retrieves from a 460-design catalog. **Video has no catalog** - five offline stub samples
 are the entire corpus. This is the program's largest structural gap and its first deliverable:
 
+- **Reference teardown (done 2026-08-13):** thirteen commercial stingers measured frame by
+  frame and looked at - `benchmarks/video/v1/STINGER-REFERENCE-TEARDOWN.md`. It settles the
+  numbers this plan had to assume (length 1.2-2.1 s, full-cover windows of 0.10-1.24 s, three
+  of eight clips never covering at all), names the mechanisms worth taking, and answers the
+  "can we reach the 3D packs" question in three costed routes. **Read it before authoring
+  another exemplar.**
 - **Bootstrap corpus:** 10-20 hand-authored, excellent HyperFrames compositions covering the
   Phase A types (stingers, intros, overlay loops) across genuinely different visual directions -
   authored by distilling the graphics catalog's design DNA (`referenceCards.ts` already maps

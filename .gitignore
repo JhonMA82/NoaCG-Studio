@@ -48,9 +48,12 @@ pro-machine-out*/
 # virtual-clock motion strips, the blind gallery and its key.
 pro-spike-out*/
 pro-brand-*/
-# The stinger corpus brand-swap review rig (scripts/stinger-review.mjs): 3 stingers x 5 marks
-# as standalone pages with the fonts and GSAP inlined. Regenerated on demand in one second.
+# The stinger corpus brand-swap review rig (scripts/stinger-review.mjs): one page per stinger
+# with the fonts and GSAP inlined. Regenerated on demand in one second.
 stinger-review-out/
+# The reference teardown's output (scripts/stinger-teardown.mjs): contact sheets and per-frame
+# alpha series derived from licensed stock clips that live outside the repo.
+stinger-teardown-out/
 
 # The bench dev server's own output (scripts/dev-bench.mjs) - a local trace of how the
 # server died, useful on this machine and meaningless anywhere else.
