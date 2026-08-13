@@ -56,6 +56,15 @@ Mechanism fixes, both now `docs/AI_LITE_BRAND_PLAN.md` §3.6:
   requested brand palette verbatim. The §3.1 contract work protects the DROP path
   (`palette_dropped_contrast_unreachable`), which this small bank did not happen to hit.
 
+## Follow-up, same day: §3.6.1 verified
+
+The retrieval mark-filter (plan §3.6.1) re-fired exactly these three failing briefs:
+**0/3 → 3/3 machine-usable** (`markfilter-verify` label in the archive; ledger rows 05:21-05:23
+UTC, all `usable`, no rejections). sports-badge → lt05 and university-banner → lt25 on one
+attempt with zero rule codes; knockout-only → lt25 after one repair, its light paper palette
+carried verbatim. The catalog split remains (slots on the seven is §3.6.2); it just can no
+longer reach a marked request.
+
 ## What this changes
 
 The §8 P1 order gains a concrete first slice: close the catalog split (§3.6.1 retrieval filter

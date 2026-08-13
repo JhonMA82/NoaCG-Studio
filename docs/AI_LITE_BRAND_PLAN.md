@@ -134,10 +134,16 @@ cannot hold a mark (`logo_not_supported` refusals, a dropped mark on lt37). The 
 drop the mark" promise is currently false on 7 of 13 chassis - regression by growth.
 
 1. **Retrieval narrows to `logo: true` entries when the request carries a mark.**
-   Deterministic, free, first.
+   Deterministic, free, first. **DONE 2026-08-13** - `retrieveLiteReferenceSet` filters to
+   slot-carrying chassis (by measured `fits` shape when the descriptor names one; mark
+   outranks capacity on conflict, degrades rather than empties), mutation-pinned in
+   `scripts/ai-lite-semantic.test.mjs`. Paid verification: the baseline's three failing
+   briefs re-fired **0/3 → 3/3 machine-usable** (lt05/lt25, zero rule codes, brand palettes
+   verbatim including the light paper package that previously died at hold), ~$0.002.
+   Until §3.6.2 lands, a marked request honestly serves from the six 2-field slot chassis.
 2. **Draw measured slots on the seven** - the §7.4 step-3 pattern from `docs/AI_LITE_PLAN.md`
    (type capability + brand audit + `logoSlot` metadata), batched with the §3.4 opposite-tone
-   chassis.
+   chassis. Also what lifts the marked-request field ceiling past 2.
 
 This slice goes BEFORE the §4.4 volume matrix - a matrix over the split catalog would multiply
 one known failure into every cell.

@@ -28,6 +28,36 @@ test('locked semantic briefs retrieve a relevant, small, diverse reference set',
   }
 });
 
+test('a mark narrows retrieval to slot-carrying chassis, and only a mark does', () => {
+  // Self-guarding: the narrowing below is only provable against a brief that openly reaches a
+  // slotless chassis. If no fixture does, the loop's assertions would be vacuously green while
+  // the filter did nothing (the verify-guards rule), so that state fails the test instead.
+  const openReach = LITE_SEMANTIC_FIXTURES
+    .map((fixture) => ({ fixture, open: contract.retrieveLiteReferenceSet(fixture.request) }))
+    .find(({ open }) => open.entries.some((entry) => !entry.logo));
+  assert.ok(openReach, 'no markless fixture reaches a slotless chassis - this guard has gone vacuous');
+  assert.doesNotMatch(openReach.open.reason, /mark-capable/);
+
+  const marked = structuredClone(openReach.fixture.request);
+  marked.hasLogo = true;
+  marked.mark = { shape: 'wordmark', backing: 'transparent', ink: 'light' };
+  const narrowed = contract.retrieveLiteReferenceSet(marked);
+  assert.ok(narrowed.entries.length >= 2, 'a marked request must still see a real choice of chassis');
+  for (const entry of narrowed.entries) {
+    assert.ok(entry.logo && entry.logoSlot, `${entry.variantId} shown to a marked request without a slot`);
+    assert.ok(entry.logoSlot.fits.includes('wordmark'), `${entry.variantId} cannot hold the mark shape`);
+  }
+  assert.match(narrowed.reason, /mark-capable only \(wordmark\)/);
+
+  // An older client says only hasLogo - the slot's existence still filters, shape does not.
+  const legacy = structuredClone(openReach.fixture.request);
+  legacy.hasLogo = true;
+  const legacyNarrowed = contract.retrieveLiteReferenceSet(legacy);
+  for (const entry of legacyNarrowed.entries) {
+    assert.ok(entry.logo, `${entry.variantId} shown to a hasLogo request without a slot`);
+  }
+});
+
 test('locked decisions satisfy category, slots, capacity, and structured style semantics', () => {
   for (const fixture of LITE_SEMANTIC_FIXTURES) {
     const result = contract.validateLiteDecision(fixture.decision, fixture.request);
