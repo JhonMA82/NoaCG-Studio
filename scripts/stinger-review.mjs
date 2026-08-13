@@ -209,13 +209,35 @@ function rigScript(marks) {
     pick.addEventListener('change', function () { setMark(pick.value); });
     setMark(window.__MARKS[0].id);
 
-    background('checker');
-    var embedScale = new URLSearchParams(location.search).get('scale');
+    var params = new URLSearchParams(location.search);
+    var wantMark = params.get('mark');
+    if (wantMark) setMark(wantMark);
+    // BARE mode is what a capture loads: no backdrop, no chrome, nothing but the composition
+    // on a transparent page, so a screenshot taken with omitBackground carries the
+    // composition's REAL alpha. A checkerboard would be measured as part of the graphic.
+    var bare = params.get('bare');
+    if (bare) {
+      de.className = '';
+      de.style.background = 'transparent';
+      document.body.style.background = 'transparent';
+      document.getElementById('rig').remove();
+    } else {
+      background('checker');
+    }
+    var embedScale = params.get('scale');
     scale(Number(embedScale) || 1);
     seek(0);
+    // A capture drives the timeline through this, so it never has to know how the composition
+    // registers itself, and it seeks exactly the way the renderer does.
+    window.__stingerSeek = seek;
+    window.__stingerMark = setMark;
     // The contact sheet embeds this page at a third of size; the panel belongs to the
     // full-size view, where the viewport is big enough for the check to mean anything.
-    if (embedScale) document.getElementById('rig').classList.add('hidden');
+    var rigEl = document.getElementById('rig');
+    if (embedScale && rigEl) rigEl.classList.add('hidden');
+    // Bare mode has no panel to wire, and the in-page check is the weaker instrument anyway -
+    // a capture measures real pixels rather than hit-testing boxes.
+    if (bare) return;
 
     // ── The geometry check ──────────────────────────────────────────────────────
     // It answers two of the three §2.2 questions with the strongest instrument a plain

@@ -28,7 +28,7 @@ demonstrably work.
 | Flat White (Blue) | 30 | 64 | 2.13 s | 1 | 15 | 16 | 0.53 s | 100% | 0 |
 | Circle Rotation (Green) | 30 | 62 | 2.07 s | 1 | 11 | 4 | 0.13 s | 100% | 0 |
 | Skewed Strips (Red) | 30 | 57 | 1.90 s | 2 | 3 | 3 | 0.10 s | 100% | 0 |
-| Slide Reveal (Yellow) | 30 | 52 | 1.73 s | 2 | 11 | **0** | never | 99.978% | 452 |
+| Slide Reveal (Yellow) | 30 | 52 | 1.73 s | 2 | 11 | **0** | never | 99.986% | 297 |
 | Tech Wipe (Teal) | 24 | 32 | 1.33 s | 1 | 5 | **0** | never | 99.663% | 5 874 |
 | Horizontal Wipe (Blue) | 25 | 29 | 1.16 s | 0 | 9 | **0** | never | 99.150% | 15 840 |
 
@@ -52,7 +52,9 @@ is the right side to be on, but it also means we have room to spend more of the 
 **Three of eight NEVER fully cover the frame.** Not marginally: Horizontal Wipe leaves 15 840
 interior pixels showing at its best frame, Tech Wipe 5 874. On an ATEM those would flash the
 outgoing picture through the middle of the transition. Slide Reveal misses by 452 pixels, which
-is an antialiased seam where two shapes meet - exactly the defect the corpus's overlap rule
+is an antialiased seam where two shapes meet (297 pixels once the 12-bit alpha is read through
+an 8-bit path, 452 read natively - the verdict is the same either way) - exactly the defect the
+corpus's overlap rule
 (tiles overlapping by 2-20 px, surfaces overhanging the frame) exists to prevent. **Commercial
 products ship this defect.** Our §2.2 coverage gate is stricter than the market, and the
 teardown is the evidence that the gate is worth having rather than pedantry.
@@ -105,11 +107,13 @@ Ordered by what it would buy:
    radii, rotating, with a glow. 120 elements built by a loop, four rings turning at different
    rates and directions, the glow applied once per ring rather than per element, and an iris
    close for a reveal shape nothing else in the corpus has.
-4. **Hatched and halftone fills** (showreel). Circles filled with diagonal stripes or dot
-   grids, used as secondary shapes. Pure CSS (`repeating-linear-gradient`, `radial-gradient`
-   tiles) and instantly reads as a designed pack rather than flat colour.
-5. **Two-weight typography** (showreel). One heavy word plus one light word of the same size,
-   side by side, is the pack's signature and we do not use it anywhere.
+4. ~~**Hatched and halftone fills** (showreel).~~ **DONE** - `halftone-cut` in the corpus.
+   Circles and panels filled with diagonal stripes or dot grids. Pure CSS
+   (`repeating-linear-gradient`, a tiled `radial-gradient`) and it instantly reads as a designed
+   pack rather than flat colour.
+5. ~~**Two-weight typography** (showreel).~~ **DONE** - `type-slam` in the corpus. One heavy word
+   plus one light word of the same size on one baseline, which is the pack's signature; the two
+   halves are the composition's two text variables, so a brand rewrites both.
 6. **Shorter cover windows, more motion.** The market covers for 0.1-1.2 s. We can spend more
    of the two seconds on things happening and still beat every clip here on coverage.
 
@@ -159,9 +163,18 @@ Needs `ffmpeg` and `ffprobe`. Spends nothing, reaches no network. It writes a pe
 sheet, an edge strip around the cover window, the per-frame alpha series as JSON, and
 `report.json`.
 
-**The alpha statistics in this script are the prototype of the §4.2 per-pixel gate** - the same
-per-pixel opaque/clear counts our own rendered frames will be measured with, including the
-border-versus-interior split that decides whether a near-miss is edge softness or a hole.
+**The alpha statistics in this script ARE the §4.2 per-pixel gate.** Since 2026-08-13 the
+measurement lives in `scripts/lib/stingerAlpha.mjs` and `scripts/stinger-gate.mjs` runs it over
+our own rendered frames - same per-pixel opaque/clear counts, same border-versus-interior split
+that decides whether a near-miss is edge softness or a hole. One implementation on purpose: two
+copies of "is this frame covered" is how the corpus comes to pass a gate the market would fail,
+or the reverse.
+
+**A second trap, from running this over PNG sequences:** a screenshot of a fully transparent
+frame is encoded as a smaller PNG type than a busy one, so the image demuxer changes pixel
+format mid-stream and the filter graph refuses to reinitialise. It stopped after 8 of 100 frames
+and reported nothing the caller could see - which would have read as "the composition is 8
+frames long". `format=rgba` at the head of the chain normalises it.
 
 **One trap already paid for:** compositing a transparent clip onto an ffmpeg `color` source in a
 single filter graph looks correct and is not. `color` runs at its own frame rate, so `overlay`

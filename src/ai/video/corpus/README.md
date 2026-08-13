@@ -26,19 +26,21 @@ here is authored against it.
 | `stingers/logo-punch.html` | the mark drives the exit | the field bursts out of a point, then breaks into three slabs | the mark punches out of the burst, then through the lens, taking the field with it |
 | `stingers/ink-sweep.html` | no panel at all | ten ragged bands of brand ink stroke across, then retreat the way they came | the cover is the brand's own ink; the mark lands on it and is carried out by it |
 | `stingers/radial-bloom.html` | ornamented; the corpus's richest surface | a disc opens from a point, four rings of 120 repeated glowing elements bloom and turn, then the whole thing irises shut | the mark is the still centre of a turning pattern |
+| `stingers/halftone-cut.html` | printed texture | two panels close on a diagonal seam, one carrying a halftone dot field and one diagonal hatching | the mark sits above the seam, which underlines the lockup |
+| `stingers/type-slam.html` | typographic | a band slams open from the frame's centre line, with an accent disc and ring in the negative space | the word is the hero, set in two weights on one line; the mark tops it |
 
-Five files, five genuinely different *mechanisms* - lateral wipe, tiled close, burst and
-shatter, painted trail, radial bloom and iris - because a corpus of variations on one move
-teaches a model nothing about the type. They also give a switcher five different **reveal
-shapes** to cut behind: sideways, vertically, outward, backward along the stroke, and from the
-outside in.
+Seven files, seven genuinely different *mechanisms* - lateral wipe, tiled close, burst and
+shatter, painted trail, radial bloom and iris, diagonal two-panel close, and a horizontal
+opening from the centre line - because a corpus of variations on one move teaches a model
+nothing about the type. They also give a switcher seven different **reveal shapes** to cut
+behind, on every axis a frame has.
 
-`radial-bloom` is the one built from measured evidence rather than taste: the reference
-teardown (`benchmarks/video/v1/STINGER-REFERENCE-TEARDOWN.md`) found that the commercial clip
-which most looks like a rendered 3D effect is a pattern of flat shapes - one element repeated
-at many angles and radii, turning, with a glow - and that the corpus had nothing like it. Its
-120 ring elements are BUILT by a loop rather than typed out; a loop is exactly as
-deterministic, and 120 hand-written divs would be unreadable.
+**The last three come from measured evidence rather than taste.** The reference teardown
+(`benchmarks/video/v1/STINGER-REFERENCE-TEARDOWN.md`) named the techniques that make commercial
+packs read as designed, and `radial-bloom`, `halftone-cut` and `type-slam` are its top three:
+radial repetition with glow, hatched and halftone fills, and one heavy word against one light
+word at the same size. `radial-bloom`'s 120 ring elements are BUILT by a loop rather than typed
+out; a loop is exactly as deterministic, and 120 hand-written divs would be unreadable.
 
 ### The rules they are held to (owner review, 2026-08-13)
 
@@ -56,6 +58,12 @@ Binding, and the reason the second version of these files looks different from t
    surface's own leading edge is not decoration and is fine.
 5. **The cover need not be a rectangle** - but it must be a full cover. A graphic that only
    flies over without covering is a logo sting, a different type.
+6. **Nothing goes behind the mark, including a shape that is "part of the design".**
+   `type-slam` first put its accent disc behind the lockup and Kestrel's volt wordmark on a
+   volt disc vanished outright - rule 1's failure mode is total, not subtle.
+7. **Size the mark's BOX, and let the image fill it.** `max-width: 100%` only ever shrinks an
+   image, so every mark rendered at its own SVG size - about 120 px in a 300 px slot - and the
+   whole corpus read as empty. `width: 100%; height: 100%; object-fit: contain` is the pattern.
 
 ### The shared vocabulary
 
@@ -70,6 +78,9 @@ values regardless of which exemplar was retrieved:
 | `brandDeep` | color | the colour of the covering surface |
 | `brandAccent` | color | edges, rules and the kicker |
 | `brandInk` | color | the type |
+
+`type-slam` reads `label` and `kicker` as the two halves of one phrase - heavy then light -
+rather than as a title and a subtitle. Same two variables, a different typographic job.
 
 There is deliberately **no plate colour**. A slot with an aspect-agnostic box and
 `object-fit: contain` is all the geometry a mark needs; the tone is the brand's field colour,
@@ -98,58 +109,58 @@ node scripts/stinger-review.mjs
 
 Zero tokens, no dev server, no browser automation. It writes one standalone, fully offline page
 per stinger - each able to swap between all five brand marks
-(`benchmarks/video/v1/marks/MARKS.md`) live - plus a contact sheet that scrubs all three at
-once, so the brand swap can actually be looked at rather than asserted.
+(`benchmarks/video/v1/MARKS.md`) live - plus a contact sheet that scrubs all seven at once, so
+the brand swap can actually be looked at rather than asserted. Each full-size page also carries
+a quick in-page geometry check.
 
-Each full-size page also carries a **geometry check** (top right, `run`). It answers two of
-§2.2's three questions with the strongest instrument a plain browser page has, and it is
-explicit about which:
+### Gating them
 
-- **Empty head and tail is proved exactly.** An axis-aligned bounding box is a *superset* of
-  the painted area, so "no box of any painting element touches the frame" leaves nothing to
-  argue with.
-- **Cut-window coverage is SAMPLED.** `elementsFromPoint` honours every transform and clip
-  exactly, but it is asked on a 16 px grid over every frame of the declared window, so it
-  cannot see a hairline seam. **It is not the pixel gate.**
-- **Duration honesty** compares the timeline's own length against `(N-1)/fps`.
+```bash
+node scripts/stinger-gate.mjs                  # all seven at 50 fps
+node scripts/stinger-gate.mjs --fps 25 --mark the-ledger
+node scripts/stinger-gate.mjs --only ink-sweep --keep-frames
+```
 
-The check refuses to run in a viewport with no layout, because every loop in it then completes
-without testing anything - a false pass that looks exactly like a real one.
+**This is the real §2.2 gate and it measures pixels, not boxes.** It drives a headless browser,
+seeks each composition's own paused timeline exactly as the renderer does, screenshots every
+frame with alpha, and reads the alpha plane PER PIXEL - never an average, because an average
+passes a one-pixel transparent seam down the middle of the frame and that seam is visible on
+air. It answers three questions and exits non-zero on any failure:
 
-### Measured 2026-08-13 (second version, after the owner review)
+- **head and tail:** frame 0 and frame N-1 fully transparent across the whole frame;
+- **cut-window coverage:** every frame of the declared window opaque everywhere, with
+  non-opaque pixels split into BORDER (the outer 2 px, edge softness nobody sees) and INTERIOR
+  (a real hole, and an automatic failure);
+- **duration honesty:** the timeline ends at or before `(N-1)/fps`.
 
-All three, 4 of 4 checks, over every frame of the declared window at 8160 sample points per
-frame:
+It also writes a frame strip around the window's edges, a contact sheet, and the per-frame
+alpha series as JSON. **The measurement is shared verbatim with `scripts/stinger-teardown.mjs`**
+(`scripts/lib/stingerAlpha.mjs`), which reads commercial clips - so the corpus is judged by the
+same instrument as the stingers people buy, and cannot come to pass a gate the market fails.
 
-| composition | fps | result |
-| --- | --- | --- |
-| `replay-slab` | 50 | frame 0 empty, frame 99 empty, frames 23-56 covered, timeline 1.920 s vs last frame 1.980 s |
-| `aperture-bands` | 25 | frame 0 empty, frame 49 empty, frames 12-28 covered, timeline 1.850 s vs last frame 1.960 s |
-| `logo-punch` | 50 | frame 0 empty, frame 99 empty, frames 23-56 covered, timeline 1.920 s vs last frame 1.980 s |
-| `ink-sweep` | 25 and 50 | frame 0 empty, last frame empty, whole window covered, timeline 1.906 s vs last frame 1.960 / 1.980 s |
-| `radial-bloom` | 25 and 50 | frame 0 empty, last frame empty, whole window covered, timeline 1.920 s vs last frame 1.960 / 1.980 s |
+### Measured 2026-08-13, on rendered pixels
 
-Each was also probed at times where it *should* fail (mid-transition, before the cover closes,
-after it opens) and failed there, so none of the passes is vacuous.
+All seven, 4 of 4 gates, at 50 fps with the hardest mark in the swap set:
 
-Two design rules were measured on top of the gates:
+| composition | declared window | actually covered | interior gaps |
+| --- | --- | --- | --- |
+| `replay-slab` | frames 23-56 | 8-78 | 0 |
+| `aperture-bands` | frames 23-56 | 20-74 | 0 |
+| `logo-punch` | frames 23-56 | 15-71 | 0 |
+| `ink-sweep` | frames 23-56 | 19-74 | 0 |
+| `radial-bloom` | frames 23-56 | 8-79 | 0 |
+| `halftone-cut` | frames 23-56 | 10-77 | 0 |
+| `type-slam` | frames 23-56 | 7-84 | 0 |
 
-- **The cover comes first** (rule 4). Sweeping t in 0.01 s steps, the frame is fully covered
-  before the mark is ever painted, in all four:
+Every declared window sits well inside what is actually covered, and the STRICT count - every
+pixel of every frame literally opaque, border included - equals the airable one in all seven.
+For comparison, three of the eight commercial clips in the teardown never cover at all, one of
+them leaving 15 840 interior pixels showing at its best frame.
 
-  | composition | frame covered | mark first painted |
-  | --- | --- | --- |
-  | `replay-slab` | 0.14 s | 0.45 s |
-  | `radial-bloom` | 0.14 s | 0.45 s |
-  | `logo-punch` | 0.30 s | 0.43 s (ring 0.49 s) |
-  | `ink-sweep` | 0.36 s | 0.45 s |
-  | `aperture-bands` | 0.39 s | 0.45 s |
+**Mutation-tested, so the passes are not vacuous.** A copy of `replay-slab` with its cut window
+moved to 0.02-0.30 s and its slab started 3000 px closer failed exactly as it should: frame 0
+painting 90.6% of the frame, and 2 of 15 declared frames uncovered. The real exit code is 1 -
+checked without a pipe, because `| tail` reports the tail's status and hides the failure.
 
-- **Nothing emerges from behind the retreating cover.** Sampled across `ink-sweep`'s whole
-  retreat, zero pixels of the lockup sit on the incoming picture. Mutation-tested: parking the
-  lockup at centre for one frame makes the same check report 163 exposed samples, so the zero
-  is a real result and not an empty loop.
-
-**Still unmeasured:** per-pixel alpha on rendered frames, which is the real §2.2 gate and the
-next work item (plan §4.2), and motion quality, which per the plan's own rule is judged from a
-rendered MP4 and never from a scrubbed pane.
+**Still unmeasured:** motion quality, which per the plan's own rule is judged from a rendered
+MP4 and never from stills or a scrubbed pane.

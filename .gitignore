@@ -54,6 +54,10 @@ stinger-review-out/
 # The reference teardown's output (scripts/stinger-teardown.mjs): contact sheets and per-frame
 # alpha series derived from licensed stock clips that live outside the repo.
 stinger-teardown-out/
+# The gate's captured frames, sheets and alpha series (scripts/stinger-gate.mjs), and the
+# sheets copied out of it for review. Hundreds of 1920x1080 PNGs; regenerated in two minutes.
+stinger-gate-out/
+stinger-sheets/
 
 # The bench dev server's own output (scripts/dev-bench.mjs) - a local trace of how the
 # server died, useful on this machine and meaningless anywhere else.

@@ -73,7 +73,7 @@
      rather than one flat fill - derived from the brand colour, not a second colour the
      operator has to keep in sync. */
   .band:nth-child(even) {
-    background-image: linear-gradient(rgba(255,255,255,0.055), rgba(255,255,255,0.055));
+    background-image: linear-gradient(rgba(128,128,128,0.22), rgba(128,128,128,0.22));
   }
   .band:nth-child(1) { left: -1px; }
   .band:nth-child(2) { left: 239px; }
@@ -91,8 +91,8 @@
      hiding whatever leaves it. */
   #logo-reveal {
     position: relative;
-    width: 1040px;
-    height: 250px;
+    width: 1200px;
+    height: 340px;
     overflow: hidden;
   }
   #logo-slot {
@@ -102,7 +102,10 @@
     align-items: center;
     justify-content: center;
   }
-  #logo { max-width: 100%; max-height: 100%; object-fit: contain; }
+  /* width/height 100% and NOT max-*: max-width only ever SHRINKS an image, so a mark whose
+     SVG declares 120x120 rendered at 120 px in a 340 px slot and the whole graphic read as
+     empty. object-fit: contain is what preserves the aspect once the box is the slot. */
+    #logo { width: 100%; height: 100%; object-fit: contain; }
 
   /* Eight shutters on the band pitch (1040 / 8 = 130), overlapping by 2 px for the same
      reason the bands do. They are the field colour, so while they are down the mark simply
@@ -112,18 +115,18 @@
   .shutter {
     position: absolute;
     top: -2px;
-    width: 132px;
-    height: 254px;
+    width: 152px;
+    height: 344px;
     background-color: var(--brandDeep, #0E1A24);
   }
   .shutter:nth-child(1) { left: -1px; }
-  .shutter:nth-child(2) { left: 129px; }
-  .shutter:nth-child(3) { left: 259px; }
-  .shutter:nth-child(4) { left: 389px; }
-  .shutter:nth-child(5) { left: 519px; }
-  .shutter:nth-child(6) { left: 649px; }
-  .shutter:nth-child(7) { left: 779px; }
-  .shutter:nth-child(8) { left: 909px; }
+  .shutter:nth-child(2) { left: 149px; }
+  .shutter:nth-child(3) { left: 299px; }
+  .shutter:nth-child(4) { left: 449px; }
+  .shutter:nth-child(5) { left: 599px; }
+  .shutter:nth-child(6) { left: 749px; }
+  .shutter:nth-child(7) { left: 899px; }
+  .shutter:nth-child(8) { left: 1049px; }
 
   /* The rule sweeps the full frame width behind the lockup - the editorial equivalent of a
      light sweep, and part of why the covered stretch is never a still frame. */
@@ -132,15 +135,15 @@
     left: 0;
     top: 50%;
     width: 1920px;
-    height: 4px;
-    margin-top: 246px;
+    height: 7px;
+    margin-top: 300px;
     background-color: var(--brandAccent, #1F6FEB);
   }
 
-  #label-mask { overflow: hidden; padding: 0.08em 0.1em; margin-top: 34px; }
+  #label-mask { overflow: hidden; padding: 0.08em 0.1em; margin-top: 40px; }
   #label {
     font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 78px;
+    font-size: 106px;
     font-weight: 700;
     line-height: 1.06;
     letter-spacing: -0.01em;
@@ -148,8 +151,8 @@
     color: var(--brandInk, #F2F6FA);
   }
   #kicker {
-    margin-top: 18px;
-    font-size: 22px;
+    margin-top: 22px;
+    font-size: 27px;
     font-weight: 600;
     letter-spacing: 0.3em;
     text-indent: 0.3em;
