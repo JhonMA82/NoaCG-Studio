@@ -47,6 +47,17 @@ and the owner explicitly asked for a machine check. It is measurable: a surface 
 tracks the mark's rect within a small margin is a pasted box; one that joins the panel system is
 a design. The ink-contrast gate fired 6 times and measured the right area's WRONG dimension: the
 owner never objected to contrast, only to the box.
+**THE CHECK IS BUILT AND CALIBRATED (same day, free - the round's code was saved):**
+`measureRenderedMark` now reports `mark-own-background` (the img paints its own background -
+transparency defeated at the source) and `bounding-box-well` (the nearest painted surface hugs
+the mark within 0.6x its height on every side). Scored against this round's own blind labels by
+`scripts/spike-well-calibrate.mjs`: **7/7 owner-flagged items caught, 4/6 praised items clean** -
+and the two disagreements are the finding's honest limit, measured: the identical ~12px-margin
+gradient plate on a dark panel was praised on `long-name` and `gradient-accent` and called
+"visibly exposed" on `news-public`. Same geometry, same tones; what changed is the brief's world.
+So the check REPORTS and never gates, and the prompt now teaches the surface as a compositional
+element ("if deleting the mark would leave a floating plate that belongs to nothing, the mark
+has a bounding box, not a place in the design").
 
 **The own-field mark wins on today's contract.** The Ledger brand (a mark that brings its own
 field) took 6 of its 8 items to airable - no well decision to get wrong. The transparent

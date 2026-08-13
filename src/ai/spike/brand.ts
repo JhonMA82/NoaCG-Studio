@@ -135,7 +135,11 @@ a design decision like any other:
   \`object-fit: contain\`, so the mark keeps its own proportions - never crop it, round its
   corners, filter it, or scale it unevenly. The mark is the customer's; it arrives as-is.
 - Give it clear space (about a quarter of its height on every side) and a surface its ink
-  actually reads on - that surface is your composition's job.
+  actually reads on. THE SURFACE IS A COMPOSITIONAL ELEMENT, never part of the mark: read your
+  design back and ask what the slot's surface IS - a segment of the panel system, an end cap,
+  a full-height field. If deleting the mark would leave a small floating plate that belongs to
+  nothing, the mark has been given a bounding box rather than a place in the design, which is
+  the single most common way a real mark ends up looking pasted onto a finished graphic.
 - The mark is part of the composition, so it is part of the motion: bring it in and out inside
   the ANIMATION region with the same intent as the text - it should arrive meaningfully and
   smoothly, never pop in unannounced and never just sit there while the rest of the graphic
@@ -214,6 +218,28 @@ export const MARK_ASPECT_TOLERANCE = 0.02;
 export const MARK_INK_CONTRAST_FLOOR = 3;
 export const MARK_FIELD_SEPARATION_FLOOR = 1.5;
 export const TITLE_SAFE = { left: 96, right: 1824, top: 54, bottom: 1026 } as const;
+
+// ── The BOUNDING-BOX WELL (the 2026-08-13 round's named defect) ────────────────────────
+//
+// The owner's blind read, seven times over: a transparent mark sitting on a surface that
+// hugs it "looks like a JPEG pasted on top - not acceptable" - while the SAME tone drawn as
+// a real compositional element (a banner segment, an end cap) was praised twice. The
+// distinction is measurable: a surface that tracks the mark's box on every side is a
+// bounding box; one that extends into the composition is a design.
+//
+// CALIBRATED against that round's own labels (scripts/spike-well-calibrate.mjs, free - the
+// code was saved): 7/7 owner-flagged items caught, 4/6 praised items clean. The two
+// disagreements are the honest limit and the reason this REPORTS and never gates: the
+// identical construction - a ~12px-margin gradient plate on a dark panel - was praised on
+// `long-name` and `gradient-accent` and flagged on `news-public`. Same geometry, same tones,
+// opposite verdicts; what changed is the brief's WORLD, which is a judgement no rect
+// measures. The unambiguous end of the class (margins ~0: the well IS the mark's box, the
+// B-08 case) is always a defect.
+//
+// A well may hug the mark by up to this margin relative to the mark's painted height on
+// EVERY side before it reads as a bounding box; extending past it on ANY side (joining a
+// panel, running to an edge) is integration.
+export const WELL_HUG_RATIO = 0.6;
 
 export interface RenderedMarkReport {
   /** Every failed check, in the audit's code vocabulary (not-painted, aspect-distorted,
@@ -369,22 +395,50 @@ export function measureRenderedMark(doc: Document, fieldId: string, probe: MarkP
     report.findings.push('outside-safe-area');
   }
 
+  // THE BOUNDING-BOX SCREEN comes before the contrast read, because it decides what the
+  // "surface" even is. Two shapes of the same defect on a transparent-backed mark:
+  //
+  //   - `mark-own-background`: the img ELEMENT paints its own background - the mark's
+  //     transparency is defeated at the source, margin zero. Always a box, never a design.
+  //   - `bounding-box-well`: the nearest painted ancestor hugs the mark on every side
+  //     (within WELL_HUG_RATIO of the painted height). The same surface EXTENDED past that
+  //     on any side - joining a panel, running out to an edge - is integration, which the
+  //     owner praised on the same tone in the same round.
+  if (probe.backing === 'transparent') {
+    const ownBg = parseColor(style.backgroundColor);
+    if (ownBg && ownBg.alpha >= 0.2) report.findings.push('mark-own-background');
+  }
+
   // Ink contrast, from the DOM rather than the pixels: the first ancestor painting an opaque
   // enough background is the surface the ink composites onto. Honest limit: a gradient or
   // image surface, or bare footage, is reported rather than guessed.
   let surfaceLum: number | null = null;
   let surfaceDesc = '';
+  let surfaceEl: Element | null = null;
   for (let p = img.parentElement; p && p !== doc.body; p = p.parentElement) {
     const ps = (win as Window).getComputedStyle(p);
     if (ps.backgroundImage && ps.backgroundImage !== 'none') {
       surfaceDesc = 'gradient-or-image';
+      surfaceEl = p;
       break;
     }
     const bg = parseColor(ps.backgroundColor);
     if (bg && bg.alpha >= 0.5) {
       surfaceLum = relativeLuminance(bg.rgb);
       surfaceDesc = ps.backgroundColor;
+      surfaceEl = p;
       break;
+    }
+  }
+  if (probe.backing === 'transparent' && surfaceEl
+    && !report.findings.includes('mark-own-background')) {
+    const s = surfaceEl.getBoundingClientRect();
+    const hug = WELL_HUG_RATIO * paintedH;
+    const margins = [rect.left - s.left, s.right - rect.right, rect.top - s.top, s.bottom - rect.bottom];
+    if (margins.every((m) => m <= hug)) {
+      report.findings.push('bounding-box-well');
+      report.notes.push(`well hugs the mark (margins ${margins.map((m) => Math.round(m)).join('/')}px`
+        + ` vs ${Math.round(hug)}px allowed) - a surface should be a compositional element`);
     }
   }
   const floor = probe.backing === 'own-field' ? MARK_FIELD_SEPARATION_FLOOR : MARK_INK_CONTRAST_FLOOR;
