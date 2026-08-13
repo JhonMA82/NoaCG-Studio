@@ -111,9 +111,14 @@ export function auditTemplateCode({ html, css, js }) {
   spine.ok = spine.boxAloneOnElement && spine.rootDiv && spine.masks >= 1;
 
   const region = {
-    markers: /\/\* == ANIMATION ==/.test(js) && /\/\* == END ANIMATION == \*\//.test(js),
+    // The opening marker has two shapes: the authoring grammar's bare `== ANIMATION ==` and
+    // the converted data block's `== ANIMATION (generated — …) ==`. The first audit matched
+    // only the bare one, so every CONVERTED region - the better outcome - read as MISSING.
+    markers: /\/\* == ANIMATION\b/.test(js) && /== END ANIMATION == \*\//.test(js),
     buildIn: /function\s+buildInTimeline\s*\(/.test(js) || /NOACG_ANIM/.test(js),
     buildOut: /function\s+buildOutTimeline\s*\(/.test(js) || /NOACG_ANIM/.test(js),
+    /** The region converted to the NOACG_ANIM data block (visual-timeline editable). */
+    converted: /NOACG_ANIM/.test(js),
   };
   region.ok = region.markers && region.buildIn && region.buildOut;
 
