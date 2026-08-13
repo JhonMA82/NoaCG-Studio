@@ -1,15 +1,20 @@
 // The SUPABASE ADVISOR gate: fails on a NEW advisor finding, ignores the accepted ones.
 //
 // Why a baseline rather than a plain "run the advisors" check: most of what the advisors report
-// here is this project working as designed and will never clear. Roughly thirty findings are
+// here is this project working as designed and will never clear. Two dozen findings are
 // `SECURITY DEFINER` functions callable by `anon` - which is the whole capability-URL model
 // (docs/CLOUD_PLAYOUT.md, docs/CONTROL_LAYER.md): a CasparCG or OBS client holding an output
 // slug is unauthenticated by construction, and switching those to `SECURITY INVOKER` would
-// break browser output entirely. Another sixteen are tables with RLS enabled and no policies,
+// break browser output entirely. Another twenty-one are tables with RLS enabled and no policies,
 // which is DENY-ALL - the stricter posture, not a gap; the linter simply cannot tell
 // "locked down deliberately" from "forgot to write policies".
 //
-// A permanent wall of forty-plus warnings trains you to ignore the report, and then a genuinely
+// So the warning count does not go to zero, and chasing it there would mean dismantling the
+// capability model or weakening deny-all. What DOES clear is an accident: 0041 and 0042 each
+// removed a definer function that carried Supabase's default EXECUTE grant nobody chose.
+// scripts/definer-grants.test.mjs is the offline guard that stops a third one shipping.
+//
+// A permanent wall of fifty-plus warnings trains you to ignore the report, and then a genuinely
 // new one - a table someone added without policies, a function accidentally exposed - arrives
 // into a list nobody reads. So this records what has been SEEN AND ACCEPTED and alarms only on
 // what is new. Same shape as scripts/overflow-sweep.mjs, for the same reason: ~200 catalog
@@ -62,7 +67,14 @@ const ACCEPTED_CLASSES = {
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot.',
   auth_leaked_password_protection:
-    'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro.',
+    'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro. ' +
+    '(Enabled on 2026-08-13, so this class should stay empty - a member returning means it was ' +
+    'switched back off.)',
+  auth_db_connections_absolute:
+    'The Auth server holds a fixed 10 connections rather than a percentage of the pool. On the ' +
+    'current instance size the two allocations land in the same place, and the setting is ' +
+    'dashboard-only (Auth -> Advanced). Worth switching the day the instance is resized up, ' +
+    'because an absolute allocation is what makes that resize do nothing for Auth.',
   unindexed_foreign_keys:
     'Admin, audit and ownership back-references on small tables. Worth indexing when a query ' +
     'against one actually shows up slow, not before.',
