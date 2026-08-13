@@ -327,7 +327,26 @@ field bursts out from behind it, or it grows until the frame is gone. `logo-punc
 corpus is the demonstration; `replay-slab` is the softer version of the same idea - the mark
 crosses the picture first and the slab arrives behind it.
 
-**A fourth rule, about the review rig rather than the design:** review one composition per page
+**4. Before the cover, the mark is ALONE on the live picture.** Nothing else may paint over the
+outgoing feed during the entrance - no accent streak, no expanding outline, no flourish. On the
+feed, a viewer has no way to tell decoration from a fault, so anything that is not the mark
+reads as an artifact. Found the expensive way: `logo-punch` ran an accent streak and an
+expanding accent ring ahead of its burst and both were read on review as "blue outlines flying
+in, definitely a mistake". Decoration is legal only once the frame is covered.
+
+**5. The cover does not have to be a full-frame rectangle** - but it does have to be a full
+cover. These two are easy to confuse. §2.2's coverage gate is non-negotiable for a stinger used
+as a TRANSITION, because the switcher cuts underneath it; what is free is the *shape and origin*
+of the covering surface. A mark's own ink flooding out from its silhouette, a solid emblem
+scaled past the frame edges, a burst - all of these satisfy the gate without a panel arriving
+and parking. **The honest limit:** a mark made of outlines and strokes (Aldervale's rings,
+Kestrel's skeleton letterforms) has no solid mass to fill a frame with, so a design that covers
+using the mark itself has to declare which mark shapes it can take, exactly as §2.4 rule 1
+makes a design declare the ink tone it can take. A logo that only flies over the picture
+without ever covering is a **logo sting**, a different graphic type - useful, and worth its own
+entry in the §1.2 order, but it cannot be sold as a transition.
+
+**A sixth rule, about the review rig rather than the design:** review one composition per page
 with a **mark picker**, never one page per mark. The rig's first version wrote 3 x 5 pages and
 four of every five added nothing, because the marks were all used the same way - the extra
 pages showed the same animation with a different picture in it. Per-mark variants earn their

@@ -16,6 +16,12 @@
      THE MARK IS NEVER ON A PLATE (§2.4). It is on the live picture, then on the brand's own
      field, and nothing frames it at any point.
 
+     AND BEFORE THE COVER, THE MARK IS ALONE (§2.4 rule 4). The first version of this file ran
+     an accent streak and an expanding accent ring over the live picture ahead of the burst;
+     on review both read as a stray blue outline flying in around the logo - a defect, because
+     a viewer has no way to tell decoration from an artifact when it is sitting on the feed.
+     The streak is gone and the ring now starts at 0.48 s, inside the cut window.
+
      THE CONTRACT, and how this file keeps it:
        - 2.00 s at 1920x1080, transparent.
        - FRAME 0 IS EMPTY BY CONSTRUCTION: the field group is at scale 0 (a zero-area box
@@ -74,18 +80,10 @@
   #slab-b { top: 350px;  background-image: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.10) 100%); }
   #slab-c { top: 710px;  background-image: linear-gradient(180deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.34) 100%); }
 
-  /* The streak the mark drags in with it, and the ring the burst throws off. Both are pure
-     accent, both are gone before the window ends. */
-  #streak {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 1500px;
-    height: 6px;
-    margin-left: -750px;
-    margin-top: -3px;
-    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, var(--brandAccent, #00E0B8) 55%, rgba(255,255,255,0) 100%);
-  }
+  /* The ring the burst throws off. It lives entirely INSIDE the cut window: an accent
+     rectangle expanding over the live picture ahead of the field read as a stray blue outline
+     around the mark - a defect, not a flourish (§2.4 rule 4: before the cover, the mark and
+     nothing else). */
   #ring {
     position: absolute;
     left: 50%;
@@ -144,7 +142,6 @@
      data-width="1920" data-height="1080" data-duration="2"
      data-cut-start="0.46" data-cut-end="1.12">
   <section id="punch" class="clip" data-start="0" data-duration="2" data-track-index="1">
-    <div id="streak"></div>
     <div id="field">
       <div id="slab-a" class="slab"></div>
       <div id="slab-b" class="slab"></div>
@@ -165,25 +162,24 @@
   window.__timelines = window.__timelines || {};
   const tl = gsap.timeline({ paused: true });
 
-  // 0.00 -> 0.30  the mark comes out of the picture at the camera, dragging a streak.
+  // 0.00 -> 0.30  the MARK and nothing else comes out of the picture at the camera. Anything
+  // else painting over the live feed here reads as an artifact, not as design.
   tl.fromTo('#logo-slot', { scale: 0.12, y: 190, autoAlpha: 0, rotation: -5 },
     { scale: 0.62, y: 0, autoAlpha: 1, rotation: 0, duration: 0.30, ease: 'power3.out' }, 0);
-  tl.fromTo('#streak', { scaleX: 0.02, scaleY: 0.3, autoAlpha: 0, transformOrigin: 'center center' },
-    { scaleX: 1, scaleY: 1, autoAlpha: 1, duration: 0.20, ease: 'power2.out' }, 0.06);
-  tl.to('#streak', { scaleX: 0.02, autoAlpha: 0, duration: 0.18, ease: 'power2.in' }, 0.26);
 
   // 0.22 -> 0.44  the field BURSTS out from behind the mark. This is the cover, and it is
   // the logo's move that produces it.
   tl.fromTo('#field', { scale: 0, transformOrigin: 'center center' },
     { scale: 1, duration: 0.22, ease: 'expo.out' }, 0.22);
-  tl.fromTo('#ring', { scale: 0.2, autoAlpha: 0, transformOrigin: 'center center' },
-    { scale: 1.05, autoAlpha: 1, duration: 0.34, ease: 'expo.out' }, 0.26);
 
   // 0.46 -> 1.12  FULL COVER. The mark keeps growing the whole way through, so the window is
   // a continuous push rather than a held frame.
   tl.to('#logo-slot', { scale: 1, duration: 0.44, ease: 'power3.out' }, 0.44);
   tl.to('#logo-slot', { scale: 1.1, duration: 0.62, ease: 'sine.in' }, 0.90);
-  tl.to('#ring', { scale: 2.6, autoAlpha: 0, duration: 0.70, ease: 'power2.out' }, 0.50);
+  // The ring starts INSIDE the window - never over the live picture.
+  tl.fromTo('#ring', { scale: 0.55, autoAlpha: 0, transformOrigin: 'center center' },
+    { scale: 1.05, autoAlpha: 1, duration: 0.18, ease: 'expo.out' }, 0.48);
+  tl.to('#ring', { scale: 2.6, autoAlpha: 0, duration: 0.66, ease: 'power2.out' }, 0.58);
   tl.fromTo('#label', { yPercent: 116 }, { yPercent: 0, duration: 0.44, ease: 'power4.out' }, 0.64);
   tl.fromTo('#label-mask', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.06, ease: 'none' }, 0.64);
   tl.fromTo('#kicker', { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, duration: 0.32, ease: 'power2.out' }, 0.82);
