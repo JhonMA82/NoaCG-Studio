@@ -1,0 +1,226 @@
+<!doctype html>
+<!-- ============================================================================
+     REPLAY SLAB - the sports "to slow-motion replay" stinger.
+     Hand-authored anchor for the NoaCG video corpus (docs/NOACG_VIDEO_PLAN.md §2.2/§3).
+
+     Visual direction: aggressive sports. One heavy angled slab drives across the frame
+     behind a bright leading accent edge, the brand mark and the word land on it, and the
+     whole slab keeps going and clears to the right. Hard edges, no softness anywhere.
+
+     THE CONTRACT, and how this file keeps it:
+       - 2.00 s at 1920x1080, transparent.
+       - FRAME 0 IS EMPTY BY CONSTRUCTION: the travelling group starts 3800 px to the left,
+         which puts every part of it (slab, both edge rules, payload) beyond the frame, and
+         #root clips with overflow: hidden. Nothing fades - there is simply nothing there.
+       - THE LAST FRAME IS EMPTY THE SAME WAY: the exit ends at 1.92 s at x = +3800.
+         1.92 and not 2.00 because the renderer's last frame is t = (N-1)/fps, which is
+         1.960 / 1.967 / 1.980 / 1.983 s at 25 / 30 / 50 / 60 fps - an exit that finished at
+         2.00 would still be painting on it.
+       - FULL COVER 0.46 s -> 1.12 s (data-cut-start / data-cut-end). The slab is 3072 x 2160
+         and skewed 14 degrees; at rest it overhangs the frame by 307 px on every side even
+         at the extremes of the skew, so the cover is opaque edge to edge with no seam. Both
+         ends of the declared window are deliberately conservative: the slab is already
+         covering before 0.46 and is still covering after 1.12.
+       - The payload is a LOGO. It sits on #logo-slot, whose surface is --brandPlate: it
+         defaults to the slab colour (so the plate is invisible) and a brand whose mark needs
+         the opposite tone sets it to a contrasting value and gets a card.
+
+     Operator numbers for an ATEM at this duration (Clip Duration = round(2.00 x fps)):
+       25 fps -> 50 frames,  cut window frames 12-28,  Trigger Point 14
+       30 fps -> 60 frames,  cut window frames 14-34,  Trigger Point 16
+       50 fps -> 100 frames, cut window frames 23-56,  Trigger Point 25
+       60 fps -> 120 frames, cut window frames 28-67,  Trigger Point 30
+     Trigger Point is the first fully covered frame plus 2 frames of safety; Mix Rate may be
+     anything from 0 (a hard cut) up to the remaining length of the window.
+     ============================================================================ -->
+<html lang="en" data-composition-variables='[
+  {"id":"logo","type":"image","label":"Brand logo","default":"logo"},
+  {"id":"label","type":"string","label":"Word","default":"REPLAY"},
+  {"id":"kicker","type":"string","label":"Kicker","default":"SLOW MOTION"},
+  {"id":"brandDeep","type":"color","label":"Slab colour","default":"#101722"},
+  {"id":"brandAccent","type":"color","label":"Accent colour","default":"#FF3B1F"},
+  {"id":"brandInk","type":"color","label":"Text colour","default":"#F4F6F8"},
+  {"id":"brandPlate","type":"color","label":"Logo plate","default":"#101722"}
+]'>
+<head>
+<meta charset="UTF-8" />
+<title>Replay slab stinger</title>
+<style>
+  body { margin: 0; }
+
+  /* The frame. No background: a stinger is transparent, and overflow: hidden is what makes
+     "starts off-canvas" mean "paints nothing". */
+  #root {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  }
+  .clip { position: absolute; inset: 0; }
+
+  /* The travelling group. Everything that has to leave the frame is inside it, so one
+     transform decides whether the frame is empty. */
+  #group { position: absolute; inset: 0; }
+
+  /* The slab: 1.6x the frame wide and 2x tall, skewed. The overhang is what guarantees the
+     cover has no seam at any point of the skew. */
+  #panel {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 3072px;
+    height: 2160px;
+    margin-left: -1536px;
+    margin-top: -1080px;
+    transform: skewX(-14deg);
+    background-color: var(--brandDeep, #101722);
+    /* A lit surface rather than a flat fill: same-hue shading across the travel direction. */
+    background-image: linear-gradient(100deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 38%, rgba(0,0,0,0.35) 100%);
+  }
+
+  /* The accent rules. The pair on the right is the leading edge on the way in; the pair on
+     the left is the trailing edge on the way out. Same skew, same height, so they stay
+     locked to the slab's edges at every y. */
+  .edge {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    height: 2160px;
+    margin-top: -1080px;
+    transform: skewX(-14deg);
+    background-color: var(--brandAccent, #FF3B1F);
+  }
+  #edge-lead       { width: 30px; margin-left: 1536px; }
+  #edge-lead-thin  { width: 12px; margin-left: 1590px; opacity: 0.55; }
+  #edge-trail      { width: 30px; margin-left: -1566px; }
+  #edge-trail-thin { width: 12px; margin-left: -1620px; opacity: 0.55; }
+
+  /* The light sweep. The skew lives on the wrapper so GSAP only ever touches a plain
+     translate - animating a transform property on an element that already carries one in
+     CSS is how a skew silently disappears mid-render. */
+  #sheen-wrap {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 900px;
+    height: 2400px;
+    margin-left: -450px;
+    margin-top: -1200px;
+    transform: skewX(-14deg);
+    overflow: visible;
+  }
+  #sheen {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0) 100%);
+  }
+
+  /* The lockup: mark, rule, words. */
+  #payload {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 46px;
+  }
+  /* A fixed BOX with object-fit: contain, so every mark in the brand-swap set lands inside
+     it - a 7.5:1 wordmark and a 1:1 monogram both fit without the slot knowing which it got. */
+  #logo-slot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 380px;
+    height: 176px;
+    padding: 16px;
+    box-sizing: border-box;
+    background-color: var(--brandPlate, #101722);
+  }
+  #logo { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  #divider {
+    width: 4px;
+    height: 150px;
+    background-color: var(--brandAccent, #FF3B1F);
+  }
+
+  #words { display: flex; flex-direction: column; }
+  #label-mask { overflow: hidden; padding: 0.08em 0.06em; }
+  #label {
+    font-family: 'Bebas Neue', 'Arial Narrow', Arial, sans-serif;
+    font-size: 156px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    color: var(--brandInk, #F4F6F8);
+  }
+  #kicker {
+    margin-top: 10px;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--brandAccent, #FF3B1F);
+  }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0"
+     data-width="1920" data-height="1080" data-duration="2"
+     data-cut-start="0.46" data-cut-end="1.12">
+  <section id="wipe" class="clip" data-start="0" data-duration="2" data-track-index="1">
+    <div id="group">
+      <div id="panel"></div>
+      <div id="edge-lead" class="edge"></div>
+      <div id="edge-lead-thin" class="edge"></div>
+      <div id="edge-trail" class="edge"></div>
+      <div id="edge-trail-thin" class="edge"></div>
+      <div id="sheen-wrap"><div id="sheen"></div></div>
+      <div id="payload">
+        <div id="logo-slot"><img id="logo" data-var-src="logo" src="asset:logo" alt="" /></div>
+        <div id="divider"></div>
+        <div id="words">
+          <div id="label-mask"><div id="label" data-var-text="label">REPLAY</div></div>
+          <div id="kicker" data-var-text="kicker">SLOW MOTION</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<script>
+  // One paused timeline; every position below is an absolute composition second.
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+
+  // Far enough that the slab, both edge rules and the payload are all outside the frame.
+  const TRAVEL = 3800;
+
+  // 0.00 -> 0.46  the slab drives in from the left, accent edge first.
+  tl.fromTo('#group', { x: -TRAVEL }, { x: 0, duration: 0.46, ease: 'power4.out' }, 0);
+
+  // 0.46 -> 1.12  FULL COVER. Everything the viewer is meant to read happens here, because
+  // this is the only stretch of the stinger that is guaranteed to be on screen.
+  tl.fromTo('#payload', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.12, ease: 'none' }, 0.48);
+  tl.from('#logo-slot', { scale: 1.16, x: -54, duration: 0.42, ease: 'expo.out' }, 0.48);
+  tl.from('#divider', { scaleY: 0, transformOrigin: 'center top', duration: 0.30, ease: 'power3.out' }, 0.56);
+  tl.from('#label', { yPercent: 118, duration: 0.44, ease: 'power4.out' }, 0.58);
+  tl.from('#kicker', { autoAlpha: 0, x: 26, duration: 0.34, ease: 'power2.out' }, 0.74);
+
+  // The light sweep crosses the slab while the type settles, so the cover is never a
+  // still frame - a stinger that freezes mid-transition reads as a dropped feed.
+  tl.fromTo('#sheen-wrap', { xPercent: -150, autoAlpha: 0 },
+    { xPercent: 150, autoAlpha: 1, duration: 0.52, ease: 'sine.inOut' }, 0.68);
+  tl.to('#sheen-wrap', { autoAlpha: 0, duration: 0.16, ease: 'none' }, 1.06);
+
+  // A slow drift with the travel direction, so the lockup is already leaning out before
+  // the slab takes it.
+  tl.to('#payload', { x: 30, duration: 0.74, ease: 'sine.inOut' }, 0.86);
+
+  // 1.24 -> 1.92  clear out to the right; the trailing accent rules leave last.
+  // power2.in keeps the frame covered well past the declared 1.12 end of the window.
+  tl.to('#group', { x: TRAVEL, duration: 0.68, ease: 'power2.in' }, 1.24);
+
+  window.__timelines['main'] = tl;
+</script>
+</body>
+</html>

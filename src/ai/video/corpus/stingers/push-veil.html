@@ -1,0 +1,219 @@
+<!doctype html>
+<!-- ============================================================================
+     PUSH VEIL - the premium / prestige stinger.
+     Hand-authored anchor for the NoaCG video corpus (docs/NOACG_VIDEO_PLAN.md §2.2/§3).
+
+     Visual direction: quiet and expensive. A deep gradient veil pushes UP through the frame
+     behind a luminous leading edge, the mark rises out of a mask under a drawn hairline, a
+     slow shine crosses it, and the veil keeps travelling up and out. No hard edges, no
+     lateral wipe - deliberately a different mechanism from replay-slab and aperture-bands,
+     because a corpus of three variations on one move teaches a model nothing.
+
+     THE CONTRACT, and how this file keeps it:
+       - 2.00 s at 1920x1080, transparent.
+       - FRAME 0 IS EMPTY BY CONSTRUCTION: the veil sits a full frame below the bottom edge
+         (yPercent 118 of its own 1240 px height = 1463 px of travel), which puts its top
+         edge AND the glow around its leading rule below 1080. #root clips the rest.
+       - THE LAST FRAME IS EMPTY THE SAME WAY: the exit ends at 1.92 s with the veil's bottom
+         edge 303 px above the frame. 1.92 rather than 2.00 because the renderer's last frame
+         is t = (N-1)/fps - 1.960 s at 25 fps, 1.983 s at 60 fps.
+       - FULL COVER 0.46 s -> 1.12 s (data-cut-start / data-cut-end). The veil is 1240 px
+         tall on a -80 px top, so it overhangs the frame by 80 px top and bottom and there is
+         no soft edge anywhere in the covering surface: the gradients are painted OVER an
+         opaque background-color, never instead of one. The exit eases in from rest, so the
+         frame is still fully covered until about 1.52 s.
+       - The payload is a LOGO. #logo-slot's surface is --brandPlate, defaulting to the veil
+         colour so the plate is invisible; a brand whose mark needs the opposite tone sets it
+         and gets a card instead.
+
+     Operator numbers for an ATEM at this duration (Clip Duration = round(2.00 x fps)):
+       25 fps -> 50 frames,  cut window frames 12-28,  Trigger Point 14
+       30 fps -> 60 frames,  cut window frames 14-34,  Trigger Point 16
+       50 fps -> 100 frames, cut window frames 23-56,  Trigger Point 25
+       60 fps -> 120 frames, cut window frames 28-67,  Trigger Point 30
+     ============================================================================ -->
+<html lang="en" data-composition-variables='[
+  {"id":"logo","type":"image","label":"Brand logo","default":"logo"},
+  {"id":"label","type":"string","label":"Word","default":"THE SEASON"},
+  {"id":"kicker","type":"string","label":"Kicker","default":"IN ASSOCIATION WITH"},
+  {"id":"brandDeep","type":"color","label":"Veil colour","default":"#0B1220"},
+  {"id":"brandAccent","type":"color","label":"Accent colour","default":"#C9A227"},
+  {"id":"brandInk","type":"color","label":"Text colour","default":"#F2EDE3"},
+  {"id":"brandPlate","type":"color","label":"Logo plate","default":"#0B1220"}
+]'>
+<head>
+<meta charset="UTF-8" />
+<title>Push veil stinger</title>
+<style>
+  body { margin: 0; }
+
+  #root {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: 'Manrope', 'Helvetica Neue', Arial, sans-serif;
+  }
+  .clip { position: absolute; inset: 0; }
+
+  /* The covering surface. background-color is opaque and carries the whole cover; the two
+     background-images only shade it. A gradient that fades to transparent at an edge is how
+     a "full cover" quietly becomes a 96% cover. */
+  #veil {
+    position: absolute;
+    left: 0;
+    top: -80px;
+    width: 1920px;
+    height: 1240px;
+    background-color: var(--brandDeep, #0B1220);
+    background-image:
+      radial-gradient(130% 78% at 50% 16%, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 62%),
+      linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0.44) 100%);
+  }
+
+  /* Leading edge on the way in, trailing edge on the way out. The glow is allowed to spill
+     past the veil: a light rule crossing the live picture ahead of the surface is the
+     effect, and at rest it sits outside the frame anyway. */
+  .veil-edge {
+    position: absolute;
+    left: 0;
+    width: 1920px;
+    height: 3px;
+    background-color: var(--brandAccent, #C9A227);
+    box-shadow: 0 0 48px 2px rgba(255,255,255,0.3);
+  }
+  #edge-top { top: 0; }
+  #edge-bottom { bottom: 0; opacity: 0.55; }
+
+  /* The lockup sits at the veil's own centre, which is the frame's centre: the 80 px
+     overhang is symmetric, so the two coincide by construction. */
+  #payload {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1920px;
+    height: 1240px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* The fixed slot: object-fit: contain, so a 7.5:1 lockup and a 1:1 monogram both land
+     inside it without the slot knowing which mark it was given. It is also the shine's
+     clipping frame, which is why it is positioned and hides its overflow. */
+  #logo-slot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 560px;
+    height: 200px;
+    padding: 14px;
+    box-sizing: border-box;
+    background-color: var(--brandPlate, #0B1220);
+    overflow: hidden;
+  }
+  #logo { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  /* The shine. The rotation lives on the wrapper so GSAP only ever writes a plain translate
+     - animating a transform on an element that already carries one in CSS is how a rotation
+     silently disappears mid-render. */
+  #shine-wrap {
+    position: absolute;
+    left: -40%;
+    top: -60%;
+    width: 180%;
+    height: 220%;
+    transform: rotate(18deg);
+    pointer-events: none;
+  }
+  #shine {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+      rgba(255,255,255,0) 42%, rgba(255,255,255,0.26) 50%, rgba(255,255,255,0) 58%);
+  }
+
+  #hairline {
+    width: 320px;
+    height: 1px;
+    margin: 44px 0 34px;
+    background-color: var(--brandAccent, #C9A227);
+  }
+
+  #label-mask { overflow: hidden; padding: 0.1em 0.2em; }
+  #label {
+    font-size: 62px;
+    font-weight: 500;
+    line-height: 1.1;
+    /* The trailing letter-space of a widely tracked line pushes optical centre left; the
+       indent puts it back. */
+    letter-spacing: 0.42em;
+    text-indent: 0.42em;
+    text-transform: uppercase;
+    color: var(--brandInk, #F2EDE3);
+  }
+  #kicker {
+    margin-top: 26px;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: 0.5em;
+    text-indent: 0.5em;
+    text-transform: uppercase;
+    color: var(--brandAccent, #C9A227);
+  }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0"
+     data-width="1920" data-height="1080" data-duration="2"
+     data-cut-start="0.46" data-cut-end="1.12">
+  <section id="sweep" class="clip" data-start="0" data-duration="2" data-track-index="1">
+    <div id="veil">
+      <div id="edge-top" class="veil-edge"></div>
+      <div id="edge-bottom" class="veil-edge"></div>
+      <div id="payload">
+        <div id="logo-slot">
+          <img id="logo" data-var-src="logo" src="asset:logo" alt="" />
+          <div id="shine-wrap"><div id="shine"></div></div>
+        </div>
+        <div id="hairline"></div>
+        <div id="label-mask"><div id="label" data-var-text="label">THE SEASON</div></div>
+        <div id="kicker" data-var-text="kicker">IN ASSOCIATION WITH</div>
+      </div>
+    </div>
+  </section>
+</div>
+<script>
+  // One paused timeline; every position below is an absolute composition second.
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+
+  // 0.00 -> 0.44  the veil pushes up through the frame.
+  tl.fromTo('#veil', { yPercent: 118 }, { yPercent: 0, duration: 0.44, ease: 'expo.out' }, 0);
+
+  // 0.46 -> 1.12  FULL COVER. The payload is held back until here rather than riding up with
+  // the veil: a mark that arrives with the surface reads as a slide, not as a reveal.
+  tl.fromTo('#payload', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.14, ease: 'none' }, 0.46);
+  tl.from('#logo-slot', { yPercent: 26, autoAlpha: 0, duration: 0.46, ease: 'power4.out' }, 0.48);
+  tl.fromTo('#hairline', { scaleX: 0, transformOrigin: 'center center' },
+    { scaleX: 1, duration: 0.44, ease: 'power2.out' }, 0.62);
+  tl.from('#label', { yPercent: 108, duration: 0.46, ease: 'power4.out' }, 0.66);
+  tl.from('#kicker', { autoAlpha: 0, duration: 0.30, ease: 'none' }, 0.84);
+
+  // The shine crosses the mark late, so the covered stretch keeps moving without anything
+  // re-entering or re-arranging.
+  tl.fromTo('#shine-wrap', { xPercent: -120 }, { xPercent: 120, duration: 0.52, ease: 'sine.inOut' }, 0.76);
+
+  // A slow lift that has the lockup already leaving before the veil takes it.
+  tl.to('#payload', { y: -16, duration: 0.58, ease: 'sine.inOut' }, 0.90);
+
+  // 1.28 -> 1.92  the veil keeps going up and out, trailing edge last.
+  // power3.in eases from rest, so the frame stays fully covered until about 1.52 s.
+  tl.to('#veil', { yPercent: -118, duration: 0.64, ease: 'power3.in' }, 1.28);
+
+  window.__timelines['main'] = tl;
+</script>
+</body>
+</html>

@@ -7,6 +7,11 @@ logo and style guide, at frontier-model output quality, **served by cheap hosted
 plan is written now; its first paid spike runs only after the Pro Phase 0 spike has run, so the
 two programs share harness lessons and never compete for paid rounds.
 
+**FIRST GOAL, narrowed by the owner 2026-08-13: ONE usable 2 s stinger transition.** Its
+acceptance contract is **§2.2** and its reference case is a sports "to slow-motion replay"
+sting. Everything else in this plan waits behind it; a stinger that works on air is the proof
+the rest of the program is worth building.
+
 This is the video counterpart of `docs/NOACG_PRO_PLAN.md`. Where a rule there applies unchanged,
 this document references it instead of restating it. The two programs share one philosophy:
 
@@ -152,6 +157,149 @@ The candidate initial properties, each already motivated by a known failure clas
 Nothing about scenes, layers, shapes, colors, type or easing goes in the plan. HTML/CSS/GSAP
 owns those, exactly as HTML/CSS/SVG does in Pro.
 
+### 2.2 The stinger acceptance contract (binding)
+
+**The first goal of this whole program, narrowed by the owner on 2026-08-13: ONE stinger
+transition, about 2 s, good enough to put on air immediately.** Everything else in the plan
+waits behind it. The reference case is a sports "to slow-motion replay" stinger, because that
+is the highest-volume real use of the type. This subsection is the bar that stinger is measured
+against; it is what Phase A hardens and what §4.2's gates enforce.
+
+**What a stinger IS** (four properties; all four are acceptance criteria, not preferences):
+
+1. **Length 2-3 s, no longer. 2.0 s is the target.** Anything longer stops being a transition.
+2. **It fully covers the frame for a clear window in the middle.** That window is where the
+   video feed is swapped. Without it the transition reads as a jump cut, which is the whole
+   failure the type exists to avoid. This is the §2.1 `cut window` property; it exists exactly
+   for this, and the value has to be **reported to the operator in frames**, not merely
+   validated.
+   **Full cover is a SPAN, not an instant.** The switcher's trigger point is one frame, but
+   the graphic has to be 100% opaque across the WHOLE frame for a span of frames around it:
+   any gap, soft edge or sub-pixel seam lets the outgoing feed flash through, which is exactly
+   the artifact the stinger exists to hide. The gate therefore measures **opacity per pixel on
+   every frame of the span, never an average alpha** - an average passes a frame with a
+   one-pixel transparent seam down the middle, and that seam is visible on air.
+3. **The first frames and the last frames are completely empty (fully transparent).** This is
+   what makes the animation appear out of, and disappear back into, the live picture. It is
+   non-negotiable and it is a hard gate: alpha at frame 0 and at the final frame must be 100%
+   transparent **across the whole frame**, not merely "mostly".
+4. **A logo animating in - the company's or the programme's - is the conventional payload**,
+   and it is the product promise: the same stinger must work in a client's own mark and colour
+   world. A stinger that only looks good with one logo has proved nothing, so every corpus
+   stinger is authored around a logo variable and reviewed against **five different brand
+   marks** (§3.1).
+
+**Where the cut window is declared.** Until `VideoDesignPlan` exists (Phase A), a composition
+declares it on its own root, in composition seconds:
+
+```html
+<div id="root" data-composition-id="main" data-start="0"
+     data-width="1920" data-height="1080" data-duration="2"
+     data-cut-start="0.46" data-cut-end="1.12">
+```
+
+Phase A promotes those two attributes to the plan's `cutWindow` property unchanged, so the
+corpus does not have to be rewritten. Nothing else about the design goes on the root.
+
+**The frame arithmetic that makes "empty head and tail" testable.** The renderer seeks frames
+`0 .. N-1`, so **frame 0 is t = 0 exactly and the LAST frame is t = (N-1)/fps, not t =
+duration**. An exit that finishes at the declared duration therefore still paints on the last
+rendered frame. The corpus resolves this by completing every exit at **1.92 s inside a 2.00 s
+composition**, which leaves at least one fully clear frame at 25, 30, 50 and 60 fps
+(last frame = 1.960 / 1.967 / 1.980 / 1.983 s). Entrances start from off-canvas positions
+under `overflow: hidden` on the root, with a travel margin wider than the frame, so blur and
+shadow tails are clipped too and frame 0 is empty by construction rather than by a fade.
+
+**How the numbers map onto an ATEM** (the switcher this format targets). A stinger there is a
+media-pool clip keyed over the background, and the switcher cuts or mixes the background
+underneath it. Four settings, and our reported numbers feed three of them:
+
+| ATEM setting | What it is | What we report |
+| --- | --- | --- |
+| Clip Duration | length of the clip in frames, **1-250** | total frames = round(2.00 x fps) |
+| Trigger Point | the frame at which the background cut/mix begins | first fully covered frame + 2 frames of safety |
+| Mix Rate | length of that mix under the animation | 0 (a hard cut) up to the cut window's own length |
+| Pre-Roll | frames trimmed off the head of the clip | 0 - our head is already empty by contract |
+
+The settings are interdependent: **Trigger Point + Mix Rate cannot exceed Clip Duration**, and
+Pre-Roll + Clip Duration cannot exceed 255. The 250-frame Clip Duration ceiling alone caps a
+60 fps stinger at 4.16 s, which is an independent reason the type is 2-3 s.
+
+**The media-pool frame budget is per model and it is the real constraint.** Blackmagic states
+that "depending on the model, motion graphics clips for animations and stingers can be up to
+720 frames in 720HD, 360 frames in 1080HD and 90 frames in 2160 Ultra HD"; the ATEM Mini
+Extreme is quoted at 400 frames in 1080HD, while an ATEM 1 M/E Production Studio 4K holds
+about 180 frames at 1080 **shared between both clips**. So the binding worst case at 1080 is
+roughly 90-180 frames, and a 2.00 s stinger costs 50 / 60 / 100 / 120 frames at 25 / 30 / 50 /
+60 fps. Two consequences: 2 s at 50 fps fits every 1080 model in that range and still leaves
+room for a second clip on the smallest pool, and the frame count must be **reported per fps**
+rather than assumed - the same composition is a comfortable clip at 25 fps and an
+over-budget one at 60 fps on the smallest pool.
+
+**Delivery format.** The real target is a **transparent PNG sequence**, which is what a media
+pool imports. That path already ships (`docs/RENDER.md`): PNG sequence ZIP (`frame-00000.png`,
+zero-padded, STORE zip) and ProRes 4444 with alpha, both **signed-in tier only** (anonymous
+users get mp4/webm/png-still), both capped at 30 s. So this is a path to **verify, not to
+build**. Two things are genuinely unverified and are named Phase-A checks rather than assumed:
+
+- ATEM's *stills* side accepts PNG, TGA, BMP, GIF, JPEG and TIFF, but the **video (clip) side
+  is conventionally fed an uncompressed TGA sequence**; whether ATEM Software Control imports
+  our PNG sequence into the clip side at all is untested.
+- ATEM expects PNG transparency **premultiplied against black** (Blackmagic ships a Photoshop
+  export plug-in precisely because a straight save often is not), and Remotion writes straight
+  (unpremultiplied) alpha. Whether our frames need a premultiply pass is untested.
+
+Neither is a build; both are a short test on the owner's hardware, and both must happen before
+"exports to an ATEM" is claimed anywhere in the product. **For review during development, judge
+the MP4** - it is easier to look at, and PNG-sequence correctness is a separate, later check.
+
+**Transparent background VIDEO output (recorded, deliberately not tested yet).** WebM with
+alpha and ProRes 4444 already exist in the export table and are the path a vMix/OBS/NLE user
+takes instead of a media pool. They need their own verification round (alpha survival, codec
+support per host, colour under the compositor). That is not part of this first goal and must
+not be folded into it.
+
+**The hard gates this contract implies** (built in the §4.2 work item, measured on rendered
+frames, never on markup):
+
+- **head/tail alpha:** every pixel of frame 0 and of frame N-1 is fully transparent;
+- **cut-window coverage:** every pixel is fully opaque on **every frame** of the declared
+  span - measured per pixel, never as an average or a sampled centre point;
+- **duration honesty:** the timeline's length matches the declared duration, and the declared
+  cut window lies inside it.
+
+All three are silent killers on air and none of them is visible in a still, which is why they
+are machine gates rather than review notes.
+
+**The acceptance question for the first goal** is not a rubric: *would the owner cut to a
+replay behind this, on air, today, in their own brand?* One yes is the milestone.
+
+### 2.3 The delivery standard is a PICKED SETTING, never a prompt line
+
+A stinger is only correct at the frame rate of the switcher that plays it, so the delivery
+standard is a hard property of the customer's hardware, not a creative choice. **It must be a
+control on a video surface, and it must never be something the user types into a brief.** A
+user who has to remember to say "50 fps" will forget, and the failure is invisible until the
+sequence drifts against the switcher on air. Keeping it out of the brief also keeps format out
+of the model's hands entirely, which is the §2 division of labour.
+
+- **The value already exists.** `FPS_OPTIONS` (`src/model/projectFormat.ts:134`) is
+  `[25, 30, 50, 60]`, so the owner's 1080p50 ATEM is already a supported project format.
+- **The gap is UI.** A video project's fps is only *displayed* today (VideoAppShell,
+  SavedVideoProjects, VideoPlayerFrame) and is editable on no video creation or settings
+  surface. The SPX side already has the control it needs - an fps `<select>` in
+  `src/components/render/RenderPanel.tsx` - and the video path has no equivalent.
+- **What to build:** a delivery-standard picker on the video creation surface, using **named
+  presets**, because "1080p50" is what a broadcast user knows and "50" is not:
+  **1080p50 (PAL/EBU), 1080p25, 1080p60, 1080p30**. The choice is project data and flows into
+  preview, render and export, exactly like the SPX project format.
+
+**KNOWN LIMITATION, deliberately not solved now:** `FPS_OPTIONS` is integer-only, so the
+1000/1001 rates **59.94 and 29.97 do not exist anywhere in the platform**, and a US or Japan
+customer therefore cannot deliver a correct stinger today. It is recorded here rather than
+fixed because it reaches the project format, the render service and the frame budget at once;
+scope it when the first non-PAL customer is real.
+
 ---
 
 ## 3. Exemplars - the corpus must be built first
@@ -175,6 +323,36 @@ are the entire corpus. This is the program's largest structural gap and its firs
   distance; humans judge whether an output transformed its exemplar.
 - The corpus grows from accepted generations only through human review, which later feeds the
   Pro Phase 6 fine-tune track with video traces as well.
+
+**Where it lives:** `src/ai/video/corpus/`, one directory per graphic-video type, one complete
+`.html` composition per exemplar, plus a `README.md` recording what each one is for and which
+direction it covers. It sits under `src/` and not under `benchmarks/` because retrieval will
+import these files (`?raw`) at runtime; the bench reads the same files, so the anchor arm and
+the retrieval corpus can never drift apart. Nothing imports them yet.
+
+### 3.1 The brand-swap arm (why the corpus is authored around a logo variable)
+
+The product promise is that a client gets a stinger in **their own** mark and colours, so an
+exemplar is only proved when the same composition survives a brand swap. Every corpus stinger
+therefore declares a logo image variable plus colour variables, and is reviewed with **five
+distinct synthetic marks**.
+
+**They must vary in SHAPE, not just colour** - the slot's job is surviving different aspect
+ratios and ink densities, and five recolours of one silhouette prove nothing about whether a
+client's mark will fit. The five shape classes:
+
+| class | mark | aspect | why it is in the set |
+| --- | --- | --- | --- |
+| compact monogram | The Aldervale Institute | 1:1 | the narrowest mark a slot has to fill |
+| wide wordmark | Kestrel Athletic | 4.17:1 | the widest; breaks height-driven slots |
+| square emblem, fine detail | Sunbeam | 1:1 | thin spokes that vanish when scaled down |
+| tall, own opaque field | The Ledger | 0.8:1 | portrait, and it brings its own surface |
+| long name, two-part lockup | Northbridge Community Broadcasting | 7.5:1 | the longest name, light ink |
+
+The first four already exist as `benchmarks/pro/v1/spike/marks/*.svg` (built for the Pro brand
+round) and are reused rather than duplicated; the fifth and the index of all five live in
+`benchmarks/video/v1/marks/`. All five are invented organisations - no real brand marks enter
+the repo.
 
 ---
 
@@ -204,7 +382,10 @@ the live probe, and the four shared readability checks (contrast, glyph overlap,
 clip). Add the video-specific gates this program needs:
 
 - loop seam check: pixel delta between last and first frame of a declared seamless loop;
-- cut-window coverage: full-frame opacity throughout the declared stinger cut window;
+- **head/tail alpha (stingers): frame 0 and frame N-1 fully transparent across the whole
+  frame** - the §2.2 non-negotiable, and the one gate the frame arithmetic there exists for;
+- cut-window coverage: full-frame opacity on every frame of the declared stinger cut span,
+  measured per pixel (§2.2 - an average alpha passes a one-pixel seam that flashes on air);
 - stuck-pose and dead-air checks: no interval longer than N ms where nothing moves during a
   declared motion phase (thresholds set per type from the anchor corpus, not invented);
 - duration honesty: timeline length matches the declared duration;
@@ -308,7 +489,12 @@ Phase letters to avoid colliding with Pro's numbered phases in conversation. Not
 Phase P touches a product surface; the Student release keeps priority.
 
 - **Phase 0 (spike):** §6. Gate: go/no-go on human review.
-- **Phase A (stinger/intro/overlay contract):** harden the scaffold boundary, the three
+- **Phase A (stinger/intro/overlay contract):** the stinger half of this phase is specified by
+  **§2.2**, which is the acceptance contract for the program's first goal - including the two
+  untested ATEM delivery questions (PNG into the clip side, premultiplied alpha), the
+  frames-per-fps report the operator needs, and the **delivery-standard picker** (§2.3 - the
+  one product-surface item this phase owns, because a stinger at the wrong frame rate is
+  wrong no matter how good it looks). Then harden the scaffold boundary, the three
   `VideoDesignPlan` properties (§2.1), the video-specific gates (§4.2), the render-set
   builder, the project-brand input into the harness (§2 - none exists today), and the
   **audio mux path**: a user-supplied audio file attached to a render/export job via the
