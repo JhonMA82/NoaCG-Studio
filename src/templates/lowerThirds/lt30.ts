@@ -6,10 +6,12 @@
 // Lines three and four share the assembler's `-extra` class, so they are told apart by POSITION
 // inside the text column — structural, and therefore safe under field renumbering.
 //
-// The optional mark is a MASTHEAD: a publisher's lockup sitting above the byline, which is where
-// print has put it for two centuries and the only place it can go in a design with no panel. It
-// is a wide row rather than a square well on purpose — an editorial mark is usually a lockup, and
-// a square would letterbox one to a hairline.
+// The optional mark sits BESIDE the block, between the rule and the words. A lower third is a
+// horizontal format and its height is the scarce dimension: measured, a mark stacked above this
+// block made the strap 29% taller, and the same measurement across the catalog put every
+// stacking design between +26% and +83% while every design that sets its mark beside the text
+// grew only in width. So the mark takes width, which a strap has, and never height, which it
+// does not — and it is bounded to the text's own height so a tall crest cannot change the format.
 
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { defineVariant, lineMasks } from './shared';
@@ -47,12 +49,12 @@ export const lt30: TemplateVariant = defineVariant(
     // and an empty value hides it (setFieldValue), leaving the placeholder rule.
     const logoField = `f${o.lines.length + o.extraFields.length}`;
     const logoPath = o.logoAssetPath ?? '';
-    // The masthead sits OUTSIDE .lower-third-text on purpose: the dateline row is selected by
+    // The mark sits OUTSIDE .lower-third-text, as its sibling: the dateline row is selected by
     // `:nth-child(4)` inside that column, and a mark added as its first child would renumber
     // every line and move the ruled treatment onto the organisation.
-    const masthead = o.logoEnabled
+    const mark = o.logoEnabled
       ? `      <!-- The publisher mark (image field ${logoField}). Empty shows the placeholder rule. -->
-      <div class="lower-third-masthead${logoPath ? ' has-image' : ''}">
+      <div class="lower-third-markbox${logoPath ? ' has-image' : ''}">
         <div class="lower-third-markrule"></div>
         <img id="${logoField}" class="lower-third-logo"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />
       </div>
@@ -60,10 +62,10 @@ export const lt30: TemplateVariant = defineVariant(
       : '';
 
     return {
-      html: `    <!-- Dateline: [tall rule] | [masthead] over [name / role / organisation] over [ruled dateline]. -->
+      html: `    <!-- Dateline: [tall rule] | [mark] | [name / role / organisation] over [ruled dateline]. -->
     <div class="lower-third-accent"></div>
     <div class="lower-third-box">
-${masthead}      <div class="lower-third-text">
+${mark}      <div class="lower-third-text">
 ${lineMasks(o, '        ')}
       </div>
     </div>`,
@@ -94,40 +96,46 @@ ${lineMasks(o, '        ')}
 
 /* The text block — no panel; the rule and the whitespace are the structure. */
 .lower-third-box {
-  padding-left: calc(35px * var(--scale));  /* room for the rule plus a printed-margin gap */
+  ${o.logoEnabled ? `display: flex;                    /* mark and words side by side — never stacked */
+  align-items: center;              /* the mark is centred against the whole block */
+  gap: calc(30px * var(--scale));   /* the mark's clear space from the words */
+  ` : ''}padding-left: calc(35px * var(--scale));  /* room for the rule plus a printed-margin gap */
 }
 
 ${
       o.logoEnabled
-        ? `/* The masthead row — a WIDE band, not a square well: an editorial mark is normally a
-   lockup, and a square would letterbox one to a hairline. The row's height is fixed so the
-   artwork can never feed its own proportions back into the strap's height, which is what a
-   portrait crest does to an in-flow image. */
-.lower-third-masthead {
-  display: flex;                    /* the mark sits on the row's left, like a printed masthead */
-  align-items: center;              /* …vertically centred in the band */
-  height: calc(46px * var(--scale));  /* fixed band height — see above */
-  margin-bottom: calc(15px * var(--scale));  /* clear space between the mark and the name */
+        ? `/* The mark column — BESIDE the words, because height is the dimension a lower third
+   cannot spend (see the header). Its width is fixed so a long name never squeezes it, and its
+   height is capped below the text block's own so the artwork can never set the strap's height:
+   the mark grows this graphic sideways or not at all. */
+.lower-third-markbox {
+  flex: none;                       /* fixed width; long names never squeeze the mark */
+  display: flex;                    /* centre whatever is inside it… */
+  align-items: center;              /* …vertically… */
+  justify-content: center;          /* …and horizontally */
+  width: calc(124px * var(--scale));   /* wide enough that a lockup still reads at width */
+  max-height: calc(104px * var(--scale));  /* under a four-row block's height — see above */
 }
 
 /* The placeholder — a quiet rule where the mark will be, so an unset slot reads as
    "nothing here yet" rather than as a broken image. */
 .lower-third-markrule {
-  width: calc(96px * var(--scale));  /* about the width a lockup would take */
+  width: calc(78px * var(--scale));  /* about the width a lockup would take */
   height: calc(3px * var(--scale));  /* a hairline */
   background: var(--text-dim);      /* neutral — the accent belongs to the rule beside it */
   opacity: 0.5;                     /* a placeholder should read as absent, not as content */
 }
-.lower-third-masthead.has-image .lower-third-markrule {
+.lower-third-markbox.has-image .lower-third-markrule {
   display: none;                    /* a picked mark replaces the placeholder */
 }
 
 /* The mark itself (the ${logoField} image field — hidden while empty). Both caps are
    explicit lengths rather than percentages: the browser then keeps the artwork's own aspect
-   while honouring whichever cap binds, so a 13:1 rail and a portrait shield both land. */
+   while honouring whichever cap binds, so a 13:1 rail and a portrait shield both land. NO
+   plate, no tinted well: the mark is the mark, sitting on the graphic's own ground. */
 .lower-third-logo {
-  max-height: calc(46px * var(--scale));  /* the band's height — a portrait mark stops here */
-  max-width: calc(268px * var(--scale));  /* …and a wide lockup stops here */
+  max-width: calc(124px * var(--scale));   /* the column's width — a wide lockup stops here */
+  max-height: calc(104px * var(--scale));  /* …and a portrait mark here */
   object-fit: contain;              /* show the whole mark, never crop or distort it */
 }
 

@@ -6,11 +6,16 @@
 // Rows three and four share the assembler's `-extra` class and are told apart by POSITION inside
 // the text column, which survives field renumbering where an `#f3` selector would not.
 //
-// The optional mark OPENS the block, ragged-left against the same hairline as every row, which
-// is how a slate or an archive card is set. Two other placements were tried and measured worse:
-// out on the open left edge the mark sits on raw picture (the scrim is a radial gradient darkest
-// under the words at 88% of the width), and beside the rows it takes its width from them — the
-// brand audit read the name wrapping onto a second row on all five mark shapes.
+// The optional mark sits BESIDE the rows, between them and the hairline, and the block's own
+// left indent pays for it. Height is the dimension a lower third cannot spend: a mark opening
+// the block above the name measured 26% taller, and across the catalog every stacking design
+// came in between +26% and +83% while every design that sets its mark beside the text grew only
+// in width. The left edge is not an option either — the scrim is a radial gradient darkest under
+// the words at 88% of the width, so a mark out there sits on raw picture.
+//
+// Taking the width out of the INDENT rather than out of the words is the whole trick: the strap
+// is width-capped, so a mark column added without giving anything back wrapped the name onto a
+// second row on all five mark shapes (measured by the brand audit as `logo-costs-text`).
 
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { defineVariant, lineMasks } from './shared';
@@ -49,23 +54,21 @@ export const lt37: TemplateVariant = defineVariant(
     const logoField = `f${o.lines.length + o.extraFields.length}`;
     const logoPath = o.logoAssetPath ?? '';
     const mark = o.logoEnabled
-      ? `        <!-- The production mark (image field ${logoField}). Empty shows the placeholder rule. -->
-        <div class="lower-third-markbox${logoPath ? ' has-image' : ''}">
-          <div class="lower-third-markrule"></div>
-          <img id="${logoField}" class="lower-third-logo"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />
-        </div>
+      ? `      <!-- The production mark (image field ${logoField}). Empty shows the placeholder rule. -->
+      <div class="lower-third-markbox${logoPath ? ' has-image' : ''}">
+        <div class="lower-third-markrule"></div>
+        <img id="${logoField}" class="lower-third-logo"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />
+      </div>
 `
       : '';
 
     return {
-      html: `    <!-- Slate: [mark over name / role / organisation / note, ragged-left] | [hairline column]. -->
+      html: `    <!-- Slate: [name / role / organisation / note, ragged-left] | [mark] | [hairline column]. -->
     <div class="lower-third-box">
-      <div class="lower-third-column">
-${mark}        <div class="lower-third-text">
-${lineMasks(o, '          ')}
-        </div>
+      <div class="lower-third-text">
+${lineMasks(o, '        ')}
       </div>
-      <div class="lower-third-accent"></div>
+${mark}      <div class="lower-third-accent"></div>
     </div>`,
 
       extraFields: o.logoEnabled
@@ -88,7 +91,7 @@ ${lineMasks(o, '          ')}
   align-items: stretch;             /* the hairline runs the block's full height */
   gap: calc(28px * var(--scale));   /* the gap between the rows and their rule */
   text-align: right;                /* rows are ragged-LEFT: they align to the hairline */
-  padding: calc(53px * var(--scale)) calc(40px * var(--scale)) calc(55px * var(--scale)) calc(213px * var(--scale));
+  padding: calc(53px * var(--scale)) calc(40px * var(--scale)) calc(55px * var(--scale)) calc(${o.logoEnabled ? 59 : 213}px * var(--scale));
   background: radial-gradient(ellipse 88% 105% at 88% 50%,
               var(--panel-bg) 0%,
               color-mix(in srgb, var(--panel-bg) 55%, transparent) 48%,
@@ -101,22 +104,18 @@ ${lineMasks(o, '          ')}
   min-width: 0;                     /* the flexbox wrap fix — see above */
 }
 
-/* The block's own column: the mark row, then the rows of the credit. Separate from the box so
-   the hairline beside it still runs the WHOLE height, mark included. */
-.lower-third-column {
-  min-width: 0;                     /* the flexbox wrap fix, one level out — see below */
-}
 ${
       o.logoEnabled
         ? `
-/* The mark row — ragged-left against the hairline like every row under it. Fixed height, so
-   the artwork can never feed its own proportions back into the strap's height. */
+/* The mark column — between the words and the hairline, under the darkest part of the scrim.
+   Fixed width, and a height capped below a two-row credit's, so the mark spends the block's
+   WIDTH and never its height (see the header). */
 .lower-third-markbox {
-  display: flex;                    /* the mark sits at the row's right… */
-  justify-content: flex-end;        /* …against the hairline, like the rows below */
-  align-items: center;              /* …vertically centred in the band */
-  height: calc(52px * var(--scale));  /* fixed band height — see above */
-  margin-bottom: calc(20px * var(--scale));  /* clear space between the mark and the name */
+  flex: none;                       /* fixed width; long names never squeeze the mark */
+  display: flex;                    /* centre whatever is inside it… */
+  align-items: center;              /* …vertically… */
+  justify-content: center;          /* …and horizontally */
+  width: calc(126px * var(--scale));
 }
 
 /* The placeholder — a quiet rule where the mark will be, so an unset slot reads as
@@ -131,10 +130,12 @@ ${
   display: none;                    /* a picked mark replaces the placeholder */
 }
 
-/* The mark itself (the ${logoField} image field — hidden while empty). */
+/* The mark itself (the ${logoField} image field — hidden while empty). No plate behind it: on
+   this design the scrim IS the surface, and a filled well would read as pasted onto the graphic
+   rather than drawn into it. */
 .lower-third-logo {
-  max-height: calc(52px * var(--scale));  /* the band's height — a portrait mark stops here */
-  max-width: calc(232px * var(--scale));  /* …and a wide lockup stops here */
+  max-width: calc(126px * var(--scale));  /* the column's width — a wide lockup stops here */
+  max-height: calc(92px * var(--scale));  /* …and a portrait mark here, under a credit's height */
   object-fit: contain;              /* show the whole mark, never crop or distort it */
 }
 
