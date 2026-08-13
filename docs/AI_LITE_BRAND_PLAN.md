@@ -285,8 +285,16 @@ numbers exist and are re-run only where the harness changed. Read the ledger's
 
 ### 4.4 The volume brand matrix - what the free window is actually for
 
-**BATCH 1 RAN 2026-08-13 on the incumbent, post-P1: 20 of 25 machine-usable, and all five
-failures are ONE JOB** (`benchmarks/lite/MATRIX-2026-08-13.md`). The generator is
+**RAN COMPLETE 2026-08-13 on the incumbent, post-P1: 121 of 125 machine-usable (96.8%), and
+121 of 121 delivered graphics carry the requested accent and panel VERBATIM with zero furniture
+repairs** (`benchmarks/lite/MATRIX-2026-08-13.md`, $0.0848 reported; ~$0.10 campaign total). The
+four survivors are transient - every one re-fired usable - and no mark, palette or job predicts
+them. That is the §3.1 promise measured at scale rather than asserted, including the two pairings
+that used to end in a dropped mark or a dropped palette: a knockout mark on a light package, and
+a pale accent.
+
+The round's own finding, and the P1 work it forced, was in batch 1: **20 of 25 with all five
+failures on ONE JOB**, mark- and palette-independent. The generator is
 `scripts/ai-lite-matrix-fixtures.mjs` (125 cells = 5 colour-neutral jobs x 5 marks x 5 palettes,
 ordered so any prefix covers every pairing); the runner takes a resumable window into it
 (`NOACG_LITE_EVAL_BANK=matrix`, `NOACG_LITE_EVAL_MATRIX_OFFSET`). Three findings, in the order
@@ -295,20 +303,32 @@ they matter:
 1. **Mark shape and palette family predicted nothing; the brief did.** The five failures are five
    different mark/palette cells and the same job every time, while the other four jobs are 20/20.
    That separation is what crossing the ingredients bought.
-2. **The failure is `line_count_invalid`, REFUSED rather than repaired**: the model picks the
+2. **The failure was `line_count_invalid`, REFUSED rather than repaired**: the model picks the
    chassis that best matches an academic brief (`ls17`, minimum 3 lines) for a 2-line brief, and
-   the contract kills the generation instead of re-picking. Not a regression from §3.6.2 - the
+   the contract killed the generation instead of re-picking. Not a regression from §3.6.2 - the
    same brief retrieves `ls17` first with no mark at all - but §3.6.2 is why it became reachable
-   for MARKED requests and therefore measurable. Deciding it is P1 work: the mark repair and the
-   palette repair both apply a ladder, and this one alone still refuses.
+   for MARKED requests and therefore measurable. **FIXED the same day**
+   (`line_count_chassis_reselected`): the platform re-picks a chassis whose measured capacity
+   holds the emitted lines, resolved before every check that reads the chassis, and the five
+   failing cells re-fired 0/5 -> 5/5. Room for the copy is judged against the lines in hand, not
+   by comparing declared capacities - `ls17` declares the largest in the bank, so the
+   chassis-to-chassis test would have made the repair impossible exactly where it is needed.
 3. **The bench found the §3.2 deploy-order hazard for real**: the first attempt failed 8/8 with
    `rejection_reason = ledger_update` because the bench server writes to the production ledger and
    `adjustments` does not exist there yet. Bench rows now go to `AI_LITE_EVAL_MEMORY_LEDGER=1`.
    The eval's cost line reported $0.0000 for that wholesale failure while the ledger booked
    ~$0.011 - failed rows' spend is uncounted, which matters most exactly when a round fails.
 
-100 cells remain (~$0.06). Running them before the line-count decision would re-measure the same
-job failure twenty more times.
+Three harness faults the round exposed, all recorded in the benchmark file: a wholesale failure
+reads as FREE (the cost line sums successful rows only); the round ceiling counts ATTEMPTS rather
+than cells, so batches sized as 40 delivered 31 and left holes at the offsets the next batch
+skipped; and stamping a token restarts the bench server, so a round fired into that window dies
+`ECONNREFUSED`.
+
+**Still open before the §2 value gate:** no human frame review yet (96.8% machine-usable is not
+96.8% airable), repair RATES are invisible to the bench (the endpoint returns no `adjustments`,
+and bench rows live in the memory ledger), and the brand audit's rules still run only over
+catalog chassis rather than over generated frames.
 
 Brand briefs x 5 mark shapes x a palette bank (dark, light, pale-accent, high-chroma, mono,
 near-amber) - roughly 200-500 generations, all free. Scored by the deterministic funnel at scale:
