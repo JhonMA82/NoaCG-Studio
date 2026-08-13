@@ -544,6 +544,54 @@ test('a REQUESTED brand palette is applied verbatim in identity and never droppe
   assert.ok(invented.adjustments?.includes('unrequested_palette_dropped'));
 });
 
+test('a chassis that cannot hold the emitted lines is RE-PICKED, not refused', () => {
+  // The volume matrix's first finding: an academic brief carries two lines, the design that
+  // best matches it declares a minimum of three, and the generation used to die
+  // `line_count_invalid` on every mark and every palette.
+  const tall = LITE_CATALOG.find((candidate) => candidate.visibleFields.min > 2);
+  assert.ok(tall, 'no chassis declares a minimum above two - this test has gone vacuous');
+  const decision = (variantId: string) => ({
+    status: 'ready',
+    aiCategory: 'lower-third',
+    spec: {
+      fit: 'catalog',
+      reason: 'An academic credit.',
+      name: 'Lecture Strap',
+      summary: 'A university lower third.',
+      category: 'lower-third',
+      variantId,
+      intent: { kind: 'person', primaryRole: 'person-name', secondaryRole: 'person-role' },
+      lines: [
+        { title: 'Name', sample: 'Dr. Anika Ramanathan', role: 'person-name' },
+        { title: 'Role', sample: 'Professor of Environmental Engineering', role: 'person-role' },
+      ],
+      flourish: '',
+    },
+  });
+
+  const repaired = validateLiteDecision(decision(tall.variantId), request());
+  assert.deepEqual(repaired.errors, []);
+  assert.ok(repaired.adjustments?.includes('line_count_chassis_reselected'));
+  const shipped = (repaired.decision as { spec: { variantId: string } }).spec.variantId;
+  assert.notEqual(shipped, tall.variantId, 'the decision must carry the re-pick, not just the checks');
+
+  // The replacement is legal in every dimension the original was judged on - a re-pick that
+  // lands on `slot_role_mismatch` or `intent_variant_mismatch` has moved the failure, not fixed it.
+  const chosen = LITE_CATALOG.find((candidate) => candidate.variantId === shipped)!;
+  assert.ok(chosen.visibleFields.min <= 2 && chosen.visibleFields.max >= 2);
+  assert.ok(chosen.intentKinds.includes('person'));
+  assert.ok(chosen.slots[0].roles.includes('person-name'));
+  assert.ok(chosen.slots[1].roles.includes('person-role'));
+  assert.ok(chosen.supportingLineChars >= 'Professor of Environmental Engineering'.length);
+  assert.deepEqual(validateLiteDecision(decision(shipped), request()).errors, [], 're-validating the repair must be clean');
+
+  // The refusal survives where the catalog genuinely has no answer: no lines at all is a
+  // decision no chassis can hold, and re-picking cannot invent content.
+  const empty = decision(tall.variantId);
+  empty.spec.lines = [];
+  assert.ok(validateLiteDecision(empty, request()).errors.includes('line_count_invalid'));
+});
+
 test('repair guidance names the EDIT, not the verdict', () => {
   // The measured failure: handed only codes, the model re-emitted its decision verbatim.
   const [roleFix] = liteRepairInstructions(['requested_role_missing:person-name']);

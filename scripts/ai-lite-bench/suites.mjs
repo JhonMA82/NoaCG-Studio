@@ -315,6 +315,11 @@ export const REPAIR_SUITE = [
     expectErrors: ['category_variant_mismatch'],
   },
   {
+    // A line count the chosen chassis cannot hold is REPAIRED now, not refused: the platform
+    // re-picks a design whose measured capacity holds it (docs/AI_LITE_BRAND_PLAN.md §4.4,
+    // measured 5/5 on the volume matrix's academic brief). The expectation therefore asserts
+    // the ADJUSTMENT and not merely the absence of an error - "no errors" alone would stay
+    // green if the whole check were deleted.
     id: 'repair-line-count',
     request: repairRequest('A lower third for Ada Example, Example Editor.'),
     decision: readyDecision({
@@ -323,6 +328,25 @@ export const REPAIR_SUITE = [
         { title: 'Name', sample: 'Ada Example', role: 'person-name' },
         { title: 'Role', sample: 'Example Editor', role: 'person-role' },
         { title: 'Extra', sample: 'One line too many', role: 'supporting-context' },
+      ],
+    }),
+    expectErrors: [],
+    expectAdjustments: ['line_count_chassis_reselected'],
+  },
+  {
+    // …and the refusal survives where the catalog genuinely has no answer. Five lines is past
+    // every chassis's measured capacity, so there is nothing to re-pick and the generation is
+    // honestly refused rather than silently truncated.
+    id: 'repair-line-count-unanswerable',
+    request: repairRequest('A lower third for Ada Example, Example Editor.'),
+    decision: readyDecision({
+      ...baseSpec(),
+      lines: [
+        { title: 'Name', sample: 'Ada Example', role: 'person-name' },
+        { title: 'Role', sample: 'Example Editor', role: 'person-role' },
+        { title: 'Third', sample: 'Third line', role: 'supporting-context' },
+        { title: 'Fourth', sample: 'Fourth line', role: 'supporting-context' },
+        { title: 'Fifth', sample: 'Fifth line', role: 'supporting-context' },
       ],
     }),
     expectErrors: ['line_count_invalid'],

@@ -1831,7 +1831,10 @@ export function validateLiteDecision(
   if (!output.spec || typeof output.spec !== 'object' || Array.isArray(output.spec)) return { errors: ['spec_missing'] };
   const spec = output.spec as unknown as LiteDesignSpec;
   const aiCategory = output.aiCategory;
-  const entry = LITE_CATALOG.find((candidate) => candidate.variantId === spec.variantId);
+  // `let`, because a chassis whose measured capacity cannot hold the emitted lines is RE-PICKED
+  // below rather than refused, and every check after that point has to be asked about the
+  // chassis that will actually ship.
+  let entry = LITE_CATALOG.find((candidate) => candidate.variantId === spec.variantId);
   const errors: string[] = [];
   const requestedCategory = request.generationSpec?.category;
   const inference = spec.categoryInference;
@@ -1918,9 +1921,65 @@ export function validateLiteDecision(
   if (spec.fit !== 'catalog') errors.push('fit_not_catalog');
   if (entry && spec.category !== entry.category) errors.push('category_variant_mismatch');
   if (entry && aiCategory !== entry.aiCategory) errors.push('ai_category_variant_mismatch');
-  if (lines.length < 1 || (entry && (
-    lines.length < entry.visibleFields.min || lines.length > entry.visibleFields.max
-  ))) {
+  // ── The capacity repair ───────────────────────────────────────────────────────────────
+  //
+  // A chassis whose measured capacity cannot hold the lines the model emitted used to be a
+  // refusal, and the volume matrix measured what that costs: five of five academic briefs died
+  // `line_count_invalid` at attempt two, on every mark and every palette, because the design
+  // that best MATCHES an academic credit (ls17 Lectern) declares a minimum of three lines and
+  // the brief carries two (`benchmarks/lite/MATRIX-2026-08-13.md`). The repair round cannot save
+  // it: the model re-picks on taste and lands on the same design again.
+  //
+  // So the platform re-picks instead, exactly like the mark repair one screen down and the
+  // palette repair below it - a rule that turns a bad graphic into NO graphic is worse than the
+  // defect it replaces. The chosen replacement must be legal in every dimension the original was
+  // being judged on, or this trades one failure for another (the lesson the mark repair records
+  // about moving a knockout mark onto a design with no reading surface):
+  //
+  //   · same category and aiCategory, so the checks below still mean what they say;
+  //   · measured capacity that HOLDS the emitted line count;
+  //   · the emitted intent kind, so `intent_variant_mismatch` cannot fire on the replacement;
+  //   · every emitted role accepted by the slot at its own index, so the swap cannot land as
+  //     `slot_role_mismatch`;
+  //   · room for the copy the model actually WROTE. Comparing the two chassis's
+  //     `supportingLineChars` instead - the mark repair's test - makes this repair impossible
+  //     exactly where it is needed: ls17 declares the largest capacity in the bank (134, because
+  //     an academic position runs long), so nothing in the catalog would ever qualify. The
+  //     measured number describes the supporting line, so ask it about the supporting lines in
+  //     hand;
+  //   · and, when the request carries a mark the spec asked to use, a slot that fits that mark's
+  //     shape - a re-pick that drops the user's logo is not a repair.
+  //
+  // The refusal survives for the case the catalog genuinely cannot answer: no candidate, or a
+  // decision with no lines at all, which no chassis can hold.
+  const capacityHolds = (candidate: LiteCatalogEntry): boolean =>
+    lines.length >= candidate.visibleFields.min && lines.length <= candidate.visibleFields.max;
+  let capacityReselect: string | null = null;
+  if (entry && lines.length >= 1 && !capacityHolds(entry)) {
+    const original = entry;
+    const markShape = spec.useLogoSlot ? request.mark?.shape : undefined;
+    const supportingChars = lines
+      .slice(1)
+      .reduce((longest, line) => Math.max(longest, String(line?.sample ?? '').length), 0);
+    const replacement = LITE_CATALOG.find((candidate) => candidate.variantId !== original.variantId
+      && candidate.category === original.category
+      && candidate.aiCategory === original.aiCategory
+      && capacityHolds(candidate)
+      && candidate.supportingLineChars >= supportingChars
+      && (!spec.intent?.kind || candidate.intentKinds.includes(spec.intent.kind))
+      && (!spec.useLogoSlot || Boolean(candidate.logo))
+      && (!markShape || Boolean(candidate.logoSlot?.fits.includes(markShape)))
+      && lines.every((line, index) => {
+        const role = line?.role as LiteLowerThirdLineRole | undefined;
+        const slot = candidate.slots[index];
+        return Boolean(role && slot && slot.roles.includes(role));
+      }));
+    if (replacement) {
+      entry = replacement;
+      capacityReselect = replacement.variantId;
+    }
+  }
+  if (lines.length < 1 || (entry && !capacityHolds(entry))) {
     errors.push('line_count_invalid');
   }
   const intent = spec.intent;
@@ -2033,6 +2092,11 @@ export function validateLiteDecision(
         candidate.variantId !== entry.variantId
         && candidate.intentKinds.includes(spec.intent.kind)
         && candidate.supportingLineChars >= entry.supportingLineChars
+        // …and enough LINES, not just enough characters. The two are different capacities and
+        // only one of them was being checked: a swap onto a design whose minimum exceeds the
+        // emitted line count fixes the mark by breaking the graphic, which is the same trade
+        // the light-panel clause above exists to refuse.
+        && capacityHolds(candidate)
         && !(panelIsLight && candidate.logoSlot?.surface === 'dark')
         && reads(candidate));
       // A well is the LAST resort and the one that always works: the catalog cannot currently
@@ -2092,6 +2156,14 @@ export function validateLiteDecision(
   }
   if (palette) repaired.palette = palette;
   else delete repaired.palette;
+  // The capacity re-pick, applied to the DECISION - same reason as the mark repair below it: the
+  // compile reads `variantId`, so a repair that stops at the validator changes nothing a viewer
+  // can see. Recorded, because how often the model picks a design it cannot fill is a fact about
+  // the digest's teaching, and the matrix is what turns that count into a rate.
+  if (capacityReselect) {
+    repaired.variantId = capacityReselect;
+    adjustments.push('line_count_chassis_reselected');
+  }
   // The mark repair, applied to the DECISION rather than only to the checks - the compile reads
   // `variantId` and `useLogoSlot`, so a fix that stops at the validator changes nothing a viewer
   // can see, which is the field-paint lesson in `src/ai/AGENTS.md` one layer up.

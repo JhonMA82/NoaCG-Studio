@@ -1,12 +1,12 @@
 {
   "suiteId": "lite-spec-v2",
-  "gitCommit": "8cc1c7a1691dc2aa667718cc95852b922480ef2c",
+  "gitCommit": "f6a846e28f7d16dc5e2c4d93f939072a79cbdcb9",
   "hashes": {
-    "liteContract": "c981dc1263a5d7b8",
+    "liteContract": "bd8c716bbe6306f0",
     "pipeline": "a1f8fa61f79a0d23",
     "catalog": "a0beaac340495167",
     "validators": "6e6b8fef571a34d3",
-    "suite": "1e109dca37f7d7c6"
+    "suite": "7511c860428afb67"
   },
-  "recordedAt": "2026-08-13T13:20:36.156Z"
+  "recordedAt": "2026-08-13T13:59:58.324Z"
 }

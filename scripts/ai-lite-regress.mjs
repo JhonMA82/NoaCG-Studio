@@ -59,11 +59,20 @@ try {
     const result = contract.validateLiteDecision(item.decision, item.request);
     const got = [...result.errors].sort();
     const want = [...item.expectErrors].sort();
-    const match = got.length === want.length && got.every((code, i) => code === want[i]);
+    // A fixture may also pin what was REPAIRED. Since the repairs landed, an expectation of
+    // "no errors" stopped being enough on its own: deleting a check entirely would satisfy it,
+    // which is precisely the state this suite exists to catch.
+    const gotAdjustments = [...(result.adjustments ?? [])].sort();
+    const wantAdjustments = [...(item.expectAdjustments ?? [])].sort();
+    const match = got.length === want.length && got.every((code, i) => code === want[i])
+      && wantAdjustments.every((code) => gotAdjustments.includes(code));
     if (match) repairPassed += 1;
     else {
       failures += 1;
-      console.error(`REPAIR SUITE MISMATCH ${item.id}: expected [${want.join(', ')}], got [${got.join(', ')}]`);
+      console.error(`REPAIR SUITE MISMATCH ${item.id}: expected [${want.join(', ')}]`
+        + `${wantAdjustments.length ? ` + adjustments [${wantAdjustments.join(', ')}]` : ''}`
+        + `, got [${got.join(', ')}]`
+        + `${gotAdjustments.length ? ` + adjustments [${gotAdjustments.join(', ')}]` : ''}`);
     }
   }
   console.log(`Repair suite: ${repairPassed}/${REPAIR_SUITE.length} expectations hold.`);
