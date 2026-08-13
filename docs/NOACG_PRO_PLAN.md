@@ -1028,10 +1028,17 @@ this round, and one decision it should make early:
 2. **The checkpoint is decided: `alibaba/qwen3-coder`** (owner, 2026-08-12), on a read of both
    galleries - better AND ~19x cheaper, 24/24 complete and contract-clean where kimi-k3 reached
    21/24 and could not finish three exemplar-arm briefs at all.
-3. **Decide whether the exemplar block survives.** It costs ~34,500 tokens per call - about 80% of
-   the round's spend - and on the pair the owner examined it produced a result indistinguishable
-   from showing no exemplars at all. Section 5 treats complete-exemplar retrieval as a pillar; this
-   round is the first evidence against it, and an ablation is owed before Phase 3 builds on it.
+3. **Decide whether the exemplar block survives. DECIDED 2026-08-13: IT SURVIVES.** It costs
+   ~34,500 tokens per call - about 80% of the round's spend - and on the pair the owner examined it
+   produced a result indistinguishable from showing no exemplars at all. Section 5 treats
+   complete-exemplar retrieval as a pillar, so the ablation was owed before Phase 3 built on it.
+   **It ran for $0.215 of a $0.40 cap** (`pro-exemplar-ablation-qwen3-coder-2026-08-13`): the same
+   12 briefs with a ~480-token region lesson in the block's slot (`src/ai/spike/grammar.ts`, the
+   `grammar` arm) returned **1 of 12 editable timelines against the exemplar arm's 12 of 12**, and
+   three exemplar re-runs reproduced the stored arm exactly on that axis, so the comparison is
+   against a live arm. A worked example of the region conforms; a description of one does not, and
+   the explicit "do not hand-write `NOACG_ANIM`" changed the rate of that behaviour by nothing.
+   Full record: `docs/AI_ATTEMPTS.md` top entry.
 
 **Four harness faults cost roughly $5 of the round's ~$16**, every one of them a case of the rig
 measuring itself: a probe that asked a smaller question than the round, an output budget pinned

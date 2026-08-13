@@ -113,9 +113,28 @@ start at the instant `update()` fires, so its clip leads in 300 ms to show the s
 than 900 ms of a frozen frame. Native `controls` are off - the bar lands exactly on the lower
 third. ffmpeg is optional; without it the gallery falls back to stills.
 
-**RETRY WHEN** - not a retry; Phase 1 continues on this evidence. Owed next: the well-integration
-teaching plus the bounding-box check the owner asked for, the catalog side-slot option, and the
-exemplar-vs-grammar-teaching ablation above.
+**THE ABLATION RAN, AND THE EXEMPLAR BLOCK SURVIVES IT (2026-08-13, $0.215 of a $0.40 cap;
+archive `pro-exemplar-ablation-qwen3-coder-2026-08-13`).** Same 12 briefs, same brands, same
+pinned decoding, same `alibaba/qwen3-coder`, with a ~480-token lesson in the exemplar block's
+slot: what the ANIMATION region is for, the shape the importer reads, and an explicit
+instruction not to hand-write `NOACG_ANIM`. **1 of 12 editable timelines, against the exemplar
+arm's 12 of 12** - and three exemplar re-runs reproduced the stored arm exactly on that axis
+(retrieval identical, timelines editable 3/3), so the comparison is against a live arm, not a
+stale one. The ~34,500 tokens buy something a lesson does not teach.
+
+Two things worth carrying beyond this round. **The prohibition did not suppress the behaviour
+it named:** 6 of 12 wrote a `NOACG_ANIM`-shaped block anyway (the un-taught arm was 10 of 18 -
+the same rate), which is the §"write a constraint as INSPECTION" rule reappearing as a null
+result. And **the remaining 6 failed differently** - no block at all, authoring GSAP the
+importer still could not read - so the arm did not trade one failure for another, it simply
+did not move either. A worked example of a region conforms; a description of one does not.
+Cost stayed honest: $0.011 a generation against the exemplar arm's $0.028-$0.038.
+
+**RETRY WHEN** - not a retry; Phase 1 continues on this evidence. Owed next: the
+well-integration teaching plus the bounding-box check the owner asked for, and the catalog
+side-slot option. The exemplar question is closed for Phase 3's purposes; if it is reopened,
+the cheap thing left untried is ONE authoring-shape region shown as code without the three
+complete designs around it.
 
 ### Models designing a broadcast graphic unaided
 **2026-08-12 · NoaCG Pro Phase 0 · `moonshotai/kimi-k3` · 20 of 24 captured, $4.58 · OWNER READ
