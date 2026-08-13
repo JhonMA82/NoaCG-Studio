@@ -1001,6 +1001,23 @@ this round, and one decision it should make early:
    (`LiteCatalogEntry.logoSlot`, `scripts/ai-lite-brand-audit.mjs --check`, `docs/AI_LITE_PLAN.md`
    §7). A GENERATED design has no catalog slot to declare, so the equivalent contract for authored
    graphics is genuinely new, and the MOTION half has no precedent anywhere in the repo.
+
+   **BUILT 2026-08-13 (`src/ai/spike/brand.ts`), and the brand-round harness with it.** The
+   contract as shipped: the DECLARATION is part of the emitted design - one `filelist` field bound
+   to an empty `<img id="fN">` whose geometry and surface are the model's decisions, taught with
+   the mark's measured shape/backing/ink (`probeMark`, Lite's own vocabulary); the FILL is
+   deterministic (`fillBrandMark`, the fillProLogoSlot recipe, inside the ground step so repair
+   rounds re-validate a FILLED template with the as-is screen armed); the GATE is a rendered
+   measurement (`measureRenderedMark`, the Lite brand audit's thresholds); the MOTION half samples
+   the slot through the virtual clock (`markMotionState` - "did it move" is measured, "was it
+   meaningful" stays the §0.2 human read). Beside it: the synthetic brand fixture
+   (`benchmarks/pro/v1/spike/brands.json` + four measured marks), the divergence cell, the
+   alignment-axis instrument calibrated over all 90 catalog lower thirds
+   (`src/ai/spike/axisCheck.ts` + `benchmarks/pro/v1/spike/axis-calibration.json`: 3/90 base rate,
+   text pairs flagged only when aligned on NO side), and the per-generation code audit
+   (`scripts/spike-code-audit.mjs`, item 0a's countable half). Zero-token control green including
+   a mark-fill control (`control-mark`: the kestrel wordmark filled into lt11's shared band and
+   measured CLEAN). The paid round itself still needs the owner's explicit OK with a stated cap.
 2. **The checkpoint is decided: `alibaba/qwen3-coder`** (owner, 2026-08-12), on a read of both
    galleries - better AND ~19x cheaper, 24/24 complete and contract-clean where kimi-k3 reached
    21/24 and could not finish three exemplar-arm briefs at all.

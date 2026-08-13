@@ -23,6 +23,7 @@
 import { variantById } from '../../templates/catalog';
 import { assembleGroundedTemplate } from '../litePipeline';
 import { VETTED_EXEMPLAR_IDS } from './exemplars';
+import { fillBrandMark, type SpikeBrand } from './brand';
 import type { DesignSpec } from '../designSpec';
 import type { SpxTemplate } from '../../model/types';
 import type { SpikeBrief } from './run';
@@ -38,6 +39,9 @@ export interface SpikeAnchor {
   template: SpxTemplate;
   data: Record<string, string>;
   stressData: Record<string, string>;
+  /** Set on the mark-fill control: which field carries the brand mark, so the runner points
+   *  the rendered mark measurement at it - the same measurement every candidate gets. */
+  markFieldId?: string;
 }
 
 /**
@@ -99,6 +103,47 @@ export function controlAnchor(): SpikeAnchor {
     template,
     data: driveData(template, [CONTROL_BRIEF.name, CONTROL_BRIEF.title]),
     stressData: driveData(template, [stress.f0, stress.f1]),
+  };
+}
+
+/**
+ * The MARK-FILL control (the brand round's addition to the zero-token set): a hand-authored
+ * catalog design with its shared logo slot turned on, filled with a REAL synthetic brand mark
+ * through the SAME `fillBrandMark` every candidate goes through, and measured by the same
+ * rendered gate. If this control's mark is broken, missing or unmeasurable, the fill or the
+ * measurement is broken - and a paid round would have measured the harness (the Phase 0
+ * lesson, twice over). lt11's slot is the shared band (templates/shared/logoSlot.ts), the one
+ * every 'optional' design inherits, so the control exercises the canonical slot rather than a
+ * bespoke one.
+ */
+export function markControlAnchor(brand: SpikeBrand): SpikeAnchor {
+  const variant = variantById(CONTROL_VARIANT_ID);
+  if (!variant) throw new Error(`spike mark control: variant ${CONTROL_VARIANT_ID} is gone from the catalog`);
+  if (variant.logo === 'none') {
+    throw new Error(`spike mark control: ${CONTROL_VARIANT_ID} no longer declares a logo capability`);
+  }
+  const bare = variant.create({
+    lines: [
+      { title: 'Name', sample: CONTROL_BRIEF.name },
+      { title: 'Role', sample: CONTROL_BRIEF.title },
+    ],
+    logoEnabled: true,
+  });
+  const { template, fill } = fillBrandMark(bare, brand);
+  if (!fill.slotFieldId || !fill.path) {
+    throw new Error('spike mark control: the shared logo slot was not found by the fill - the fill is broken');
+  }
+  const stress = stressFor(CONTROL_BRIEF);
+  return {
+    id: 'control-mark',
+    kind: 'control',
+    provenance: `hand-authored ${variant.id} "${variant.name}" + shared logo slot, filled with the "${brand.name}" mark by fillBrandMark`,
+    template,
+    // The mark's path rides the update payload too, so the runtime's own setFieldValue path
+    // (src + has-image) is exercised beside the baked src.
+    data: { ...driveData(template, [CONTROL_BRIEF.name, CONTROL_BRIEF.title]), [fill.slotFieldId]: fill.path },
+    stressData: { ...driveData(template, [stress.f0, stress.f1]), [fill.slotFieldId]: fill.path },
+    markFieldId: fill.slotFieldId,
   };
 }
 
