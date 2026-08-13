@@ -136,15 +136,16 @@ a design decision like any other:
   the design has to un-hide it with a rule, and a rule keyed one level off leaves the customer
   looking at an empty slot. If you want a layout that reacts to the mark's presence, key it on
   \`.has-image\`, which lands on the img's PARENT.
-- Size the slot for the mark measured above: a fixed height with \`width: auto\` and
-  \`object-fit: contain\`, so the mark keeps its own proportions - never crop it, round its
-  corners, filter it, or scale it unevenly. The mark is the customer's; it arrives as-is.
-- Give it clear space (about a quarter of its height on every side) and a surface its ink
-  actually reads on. THE SURFACE IS A COMPOSITIONAL ELEMENT, never part of the mark: read your
-  design back and ask what the slot's surface IS - a segment of the panel system, an end cap,
-  a full-height field. If deleting the mark would leave a small floating plate that belongs to
-  nothing, the mark has been given a bounding box rather than a place in the design, which is
-  the single most common way a real mark ends up looking pasted onto a finished graphic.
+- THE PLATFORM PLACES AND SIZES THE MARK. It goes into a leading column of your box, beside
+  the text and vertically centred, at a measured height with free width so a crest and a wide
+  wordmark both read - and where its ink needs a reading surface, that column becomes the
+  surface. So do not draw a plate, a card or a panel behind it, do not write its width or
+  height, and do not build a container to hold it: an \`<img>\` with your own class on it is the
+  whole declaration. Design the graphic around a mark that will be there; the seat is ours.
+- Everything else about the mark is still yours - whether the composition leads with it or
+  leans on the text, how much air the panel carries, what the mark sits NEXT to. The mark is
+  the customer's and it arrives as-is: it is never cropped, rounded, filtered or unevenly
+  scaled, by you or by us.
 - The mark is part of the composition, so it is part of the motion: bring it in and out inside
   the ANIMATION region with the same intent as the text - it should arrive meaningfully and
   smoothly, never pop in unannounced and never just sit there while the rest of the graphic
@@ -166,6 +167,12 @@ export interface BrandFillReport {
   stampedHasImage?: boolean;
   /** What the platform decided the mark's ink should sit on, and why. */
   surface?: MarkSurfaceDecision;
+  /** The platform moved the mark into its own leading column of the box. False when the markup
+   *  gave it nowhere to move to (no readable prefix, or no `<img>` bound to the slot). */
+  placed?: boolean;
+  /** The mark left an empty container behind and it was removed with it - usually the plate the
+   *  design had drawn around the mark, which would otherwise be stranded. */
+  droppedEmptyWrapper?: boolean;
 }
 
 // ── THE MARK'S SURFACE IS THE PLATFORM'S (owner decision, 2026-08-13) ───────────────────
@@ -325,7 +332,19 @@ export function fillBrandMark(
   html = stamped.html;
 
   const surface = decideMarkSurface(template.css, brand.mark.probe);
-  const css = `${template.css}\n${filledMarkVisibilityCss(slot.field)}`;
+  // A design that ALREADY carries a placement contract keeps it. `.{prefix}-box.has-image` is
+  // the catalog's own slot signature (`templates/shared/logoSlot.ts` writes exactly that rule),
+  // so this is how a hand-authored design says "my mark already has a seat". Without the guard
+  // the platform lays its grid over the catalog's, and the zero-token control caught precisely
+  // that: the mark-fill anchor went from CLEAN to `collision` with its clear space down to 0.
+  // Two placement systems on one box is not a stricter contract, it is a broken one.
+  const carriesOwnSlot = stamped.prefix
+    ? new RegExp(`\\.${stamped.prefix}-box\\.has-image\\b`).test(template.css) : false;
+  const placed = stamped.prefix && !carriesOwnSlot ? placeMark(html, stamped.prefix, slot.field) : null;
+  if (placed?.placed) html = placed.html;
+
+  const css = `${template.css}\n${filledMarkVisibilityCss(slot.field)}`
+    + (placed?.placed ? `\n${markSlotCss(stamped.prefix as string, slot.field, surface.surface)}` : '');
 
   return {
     template: {
@@ -335,8 +354,117 @@ export function fillBrandMark(
       fields,
       assets: [...template.assets, { path, data: brand.mark.dataUrl }],
     },
-    fill: { slotFieldId: slot.field, path, hadOwnSrc, stampedHasImage: stamped.stamped, surface },
+    fill: {
+      slotFieldId: slot.field,
+      path,
+      hadOwnSrc,
+      stampedHasImage: stamped.stamped,
+      surface,
+      placed: Boolean(placed?.placed),
+      droppedEmptyWrapper: Boolean(placed?.droppedWrapper),
+    },
   };
+}
+
+/**
+ * THE PLATFORM PLACES THE MARK (owner decision, 2026-08-13 - "take placement too").
+ *
+ * This is the half that makes the surface drawable at all. Two attempts at painting a field
+ * under a mark the MODEL had placed both failed, in different-looking ways with one cause: a
+ * surface can only be a band of the composition if whoever draws it knows the composition.
+ * Lite has always drawn one because Lite owns placement - `templates/shared/logoSlot.ts` puts
+ * the mark in a grid column of a box it controls - so Pro takes the same thing.
+ *
+ * The model still DECLARES the slot: the filelist field and the `<img id="fN">` are its
+ * emit, which is what keeps the SPX field contract the model's and the operator's. What moves
+ * is WHERE that img sits - to the first column of the box - and the sizing, which comes with
+ * placement because a column's width is a placement decision. The size is the catalog's own
+ * audited recipe rather than a fresh guess (a fixed height with free width and a wordmark cap:
+ * `benchmarks/lite/BRAND-AUDIT-2026-08-09.md`, the 56px-square finding).
+ *
+ * The surgery is a real DOM move rather than a regex, because "take this element out of
+ * wherever it is and make it the first child of that one" is not a string operation and this
+ * module already runs in a browser. A wrapper the mark leaves EMPTY is removed with it: the
+ * model's own logo container usually carries the plate it drew, and leaving that behind would
+ * strand exactly the floating rectangle this whole change exists to stop.
+ */
+function placeMark(
+  html: string, prefix: string, fieldId: string,
+): { html: string; placed: boolean; droppedWrapper: boolean } {
+  const unchanged = { html, placed: false, droppedWrapper: false };
+  if (typeof DOMParser === 'undefined') return unchanged;
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const img = doc.getElementById(fieldId);
+  const box = doc.querySelector(`.${CSS.escape(`${prefix}-box`)}`);
+  if (!img || img.tagName !== 'IMG' || !box) return unchanged;
+
+  const field = doc.createElement('div');
+  field.className = 'noacg-mark-field';
+  const oldParent = img.parentElement;
+  field.appendChild(img);
+  box.insertBefore(field, box.firstChild);
+
+  // The container the mark came out of, when the mark was all it held.
+  let droppedWrapper = false;
+  if (oldParent && oldParent !== box && oldParent.children.length === 0
+    && !(oldParent.textContent ?? '').trim()) {
+    oldParent.remove();
+    droppedWrapper = true;
+  }
+  return { html: doc.body.innerHTML, placed: true, droppedWrapper };
+}
+
+/**
+ * The platform's slot: a leading column of the box, and - when the mark's ink needs one - that
+ * column IS the field.
+ *
+ * Copied in shape from `applyLogoSlot`'s beside layout, which the 2026-08-13 blind review made
+ * the standing arrangement for lower thirds ("do not place a logo above or below; prefer
+ * beside"), including the widened cap: the mark's column must not come out of the TEXT's
+ * measure, which is the Lite audit's `logo-costs-text`.
+ *
+ * `align-self: stretch` is a grid item's DEFAULT here and it works, where the same property
+ * did nothing inside the model's own flex container - because this time the platform owns the
+ * container the property is answering. That is the whole reason a band is drawable now: the
+ * field runs the full height of the text stack, so it reads as a segment of the panel rather
+ * than a plate around the mark, and it no longer matches `bounding-box-well`.
+ */
+function markSlotCss(prefix: string, fieldId: string, surface: MarkSurface): string {
+  const fill = surface === 'light-field' ? MARK_FIELD_LIGHT
+    : surface === 'dark-field' ? MARK_FIELD_DARK : null;
+  const background = fill
+    ? `\n  background: ${fill};             /* the field the mark's ink reads on - a fixed neutral,\n                                      never the palette whose tone already failed */`
+    : '';
+  return `/* == PLATFORM: the brand mark's slot. The design declares the field; the platform
+   places it - a leading column beside the text, vertically centred, engaged through the
+   .has-image class the shared runtime already toggles. The column is full height, so a mark
+   that needs a reading surface gets a band of the composition rather than a plate. == */
+.${prefix}-box.has-image {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);  /* the mark's own width, then the text */
+  column-gap: calc(20px * var(--scale));
+  align-items: center;
+  /* Widened by the mark column's worst case so the mark never charges the text for its seat. */
+  max-width: min(calc(1080px * var(--scale)), 1680px);
+}
+.${prefix}-box.has-image > *:not(.noacg-mark-field) {
+  grid-column: 2;                  /* every text row keeps stacking in the second column */
+}
+.noacg-mark-field {
+  grid-column: 1;
+  grid-row: 1 / span 9;            /* spans more rows than any design draws - centres the mark */
+  align-self: stretch;             /* FULL HEIGHT of the text stack: a field, not a box */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 calc(14px * var(--scale));  /* clear space either side, inside the field */${background}
+}
+#${fieldId} {
+  height: calc(64px * var(--scale));  /* the mark's height is what a viewer reads it by */
+  width: auto;                     /* …and its width follows its own proportions */
+  max-width: calc(260px * var(--scale));  /* the cap a very wide rail letterboxes inside */
+  object-fit: contain;             /* show the whole mark, never crop a wordmark */
+}`;
 }
 
 /*

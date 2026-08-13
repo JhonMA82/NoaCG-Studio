@@ -159,9 +159,37 @@ positioned - and the rendered gate cannot see a pseudo-element in the first plac
 **The transferable rule: a surface can only be "a band of the composition" if the platform knows
 the composition.** Lite can draw one because Lite owns PLACEMENT too. Taking the surface while
 leaving placement to the model asks the platform to draw a shape inside a layout it has never
-seen, which is why the same mistake produced two different-looking failures. The fuller version -
-the platform owns where the mark sits as well as what it sits on - takes composition back from
-the model and is a product decision rather than an implementation one.
+seen, which is why the same mistake produced two different-looking failures.
+
+**SO THE PLATFORM TOOK PLACEMENT (owner, 2026-08-13), and the defect class closed.** The model
+still declares the slot - the filelist field and the `<img id="fN">` are its emit, so the SPX
+field contract stays the operator's - and the fill MOVES that img into a leading column of the
+box, at the catalog's own audited size (fixed height, free width, wordmark cap). The column is a
+grid item, so `align-self: stretch` finally means something: it runs the full height of the text
+stack, which is what makes the mark's surface a band of the composition rather than a plate, and
+the same property did nothing one commit earlier because the platform did not own the container
+it was asking. Re-measured over the ablation round's 15 saved generations, filled and then
+cleared:
+
+| | before | after |
+| --- | --- | --- |
+| clean | 4 | **13** |
+| not-painted | 5 | 0 |
+| bounding-box-well | 10 | 1 |
+| ink-contrast | 3 | 0 |
+| hides when the operator clears the field | 15 | 15 |
+
+The two residuals are honest and both are geometry no placement fixes: `empty-optional` is a
+two-line strap whose panel is barely taller than the mark, so a full-height column and a
+mark-sized box are the same rectangle; `sports-live` reports a collision between the mark's rect
+and a SKEWED accent rule that visually passes between mark and text (the rect-vs-skew limit the
+axis instrument already documents).
+
+**The control earned its keep again, mid-change.** `control-mark` went CLEAN → `collision` with
+its clear space at 0: the mark-fill anchor is a hand-authored CATALOG design that already carries
+`applyLogoSlot`'s slot, and the platform had laid its grid over the catalog's. A design whose CSS
+already declares `.{prefix}-box.has-image` - the catalog slot's own signature - now keeps its own
+placement. Two placement systems on one box is not a stricter contract, it is a broken one.
 
 **AND THE MARKS WERE NOT EVEN PAINTING - 5 of 12, now repaired (free).** Every one the same
 construction: the design hid its own `<img>` "until an image is provided" and wrote a second

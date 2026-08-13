@@ -1047,10 +1047,17 @@ this round, and one decision it should make early:
    ancestor happens to be positioned; the rendered gate cannot see a pseudo-element either.
    **A surface can only be "a band of the composition" if the platform knows the composition.**
    Lite draws one because Lite owns PLACEMENT too - `applyLogoSlot` puts the mark in a grid column
-   of a box it controls. Taking the surface while leaving placement to the model asks the platform
-   to draw a shape inside a layout it has never seen. So the real structural version is the fuller
-   one - the platform owns where the mark sits as well as what it sits on - and that takes
-   composition back from the model, which is a product decision, not an implementation detail.
+   of a box it controls. **So the platform took placement (owner, same day) and the defect class
+   closed.** The model declares the slot; the fill moves that `<img>` into a leading column of the
+   box at the catalog's audited size, and because the column is a grid item the platform owns,
+   `align-self: stretch` gives the mark's surface the full height of the text stack - a band, not
+   a plate. Over the ablation round's 15 saved generations: clean 4 → **13**, not-painted 5 → 0,
+   bounding-box-well 10 → 1, ink-contrast 3 → 0, and the mark still disappears when the operator
+   clears the field on all 15. A design that already declares `.{prefix}-box.has-image` keeps its
+   own placement - that is the catalog slot's signature, and the control caught the one commit
+   where the platform laid its grid over the catalog's. What stays the model's: whether the
+   composition leads with the mark or leans on the text, the panel's air, what the mark sits
+   beside. What is now ours: the seat and what its ink reads against.
 
    **WHERE THE CONTRACT STANDS AFTER THE 2026-08-13 ABLATION, and the one decision it now needs.**
    Two halves are settled and structural: the FILL guarantees a filled mark PAINTS (it stamps
