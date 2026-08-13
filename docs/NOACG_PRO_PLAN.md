@@ -1025,6 +1025,20 @@ this round, and one decision it should make early:
    (`scripts/spike-code-audit.mjs`, item 0a's countable half). Zero-token control green including
    a mark-fill control (`control-mark`: the kestrel wordmark filled into lt11's shared band and
    measured CLEAN). The paid round itself still needs the owner's explicit OK with a stated cap.
+
+   **WHERE THE CONTRACT STANDS AFTER THE 2026-08-13 ABLATION, and the one decision it now needs.**
+   Two halves are settled and structural: the FILL guarantees a filled mark PAINTS (it stamps
+   `has-image` on the root and the box and appends a scoped display rule, after 5 of 12 marks in
+   that round never appeared - the designs hid their own `<img>` and their un-hide rule was keyed
+   at the wrong level, following a prompt line that points at an example carrying no image field),
+   and the MOTION half reads. **The SURFACE half is not settled and prose has not moved it:** the
+   well-integration teaching was written after the brand round and measured on the ablation, and
+   the boxed rate is 8/12 taught against 9/18 untaught - flat to worse, once the invisible marks
+   are repaired and can be judged at all. **The decision owed is who owns the mark's surface.**
+   Teaching it again is the option already tried twice. The alternative is the shape the rest of
+   this contract already uses and Lite proved: the design declares the slot, the PLATFORM decides
+   what the mark sits on, and the model never draws that surface - the only version of the rule
+   that cannot be got wrong. Full measurement: `docs/AI_ATTEMPTS.md` top entry.
 2. **The checkpoint is decided: `alibaba/qwen3-coder`** (owner, 2026-08-12), on a read of both
    galleries - better AND ~19x cheaper, 24/24 complete and contract-clean where kimi-k3 reached
    21/24 and could not finish three exemplar-arm briefs at all.

@@ -57,7 +57,8 @@ gradient plate on a dark panel was praised on `long-name` and `gradient-accent` 
 "visibly exposed" on `news-public`. Same geometry, same tones; what changed is the brief's world.
 So the check REPORTS and never gates, and the prompt now teaches the surface as a compositional
 element ("if deleting the mark would leave a floating plate that belongs to nothing, the mark
-has a bounding box, not a place in the design").
+has a bounding box, not a place in the design") - **which was then measured and does not work;
+see the ablation-round paragraph near the end of this entry before treating it as a fix.**
 
 **The own-field mark wins on today's contract.** The Ledger brand (a mark that brings its own
 field) took 6 of its 8 items to airable - no well decision to get wrong. The transparent
@@ -130,11 +131,38 @@ importer still could not read - so the arm did not trade one failure for another
 did not move either. A worked example of a region conforms; a description of one does not.
 Cost stayed honest: $0.011 a generation against the exemplar arm's $0.028-$0.038.
 
-**RETRY WHEN** - not a retry; Phase 1 continues on this evidence. Owed next: the
-well-integration teaching plus the bounding-box check the owner asked for, and the catalog
-side-slot option. The exemplar question is closed for Phase 3's purposes; if it is reopened,
-the cheap thing left untried is ONE authoring-shape region shown as code without the three
-complete designs around it.
+**THE WELL-INTEGRATION TEACHING DOES NOT WORK, MEASURED (2026-08-13, free).** The ablation
+round is its first paid outing, and re-measuring both rounds from their saved code with the
+SAME check says it moved nothing: the untaught no-exemplar arm was 9/18 boxed (50%), and the
+taught grammar arm is **8/12 (67%)** once the dead marks below are repaired and can be judged
+at all. Like-for-like on the exemplar arm, 8/12 before and 2/3 in the drift re-runs - flat.
+The rate looked like it had improved (5/12) only because five marks were invisible, and an
+invisible mark cannot be flagged for its surface.
+
+So the teaching has now been written twice and measured once, and prose is not what is missing.
+The next move is a DESIGN decision rather than another sentence: either the check keeps
+reporting and the surface stays a human read (it already never gates), or the platform takes
+the surface the way Lite does - the design declares the slot, the compiler decides what it sits
+on, the model never draws it. That is the doctrine the rest of the mark contract already
+follows, and it is the only version that cannot be got wrong.
+
+**AND THE MARKS WERE NOT EVEN PAINTING - 5 of 12, now repaired (free).** Every one the same
+construction: the design hid its own `<img>` "until an image is provided" and wrote a second
+rule to bring it back - four keyed `has-image` on the ROOT where the shared runtime toggles it
+on the img's PARENT, and the fifth keyed the right element but set the CONTAINER's display and
+never touched the img. The prompt tells the model to use "the has-image pattern from the
+example" and the neutral skeleton in the example slot HAS NO IMAGE FIELD, so where the class
+lands was always a guess - dead teaching of exactly the kind the Lite side already names. The
+fill now stamps `has-image` on the root and the box and appends a scoped display rule for the
+filled id; the empty state is untouched, because the runtime sets `display` inline and inline
+wins. Measured over all fifteen saved generations: 5 repaired, 0 regressed, and the mark still
+disappears when the field is cleared on all 15.
+
+**RETRY WHEN** - not a retry; Phase 1 continues on this evidence. Owed next: the owner's call on
+who owns the mark's surface (above), and nothing else from this round - the catalog side-slot
+shipped and the exemplar question is closed for Phase 3's purposes. If the exemplar question is
+reopened, the cheap thing left untried is ONE authoring-shape region shown as code without the
+three complete designs around it.
 
 ### Models designing a broadcast graphic unaided
 **2026-08-12 · NoaCG Pro Phase 0 · `moonshotai/kimi-k3` · 20 of 24 captured, $4.58 · OWNER READ
