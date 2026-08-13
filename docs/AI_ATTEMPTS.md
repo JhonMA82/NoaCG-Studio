@@ -88,9 +88,20 @@ output before sameness ever appears.
 AFTER the captures, so that generation's paid code was lost. Fixed the same hour: a lifecycle
 throw is a recorded RESULT, and the deliverable lands on disk the moment it exists.
 
+**ANIMATED REVIEW IS BUILT (2026-08-13, free).** Each strip is now also encoded to a looping webm
+the blind gallery plays in place, sampled on the same virtual clock at exactly one playback frame
+per step so it runs at the graphic's real speed. The five stills are untouched - the mark-motion
+gate was calibrated on them - and the clip is what the §0.2 read now judges motion from. Two
+things the build had to get right: an early version fitted its grid across the phase AND folded
+the stills into the sequence, which made a 1340 ms entrance play as a 1.60 s clip (easing is read
+from timing, so a clip that misreports it is worse than none); and the update strip's five stills
+start at the instant `update()` fires, so its clip leads in 300 ms to show the swap happen rather
+than 900 ms of a frozen frame. Native `controls` are off - the bar lands exactly on the lower
+third. ffmpeg is optional; without it the gallery falls back to stills.
+
 **RETRY WHEN** - not a retry; Phase 1 continues on this evidence. Owed next: the well-integration
-teaching plus the bounding-box check the owner asked for, the catalog side-slot option, animated
-motion review, and the exemplar-vs-grammar-teaching ablation above.
+teaching plus the bounding-box check the owner asked for, the catalog side-slot option, and the
+exemplar-vs-grammar-teaching ablation above.
 
 ### Models designing a broadcast graphic unaided
 **2026-08-12 · NoaCG Pro Phase 0 · `moonshotai/kimi-k3` · 20 of 24 captured, $4.58 · OWNER READ
