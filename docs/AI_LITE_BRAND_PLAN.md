@@ -144,6 +144,50 @@ the palette. Fix = measured per-chassis metadata from `scripts/palette-freedom.m
 `supportingLineChars` and `logoSlot`, gated against a re-render. **Not** `logoSlot.surface` - that
 was tried and reverted (lt32's logo well follows the palette; its scrim does not).
 
+### 3.7 A STRAP SPENDS WIDTH, NEVER HEIGHT (owner decision, 2026-08-14)
+
+Read from the matrix gallery: **a lower third must not grow tall when a mark arrives, and a mark
+must not bring its own plate.** The same finding the Pro harness reached from the other side.
+
+Measured with a mark against the same design without one, before the fix:
+
+| stacks the mark | growth | sets it beside the words | growth |
+| --- | --- | --- | --- |
+| `lt02` | +83% | `lt41` | 0% |
+| `lt25` | +74% | `lt49` | 0% |
+| `lt15` | +67% | `ls12` | 0% |
+| `lt05` | +63% | `ls17` | 0% |
+| `lt11` | +57% | `ls29` | 0% |
+| `lt32` | +36% | | |
+
+The split is exact: every design that stacks grows, every design that sets the mark beside the
+words does not. And it was ONE cause - `shared/logoSlot.ts` injects the shared slot as a row
+leading the box, so the six original brand chassis inherited it. `lt11` alone served 44% of the
+matrix, so most branded output was a strap turning into a block.
+
+**Fixed 2026-08-14**: for `lower-third` only (a card's mark above its heading is correct), the
+shared slot emits a two-column grid, the mark's height is a CAP rather than a fixed row height,
+and the mark is injected as the box's LAST child. All six now grow between +3% and +21%.
+
+Three things the frames caught that no gate would have:
+
+- **Injecting as the FIRST child renumbers every `nth-child`.** `lt02` places every line after
+  the first below its underline with `.lower-third-mask:nth-child(n + 2)`, so the name landed
+  under the rule. Last-child injection preserves every index; grid places the mark in column one
+  regardless of source order.
+- **A fixed mark height lets a portrait crest set the strap's height through its own aspect** -
+  the same failure by the back door. The height is a cap tight enough that the mark can never
+  out-grow the two lines beside it.
+- **`lt32` now declares crests only.** It holds 28 characters on its supporting line, the
+  tightest in the bank, so a wide lockup's column costs that line its last word
+  (`logo-costs-text`, only on this design). Format won over shape coverage - a deliberate
+  capability loss, declared rather than claimed.
+
+**The plate rule, with one ratified exception.** A mark carries no filled well: it sits on the
+graphic's own ground, because a plate reads as artwork pasted onto the template. `ls12`'s
+opposite-tone tile STAYS (owner, 2026-08-14) - it is the §3.4 chassis and the only thing keeping
+a knockout-only mark legible on a light package (16.82:1 against 1.14:1 elsewhere).
+
 ### 3.4 The opposite-tone chassis (owner decision 2, 2026-08-09) - DONE 2026-08-13
 
 No catalog lower third paired a logo well with the OPPOSITE tone to its own package, so a brand

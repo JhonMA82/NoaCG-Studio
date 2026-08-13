@@ -108,6 +108,16 @@ tile-wall presentation, which no longer ships):
 ## Shared assemblers (every category builds on these)
 
 - **shared/base.ts** - generic assembler pieces: :root vars, zones, auto-fit, runtime scaffold.
+- **shared/logoSlot.ts** - the shared OPTIONAL logo slot every `logo: 'optional'` design inherits
+  unless it hand-authors its own (`designHasLogoSlot`). **On a LOWER THIRD it places the mark
+  BESIDE the words, never above them**: measured 2026-08-14, the leading-row form made `lt02` 83%
+  taller, `lt25` 74% and `lt11` 57%, while every design that sets its mark beside the text grew
+  only in width - and a strap's height is the one dimension it cannot spend. Cards keep the
+  leading row, where a mark above a heading is ordinary. Two rules the fix bought, both binding on
+  anything that injects markup into a design it cannot see: **inject as the LAST child** (a first
+  child renumbers every `nth-child` selector the design wrote about its own children - lt02 put
+  the name under its underline), and **cap the mark's height rather than fixing it** (a fixed
+  height hands a portrait crest the power to set the strap's height through its own aspect).
 - **shared/standard.ts** - CategorySpec, assembleStandard, makeDefineVariant, and
   `convertToDataRegion` - the Timeline v2 flip: convert a freshly assembled template's legacy
   ANIMATION region into the NOACG_ANIM data block + interpreter through the parity-proven

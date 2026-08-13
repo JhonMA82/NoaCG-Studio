@@ -246,7 +246,13 @@ const BASE_LITE_CATALOG: readonly LiteCatalogBase[] = [
       description: 'Cinematic typography on a quiet gradient scrim that integrates with the shot.',
       style: 'cinematic',
       logo: true,
-      logoSlot: { surface: 'palette', fits: ['portrait', 'square', 'wordmark', 'rail'] },
+      // CRESTS ONLY, and the reason is capacity rather than tone. lt32 holds 28 characters on
+      // its supporting line - the tightest in the bank - so once the mark moved BESIDE the words
+      // (a strap may not grow taller), a wide lockup's column costs that line its last word:
+      // the audit reads `logo-costs-text` on the wordmark and the rail, and only on this design.
+      // The trade is deliberate: a design that keeps its format and holds a crest, rather than
+      // one that holds every mark shape by becoming a block.
+      logoSlot: { surface: 'palette', fits: ['portrait', 'square'] },
       intentKinds: ['person', 'story', 'event'],
       bestFor: ['documentary', 'arts', 'film', 'human-interest interviews'],
       avoidFor: ['score updates', 'dense data', 'high-energy calls to action'],
