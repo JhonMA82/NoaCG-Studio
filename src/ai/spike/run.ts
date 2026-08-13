@@ -44,11 +44,15 @@ import type { SpxValidator } from '../provider';
 import type { ValidationResult } from '../../validation/validateTemplate';
 import type { SpxTemplate } from '../../model/types';
 import { exemplarBlock, exemplarsFor } from './exemplars';
+import { grammarLesson } from './grammar';
 import { brandBlock, fillBrandMark, type BrandFillReport, type SpikeBrand } from './brand';
 
-/** The two arms. `exemplar` sees two or three complete designs; `none` sees the scaffold
- *  alone. The arms differ in the exemplar block and in nothing else. */
-export type SpikeArm = 'exemplar' | 'none';
+/** The three arms. `exemplar` sees two or three complete designs; `none` sees the scaffold
+ *  alone; `grammar` sees a few hundred tokens of region lesson instead of the designs
+ *  (docs/NOACG_PRO_PLAN.md §14 item 3 - the ablation on whether the exemplar block's ~34,500
+ *  tokens are buying a convertible timeline a sentence could have taught). The arms differ in
+ *  ONE block of the user message and in nothing else. */
+export type SpikeArm = 'exemplar' | 'none' | 'grammar';
 
 /** One brief from the 12-brief bank (benchmarks/pro/v1/briefs.json). */
 export interface SpikeBrief {
@@ -103,7 +107,7 @@ export interface SpikeRunResult {
  * model's ability to guess how many fields a strap has - and the deterministic gate would
  * otherwise fail results for a reason that has nothing to do with the eye.
  */
-export function spikeUserMessage(brief: SpikeBrief, exemplars: string, brand?: SpikeBrand): ContentBlock[] {
+export function spikeUserMessage(brief: SpikeBrief, armBlock: string, brand?: SpikeBrand): ContentBlock[] {
   // On a brand round the mark is always present and its contract is the brand block's; the
   // bare filelist line is the generic Phase 0 shape, kept for brand-less runs.
   const logoLine = brand
@@ -138,7 +142,7 @@ without breaking.
 ${brandSection}## What is being judged
 ${judged}
 
-${exemplars}`;
+${armBlock}`;
   return [{ type: 'text', text }];
 }
 
@@ -151,8 +155,13 @@ export async function runSpikeBrief(options: SpikeRunOptions): Promise<SpikeRunR
   const { brief, arm, route, decoding, validate, brand } = options;
   const selection = arm === 'exemplar'
     ? exemplarsFor(brief.brief)
-    : { variants: [], reason: 'no-exemplar arm' };
-  const userContent = spikeUserMessage(brief, exemplarBlock(selection.variants), brand);
+    : { variants: [], reason: `${arm} arm - no exemplars` };
+  // The one block the arms vary. `grammar` and `none` both show no designs; what separates
+  // them is whether the region lesson is present, which is the ablation's whole question.
+  const armBlock = arm === 'exemplar' ? exemplarBlock(selection.variants)
+    : arm === 'grammar' ? grammarLesson()
+      : '';
+  const userContent = spikeUserMessage(brief, armBlock, brand);
   const system = spikeSystemPrompt();
 
   const call = (messages: { role: 'user' | 'assistant'; content: ContentBlock[] | string }[]) =>

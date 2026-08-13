@@ -9,6 +9,11 @@
 //   node scripts/pro-spike.mjs --generate --route=… --arms=exemplar
 //   node scripts/pro-spike.mjs --control news-public       # a subset by brief id
 //
+//   # THE EXEMPLAR ABLATION (plan §14 item 3): the grammar arm across the bank, plus a few
+//   # exemplar re-runs to check the stored exemplar arm still reproduces.
+//   node scripts/pro-spike.mjs --generate --route=vercel:alibaba/qwen3-coder --max-cost=0.40 \
+//     --arms=grammar --drift-check=exemplar:news-public,sports-live,minimalist
+//
 // THE BRAND ROUND (the default since Phase 1): every brief is conditioned on a SYNTHETIC
 // brand from benchmarks/pro/v1/spike/brands.json - an invented organisation's name, palette,
 // typeface and REAL mark file, the mark's shape/backing/ink measured in the page by probeMark
@@ -31,8 +36,9 @@
 // (docs/AI_ATTEMPTS.md), and every deterministic gate stayed green through both - which is
 // why this is a picture a human looks at, not an assertion.
 //
-// THE RUN PROTOCOL (§0.1): the 12-brief bank, every brief in TWO arms (two or three
-// hand-vetted complete exemplars retrieved through shortlistFor / no exemplars at all), one
+// THE RUN PROTOCOL (§0.1): the 12-brief bank, every brief in the requested arms (two or three
+// hand-vetted complete exemplars retrieved through shortlistFor / no exemplars at all / the
+// region GRAMMAR LESSON in their place, src/ai/spike/grammar.ts), one
 // candidate each, one or at most two pinned open-weight checkpoints, decoding pinned in
 // benchmarks/pro/v1/spike/decoding.json, the shared two-round repair loop,
 // productionSpxValidator, composeDocument at 1920x1080, and an ANCHOR-MIXED BLINDED gallery.
@@ -98,10 +104,38 @@ if (control && paid) {
   process.exit(1);
 }
 
+const KNOWN_ARMS = ['exemplar', 'none', 'grammar'];
 const ARMS = (value('arms') ?? 'exemplar,none').split(',').filter(Boolean);
 for (const arm of ARMS) {
-  if (arm !== 'exemplar' && arm !== 'none') {
-    console.error(`Unknown arm "${arm}" - the arms are exemplar and none.`);
+  if (!KNOWN_ARMS.includes(arm)) {
+    console.error(`Unknown arm "${arm}" - the arms are ${KNOWN_ARMS.join(', ')}.`);
+    process.exit(1);
+  }
+}
+
+/**
+ * --drift-check=<arm>:<brief,brief,…> - re-run a FEW briefs on an arm whose results a previous
+ * round already holds, so the comparison against those stored results can say whether they
+ * still reproduce.
+ *
+ * The exemplar ablation is the reason this exists. Re-running all twelve exemplar generations
+ * to compare against costs $0.46 and reproduces something already on disk under the same pinned
+ * decoding, checkpoint and brand assignment; reusing the stored arm costs nothing and assumes
+ * the provider has not moved under it. A handful of re-runs is the cheap way to CHECK that
+ * assumption instead of carrying it - and if they diverge, the ablation is read against fresh
+ * numbers rather than quietly against stale ones.
+ */
+const driftArg = value('drift-check');
+const driftCheck = driftArg
+  ? { arm: driftArg.split(':')[0], briefs: (driftArg.split(':')[1] ?? '').split(',').filter(Boolean) }
+  : null;
+if (driftCheck) {
+  if (!KNOWN_ARMS.includes(driftCheck.arm)) {
+    console.error(`--drift-check names an unknown arm "${driftCheck.arm}".`);
+    process.exit(1);
+  }
+  if (!driftCheck.briefs.length) {
+    console.error('--drift-check needs briefs: --drift-check=exemplar:news-public,sports-live');
     process.exit(1);
   }
 }
@@ -820,10 +854,27 @@ if (paid) {
       }
     }
   }
+  // The drift-check cells, added last so they read as what they are: a few repeats of an arm a
+  // previous round already holds, under that arm's own assigned brand so the stored result is
+  // the thing they are comparable with. A brief already planned on that arm gains nothing and
+  // is skipped rather than generated twice.
+  if (driftCheck) {
+    for (const briefId of driftCheck.briefs) {
+      const entry = briefs.find((e) => e.id === briefId);
+      if (!entry) {
+        console.error(`--drift-check names a brief this run has no fixture for: ${briefId}`);
+        process.exit(1);
+      }
+      if (ARMS.includes(driftCheck.arm)) continue;
+      const assigned = brandsFixture ? brandById.get(brandsFixture.assignment[entry.id]) : null;
+      plan.push({ entry, arm: driftCheck.arm, brand: assigned, divergence: false, drift: true });
+    }
+  }
   console.log(`\nPlan: ${plan.length} generation(s)`
-    + `${brandsFixture ? ` (${plan.filter((p) => p.divergence).length} of them the divergence cell)` : ''}.`);
+    + `${brandsFixture ? ` (${plan.filter((p) => p.divergence).length} of them the divergence cell)` : ''}`
+    + `${driftCheck ? ` (${plan.filter((p) => p.drift).length} of them the ${driftCheck.arm} drift check)` : ''}.`);
 
-  for (const { entry, arm, brand, divergence } of plan) {
+  for (const { entry, arm, brand, divergence, drift } of plan) {
       const started = Date.now();
       const slug = brand ? `${entry.id}.${brand.id}.${arm}` : `${entry.id}.${arm}`;
       console.log(`\n── ${slug} ──`);
@@ -1017,7 +1068,9 @@ if (paid) {
         divergence,
         route,
         model: outcome.model,
-        provenance: `${route} · ${arm} arm${brand ? ` · brand ${brand.id}${divergence ? ' (divergence cell)' : ''}` : ''}`
+        drift: Boolean(drift),
+        provenance: `${route} · ${arm} arm${drift ? ' (drift check)' : ''}`
+          + `${brand ? ` · brand ${brand.id}${divergence ? ' (divergence cell)' : ''}` : ''}`
           + ` · exemplars [${outcome.exemplarIds.join(', ') || 'none'}]`,
         exemplarIds: outcome.exemplarIds,
         exemplarReason: outcome.exemplarReason,
@@ -1339,7 +1392,7 @@ function axisCell(r) {
 function keyHtml(ledger) {
   const rows = ledger.results.map((r) => `<tr>
   <td>${r.blindId}</td>
-  <td>${r.kind}${r.arm ? ` · ${r.arm}` : ''}${r.brand ? `<br><small>${r.brand}${r.divergence ? ' · divergence' : ''}</small>` : ''}</td>
+  <td>${r.kind}${r.arm ? ` · ${r.arm}` : ''}${r.drift ? '<br><small>drift check</small>' : ''}${r.brand ? `<br><small>${r.brand}${r.divergence ? ' · divergence' : ''}</small>` : ''}</td>
   <td>${r.provenance ?? r.slug}</td>
   <td>${r.skipped ? `skipped (${r.skipped})` : r.error ? 'ERROR'
     : r.contract ? `${r.contract.scaffoldOk ? 'contract OK' : 'contract FAIL'}${
