@@ -3,21 +3,25 @@
      REPLAY SLAB - the sports "to slow-motion replay" stinger.
      Hand-authored anchor for the NoaCG video corpus (docs/NOACG_VIDEO_PLAN.md §2.2/§2.4).
 
-     Visual direction: aggressive sports. THE MARK LEADS: it crosses the live picture on its
-     own first, at one and a half times its settled size, and the slab arrives behind it as
-     if it were dragged in. The mark then drops into place, the rule draws and the word rises
-     under it, and the whole lockup leaves riding the slab.
+     Visual direction: aggressive sports. One heavy angled slab drives across the frame behind
+     a bright accent edge and closes it; the mark then lands on the slab oversized and drops
+     into place, the rule draws, the word rises under it, and the whole lockup leaves riding
+     the slab back out.
 
-     THE MARK IS NEVER ON A PLATE (§2.4). It sits directly on the picture and then on the
-     brand's own field, so a brand supplies the version of its mark that suits the field
-     colour it also supplies - the same rule the Lite brand work landed on. Framing a mark in
-     a box to make it legible is a picture of a logo, not a logo.
+     THE SLAB COMES FIRST, THEN THE MARK (§2.4 rule 4). An earlier version had the mark cross
+     the live picture ahead of the slab, and on review it read as a mistake: an outline mark
+     over moving video is a few thin strokes on an unknown background, so the viewer sees a
+     faint artifact rather than a brand. The mark only ever appears on a surface we control.
+
+     THE MARK IS NEVER ON A PLATE (§2.4 rule 1). It sits directly on the brand's own field, so
+     a brand supplies the version of its mark that suits the field colour it also supplies -
+     the same rule the Lite brand work landed on. Framing a mark in a box to make it legible
+     is a picture of a logo, not a logo.
 
      THE CONTRACT, and how this file keeps it:
        - 2.00 s at 1920x1080, transparent.
-       - FRAME 0 IS EMPTY BY CONSTRUCTION: the slab group sits 3800 px to the left, the
-         lockup 1500 px to the left, and the rule/word/kicker are at zero opacity. #root
-         clips with overflow: hidden. Nothing fades in from a visible state.
+       - FRAME 0 IS EMPTY BY CONSTRUCTION: the slab group sits 3800 px to the left and every
+         part of the lockup is at zero opacity. #root clips with overflow: hidden.
        - THE LAST FRAME IS EMPTY THE SAME WAY: slab and lockup both end at x = +3800 at
          1.92 s. 1.92 rather than 2.00 because the renderer's last frame is t = (N-1)/fps -
          1.960 / 1.967 / 1.980 / 1.983 s at 25 / 30 / 50 / 60 fps.
@@ -192,18 +196,16 @@
   // Far enough that the slab, both edge rules and the lockup are all outside the frame.
   const TRAVEL = 3800;
 
-  // 0.00 -> 0.34  the MARK crosses the live picture on its own, oversized and leaning.
-  tl.fromTo('#lockup', { x: -1500 }, { x: 0, duration: 0.34, ease: 'power3.out' }, 0);
-  tl.fromTo('#logo-slot', { scale: 1.5, rotation: -7, y: 118 },
-    { rotation: 0, duration: 0.34, ease: 'power3.out' }, 0);
+  // 0.00 -> 0.42  the slab closes the frame. NOTHING ELSE happens over the live picture:
+  // the mark waits for a surface it can be read on (§2.4 rule 4).
+  tl.fromTo('#group', { x: -TRAVEL }, { x: 0, duration: 0.42, ease: 'power4.out' }, 0);
 
-  // 0.08 -> 0.46  the slab arrives behind it and closes the frame.
-  tl.fromTo('#group', { x: -TRAVEL }, { x: 0, duration: 0.38, ease: 'power4.out' }, 0.08);
-
-  // 0.46 -> 1.12  FULL COVER. Everything the viewer is meant to read happens here, because
-  // this is the only stretch that is guaranteed to be on screen. The mark drops out of its
-  // oversize into the lockup and the word rises underneath it.
-  tl.to('#logo-slot', { scale: 1, y: 0, duration: 0.40, ease: 'power4.out' }, 0.46);
+  // 0.44 -> 1.12  FULL COVER. Everything the viewer is meant to read happens here, because
+  // this is the only stretch that is guaranteed to be on screen. The mark arrives oversized
+  // and drops into the lockup; the word rises underneath it.
+  tl.fromTo('#logo-slot', { scale: 1.42, y: 74, rotation: -5, autoAlpha: 0 },
+    { autoAlpha: 1, duration: 0.08, ease: 'none' }, 0.44);
+  tl.to('#logo-slot', { scale: 1, y: 0, rotation: 0, duration: 0.44, ease: 'power4.out' }, 0.44);
   tl.fromTo('#rule', { scaleX: 0, transformOrigin: 'center center', autoAlpha: 0 },
     { scaleX: 1, autoAlpha: 1, duration: 0.34, ease: 'power3.out' }, 0.58);
   tl.fromTo('#label', { yPercent: 118 }, { yPercent: 0, duration: 0.44, ease: 'power4.out' }, 0.62);

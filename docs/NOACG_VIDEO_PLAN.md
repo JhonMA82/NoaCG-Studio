@@ -321,21 +321,32 @@ still for the length of the window is a slate with a wipe on each end. The frame
 filled by something that keeps happening - a reveal that runs through the window, a burst, a
 shatter, a distraction that earns the cut. Nothing in the covered stretch may be static.
 
-**3. The mark should help PRODUCE the cover wherever the design allows.** The strongest form of
-this type is one where the logo is the mechanism: it flies in over the live picture and the
-field bursts out from behind it, or it grows until the frame is gone. `logo-punch` in the
-corpus is the demonstration; `replay-slab` is the softer version of the same idea - the mark
-crosses the picture first and the slab arrives behind it.
+**3. The mark should DRIVE the transition wherever the design allows** - but read rule 4 first,
+because it constrains how. The mark cannot produce the cover by being visible on the outgoing
+picture. What it can do is own the **exit** (punch through and take the field with it, as
+`logo-punch` does), or have the cover be made of its own ink (`ink-sweep`), or be revealed by
+the cover's own motion rather than by a separate idea (`aperture-bands`, whose shutters are cut
+on the same pitch as the bands that closed the frame).
 
-**4. Before the cover, the mark is ALONE on the live picture.** Nothing else may paint over the
-outgoing feed during the entrance - no accent streak, no expanding outline, no flourish. On the
-feed, a viewer has no way to tell decoration from a fault, so anything that is not the mark
-reads as an artifact. Found the expensive way: `logo-punch` ran an accent streak and an
-expanding accent ring ahead of its burst and both were read on review as "blue outlines flying
-in, definitely a mistake". Decoration is legal only once the frame is covered. **The covering
-surface's own leading edge is not an exception** - the accent rule on `replay-slab`'s slab and
-on `ink-sweep`'s bands is the boundary of the cover itself, and reads as the wipe. What the
-rule forbids is a free-floating flourish with nothing behind it.
+**4. THE COVER COMES FIRST. Nothing but the covering surface may appear over the live
+picture - including the mark.** The order is: the frame closes, and only then does the graphic
+show anything. Twice measured, on two different elements:
+
+- `logo-punch` first ran an accent streak and an expanding accent ring ahead of its burst.
+  Verdict: "blue outlines flying in, definitely a mistake".
+- Three of the four exemplars then had the **mark itself** cross the live picture before the
+  cover. Same verdict, same words: "thin blue lines... you can barely see it, it looks like a
+  mistake."
+
+The reason is structural, not a matter of taste. **A mark on the live picture has no
+controlled background.** An outline mark - Aldervale's rings, Kestrel's stroke letterforms,
+Northbridge's bridge glyph - is a few thin strokes over moving video of unknown colour, so it
+reads as an artifact rather than a brand. A mark is only ever legible on a surface the graphic
+owns, so the graphic has to own one before the mark is shown.
+
+**The covering surface's own leading edge is not an exception** - the accent rule on
+`replay-slab`'s slab and on `ink-sweep`'s ink bands is the boundary of the cover itself, and
+reads as the wipe. What the rule forbids is anything with nothing behind it.
 
 **The same rule applies on the way OUT, against the incoming picture.** A lockup that emerges
 from behind the retreating cover is the identical defect one beat later. `ink-sweep` keeps it

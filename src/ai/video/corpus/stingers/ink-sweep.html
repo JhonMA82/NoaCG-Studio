@@ -3,28 +3,30 @@
      INK SWEEP - the mark paints the cover. No panel arrives at any point.
      Hand-authored anchor for the NoaCG video corpus (docs/NOACG_VIDEO_PLAN.md §2.2/§2.4).
 
-     Visual direction: the mark comes in fast from the left as a BRUSH TIP, and brand ink
-     lays down behind it in ten ragged bands that open from the middle outward. The mark
-     overshoots, the ink runs past it, the frame is full, and then the mark swings back to
-     centre and settles while the word rises under it. At the end the ink retreats the way it
-     came and takes the mark with it.
+     Visual direction: brand ink is laid across the frame in ten ragged bands that open from
+     the middle outward, each led by a bright accent edge - a brush stroke rather than a
+     panel. Once the frame is inked the mark lands on it, carried in with the flow, and the
+     word rises under it. At the end the ink retreats the way it came and takes the mark
+     with it.
 
      WHY IT EXISTS: §2.4 rule 5. A stinger used as a transition must fully cover, because the
      switcher cuts underneath it - but the covering surface does not have to be a rectangle
-     that arrives and parks. Here you only ever see ink where the mark has already been, so
-     the cover is something the logo DID rather than something the logo sits on. It also works
-     for every mark in the swap set, which a design that covers with the mark's own silhouette
-     cannot do - an outline mark has no solid mass to fill a frame with.
+     that arrives and parks. Here the cover is a stroke of the brand's own ink, with a ragged
+     leading edge, and it never sits still. It also works for every mark in the swap set,
+     which a design that covers with the mark's own silhouette cannot do - an outline mark has
+     no solid mass to fill a frame with.
 
-     THE MARK IS NEVER ON A PLATE (§2.4 rule 1), and before the cover the mark is ALONE on the
-     live picture (rule 4). The accent edge on each ink band is not an exception: it is the
-     leading edge OF THE COVERING SURFACE, the same as the accent rule on replay-slab's slab.
-     A free-floating flourish over the feed is what rule 4 forbids.
+     NOTHING BUT THE INK IS ON THE LIVE PICTURE (§2.4 rule 4). The brush tip is the accent
+     edge of the ink itself, not the mark: an earlier version sent the mark across the feed
+     ahead of the stroke and it read as a few thin strokes on an unknown background - a fault,
+     not a brand. THE MARK IS NEVER ON A PLATE EITHER (rule 1): once the ink is down it is the
+     brand's own field, and that is the only surface the mark is ever seen on.
 
      THE CONTRACT, and how this file keeps it:
        - 2.00 s at 1920x1080, transparent.
        - FRAME 0 IS EMPTY BY CONSTRUCTION: every ink band sits at x = -1400, which puts its
-         right edge at -440, and the mark is at x = -1500. #root clips with overflow: hidden.
+         right edge at -440, and every part of the lockup is at zero opacity. #root clips with
+         overflow: hidden.
        - THE LAST FRAME IS EMPTY THE SAME WAY: the last band clears at 1.906 s and the mark at
          1.78 s. 1.906 rather than 2.00 because the renderer's last frame is t = (N-1)/fps -
          1.960 s at 25 fps, 1.983 s at 60 fps.
@@ -185,14 +187,12 @@
   tl.fromTo('.ink-band', { x: INK_OUT },
     { x: INK_IN, duration: 0.30, ease: 'power2.out', stagger: { each: 0.018, from: 'center' } }, 0.02);
 
-  // 0.00 -> 0.34  the MARK leads it as the brush tip, and nothing else is on the live
-  // picture while it does (§2.4 rule 4).
-  tl.fromTo('#logo-slot', { x: -1500, scale: 0.78, rotation: -7 },
-    { x: 320, duration: 0.34, ease: 'power3.out' }, 0);
-
-  // 0.46 -> 1.12  FULL COVER. The mark swings back to centre off its overshoot and the
-  // lockup builds under it - the whole window is one continuous move, never a held frame.
-  tl.to('#logo-slot', { x: 0, scale: 1, rotation: 0, duration: 0.40, ease: 'power2.inOut' }, 0.46);
+  // 0.44 -> 1.12  FULL COVER. The mark lands ON the ink, never ahead of it (§2.4 rule 4),
+  // and settles WITH the flow so it reads as something the sweep carried in. The whole
+  // window is one continuous move, never a held frame.
+  tl.fromTo('#logo-slot', { x: -150, scale: 0.86, rotation: -4, autoAlpha: 0 },
+    { autoAlpha: 1, duration: 0.08, ease: 'none' }, 0.44);
+  tl.to('#logo-slot', { x: 0, scale: 1, rotation: 0, duration: 0.44, ease: 'power3.out' }, 0.44);
   tl.fromTo('#hairline', { scaleX: 0, transformOrigin: 'center center', autoAlpha: 0 },
     { scaleX: 1, autoAlpha: 1, duration: 0.38, ease: 'power3.out' }, 0.62);
   tl.fromTo('#label', { yPercent: 114 }, { yPercent: 0, duration: 0.44, ease: 'power4.out' }, 0.68);
