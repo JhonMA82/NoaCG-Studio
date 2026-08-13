@@ -300,6 +300,39 @@ customer therefore cannot deliver a correct stinger today. It is recorded here r
 fixed because it reaches the project format, the render service and the frame budget at once;
 scope it when the first non-PAL customer is real.
 
+### 2.4 Design rules the corpus is held to (owner review, 2026-08-13)
+
+The first three exemplars were reviewed and called usable; three rules came out of that review,
+and they bind everything authored afterwards - including anything a model is later asked to
+produce.
+
+**1. The mark goes on the field. Never on a plate.** A logo framed in a box is a picture of a
+logo. Nothing may sit behind the mark to make it legible - not a card, not a panel, not a
+rounded chip. The tone answer is that the brand supplies a **field colour that suits its own
+mark's ink**: a dark-ink monogram gets a light field, a light-ink lockup gets a dark one. Where
+a design's surface genuinely cannot carry a mark, the honest answer is that the design refuses
+that mark - the same conclusion the Lite brand work reached about slot surfaces - not that the
+mark gets a sticker. The first version of the corpus declared a `brandPlate` variable for
+exactly this; it is deleted, and `scripts/stinger-review.mjs` refuses to build a composition
+that reintroduces one.
+
+**2. The cover must be an EVENT, not a parked panel.** A surface that slides in and then sits
+still for the length of the window is a slate with a wipe on each end. The frame should be
+filled by something that keeps happening - a reveal that runs through the window, a burst, a
+shatter, a distraction that earns the cut. Nothing in the covered stretch may be static.
+
+**3. The mark should help PRODUCE the cover wherever the design allows.** The strongest form of
+this type is one where the logo is the mechanism: it flies in over the live picture and the
+field bursts out from behind it, or it grows until the frame is gone. `logo-punch` in the
+corpus is the demonstration; `replay-slab` is the softer version of the same idea - the mark
+crosses the picture first and the slab arrives behind it.
+
+**A fourth rule, about the review rig rather than the design:** review one composition per page
+with a **mark picker**, never one page per mark. The rig's first version wrote 3 x 5 pages and
+four of every five added nothing, because the marks were all used the same way - the extra
+pages showed the same animation with a different picture in it. Per-mark variants earn their
+place only when the design does something different with each mark.
+
 ---
 
 ## 3. Exemplars - the corpus must be built first
@@ -335,7 +368,11 @@ the retrieval corpus can never drift apart. Nothing imports them yet.
 The product promise is that a client gets a stinger in **their own** mark and colours, so an
 exemplar is only proved when the same composition survives a brand swap. Every corpus stinger
 therefore declares a logo image variable plus colour variables, and is reviewed with **five
-distinct synthetic marks**.
+distinct synthetic marks** - swapped live from a picker on the composition's own review page
+(§2.4's fourth rule), never as five near-identical pages.
+
+**Each mark brings its own field colour**, which is the entire tone answer now that §2.4 bans
+plates: the mark's ink and the field it sits on are supplied together, by the brand.
 
 **They must vary in SHAPE, not just colour** - the slot's job is surviving different aspect
 ratios and ink densities, and five recolours of one silhouette prove nothing about whether a

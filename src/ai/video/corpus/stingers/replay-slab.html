@@ -1,29 +1,31 @@
 <!doctype html>
 <!-- ============================================================================
      REPLAY SLAB - the sports "to slow-motion replay" stinger.
-     Hand-authored anchor for the NoaCG video corpus (docs/NOACG_VIDEO_PLAN.md §2.2/§3).
+     Hand-authored anchor for the NoaCG video corpus (docs/NOACG_VIDEO_PLAN.md §2.2/§2.4).
 
-     Visual direction: aggressive sports. One heavy angled slab drives across the frame
-     behind a bright leading accent edge, the brand mark and the word land on it, and the
-     whole slab keeps going and clears to the right. Hard edges, no softness anywhere.
+     Visual direction: aggressive sports. THE MARK LEADS: it crosses the live picture on its
+     own first, at one and a half times its settled size, and the slab arrives behind it as
+     if it were dragged in. The mark then drops into place, the rule draws and the word rises
+     under it, and the whole lockup leaves riding the slab.
+
+     THE MARK IS NEVER ON A PLATE (§2.4). It sits directly on the picture and then on the
+     brand's own field, so a brand supplies the version of its mark that suits the field
+     colour it also supplies - the same rule the Lite brand work landed on. Framing a mark in
+     a box to make it legible is a picture of a logo, not a logo.
 
      THE CONTRACT, and how this file keeps it:
        - 2.00 s at 1920x1080, transparent.
-       - FRAME 0 IS EMPTY BY CONSTRUCTION: the travelling group starts 3800 px to the left,
-         which puts every part of it (slab, both edge rules, payload) beyond the frame, and
-         #root clips with overflow: hidden. Nothing fades - there is simply nothing there.
-       - THE LAST FRAME IS EMPTY THE SAME WAY: the exit ends at 1.92 s at x = +3800.
-         1.92 and not 2.00 because the renderer's last frame is t = (N-1)/fps, which is
-         1.960 / 1.967 / 1.980 / 1.983 s at 25 / 30 / 50 / 60 fps - an exit that finished at
-         2.00 would still be painting on it.
+       - FRAME 0 IS EMPTY BY CONSTRUCTION: the slab group sits 3800 px to the left, the
+         lockup 1500 px to the left, and the rule/word/kicker are at zero opacity. #root
+         clips with overflow: hidden. Nothing fades in from a visible state.
+       - THE LAST FRAME IS EMPTY THE SAME WAY: slab and lockup both end at x = +3800 at
+         1.92 s. 1.92 rather than 2.00 because the renderer's last frame is t = (N-1)/fps -
+         1.960 / 1.967 / 1.980 / 1.983 s at 25 / 30 / 50 / 60 fps.
        - FULL COVER 0.46 s -> 1.12 s (data-cut-start / data-cut-end). The slab is 3072 x 2160
-         and skewed 14 degrees; at rest it overhangs the frame by 307 px on every side even
-         at the extremes of the skew, so the cover is opaque edge to edge with no seam. Both
-         ends of the declared window are deliberately conservative: the slab is already
-         covering before 0.46 and is still covering after 1.12.
-       - The payload is a LOGO. It sits on #logo-slot, whose surface is --brandPlate: it
-         defaults to the slab colour (so the plate is invisible) and a brand whose mark needs
-         the opposite tone sets it to a contrasting value and gets a card.
+         and skewed 14 degrees; at rest it overhangs the frame by 307 px on every side even at
+         the extremes of the skew, so the cover is opaque edge to edge with no seam. Both ends
+         of the declared window are conservative: the slab covers well before 0.46 and is
+         still covering past 1.4 s.
 
      Operator numbers for an ATEM at this duration (Clip Duration = round(2.00 x fps)):
        25 fps -> 50 frames,  cut window frames 12-28,  Trigger Point 14
@@ -39,8 +41,7 @@
   {"id":"kicker","type":"string","label":"Kicker","default":"SLOW MOTION"},
   {"id":"brandDeep","type":"color","label":"Slab colour","default":"#101722"},
   {"id":"brandAccent","type":"color","label":"Accent colour","default":"#FF3B1F"},
-  {"id":"brandInk","type":"color","label":"Text colour","default":"#F4F6F8"},
-  {"id":"brandPlate","type":"color","label":"Logo plate","default":"#101722"}
+  {"id":"brandInk","type":"color","label":"Text colour","default":"#F4F6F8"}
 ]'>
 <head>
 <meta charset="UTF-8" />
@@ -59,8 +60,7 @@
   }
   .clip { position: absolute; inset: 0; }
 
-  /* The travelling group. Everything that has to leave the frame is inside it, so one
-     transform decides whether the frame is empty. */
+  /* The travelling slab group. */
   #group { position: absolute; inset: 0; }
 
   /* The slab: 1.6x the frame wide and 2x tall, skewed. The overhang is what guarantees the
@@ -108,7 +108,6 @@
     margin-left: -450px;
     margin-top: -1200px;
     transform: skewX(-14deg);
-    overflow: visible;
   }
   #sheen {
     position: absolute;
@@ -116,49 +115,49 @@
     background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0) 100%);
   }
 
-  /* The lockup: mark, rule, words. */
-  #payload {
+  /* The lockup sits ABOVE the slab in the stacking order, which is what lets the mark cross
+     the live picture first and keeps the slab reading as something it pulled in behind it.
+     A centred column, so the layout is correct for any mark aspect and any word length. */
+  #lockup {
     position: absolute;
     inset: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 46px;
   }
-  /* A fixed BOX with object-fit: contain, so every mark in the brand-swap set lands inside
-     it - a 7.5:1 wordmark and a 1:1 monogram both fit without the slot knowing which it got. */
+  /* The mark, on nothing at all - a fixed box with object-fit: contain, so a 7.5:1 lockup
+     and a 1:1 monogram both land inside it without the slot knowing which it got. */
   #logo-slot {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 380px;
-    height: 176px;
-    padding: 16px;
-    box-sizing: border-box;
-    background-color: var(--brandPlate, #101722);
+    width: 520px;
+    height: 210px;
   }
   #logo { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-  #divider {
-    width: 4px;
-    height: 150px;
+  #rule {
+    width: 420px;
+    height: 5px;
+    margin: 26px 0 22px;
     background-color: var(--brandAccent, #FF3B1F);
   }
 
-  #words { display: flex; flex-direction: column; }
   #label-mask { overflow: hidden; padding: 0.08em 0.06em; }
   #label {
     font-family: 'Bebas Neue', 'Arial Narrow', Arial, sans-serif;
-    font-size: 156px;
+    font-size: 150px;
     line-height: 1;
     letter-spacing: 0.02em;
     color: var(--brandInk, #F4F6F8);
   }
   #kicker {
-    margin-top: 10px;
-    font-size: 30px;
+    margin-top: 6px;
+    font-size: 28px;
     font-weight: 700;
     letter-spacing: 0.34em;
+    text-indent: 0.34em;
     text-transform: uppercase;
     color: var(--brandAccent, #FF3B1F);
   }
@@ -176,14 +175,12 @@
       <div id="edge-trail" class="edge"></div>
       <div id="edge-trail-thin" class="edge"></div>
       <div id="sheen-wrap"><div id="sheen"></div></div>
-      <div id="payload">
-        <div id="logo-slot"><img id="logo" data-var-src="logo" src="asset:logo" alt="" /></div>
-        <div id="divider"></div>
-        <div id="words">
-          <div id="label-mask"><div id="label" data-var-text="label">REPLAY</div></div>
-          <div id="kicker" data-var-text="kicker">SLOW MOTION</div>
-        </div>
-      </div>
+    </div>
+    <div id="lockup">
+      <div id="logo-slot"><img id="logo" data-var-src="logo" src="asset:logo" alt="" /></div>
+      <div id="rule"></div>
+      <div id="label-mask"><div id="label" data-var-text="label">REPLAY</div></div>
+      <div id="kicker" data-var-text="kicker">SLOW MOTION</div>
     </div>
   </section>
 </div>
@@ -192,33 +189,42 @@
   window.__timelines = window.__timelines || {};
   const tl = gsap.timeline({ paused: true });
 
-  // Far enough that the slab, both edge rules and the payload are all outside the frame.
+  // Far enough that the slab, both edge rules and the lockup are all outside the frame.
   const TRAVEL = 3800;
 
-  // 0.00 -> 0.46  the slab drives in from the left, accent edge first.
-  tl.fromTo('#group', { x: -TRAVEL }, { x: 0, duration: 0.46, ease: 'power4.out' }, 0);
+  // 0.00 -> 0.34  the MARK crosses the live picture on its own, oversized and leaning.
+  tl.fromTo('#lockup', { x: -1500 }, { x: 0, duration: 0.34, ease: 'power3.out' }, 0);
+  tl.fromTo('#logo-slot', { scale: 1.5, rotation: -7, y: 118 },
+    { rotation: 0, duration: 0.34, ease: 'power3.out' }, 0);
+
+  // 0.08 -> 0.46  the slab arrives behind it and closes the frame.
+  tl.fromTo('#group', { x: -TRAVEL }, { x: 0, duration: 0.38, ease: 'power4.out' }, 0.08);
 
   // 0.46 -> 1.12  FULL COVER. Everything the viewer is meant to read happens here, because
-  // this is the only stretch of the stinger that is guaranteed to be on screen.
-  tl.fromTo('#payload', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.12, ease: 'none' }, 0.48);
-  tl.from('#logo-slot', { scale: 1.16, x: -54, duration: 0.42, ease: 'expo.out' }, 0.48);
-  tl.from('#divider', { scaleY: 0, transformOrigin: 'center top', duration: 0.30, ease: 'power3.out' }, 0.56);
-  tl.from('#label', { yPercent: 118, duration: 0.44, ease: 'power4.out' }, 0.58);
-  tl.from('#kicker', { autoAlpha: 0, x: 26, duration: 0.34, ease: 'power2.out' }, 0.74);
+  // this is the only stretch that is guaranteed to be on screen. The mark drops out of its
+  // oversize into the lockup and the word rises underneath it.
+  tl.to('#logo-slot', { scale: 1, y: 0, duration: 0.40, ease: 'power4.out' }, 0.46);
+  tl.fromTo('#rule', { scaleX: 0, transformOrigin: 'center center', autoAlpha: 0 },
+    { scaleX: 1, autoAlpha: 1, duration: 0.34, ease: 'power3.out' }, 0.58);
+  tl.fromTo('#label', { yPercent: 118 }, { yPercent: 0, duration: 0.44, ease: 'power4.out' }, 0.62);
+  tl.fromTo('#label-mask', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.06, ease: 'none' }, 0.62);
+  tl.fromTo('#kicker', { autoAlpha: 0, x: 26 }, { autoAlpha: 1, x: 0, duration: 0.34, ease: 'power2.out' }, 0.78);
 
-  // The light sweep crosses the slab while the type settles, so the cover is never a
-  // still frame - a stinger that freezes mid-transition reads as a dropped feed.
+  // The light sweep crosses the slab while the type settles, so the cover is never a still
+  // frame - a stinger that freezes mid-transition reads as a dropped feed.
   tl.fromTo('#sheen-wrap', { xPercent: -150, autoAlpha: 0 },
-    { xPercent: 150, autoAlpha: 1, duration: 0.52, ease: 'sine.inOut' }, 0.68);
+    { xPercent: 150, autoAlpha: 1, duration: 0.52, ease: 'sine.inOut' }, 0.66);
   tl.to('#sheen-wrap', { autoAlpha: 0, duration: 0.16, ease: 'none' }, 1.06);
 
-  // A slow drift with the travel direction, so the lockup is already leaning out before
-  // the slab takes it.
-  tl.to('#payload', { x: 30, duration: 0.74, ease: 'sine.inOut' }, 0.86);
+  // A slow lean with the travel direction, so the lockup is already going before the slab
+  // takes it.
+  tl.to('#lockup', { x: 34, duration: 0.72, ease: 'sine.inOut' }, 0.88);
 
-  // 1.24 -> 1.92  clear out to the right; the trailing accent rules leave last.
+  // 1.24 -> 1.92  clear out to the right; the trailing accent rules leave last, and the
+  // lockup rides the slab rather than being erased under it.
   // power2.in keeps the frame covered well past the declared 1.12 end of the window.
   tl.to('#group', { x: TRAVEL, duration: 0.68, ease: 'power2.in' }, 1.24);
+  tl.to('#lockup', { x: TRAVEL, duration: 0.66, ease: 'power2.in' }, 1.26);
 
   window.__timelines['main'] = tl;
 </script>

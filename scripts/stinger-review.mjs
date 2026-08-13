@@ -1,20 +1,24 @@
 #!/usr/bin/env node
-// Compose every corpus stinger against every brand mark into a standalone review rig.
+// Build the stinger review rig: one standalone page per corpus stinger, each able to swap
+// between the five brand marks live, plus a contact sheet with one shared scrubber.
 //
 // WHY THIS EXISTS: the corpus stingers (src/ai/video/corpus/stingers) are the anchor arm of
-// every later blind gallery, and the product promise they carry is that the SAME composition
-// works in a client's own mark and colour world (docs/NOACG_VIDEO_PLAN.md §3.1). That claim
-// is only worth anything if someone has looked at all of the combinations, so this builds
-// them all: 3 stingers x 5 marks, plus a contact sheet with one shared scrubber.
+// every later blind gallery, and being able to scrub one back and forth is the only cheap way
+// to judge whether its timing works before anything is rendered.
+//
+// WHY ONE PAGE PER STINGER AND NOT ONE PER MARK: the first version of this rig wrote 3 x 5
+// pages, and the owner's verdict was that four of every five added nothing - the marks were
+// all used the same way, so the extra pages showed the same animation with a different
+// picture in it. A mark PICKER on one page answers the brand-swap question in one place, and
+// the reviewer's attention stays on the motion.
 //
 // Zero tokens, no dev server, no browser automation - it writes files and stops. Open
 // stinger-review-out/index.html in a browser.
 //
 // WHAT IT CANNOT TELL YOU: whether the head and tail frames are PIXEL empty and whether the
 // cut window is PIXEL opaque. Those are machine gates measured on rendered frames and they
-// are a separate work item (plan §4.2). This rig is for taste and for brand fit.
-// And per the plan's own rule, a MOTION verdict comes from a rendered MP4, never from a
-// scrubbed browser pane.
+// are a separate work item (plan §4.2). Per the plan's own rule, a MOTION verdict comes from
+// a rendered MP4, never from a scrubbed browser pane.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,13 +32,10 @@ const OUT = path.join(ROOT, 'stinger-review-out');
  * The five brand marks of the swap set (benchmarks/video/v1/marks/MARKS.md). Four are reused
  * from the Pro spike rather than duplicated.
  *
- * Each carries TWO tone answers, because a logo slot has a tone and not only a geometry:
- *   - `onDarkDesign`  - for a stinger whose covering surface is dark (replay-slab, push-veil):
- *                       `plate` is the surface UNDER THE MARK, `ink` is the type, which sits
- *                       on the dark field rather than on the plate.
- *   - `onLightDesign` - for a stinger whose payload sits on a light card (aperture-bands):
- *                       there the type is ON the plate, so `ink` must contrast with `plate`.
- * That split is the whole reason `brandPlate` is a declared variable.
+ * Each brings its own field colour, and that is the whole tone answer now that no stinger
+ * puts a mark on a plate (plan §2.4): a mark with dark ink asks for a light field, one with
+ * light ink asks for a dark field, and the brand supplies both together. Framing the mark in
+ * a box instead would make every field work and every mark look like a sticker.
  */
 const MARKS = [
   {
@@ -42,64 +43,37 @@ const MARKS = [
     name: 'The Aldervale Institute',
     shape: 'compact monogram, 1:1, dark navy ink',
     file: 'benchmarks/pro/v1/spike/marks/aldervale-institute.svg',
-    deep: '#16233F',
-    accent: '#B08D57',
-    onDarkDesign: { plate: '#F3F1EC', ink: '#F3F1EC' },
-    onLightDesign: { plate: '#F3F1EC', ink: '#16233F' },
+    deep: '#EDEAE3', accent: '#B08D57', ink: '#16233F',
   },
   {
     id: 'kestrel-athletic',
     name: 'Kestrel Athletic',
     shape: 'wide wordmark, 4.17:1, volt ink',
     file: 'benchmarks/pro/v1/spike/marks/kestrel-athletic.svg',
-    deep: '#12161A',
-    accent: '#C8F531',
-    onDarkDesign: { plate: '#12161A', ink: '#F5F7F2' },
-    // Volt on white is weak, so this mark asks for a DARK card even on the light design.
-    onLightDesign: { plate: '#12161A', ink: '#F5F7F2' },
+    deep: '#12161A', accent: '#C8F531', ink: '#F5F7F2',
   },
   {
     id: 'sunbeam',
     name: 'Sunbeam',
     shape: 'square emblem with fine spokes, 1:1',
     file: 'benchmarks/pro/v1/spike/marks/sunbeam.svg',
-    deep: '#2A1608',
-    accent: '#FF7A1A',
-    onDarkDesign: { plate: '#2A1608', ink: '#FFF6EA' },
-    onLightDesign: { plate: '#FFFDF6', ink: '#2A1608' },
+    deep: '#241004', accent: '#FF7A1A', ink: '#FFF6EA',
   },
   {
     id: 'the-ledger',
     name: 'The Ledger',
     shape: 'tall, brings its own opaque field, 0.8:1',
     file: 'benchmarks/pro/v1/spike/marks/the-ledger.svg',
-    deep: '#1A1A1A',
-    accent: '#C4462F',
-    onDarkDesign: { plate: '#FAFAF8', ink: '#FAFAF8' },
-    onLightDesign: { plate: '#FAFAF8', ink: '#1A1A1A' },
+    deep: '#EDE9E1', accent: '#C4462F', ink: '#1A1A1A',
   },
   {
     id: 'northbridge-community-broadcasting',
     name: 'Northbridge Community Broadcasting',
     shape: 'long-name lockup, 7.5:1, light ink',
     file: 'benchmarks/video/v1/marks/northbridge-community-broadcasting.svg',
-    deep: '#0C2233',
-    accent: '#4FA3D1',
-    onDarkDesign: { plate: '#0C2233', ink: '#F2F5F8' },
-    // Light ink cannot sit on a light card, so this mark darkens the card instead.
-    onLightDesign: { plate: '#0C2233', ink: '#F2F5F8' },
+    deep: '#0C2233', accent: '#4FA3D1', ink: '#F2F5F8',
   },
 ];
-
-/**
- * Which tone answer each composition takes. It mirrors the plate default declared in the
- * file itself: 'light' means the payload sits on a light card and the type is on that card.
- */
-const DESIGN_SURFACE = {
-  'replay-slab': 'dark',
-  'aperture-bands': 'light',
-  'push-veil': 'dark',
-};
 
 /** The bundled video faces, read out of the ONE source that declares them. */
 function videoFontFaceCss() {
@@ -122,8 +96,16 @@ function videoFontFaceCss() {
   return rules.join('\n');
 }
 
-const dataUrl = (file) =>
-  `data:image/svg+xml;base64,${fs.readFileSync(path.join(ROOT, file)).toString('base64')}`;
+const markPayload = () =>
+  MARKS.map((m) => ({
+    id: m.id,
+    name: m.name,
+    shape: m.shape,
+    deep: m.deep,
+    accent: m.accent,
+    ink: m.ink,
+    src: `data:image/svg+xml;base64,${fs.readFileSync(path.join(ROOT, m.file)).toString('base64')}`,
+  }));
 
 /**
  * The review chrome injected into each composed page. The fonts and GSAP are INLINED rather
@@ -132,7 +114,7 @@ const dataUrl = (file) =>
  * there - which reads as "the composition is broken" rather than "the rig is". Same reason
  * hyperframes/compose.ts inlines them for the real preview.
  */
-function reviewHead(mark, tone, assets) {
+function reviewHead(assets) {
   return `
 <style>${assets.fontCss}</style>
 <script>${assets.gsap}</script>
@@ -140,9 +122,7 @@ function reviewHead(mark, tone, assets) {
   /* The backdrop is on <html>, so <body> stays transparent and the composition's own alpha
      is what you are looking at. */
   html { height: 100%; }
-  html.bg-checker {
-    background: repeating-conic-gradient(#333a44 0 25%, #21262e 0 50%) 0 0 / 64px 64px;
-  }
+  html.bg-checker { background: repeating-conic-gradient(#333a44 0 25%, #21262e 0 50%) 0 0 / 64px 64px; }
   html.bg-picture {
     background:
       radial-gradient(60% 80% at 22% 26%, #4d7fa8 0%, rgba(77,127,168,0) 60%),
@@ -151,40 +131,38 @@ function reviewHead(mark, tone, assets) {
   }
   html.bg-white { background: #ffffff; }
   body { background: transparent; transform-origin: top left; }
-  /* The composition root is authored at 1920x1080; the rig scales the whole page. */
-</style>
-<style id="brand-vars">
-  #root {
-    --brandDeep: ${mark.deep};
-    --brandAccent: ${mark.accent};
-    --brandInk: ${tone.ink};
-    --brandPlate: ${tone.plate};
-  }
+  #rig { position: fixed; right: 14px; top: 14px; z-index: 99; width: 340px;
+    font: 12px/1.45 "Segoe UI", system-ui, sans-serif; color: #e6edf3;
+    background: rgba(13,17,23,0.94); border: 1px solid #30363d; border-radius: 8px; padding: 12px 14px; }
+  #rig h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #9aa7b4; }
+  #rig button, #rig select { background: #21262d; color: #e6edf3; border: 1px solid #30363d;
+    border-radius: 6px; padding: 5px 9px; cursor: pointer; }
+  #rig .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  #mark-shape { color: #7d8794; margin-bottom: 8px; }
+  #geo-out { margin-top: 8px; white-space: pre-wrap; font-family: Consolas, monospace; font-size: 11px; }
+  #geo-out .ok { color: #56d364; }
+  #geo-out .bad { color: #ff7b72; }
+  #rig.hidden { display: none; }
 </style>`;
 }
 
-const REVIEW_SCRIPT = `
-<style>
-  #geo-check { position: fixed; right: 14px; top: 14px; z-index: 99; width: 340px;
-    font: 12px/1.45 "Segoe UI", system-ui, sans-serif; color: #e6edf3;
-    background: rgba(13,17,23,0.94); border: 1px solid #30363d; border-radius: 8px; padding: 12px 14px; }
-  #geo-check h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #9aa7b4; }
-  #geo-check button { background: #21262d; color: #e6edf3; border: 1px solid #30363d;
-    border-radius: 6px; padding: 5px 10px; cursor: pointer; }
-  #geo-check select { background: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; padding: 4px 6px; }
-  #geo-out { margin-top: 10px; white-space: pre-wrap; font-family: Consolas, monospace; font-size: 11px; }
-  #geo-out .ok { color: #56d364; }
-  #geo-out .bad { color: #ff7b72; }
-  #geo-check.hidden { display: none; }
-</style>
-<div id="geo-check">
-  <h3>Geometry check</h3>
-  <button id="geo-run">run</button>
-  <select id="geo-fps"><option>25</option><option>30</option><option selected>50</option><option>60</option></select>
-  <button id="geo-hide">hide</button>
+const RIG_MARKUP = `
+<div id="rig">
+  <h3>Review</h3>
+  <div class="row"><select id="mark-pick"></select></div>
+  <div id="mark-shape"></div>
+  <div class="row">
+    <button id="geo-run">geometry check</button>
+    <select id="geo-fps"><option>25</option><option>30</option><option selected>50</option><option>60</option></select>
+    <button id="rig-hide">hide</button>
+  </div>
   <div id="geo-out">Sampled hit-test over the declared cut window, not the pixel gate.</div>
-</div>
+</div>`;
+
+function rigScript(marks) {
+  return `
 <script>
+  window.__MARKS = ${JSON.stringify(marks)};
   // The rig drives the composition's own paused timeline, exactly as the driver and the
   // renderer do: seek, never run. Same t always gives the same pixels.
   (function () {
@@ -194,22 +172,50 @@ const REVIEW_SCRIPT = `
     var dur = root ? Number(root.getAttribute('data-duration')) || 2 : 2;
     var cutStart = root ? Number(root.getAttribute('data-cut-start')) : NaN;
     var cutEnd = root ? Number(root.getAttribute('data-cut-end')) : NaN;
+
     function scale(s) { document.body.style.transform = 'scale(' + s + ')'; }
     function seek(t) { if (tl) tl.time(Math.max(0, Math.min(dur, t)), true); }
     function background(name) { de.className = 'bg-' + name; }
+
+    // Swapping a mark is exactly what the platform does: set the image variable's bound
+    // elements, and set the colour variables on the composition root.
+    function setMark(id) {
+      var m = null;
+      for (var i = 0; i < window.__MARKS.length; i++) if (window.__MARKS[i].id === id) m = window.__MARKS[i];
+      if (!m) return;
+      var imgs = document.querySelectorAll('[data-var-src="logo"]');
+      for (var j = 0; j < imgs.length; j++) imgs[j].setAttribute('src', m.src);
+      root.style.setProperty('--brandDeep', m.deep);
+      root.style.setProperty('--brandAccent', m.accent);
+      root.style.setProperty('--brandInk', m.ink);
+      var pick = document.getElementById('mark-pick');
+      if (pick) { pick.value = id; document.getElementById('mark-shape').textContent = m.shape; }
+    }
+
     window.addEventListener('message', function (e) {
       var d = e.data || {};
       if (d.kind === 'scrub') seek(d.t);
       else if (d.kind === 'bg') background(d.name);
+      else if (d.kind === 'mark') setMark(d.id);
       else if (d.kind === 'scale') scale(d.scale);
     });
+
+    var pick = document.getElementById('mark-pick');
+    for (var k = 0; k < window.__MARKS.length; k++) {
+      var o = document.createElement('option');
+      o.value = window.__MARKS[k].id; o.textContent = window.__MARKS[k].name;
+      pick.appendChild(o);
+    }
+    pick.addEventListener('change', function () { setMark(pick.value); });
+    setMark(window.__MARKS[0].id);
+
     background('checker');
     var embedScale = new URLSearchParams(location.search).get('scale');
     scale(Number(embedScale) || 1);
     seek(0);
-    // The contact sheet embeds this page at a quarter size; the check panel belongs to the
-    // full-size view, where the viewport is big enough for it to mean anything.
-    if (embedScale) document.getElementById('geo-check').classList.add('hidden');
+    // The contact sheet embeds this page at a third of size; the panel belongs to the
+    // full-size view, where the viewport is big enough for the check to mean anything.
+    if (embedScale) document.getElementById('rig').classList.add('hidden');
 
     // ── The geometry check ──────────────────────────────────────────────────────
     // It answers two of the three §2.2 questions with the strongest instrument a plain
@@ -242,6 +248,7 @@ const REVIEW_SCRIPT = `
       var m = /rgba?\\(([^)]+)\\)/.exec(cs.backgroundColor);
       if (m) { var p = m[1].split(',').map(Number); if (p.length < 4 || p[3] > 0) return true; }
       if (cs.boxShadow && cs.boxShadow !== 'none') return true;
+      if (cs.borderTopWidth !== '0px' && cs.borderTopStyle !== 'none') return true;
       for (var i = 0; i < el.childNodes.length; i++) {
         var ch = el.childNodes[i];
         if (ch.nodeType === 3 && ch.textContent.trim()) return true;
@@ -257,12 +264,11 @@ const REVIEW_SCRIPT = `
       }
       var prevO = de.style.overflow, prevT = document.body.style.transform;
       de.style.overflow = 'hidden';
-      // elementsFromPoint only hit-tests inside the client area, so fit the whole frame in it.
       var S = Math.min(de.clientWidth / 1920, de.clientHeight / 1080) * 0.995;
       document.body.style.transform = 'scale(' + S + ')';
       var W = 1920 * S, H = 1080 * S, step = 16 * S;
       var frames = Math.round(dur * fps);
-      var res = { fps: fps, frames: frames, points: 0, head: null, tail: null, span: [], worst: null };
+      var res = { fps: fps, frames: frames, points: 0, head: null, tail: null, worst: null };
 
       function paintedAt(t) {
         seek(t);
@@ -300,7 +306,6 @@ const REVIEW_SCRIPT = `
       var f0 = Math.ceil(cutStart * fps), f1 = Math.floor(cutEnd * fps);
       for (var f = f0; f <= f1; f++) {
         var g = gapsAt(f / fps);
-        res.span.push({ frame: f, gaps: g.gaps, first: g.first });
         if (!res.worst || g.gaps > res.worst.gaps) res.worst = { frame: f, gaps: g.gaps, first: g.first };
       }
       res.window = [f0, f1];
@@ -310,8 +315,8 @@ const REVIEW_SCRIPT = `
     }
 
     var out = document.getElementById('geo-out');
-    document.getElementById('geo-hide').addEventListener('click', function () {
-      document.getElementById('geo-check').classList.add('hidden');
+    document.getElementById('rig-hide').addEventListener('click', function () {
+      document.getElementById('rig').classList.add('hidden');
     });
     document.getElementById('geo-run').addEventListener('click', function () {
       out.textContent = 'running...';
@@ -320,43 +325,35 @@ const REVIEW_SCRIPT = `
         var r = run(fps);
         if (r.error) { out.innerHTML = '<span class="bad">' + r.error + '</span>'; return; }
         var line = function (ok, text) { return '<span class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? 'PASS' : 'FAIL') + '</span>  ' + text; };
-        var lines = [
-          fps + ' fps, ' + r.frames + ' frames, ' + r.points + ' sample points per frame',
+        out.innerHTML = [
+          fps + ' fps, ' + r.frames + ' frames, ' + r.points + ' samples per frame',
           line(r.head.length === 0, 'frame 0 empty' + (r.head.length ? ' - painting: ' + r.head.join(', ') : '')),
           line(r.tail.length === 0, 'frame ' + (r.frames - 1) + ' empty' + (r.tail.length ? ' - painting: ' + r.tail.join(', ') : '')),
           line(r.worst && r.worst.gaps === 0,
             'cut window frames ' + r.window[0] + '-' + r.window[1] + ' fully covered' +
             (r.worst && r.worst.gaps ? ' - worst frame ' + r.worst.frame + ', ' + r.worst.gaps + ' uncovered samples, first at ' + r.worst.first : '')),
           line(tl.duration() <= (r.frames - 1) / fps, 'timeline ends at ' + tl.duration().toFixed(3) + ' s, last frame at ' + ((r.frames - 1) / fps).toFixed(3) + ' s'),
-        ];
-        out.innerHTML = lines.join('\\n');
+        ].join('\\n');
       }, 30);
     });
   })();
 </script>`;
+}
 
-/** Compose one composition + one mark into a standalone page. */
-function composePage(source, mark, tone, assets) {
-  let html = source.replace(/src="asset:logo"/g, `src="${dataUrl(mark.file)}"`);
-  html = html.replace(/<head[^>]*>/i, (m) => `${m}\n${reviewHead(mark, tone, assets)}`);
-  html = html.replace(/<\/body>/i, `${REVIEW_SCRIPT}\n</body>`);
+function composePage(source, assets, marks) {
+  let html = source.replace(/<head[^>]*>/i, (m) => `${m}\n${reviewHead(assets)}`);
+  html = html.replace(/<\/body>/i, `${RIG_MARKUP}\n${rigScript(marks)}\n</body>`);
   return html;
 }
 
-function indexPage(entries, stingers) {
-  const cell = (e) => `
-      <figure class="cell">
-        <iframe src="${e.href}?scale=0.25" width="480" height="270" title="${e.title}"
-                loading="eager" scrolling="no"></iframe>
-        <figcaption><a href="${e.href}" target="_blank">${e.markName}</a><span>${e.shape}</span></figcaption>
-      </figure>`;
-  const rows = stingers
+function indexPage(stingers, marks) {
+  const cells = stingers
     .map(
       (s) => `
-    <section class="row">
-      <h2>${s.id}<span>cut window ${s.cutStart}s to ${s.cutEnd}s &middot; exit complete 1.92s</span></h2>
-      <div class="grid">${entries.filter((e) => e.stinger === s.id).map(cell).join('')}</div>
-    </section>`,
+    <figure class="cell">
+      <iframe src="${s.id}.html?scale=0.3333" width="640" height="360" title="${s.id}" scrolling="no"></iframe>
+      <figcaption><a href="${s.id}.html" target="_blank">${s.id}</a><span>cut window ${s.cutStart}s to ${s.cutEnd}s</span></figcaption>
+    </figure>`,
     )
     .join('');
 
@@ -364,83 +361,81 @@ function indexPage(entries, stingers) {
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Stinger corpus - brand swap review</title>
+<title>Stinger corpus review</title>
 <style>
   :root { color-scheme: dark; }
-  body { margin: 0; padding: 28px 32px 64px; background: #0d1117; color: #e6edf3;
+  body { margin: 0; padding: 26px 30px 60px; background: #0d1117; color: #e6edf3;
          font: 14px/1.5 "Segoe UI", system-ui, sans-serif; }
   h1 { font-size: 20px; margin: 0 0 6px; }
-  p.lead { margin: 0 0 22px; color: #9aa7b4; max-width: 78ch; }
-  .controls { position: sticky; top: 0; z-index: 5; display: flex; align-items: center;
-              gap: 18px; flex-wrap: wrap; padding: 14px 16px; margin-bottom: 26px;
-              background: #161b22; border: 1px solid #262d36; border-radius: 8px; }
+  p.lead { margin: 0 0 20px; color: #9aa7b4; max-width: 82ch; }
+  .controls { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px;
+              flex-wrap: wrap; padding: 13px 16px; margin-bottom: 24px; background: #161b22;
+              border: 1px solid #262d36; border-radius: 8px; }
   .controls label { display: flex; align-items: center; gap: 8px; color: #9aa7b4; }
-  #time { width: 420px; }
-  output { font-variant-numeric: tabular-nums; color: #f6a623; min-width: 128px; }
-  button { background: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px;
-           padding: 6px 12px; cursor: pointer; }
+  #time { width: 460px; }
+  output { font-variant-numeric: tabular-nums; color: #f6a623; min-width: 150px; }
+  button, select { background: #21262d; color: #e6edf3; border: 1px solid #30363d;
+                   border-radius: 6px; padding: 6px 11px; cursor: pointer; }
   button:hover { border-color: #f6a623; }
-  .row { margin-bottom: 34px; }
-  .row h2 { font-size: 15px; margin: 0 0 12px; display: flex; gap: 14px; align-items: baseline; }
-  .row h2 span { font-weight: 400; color: #7d8794; font-size: 12px; }
-  .grid { display: flex; gap: 14px; flex-wrap: wrap; }
+  .grid { display: flex; gap: 16px; flex-wrap: wrap; }
   .cell { margin: 0; }
   iframe { border: 1px solid #262d36; border-radius: 4px; display: block; background: #0d1117; }
-  figcaption { display: flex; flex-direction: column; margin-top: 6px; font-size: 12px; width: 480px; }
+  figcaption { display: flex; flex-direction: column; margin-top: 6px; font-size: 12px; width: 640px; }
   figcaption a { color: #e6edf3; }
   figcaption span { color: #7d8794; }
 </style>
 </head>
 <body>
-<h1>Stinger corpus - brand swap review</h1>
-<p class="lead">Every corpus stinger against every mark of the five-shape brand-swap set. The
-slider seeks each composition's own paused timeline, so what you see at a given time is what
-the renderer would produce at that frame. <strong>Motion verdicts still come from a rendered
-MP4</strong> - a scrubbed pane is for structure, type and brand fit. Pixel-level head/tail
-alpha and cut-window coverage are machine gates and are not measured here.</p>
+<h1>Stinger corpus review</h1>
+<p class="lead">Scrub all three at once. The slider seeks each composition's own paused
+timeline, so what you see at a given time is what the renderer would produce at that frame.
+The mark picker swaps the logo and the brand palette everywhere. Open a single stinger to get
+its geometry check. <strong>Motion verdicts still come from a rendered MP4</strong> - a
+scrubbed pane is for structure, timing and brand fit; pixel-level head/tail alpha and
+cut-window coverage are machine gates and are not measured here.</p>
 
 <div class="controls">
   <label>t <input id="time" type="range" min="0" max="2" step="0.001" value="0" /></label>
   <output id="readout">0.000 s - frame 0/100</output>
-  <label>fps
-    <select id="fps"><option>25</option><option>30</option><option selected>50</option><option>60</option></select>
-  </label>
+  <label>fps <select id="fps"><option>25</option><option>30</option><option selected>50</option><option>60</option></select></label>
   <button data-step="-1">&#8592; frame</button>
   <button data-step="1">frame &#8594;</button>
   <button data-jump="0">head</button>
   <button data-jump="0.46">cut in</button>
   <button data-jump="1.12">cut out</button>
   <button data-jump="1.92">tail</button>
-  <label>backdrop
-    <select id="bg"><option value="checker">checkerboard</option><option value="picture">live picture</option><option value="white">white</option></select>
-  </label>
+  <label>mark <select id="mark">${marks.map((m) => `<option value="${m.id}">${m.name}</option>`).join('')}</select></label>
+  <label>backdrop <select id="bg">
+    <option value="checker">checkerboard</option>
+    <option value="picture">live picture</option>
+    <option value="white">white</option>
+  </select></label>
 </div>
-${rows}
+<div class="grid">${cells}</div>
 <script>
   var time = document.getElementById('time');
   var readout = document.getElementById('readout');
   var fpsSel = document.getElementById('fps');
   var bgSel = document.getElementById('bg');
+  var markSel = document.getElementById('mark');
 
-  function frames() { return Number(fpsSel.value); }
   function post(msg) {
     document.querySelectorAll('iframe').forEach(function (f) {
       if (f.contentWindow) f.contentWindow.postMessage(msg, '*');
     });
   }
   function render() {
-    var t = Number(time.value);
-    var fps = frames();
-    var total = Math.round(2 * fps);
-    readout.textContent = t.toFixed(3) + ' s - frame ' + Math.round(t * fps) + '/' + total;
+    var t = Number(time.value), fps = Number(fpsSel.value);
+    readout.textContent = t.toFixed(3) + ' s - frame ' + Math.round(t * fps) + '/' + Math.round(2 * fps);
     post({ kind: 'scrub', t: t });
   }
   time.addEventListener('input', render);
   fpsSel.addEventListener('change', render);
   bgSel.addEventListener('change', function () { post({ kind: 'bg', name: bgSel.value }); });
+  markSel.addEventListener('change', function () { post({ kind: 'mark', id: markSel.value }); });
   document.querySelectorAll('[data-step]').forEach(function (b) {
     b.addEventListener('click', function () {
-      time.value = String(Number(time.value) + Number(b.dataset.step) / frames());
+      time.value = String(Number(time.value) + Number(b.dataset.step) / Number(fpsSel.value));
       render();
     });
   });
@@ -448,7 +443,11 @@ ${rows}
     b.addEventListener('click', function () { time.value = b.dataset.jump; render(); });
   });
   // Iframes finish loading after this script runs; re-post once they are all up.
-  window.addEventListener('load', function () { render(); post({ kind: 'bg', name: bgSel.value }); });
+  window.addEventListener('load', function () {
+    render();
+    post({ kind: 'bg', name: bgSel.value });
+    post({ kind: 'mark', id: markSel.value });
+  });
 </script>
 </body>
 </html>
@@ -465,28 +464,21 @@ function main() {
     fontCss: videoFontFaceCss(),
     gsap: fs.readFileSync(path.join(ROOT, 'src/assets/gsap.min.js'), 'utf8'),
   };
+  const marks = markPayload();
 
   const stingers = [];
-  const entries = [];
   for (const file of files) {
     const id = file.replace(/\.html$/, '');
     const source = fs.readFileSync(path.join(CORPUS, file), 'utf8');
     const cut = /data-cut-start="([\d.]+)"[\s\S]*?data-cut-end="([\d.]+)"/.exec(source);
     if (!cut) throw new Error(`${file} declares no data-cut-start/data-cut-end (plan §2.2)`);
+    if (/brandPlate/.test(source)) throw new Error(`${file} still declares a logo plate - the mark goes on the field (plan §2.4)`);
     stingers.push({ id, cutStart: cut[1], cutEnd: cut[2] });
-
-    const surface = DESIGN_SURFACE[id];
-    if (!surface) throw new Error(`${file} has no entry in DESIGN_SURFACE - add its plate tone`);
-    for (const mark of MARKS) {
-      const tone = surface === 'light' ? mark.onLightDesign : mark.onDarkDesign;
-      const href = `${id}--${mark.id}.html`;
-      fs.writeFileSync(path.join(OUT, href), composePage(source, mark, tone, assets));
-      entries.push({ stinger: id, href, markName: mark.name, shape: mark.shape, title: `${id} / ${mark.name}` });
-    }
+    fs.writeFileSync(path.join(OUT, `${id}.html`), composePage(source, assets, marks));
   }
 
-  fs.writeFileSync(path.join(OUT, 'index.html'), indexPage(entries, stingers));
-  console.log(`${entries.length} pages (${stingers.length} stingers x ${MARKS.length} marks)`);
+  fs.writeFileSync(path.join(OUT, 'index.html'), indexPage(stingers, marks));
+  console.log(`${stingers.length} stingers, ${marks.length} marks switchable in each`);
   console.log(`open ${path.join(OUT, 'index.html')}`);
 }
 
