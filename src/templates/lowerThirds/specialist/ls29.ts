@@ -10,6 +10,9 @@
 // The clock reads the playout machine's time. That is correct for a gallery cutting its own
 // show, and it is the reason a reporter strap can stay up through a long live without
 // anybody having to remember to update it.
+//
+// The optional mark is the CHANNEL's, at the closing end of the strap — where a rolling news
+// bug sits — on the panel's own surface, so it takes the package's colour like everything else.
 
 import { paletteById, type TemplateVariant } from '../../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../../model/fonts';
@@ -31,7 +34,7 @@ export const ls29: TemplateVariant = defineVariant(
       { title: 'Reporter', sample: 'Tomas Reid' },
       { title: 'Role', sample: 'Eastern Europe Correspondent' },
     ],
-    logo: 'none',
+    logo: 'optional',
     animationPresets: ['line-reveal', 'slide-up', 'mask-wipe', 'fade', 'slide-left', 'blur-in'],
     defaultPalette: paletteById('noacg'),
     defaultFontId: 'space-grotesk',
@@ -46,22 +49,50 @@ export const ls29: TemplateVariant = defineVariant(
       'machine’s own time, so it cannot go stale during a long live.',
     uicolor: '4',
   },
-  (o) => ({
-    html: `    <!-- House structure: [8px accent bar] | [void panel: dateline rail, then the reporter]. -->
+  (o) => {
+    // A real SPX image field; its id comes after every wizard field so nothing collides.
+    const logoField = `f${o.lines.length + o.extraFields.length}`;
+    const logoPath = o.logoAssetPath ?? '';
+    const bug = o.logoEnabled
+      ? `      <!-- The channel mark (image field ${logoField}). Empty shows the placeholder rule. -->
+      <div class="lower-third-bug${logoPath ? ' has-image' : ''}">
+        <div class="lower-third-markrule"></div>
+        <img id="${logoField}" class="lower-third-logo"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />
+      </div>
+`
+      : '';
+
+    return {
+      html: `    <!-- House structure: [8px accent bar] | [void panel: dateline rail, reporter] | [channel mark]. -->
     <div class="lower-third-accent"></div>
     <div class="lower-third-box">
-      <div class="lower-third-datelinerow">
-${hasLine(o, 0) ? slot(o, 0, 'lower-third-name', '        ') : ''}
-        <!-- The clock — paintLowerThirdClock() (in the JS) repaints this as the minute turns. -->
-        <span id="${CLOCK_ELEMENT}" class="lower-third-clock">20:14</span>
+      <div class="lower-third-report">
+        <div class="lower-third-datelinerow">
+${hasLine(o, 0) ? slot(o, 0, 'lower-third-name', '          ') : ''}
+          <!-- The clock — paintLowerThirdClock() (in the JS) repaints this as the minute turns. -->
+          <span id="${CLOCK_ELEMENT}" class="lower-third-clock">20:14</span>
+        </div>
+${slot(o, 1, 'lower-third-title', '        ')}
+${slot(o, 2, 'lower-third-extra', '        ')}
       </div>
-${slot(o, 1, 'lower-third-title')}
-${slot(o, 2, 'lower-third-extra')}
-    </div>`,
+${bug}    </div>`,
 
-    runtimeExtraJs: liveClockJs(CLOCK_ELEMENT),
+      extraFields: o.logoEnabled
+      ? [
+          {
+            field: logoField,
+            ftype: 'filelist' as const,
+            title: 'Channel mark',
+            value: logoPath,
+            assetfolder: './images/',
+            extension: 'png',
+          },
+        ]
+      : [],
 
-    css: `${labelFontFaceCss(fontById('jetbrains-mono'))}
+      runtimeExtraJs: liveClockJs(CLOCK_ELEMENT),
+
+      css: `${labelFontFaceCss(fontById('jetbrains-mono'))}
 
 /* The accent bar — 8px, fused to the panel's left edge, with the house's one glow. */
 .lower-third-accent {
@@ -77,6 +108,9 @@ ${slot(o, 2, 'lower-third-extra')}
 
 /* The panel — the house void, starting where the accent bar ends. */
 .lower-third-box {
+  display: flex;                    /* the report, then the channel mark that closes it */
+  align-items: center;              /* the mark is centred against the whole report */
+  gap: calc(34px * var(--scale));   /* the mark's clear space from the words */
   margin-left: calc(9px * var(--scale));    /* starts where the accent bar ends */
   padding: calc(21px * var(--scale)) calc(61px * var(--scale)) calc(28px * var(--scale)) calc(38px * var(--scale));
   background: var(--panel-bg);      /* void rgba(10,12,16,.86) by default */
@@ -85,6 +119,46 @@ ${slot(o, 2, 'lower-third-extra')}
   box-shadow: var(--panel-shadow);  /* the family's panel lift */
   max-width: calc(871px * var(--scale));  /* a correspondent's beat runs long */
 }
+
+/* The report column — dateline rail, reporter, beat. */
+.lower-third-report {
+  min-width: 0;                     /* lets a long beat wrap instead of overflowing */
+}
+${
+      o.logoEnabled
+        ? `
+/* The channel mark — on the panel's own surface at the closing end of the strap, where a
+   rolling-news bug sits. Fixed box, so the artwork never sets the strap's height. */
+.lower-third-bug {
+  flex: none;                       /* fixed size; a long beat never squeezes the mark */
+  display: flex;                    /* centre whatever is inside it… */
+  align-items: center;              /* …vertically… */
+  justify-content: center;          /* …and horizontally */
+  width: calc(136px * var(--scale));   /* wide enough that a lockup still reads at width */
+  height: calc(96px * var(--scale));   /* fixed — see above */
+}
+
+/* The placeholder — a quiet rule where the mark will be, so an unset slot reads as
+   "nothing here yet" rather than as a broken image. */
+.lower-third-markrule {
+  width: calc(58px * var(--scale));  /* about the width a lockup would take */
+  height: calc(3px * var(--scale));  /* a hairline */
+  background: var(--text-dim);      /* neutral — the accent belongs to the dateline */
+  opacity: 0.5;                     /* a placeholder should read as absent, not as content */
+}
+.lower-third-bug.has-image .lower-third-markrule {
+  display: none;                    /* a picked mark replaces the placeholder */
+}
+
+/* The mark itself (the ${logoField} image field — hidden while empty). */
+.lower-third-logo {
+  max-width: calc(136px * var(--scale));  /* the bug's width — a wide lockup stops here */
+  max-height: calc(96px * var(--scale));  /* …and a portrait mark here */
+  object-fit: contain;              /* show the whole mark, never crop or distort it */
+}
+`
+        : ''
+    }
 
 /* The dateline rail: where and when, together and apart from the name. */
 .lower-third-datelinerow {
@@ -145,6 +219,7 @@ ${slot(o, 2, 'lower-third-extra')}
   color: var(--text-dim);           /* dimmed — never pure white twice */
   margin-top: calc(7px * var(--scale));  /* tied to the name above it */
 }`,
-    hasAccent: true,
-  }),
+      hasAccent: true,
+    };
+  },
 );

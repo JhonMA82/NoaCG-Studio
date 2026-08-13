@@ -111,6 +111,7 @@
  "lt05": {
   "off": [],
   "clip": [
+   ".lower-third-mask:y",
    ".lower-third-mask:y"
   ]
  },
@@ -755,6 +756,8 @@
  "card02": {
   "off": [],
   "clip": [
+   ".info-card-mask:y",
+   ".info-card-mask:y",
    ".info-card-mask:y"
   ]
  },
@@ -1863,6 +1866,12 @@
    ".public-info-mask:y"
   ]
  },
+ "lt11@image": {
+  "off": [],
+  "clip": [
+   ".lower-third-mask:y"
+  ]
+ },
  "lt53@image": {
   "off": [],
   "clip": [
@@ -1875,6 +1884,19 @@
    ".lower-third-mask:y"
   ]
  },
+ "lt02@image": {
+  "off": [],
+  "clip": [
+   ".lower-third-mask:y"
+  ]
+ },
+ "lt05@image": {
+  "off": [],
+  "clip": [
+   ".lower-third-mask:y",
+   ".lower-third-mask:y"
+  ]
+ },
  "lt07@image": {
   "off": [],
   "clip": [
@@ -1882,6 +1904,12 @@
   ]
  },
  "lt08@image": {
+  "off": [],
+  "clip": [
+   ".lower-third-mask:y"
+  ]
+ },
+ "lt15@image": {
   "off": [],
   "clip": [
    ".lower-third-mask:y"
@@ -1905,6 +1933,12 @@
    ".lower-third-mask:y"
   ]
  },
+ "ls12@image": {
+  "off": [],
+  "clip": [
+   ".lower-third-mask:y"
+  ]
+ },
  "ls18@image": {
   "off": [],
   "clip": [
@@ -1912,6 +1946,12 @@
   ]
  },
  "ls25@image": {
+  "off": [],
+  "clip": [
+   ".lower-third-mask:y"
+  ]
+ },
+ "ls29@image": {
   "off": [],
   "clip": [
    ".lower-third-mask:y"
@@ -1965,6 +2005,8 @@
  "card02@image": {
   "off": [],
   "clip": [
+   ".info-card-mask:y",
+   ".info-card-mask:y",
    ".info-card-mask:y"
   ]
  },

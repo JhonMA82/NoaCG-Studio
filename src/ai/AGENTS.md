@@ -269,8 +269,13 @@ reads it and the request validator is a strict key allowlist. **Retrieval itself
 marked request to slot-carrying chassis** (`retrieveLiteReferenceSet`, and by shape when the
 descriptor names one) - the 2026-08-13 baseline traced three of five brand failures to slotless
 chassis being shown to marked requests after the semantic round added seven chassis without
-slots (`benchmarks/lite/BRAND-BASELINE-2026-08-13.md`; drawing their slots is
-`docs/AI_LITE_BRAND_PLAN.md` §3.6.2). Design, findings and the catalog
+slots (`benchmarks/lite/BRAND-BASELINE-2026-08-13.md`). **All thirteen chassis now carry a
+measured slot** (2026-08-13): two already drew a well and only the metadata denied it, five had a
+well designed for them, and `--lite --check` agrees with the render on every one. A `surface` of
+`dark` now covers TWO different facts - a slot sitting on the picture, and `ls12`'s well, which is
+painted a fixed opaque dark whatever the package says so a knockout-only brand can use a light
+package with no repair (`docs/AI_LITE_BRAND_PLAN.md` §3.4). The validator needs no new vocabulary
+for the second: both mean "a surface the palette cannot repaint". Design, findings and the catalog
 work they bought: `docs/AI_LITE_PLAN.md` §7, `benchmarks/lite/BRAND-AUDIT-2026-08-09.md`.
 
 **A REQUESTED palette is the platform's to apply, not the model's to return** (`applyLiteBrandPalette`).

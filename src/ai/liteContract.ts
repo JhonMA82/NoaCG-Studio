@@ -260,8 +260,11 @@ const BASE_LITE_CATALOG: readonly LiteCatalogBase[] = [
       name: 'Dateline',
       description: 'Four-field editorial reporting strap with a ruled location line and printed hierarchy.',
       style: 'editorial',
-      logo: false,
-      logoSlot: null,
+      // A masthead band above the byline. The design paints no panel, so the mark sits on the
+      // PICTURE and its surface is `dark` whatever the package is - the same fact lt02 and lt25
+      // declare. A wide band rather than a well, so a lockup lands at full width.
+      logo: true,
+      logoSlot: { surface: 'dark', fits: ['portrait', 'square', 'wordmark', 'rail'] },
       intentKinds: ['person', 'story', 'event', 'organization'],
       bestFor: ['public news', 'field reports', 'live locations', 'emergency coverage'],
       avoidFor: ['one-line names', 'esports', 'luxury entertainment'],
@@ -275,8 +278,10 @@ const BASE_LITE_CATALOG: readonly LiteCatalogBase[] = [
       name: 'Slate',
       description: 'Right-anchored cinematic slate with room for four quiet documentary lines.',
       style: 'cinematic',
-      logo: false,
-      logoSlot: null,
+      // The mark opens the block, ragged-left against the same hairline as every row. Its
+      // surface is the scrim, which is painted from the package - so `palette`.
+      logo: true,
+      logoSlot: { surface: 'palette', fits: ['portrait', 'square', 'wordmark', 'rail'] },
       intentKinds: ['person', 'story', 'event', 'organization'],
       bestFor: ['documentary', 'history', 'arts', 'luxury culture'],
       avoidFor: ['urgent news', 'score updates', 'high-energy promotion'],
@@ -328,8 +333,13 @@ const BASE_LITE_CATALOG: readonly LiteCatalogBase[] = [
       name: 'Caster Deck',
       description: 'Three-field esports caster ident led by the handle and grounded in the desk role.',
       style: 'noacg',
-      logo: false,
-      logoSlot: null,
+      // THE OPPOSITE-TONE WELL (docs/AI_LITE_BRAND_PLAN.md §3.4). Its surface reads `dark` for
+      // a different reason from every other entry: not because the slot sits on the picture,
+      // but because the design paints a fixed dark tile there whatever the package is. That is
+      // what lets a knockout-only brand - the esports norm - use a LIGHT package without the
+      // platform bolting a well underneath at generation time.
+      logo: true,
+      logoSlot: { surface: 'dark', fits: ['portrait', 'square', 'wordmark', 'rail'] },
       intentKinds: ['person', 'team', 'promotion'],
       bestFor: ['esports', 'streaming', 'commentary', 'creator broadcasts'],
       avoidFor: ['public news', 'documentary', 'academic lectures'],
@@ -343,8 +353,9 @@ const BASE_LITE_CATALOG: readonly LiteCatalogBase[] = [
       name: 'Lectern',
       description: 'Four-field academic credit with separate post-nominals, position, and institution.',
       style: 'minimal',
-      logo: false,
-      logoSlot: null,
+      // The institution's crest closes the credit, on the panel's own surface - so `palette`.
+      logo: true,
+      logoSlot: { surface: 'palette', fits: ['portrait', 'square', 'wordmark', 'rail'] },
       intentKinds: ['person', 'event', 'organization'],
       bestFor: ['universities', 'history lectures', 'research', 'public scholarship'],
       avoidFor: ['esports', 'short promotional calls', 'urgent alerts'],
@@ -358,8 +369,9 @@ const BASE_LITE_CATALOG: readonly LiteCatalogBase[] = [
       name: 'Field Report',
       description: 'Three-field live-news dateline over a correspondent identity and role.',
       style: 'noacg',
-      logo: false,
-      logoSlot: null,
+      // The channel mark closes the strap, on the panel's own surface - so `palette`.
+      logo: true,
+      logoSlot: { surface: 'palette', fits: ['portrait', 'square', 'wordmark', 'rail'] },
       intentKinds: ['person', 'story', 'event'],
       bestFor: ['public news', 'fire and weather coverage', 'live locations', 'breaking stories'],
       avoidFor: ['luxury culture', 'academic lectures', 'esports'],

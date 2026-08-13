@@ -5,6 +5,11 @@
 //
 // Lines three and four share the assembler's `-extra` class, so they are told apart by POSITION
 // inside the text column — structural, and therefore safe under field renumbering.
+//
+// The optional mark is a MASTHEAD: a publisher's lockup sitting above the byline, which is where
+// print has put it for two centuries and the only place it can go in a design with no panel. It
+// is a wide row rather than a square well on purpose — an editorial mark is usually a lockup, and
+// a square would letterbox one to a hairline.
 
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { defineVariant, lineMasks } from './shared';
@@ -23,7 +28,7 @@ export const lt30: TemplateVariant = defineVariant(
       { title: 'Organisation', sample: 'Northgate Review' },
       { title: 'Dateline', sample: 'Brussels · Live' },
     ],
-    logo: 'none',
+    logo: 'optional',
     animationPresets: ['line-reveal', 'mask-wipe', 'fade', 'slide-up', 'slide-down'],
     defaultPalette: paletteById('vermilion'),
     defaultFontId: 'archivo',
@@ -37,15 +42,46 @@ export const lt30: TemplateVariant = defineVariant(
       'Continue when the reporter throws to location. Sibling of lt25 Masthead.',
     uicolor: '2',
   },
-  (o) => ({
-    html: `    <!-- Dateline: [tall rule] | [name / role / organisation] over [ruled dateline]. -->
+  (o) => {
+    // A real SPX image field ("filelist"): SPX writes the picked file's path into the <img>,
+    // and an empty value hides it (setFieldValue), leaving the placeholder rule.
+    const logoField = `f${o.lines.length + o.extraFields.length}`;
+    const logoPath = o.logoAssetPath ?? '';
+    // The masthead sits OUTSIDE .lower-third-text on purpose: the dateline row is selected by
+    // `:nth-child(4)` inside that column, and a mark added as its first child would renumber
+    // every line and move the ruled treatment onto the organisation.
+    const masthead = o.logoEnabled
+      ? `      <!-- The publisher mark (image field ${logoField}). Empty shows the placeholder rule. -->
+      <div class="lower-third-masthead${logoPath ? ' has-image' : ''}">
+        <div class="lower-third-markrule"></div>
+        <img id="${logoField}" class="lower-third-logo"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />
+      </div>
+`
+      : '';
+
+    return {
+      html: `    <!-- Dateline: [tall rule] | [masthead] over [name / role / organisation] over [ruled dateline]. -->
     <div class="lower-third-accent"></div>
     <div class="lower-third-box">
-      <div class="lower-third-text">
+${masthead}      <div class="lower-third-text">
 ${lineMasks(o, '        ')}
       </div>
     </div>`,
-    css: `/* The rule — one tall hairline gathering the whole block. */
+
+      extraFields: o.logoEnabled
+      ? [
+          {
+            field: logoField,
+            ftype: 'filelist' as const,
+            title: 'Masthead',
+            value: logoPath,
+            assetfolder: './images/',
+            extension: 'png',
+          },
+        ]
+      : [],
+
+      css: `/* The rule — one tall hairline gathering the whole block. */
 .lower-third-accent {
   position: absolute;               /* pinned inside the positioned .lower-third root */
   left: 0;                          /* at the block's left edge */
@@ -61,6 +97,43 @@ ${lineMasks(o, '        ')}
   padding-left: calc(35px * var(--scale));  /* room for the rule plus a printed-margin gap */
 }
 
+${
+      o.logoEnabled
+        ? `/* The masthead row — a WIDE band, not a square well: an editorial mark is normally a
+   lockup, and a square would letterbox one to a hairline. The row's height is fixed so the
+   artwork can never feed its own proportions back into the strap's height, which is what a
+   portrait crest does to an in-flow image. */
+.lower-third-masthead {
+  display: flex;                    /* the mark sits on the row's left, like a printed masthead */
+  align-items: center;              /* …vertically centred in the band */
+  height: calc(46px * var(--scale));  /* fixed band height — see above */
+  margin-bottom: calc(15px * var(--scale));  /* clear space between the mark and the name */
+}
+
+/* The placeholder — a quiet rule where the mark will be, so an unset slot reads as
+   "nothing here yet" rather than as a broken image. */
+.lower-third-markrule {
+  width: calc(96px * var(--scale));  /* about the width a lockup would take */
+  height: calc(3px * var(--scale));  /* a hairline */
+  background: var(--text-dim);      /* neutral — the accent belongs to the rule beside it */
+  opacity: 0.5;                     /* a placeholder should read as absent, not as content */
+}
+.lower-third-masthead.has-image .lower-third-markrule {
+  display: none;                    /* a picked mark replaces the placeholder */
+}
+
+/* The mark itself (the ${logoField} image field — hidden while empty). Both caps are
+   explicit lengths rather than percentages: the browser then keeps the artwork's own aspect
+   while honouring whichever cap binds, so a 13:1 rail and a portrait shield both land. */
+.lower-third-logo {
+  max-height: calc(46px * var(--scale));  /* the band's height — a portrait mark stops here */
+  max-width: calc(268px * var(--scale));  /* …and a wide lockup stops here */
+  object-fit: contain;              /* show the whole mark, never crop or distort it */
+}
+
+`
+        : ''
+    }
 /* Name (f0) — the block's one heavy element. */
 .lower-third-name {
   font-size: calc(60px * var(--scale) * var(--type-scale));  /* headline size (values are 1080p reference) */
@@ -104,6 +177,7 @@ ${lineMasks(o, '        ')}
   color: var(--label-color);        /* the family's label colour (the accent) */
   margin-top: 0;                    /* the mask's padding already provides the gap */
 }`,
-    hasAccent: true,
-  }),
+      hasAccent: true,
+    };
+  },
 );

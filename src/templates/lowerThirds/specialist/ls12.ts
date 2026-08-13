@@ -8,6 +8,22 @@
 //
 // The house look, because a caster strap is the broadcaster's furniture: it is up several
 // times an hour for a whole tournament, and it has to sit quietly under that repetition.
+//
+// ── THE OPPOSITE-TONE WELL ──────────────────────────────────────────────────────────────
+//
+// The optional tournament crest sits in a well that is drawn DARK whatever the package is —
+// the one place in this catalog where a surface deliberately does not follow the palette.
+//
+// The reason is measured rather than aesthetic. Esports and streaming brands overwhelmingly
+// ship a KNOCKOUT mark and nothing else, and a knockout mark composites its white ink straight
+// onto whatever surface it is given: on a light package, every logo well in the catalog that
+// follows the palette makes that mark disappear. The platform's repair for that is to paint a
+// well underneath at generation time, which is a bolted-on rectangle nobody designed. A design
+// that owns its own dark well needs no repair and looks like a decision, because it is one.
+//
+// The trade is stated honestly in the Lite metadata: this slot's surface is `dark`, so a mark
+// that exists only in DARK ink is refused here and served by a design whose well follows the
+// palette instead.
 
 import { paletteById, type TemplateVariant } from '../../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../../model/fonts';
@@ -27,7 +43,7 @@ export const ls12: TemplateVariant = defineVariant(
       { title: 'Name', sample: 'Priya Raghavan' },
       { title: 'Role', sample: 'Play-by-play' },
     ],
-    logo: 'none',
+    logo: 'optional',
     animationPresets: ['slide-up', 'line-reveal', 'mask-wipe', 'pop-spring', 'fade', 'blur-in'],
     defaultPalette: paletteById('noacg'),
     defaultFontId: 'space-grotesk',
@@ -43,21 +59,48 @@ export const ls12: TemplateVariant = defineVariant(
     uicolor: '4',
   },
   (o) => {
+    // A real SPX image field; its id comes after every wizard field so nothing collides.
+    const logoField = `f${o.lines.length + o.extraFields.length}`;
+    const logoPath = o.logoAssetPath ?? '';
+    const crest = o.logoEnabled
+      ? `      <!-- The tournament crest (image field ${logoField}). Empty shows the placeholder rule. -->
+      <div class="lower-third-crest${logoPath ? ' has-image' : ''}">
+        <div class="lower-third-markrule"></div>
+        <img id="${logoField}" class="lower-third-logo"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />
+      </div>
+`
+      : '';
+
     const roleChip = hasLine(o, 2)
-      ? `      <!-- ${o.lines[2].title} (f2) — the job, as a chip rather than a third line of type. -->
-      <div class="lower-third-mask lower-third-chipwrap"><span id="f2" class="lower-third-extra">${o.lines[2].sample}</span></div>
+      ? `          <!-- ${o.lines[2].title} (f2) — the job, as a chip rather than a third line of type. -->
+          <div class="lower-third-mask lower-third-chipwrap"><span id="f2" class="lower-third-extra">${o.lines[2].sample}</span></div>
 `
       : '';
 
     return {
-      html: `    <!-- House structure: [8px accent bar] | [void panel: handle, name, role chip]. -->
+      html: `    <!-- House structure: [8px accent bar] | [void panel: crest | handle, name, role chip]. -->
     <div class="lower-third-accent"></div>
     <div class="lower-third-box">
-${slot(o, 0, 'lower-third-name')}
-      <div class="lower-third-footrow">
-${slot(o, 1, 'lower-third-title', '        ')}
-${roleChip}      </div>
+${crest}      <div class="lower-third-stack">
+${slot(o, 0, 'lower-third-name', '        ')}
+        <div class="lower-third-footrow">
+${slot(o, 1, 'lower-third-title', '          ')}
+${roleChip}        </div>
+      </div>
     </div>`,
+
+      extraFields: o.logoEnabled
+        ? [
+            {
+              field: logoField,
+              ftype: 'filelist',
+              title: 'Tournament crest',
+              value: logoPath,
+              assetfolder: './images/',
+              extension: 'png',
+            },
+          ]
+        : [],
 
       css: `${labelFontFaceCss(fontById('jetbrains-mono'))}
 
@@ -75,6 +118,9 @@ ${roleChip}      </div>
 
 /* The panel — the house void, starting where the accent bar ends. */
 .lower-third-box {
+  display: flex;                    /* crest and words side by side */
+  align-items: center;              /* the crest is centred against the whole stack */
+  gap: calc(30px * var(--scale));   /* the crest's clear space from the handle */
   margin-left: calc(10px * var(--scale));    /* starts where the accent bar ends */
   padding: calc(25px * var(--scale)) calc(65px * var(--scale)) calc(28px * var(--scale)) calc(38px * var(--scale));
   background: var(--panel-bg);      /* void rgba(10,12,16,.86) by default */
@@ -82,6 +128,54 @@ ${roleChip}      </div>
   -webkit-backdrop-filter: var(--panel-blur);  /* Safari spelling of the same effect */
   box-shadow: var(--panel-shadow);  /* the family's panel lift */
 }
+
+/* The words, as one column beside the crest. */
+.lower-third-stack {
+  min-width: 0;                     /* lets a long handle wrap instead of overflowing */
+}
+${
+        o.logoEnabled
+          ? `
+/* The crest well — THE OPPOSITE-TONE SURFACE (see the header). Its ink is fixed rather than
+   palette-derived, because its whole job is to be a surface a knockout mark can be read on
+   whatever package the channel brings. Everything else in this design still repalettes. */
+.lower-third-crest {
+  flex: none;                       /* fixed size; a long handle never squeezes the crest */
+  display: flex;                    /* centre whatever is inside it… */
+  align-items: center;              /* …vertically… */
+  justify-content: center;          /* …and horizontally */
+  width: calc(132px * var(--scale));   /* wide enough for a lockup, square enough for a crest */
+  height: calc(104px * var(--scale));  /* fixed, so the artwork never sets the strap's height */
+  padding: calc(14px * var(--scale));  /* breathing room inside the well */
+  border-radius: calc(6px * var(--scale));  /* squared, like the role chip — the house look */
+  background: #090b0f;              /* the fixed dark ink — deliberately NOT var(--panel-bg), and
+                                       fully OPAQUE: at 92% the panel showed through enough to
+                                       move the well's measured luminance with the package, and
+                                       a surface whose tone follows the palette is exactly what
+                                       this well exists not to be */
+}
+
+/* The placeholder — a quiet rule where the crest will be, so an unset slot reads as
+   "nothing here yet" rather than as a broken image. */
+.lower-third-markrule {
+  width: calc(56px * var(--scale));  /* about the width a lockup would take */
+  height: calc(3px * var(--scale));  /* a hairline */
+  background: #ffffff;              /* the well's own tone decides this, not the palette */
+  opacity: 0.35;                    /* a placeholder should read as absent, not as content */
+}
+.lower-third-crest.has-image .lower-third-markrule {
+  display: none;                    /* a picked crest replaces the placeholder */
+}
+
+/* The crest itself (the ${logoField} image field — hidden while empty). */
+.lower-third-logo {
+  max-width: calc(104px * var(--scale));  /* inside the well's padding — a lockup stops here */
+  max-height: calc(76px * var(--scale));  /* …and a portrait crest here */
+  object-fit: contain;              /* show the whole crest, never crop or distort it */
+}
+`
+          : ''
+      }
 
 /* The handle (f0) — the strap's headline. The @ is DRAWN, so an operator types the handle
    and never the sigil, and a value pasted with one already on it doesn't end up with two. */

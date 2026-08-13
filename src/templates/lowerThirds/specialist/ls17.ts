@@ -10,7 +10,10 @@
 // gracefully instead of pushing the name onto two rows.
 //
 // Second, the INSTITUTION carries the authority — it is why this person is being shown — so
-// it is set apart under a rule rather than trailing the job title as an afterthought.
+// it is set apart under a rule rather than trailing the job title as an afterthought. The
+// optional mark belongs to that same authority, so it sits at the END of the credit, on the
+// panel's own surface: a university crest is multi-colour artwork and a tinted block behind it
+// fights the crest's own field.
 
 import { paletteById, type TemplateVariant } from '../../../model/wizard';
 import { defineVariant } from '../shared';
@@ -30,7 +33,7 @@ export const ls17: TemplateVariant = defineVariant(
       { title: 'Position', sample: 'Chair of Atmospheric Chemistry' },
       { title: 'Institution', sample: 'University of Leeds' },
     ],
-    logo: 'none',
+    logo: 'optional',
     animationPresets: ['fade', 'line-reveal', 'slide-up', 'mask-wipe', 'blur-in', 'slide-down'],
     defaultPalette: paletteById('ivory'),
     defaultFontId: 'inter',
@@ -47,10 +50,10 @@ export const ls17: TemplateVariant = defineVariant(
   },
   (o) => {
     const nameRow = hasLine(o, 0) || hasLine(o, 1)
-      ? `      <div class="lower-third-namerow">
-${slot(o, 0, 'lower-third-name', '        ')}
-${slot(o, 1, 'lower-third-postnom', '        ')}
-      </div>
+      ? `        <div class="lower-third-namerow">
+${slot(o, 0, 'lower-third-name', '          ')}
+${slot(o, 1, 'lower-third-postnom', '          ')}
+        </div>
 `
       : '';
     // The rule is emitted UNCONDITIONALLY even though the institution under it is optional.
@@ -58,23 +61,93 @@ ${slot(o, 1, 'lower-third-postnom', '        ')}
     // node by selector: an element that comes and goes with a field would leave the timeline
     // (and the line-reveal preset) addressing something that isn't there. With no institution
     // it simply closes the strap, which is a finishing mark rather than a dangling rule.
-    const institution = `      <div class="lower-third-accent"></div>
-${hasLine(o, 3) ? `${slot(o, 3, 'lower-third-extra')}\n` : ''}`;
+    const institution = `        <div class="lower-third-accent"></div>
+${hasLine(o, 3) ? `${slot(o, 3, 'lower-third-extra', '        ')}\n` : ''}`;
+
+    // A real SPX image field; its id comes after every wizard field so nothing collides.
+    const logoField = `f${o.lines.length + o.extraFields.length}`;
+    const logoPath = o.logoAssetPath ?? '';
+    const mark = o.logoEnabled
+      ? `      <!-- The institution mark (image field ${logoField}). Empty shows the placeholder rule. -->
+      <div class="lower-third-markbox${logoPath ? ' has-image' : ''}">
+        <div class="lower-third-markrule"></div>
+        <img id="${logoField}" class="lower-third-logo"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />
+      </div>
+`
+      : '';
 
     return {
-      html: `    <!-- The strap: name + post-nominals, the position, then a ruled institution line. -->
+      html: `    <!-- The strap: [name + post-nominals, position, ruled institution] | [institution mark]. -->
     <div class="lower-third-box">
-${nameRow}${slot(o, 2, 'lower-third-title')}
-${institution}    </div>`,
+      <div class="lower-third-credit">
+${nameRow}${slot(o, 2, 'lower-third-title', '        ')}
+${institution}      </div>
+${mark}    </div>`,
+
+      extraFields: o.logoEnabled
+        ? [
+            {
+              field: logoField,
+              ftype: 'filelist',
+              title: 'Institution mark',
+              value: logoPath,
+              assetfolder: './images/',
+              extension: 'png',
+            },
+          ]
+        : [],
 
       css: `/* The panel — quiet, restrained, wide enough for a real job title. */
 .lower-third-box {
+  display: flex;                    /* the credit, then the institution's mark */
+  align-items: center;              /* the mark is centred against the whole credit */
+  gap: calc(38px * var(--scale));   /* the mark's clear space from the words */
   padding: calc(24px * var(--scale)) calc(52px * var(--scale)) calc(26px * var(--scale)) calc(33px * var(--scale));
   background: var(--panel-bg);      /* the minimal family's quiet panel */
   border-radius: var(--panel-radius);  /* the family's corner radius */
   box-shadow: var(--panel-shadow);  /* the family's panel lift */
   max-width: calc(894px * var(--scale));  /* academic job titles are long — give them the room */
 }
+
+/* The credit column — the words, which keep the panel's stated measure to themselves. */
+.lower-third-credit {
+  min-width: 0;                     /* lets a long chair title wrap instead of overflowing */
+}
+${
+        o.logoEnabled
+          ? `
+/* The mark area — on the panel's own surface, not in a filled block: a university crest is
+   usually multi-colour artwork with its own field, and a tinted block behind it fights that. */
+.lower-third-markbox {
+  flex: none;                       /* fixed size; a long title never squeezes the mark */
+  display: flex;                    /* centre whatever is inside it… */
+  align-items: center;              /* …vertically… */
+  justify-content: center;          /* …and horizontally */
+  width: calc(150px * var(--scale));   /* wide enough that a lockup still reads at width */
+  height: calc(112px * var(--scale));  /* fixed, so the artwork never sets the panel's height */
+}
+
+/* The placeholder — a quiet rule where the mark will be, so an unset slot reads as
+   "nothing here yet" rather than as a broken image. */
+.lower-third-markrule {
+  width: calc(62px * var(--scale));  /* about the width a lockup would take */
+  height: calc(2px * var(--scale));  /* a hairline */
+  background: var(--text-dim);      /* neutral — the accent belongs to the institution line */
+  opacity: 0.5;                     /* a placeholder should read as absent, not as content */
+}
+.lower-third-markbox.has-image .lower-third-markrule {
+  display: none;                    /* a picked mark replaces the placeholder */
+}
+
+/* The mark itself (the ${logoField} image field — hidden while empty). */
+.lower-third-logo {
+  max-width: calc(150px * var(--scale));   /* the area's width — a wide lockup stops here */
+  max-height: calc(112px * var(--scale));  /* …and a portrait crest here */
+  object-fit: contain;              /* show the whole mark, never crop or distort it */
+}
+`
+          : ''
+      }
 
 /* The name row: name and post-nominals on one baseline. */
 .lower-third-namerow {

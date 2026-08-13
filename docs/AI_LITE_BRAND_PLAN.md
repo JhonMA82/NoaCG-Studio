@@ -137,11 +137,24 @@ the palette. Fix = measured per-chassis metadata from `scripts/palette-freedom.m
 `supportingLineChars` and `logoSlot`, gated against a re-render. **Not** `logoSlot.surface` - that
 was tried and reverted (lt32's logo well follows the palette; its scrim does not).
 
-### 3.4 The opposite-tone chassis (owner decision 2, 2026-08-09)
+### 3.4 The opposite-tone chassis (owner decision 2, 2026-08-09) - DONE 2026-08-13
 
-No catalog lower third pairs a dark logo well with a light panel, so a brand owning only a dark
-mark cannot use a light package without a bolted-on well. Real catalog work: taxonomy, factory
-gates, the five catalog gates, l3-sweep. This is also the first test of §3.3's metadata.
+No catalog lower third paired a logo well with the OPPOSITE tone to its own package, so a brand
+owning only one version of its mark could not use the other package without a bolted-on well.
+
+**`ls12` Caster Deck is that chassis.** Its crest well is painted a fixed opaque `#090b0f`
+whatever the palette says - the one surface in the catalog that deliberately does not follow the
+package - so a knockout-only mark (the esports and streaming norm) reads on a LIGHT package with
+no repair. Measured on the paper palette: the knockout wordmark and the sponsor rail land at
+16.82:1 where the same marks on the three palette-surfaced additions read 1.14:1. The declaration
+needs no new vocabulary - `surface: 'dark'` already means "a surface the palette cannot repaint",
+and the semantic validator already refuses a dark-ink mark there and serves it from a
+palette-surfaced design instead.
+
+**Trap this bought:** at 92% alpha the well still let the panel through enough to move its
+measured luminance with the package, and the audit's own surface derivation (two distinct
+luminances across the run = `palette`) reported it as palette-following. An opposite-tone surface
+has to be OPAQUE or it is not one.
 
 ### 3.5 Minimal brand input
 
@@ -171,16 +184,37 @@ drop the mark" promise is currently false on 7 of 13 chassis - regression by gro
 2. **Draw measured slots on the seven** - the §7.4 step-3 pattern from `docs/AI_LITE_PLAN.md`
    (type capability + brand audit + `logoSlot` metadata), batched with the §3.4 opposite-tone
    chassis. Also what lifts the marked-request field ceiling past 2.
-   **Two of seven done 2026-08-13, and they were not design work at all**: `lt41` and `lt49`
+   **ALL SEVEN DONE 2026-08-13. `ai-lite-brand-audit.mjs --lite --check` is green for the first
+   time: every one of the 13 chassis now carries a slot the render agrees with, and 46 of 65
+   chassis/mark pairs absorb the mark against 26 before.** Two were metadata and five were drawn.
+
+   **The two that were not design work at all**: `lt41` and `lt49`
    already DRAW a mark well - the catalog declares them `logo: 'optional'` and the audit renders
    a badge landing cleanly in both - and only the Lite metadata said otherwise. Declared as
    measured: `surface: 'palette'`, `fits: ['portrait', 'square']` (a wordmark and a sponsor rail
    letterbox below the size floor in these narrow wells, so the claim stops there). The
    declaration gate drops from 7 problems to 5, and **the marked-request field ceiling is now 4
    rather than 2**, since lt49 carries four visible fields.
-   The five that remain - `lt30 lt37 ls12 ls17 ls29` - have no slot element at all
-   (`no-slot-field`), so they need a well drawn into the design itself: real catalog work, the
-   five catalog gates, and the natural batch for §3.3 and §3.4.
+   **The five that were drawn** - `lt30 lt37 ls12 ls17 ls29` had no slot element at all, so each
+   got a well designed for what its own graphic is, and each declaration was taken from the render
+   rather than from the intent:
+
+   | chassis | the well | surface | fits |
+   | --- | --- | --- | --- |
+   | `lt30` Dateline | a masthead band above the byline, panel-less so the mark sits on the picture | `dark` | all four |
+   | `lt37` Slate | a mark row opening the block, ragged-left against the hairline | `palette` | all four |
+   | `ls12` Caster Deck | the fixed-dark tournament tile - the §3.4 opposite-tone chassis | `dark` | all four |
+   | `ls17` Lectern | the institution's crest closing the credit | `palette` | all four |
+   | `ls29` Field Report | the channel mark closing the strap | `palette` | all four |
+
+   All five take a wide lockup as well as a crest, which is what lifts a WORDMARK brand past the
+   two-field ceiling: before this, every wordmark-capable chassis was a 2-field design.
+
+   **What the render refused, and what it cost:** lt37's first placement put the mark in its own
+   column beside the words, and because the strap's width is capped that column took its width
+   from them - the audit read the name wrapping onto a second row (`logo-costs-text`) on all five
+   mark shapes. Moving the mark to a row above the credit costs the words nothing. No source check
+   could have found this; the frame did.
 
 This slice goes BEFORE the §4.4 volume matrix - a matrix over the split catalog would multiply
 one known failure into every cell.
@@ -301,7 +335,7 @@ to DIY is just a bigger loss.
 | phase | work | gate to pass |
 | --- | --- | --- |
 | **P0 - now, 2 days** | §4.1-4.4: qualify Ling, control run, frozen replays, volume matrix | data captured before the window closes |
-| **P1** | §3.1-3.5 brand-fidelity gaps (§3.1 + §3.2 DONE 2026-08-13; §3.3, §3.4, §3.6.2 open) | audit green incl. `brand-accent-verbatim`; adjustments visible in ledger; scrim weld gated; opposite-tone chassis drawn |
+| **P1** | §3.1-3.5 brand-fidelity gaps (§3.1, §3.2, §3.4, §3.6 DONE 2026-08-13; §3.3 and §3.5 open) | audit green incl. `brand-accent-verbatim`; adjustments visible in ledger; scrim weld gated; opposite-tone chassis drawn |
 | **P2** | §2 value-gate round (8 briefs x 3 arms, blind) | pass rule met - else retire the path per §2 |
 | **P3** | route decision at real prices (§4.5) | promotion criteria or incumbent stays |
 | **P4** | ride category widening; then the §6 kit story | per-category gallery + control-page parity, per `docs/AI_LITE_PLAN.md` |

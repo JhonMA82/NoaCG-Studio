@@ -5,6 +5,12 @@
 //
 // Rows three and four share the assembler's `-extra` class and are told apart by POSITION inside
 // the text column, which survives field renumbering where an `#f3` selector would not.
+//
+// The optional mark OPENS the block, ragged-left against the same hairline as every row, which
+// is how a slate or an archive card is set. Two other placements were tried and measured worse:
+// out on the open left edge the mark sits on raw picture (the scrim is a radial gradient darkest
+// under the words at 88% of the width), and beside the rows it takes its width from them — the
+// brand audit read the name wrapping onto a second row on all five mark shapes.
 
 import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { defineVariant, lineMasks } from './shared';
@@ -23,7 +29,7 @@ export const lt37: TemplateVariant = defineVariant(
       { title: 'Organisation', sample: 'Polar Research Institute' },
       { title: 'Note', sample: 'Interviewed March 2026' },
     ],
-    logo: 'none',
+    logo: 'optional',
     animationPresets: ['fade', 'slide-left', 'blur-in', 'line-reveal', 'mask-wipe'],
     defaultPalette: paletteById('noir'),
     defaultFontId: 'inter',
@@ -37,15 +43,45 @@ export const lt37: TemplateVariant = defineVariant(
       'attribution). For interviews that need to be sourced on screen. Sibling of lt32 Scrim.',
     uicolor: '5',
   },
-  (o) => ({
-    html: `    <!-- Slate: [name / role / organisation / note, ragged-left] | [hairline column]. -->
+  (o) => {
+    // A real SPX image field ("filelist"): SPX writes the picked file's path into the <img>,
+    // and an empty value hides it (setFieldValue), leaving the placeholder rule.
+    const logoField = `f${o.lines.length + o.extraFields.length}`;
+    const logoPath = o.logoAssetPath ?? '';
+    const mark = o.logoEnabled
+      ? `        <!-- The production mark (image field ${logoField}). Empty shows the placeholder rule. -->
+        <div class="lower-third-markbox${logoPath ? ' has-image' : ''}">
+          <div class="lower-third-markrule"></div>
+          <img id="${logoField}" class="lower-third-logo"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />
+        </div>
+`
+      : '';
+
+    return {
+      html: `    <!-- Slate: [mark over name / role / organisation / note, ragged-left] | [hairline column]. -->
     <div class="lower-third-box">
-      <div class="lower-third-text">
-${lineMasks(o, '        ')}
+      <div class="lower-third-column">
+${mark}        <div class="lower-third-text">
+${lineMasks(o, '          ')}
+        </div>
       </div>
       <div class="lower-third-accent"></div>
     </div>`,
-    css: `/* The scrim — fades out toward the LEFT here: the graphic sits on the right of the
+
+      extraFields: o.logoEnabled
+      ? [
+          {
+            field: logoField,
+            ftype: 'filelist' as const,
+            title: 'Production mark',
+            value: logoPath,
+            assetfolder: './images/',
+            extension: 'png',
+          },
+        ]
+      : [],
+
+      css: `/* The scrim — fades out toward the LEFT here: the graphic sits on the right of the
    frame, so the open edge is the one facing the middle of the shot. */
 .lower-third-box {
   display: flex;                    /* words and hairline on one row */
@@ -65,7 +101,46 @@ ${lineMasks(o, '        ')}
   min-width: 0;                     /* the flexbox wrap fix — see above */
 }
 
-/* The hairline column — the family's 1 px rule, on the outside edge. */
+/* The block's own column: the mark row, then the rows of the credit. Separate from the box so
+   the hairline beside it still runs the WHOLE height, mark included. */
+.lower-third-column {
+  min-width: 0;                     /* the flexbox wrap fix, one level out — see below */
+}
+${
+      o.logoEnabled
+        ? `
+/* The mark row — ragged-left against the hairline like every row under it. Fixed height, so
+   the artwork can never feed its own proportions back into the strap's height. */
+.lower-third-markbox {
+  display: flex;                    /* the mark sits at the row's right… */
+  justify-content: flex-end;        /* …against the hairline, like the rows below */
+  align-items: center;              /* …vertically centred in the band */
+  height: calc(52px * var(--scale));  /* fixed band height — see above */
+  margin-bottom: calc(20px * var(--scale));  /* clear space between the mark and the name */
+}
+
+/* The placeholder — a quiet rule where the mark will be, so an unset slot reads as
+   "nothing here yet" rather than as a broken image. */
+.lower-third-markrule {
+  width: calc(60px * var(--scale));  /* about the width a lockup would take */
+  height: calc(2px * var(--scale));  /* a hairline, in this family's weight */
+  background: var(--text-dim);      /* neutral — the accent belongs to the rule beside it */
+  opacity: 0.5;                     /* a placeholder should read as absent, not as content */
+}
+.lower-third-markbox.has-image .lower-third-markrule {
+  display: none;                    /* a picked mark replaces the placeholder */
+}
+
+/* The mark itself (the ${logoField} image field — hidden while empty). */
+.lower-third-logo {
+  max-height: calc(52px * var(--scale));  /* the band's height — a portrait mark stops here */
+  max-width: calc(232px * var(--scale));  /* …and a wide lockup stops here */
+  object-fit: contain;              /* show the whole mark, never crop or distort it */
+}
+
+`
+        : ''
+    }/* The hairline column — the family's 1 px rule, on the outside edge. */
 .lower-third-accent {
   width: var(--accent-weight);      /* the family's 1px hairline */
   background: var(--accent);        /* bone by default — cinema colour, not signal colour */
@@ -114,6 +189,7 @@ ${lineMasks(o, '        ')}
   font-size: calc(20px * var(--scale) * var(--type-scale));  /* the smallest voice in the pack */
   color: color-mix(in srgb, var(--text-dim) 75%, transparent);  /* one step below the band */
 }`,
-    hasAccent: true,
-  }),
+      hasAccent: true,
+    };
+  },
 );

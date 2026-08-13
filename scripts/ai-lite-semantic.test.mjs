@@ -30,12 +30,19 @@ test('locked semantic briefs retrieve a relevant, small, diverse reference set',
 
 test('a mark narrows retrieval to slot-carrying chassis, and only a mark does', () => {
   // Self-guarding: the narrowing below is only provable against a brief that openly reaches a
-  // slotless chassis. If no fixture does, the loop's assertions would be vacuously green while
-  // the filter did nothing (the verify-guards rule), so that state fails the test instead.
+  // chassis the mark would have to REMOVE. If no fixture does, the loop's assertions would be
+  // vacuously green while the filter did nothing (the verify-guards rule), so that state fails
+  // the test instead.
+  //
+  // What "would have to remove" means moved on 2026-08-13, and the guard caught its own drift:
+  // every one of the thirteen chassis now carries a measured slot (AI_LITE_BRAND_PLAN §3.6.2),
+  // so `!entry.logo` matched nothing and this test failed rather than passing on an empty set.
+  // The live discriminator is SHAPE - lt41 and lt49 hold a crest and letterbox a wordmark.
+  const refusesShape = (entry) => !entry.logo || !entry.logoSlot?.fits.includes('wordmark');
   const openReach = LITE_SEMANTIC_FIXTURES
     .map((fixture) => ({ fixture, open: contract.retrieveLiteReferenceSet(fixture.request) }))
-    .find(({ open }) => open.entries.some((entry) => !entry.logo));
-  assert.ok(openReach, 'no markless fixture reaches a slotless chassis - this guard has gone vacuous');
+    .find(({ open }) => open.entries.some(refusesShape));
+  assert.ok(openReach, 'no markless fixture reaches a chassis the mark filter would drop - this guard has gone vacuous');
   assert.doesNotMatch(openReach.open.reason, /mark-capable/);
 
   const marked = structuredClone(openReach.fixture.request);
@@ -50,12 +57,19 @@ test('a mark narrows retrieval to slot-carrying chassis, and only a mark does', 
   assert.match(narrowed.reason, /mark-capable only \(wordmark\)/);
 
   // An older client says only hasLogo - the slot's existence still filters, shape does not.
+  // Asserted from BOTH sides, because "every entry carries a slot" became trivially true once
+  // the whole catalog did: the load-bearing half is that a chassis the SHAPE filter removed is
+  // still served here, which is only checkable while the same fixture reaches one.
   const legacy = structuredClone(openReach.fixture.request);
   legacy.hasLogo = true;
   const legacyNarrowed = contract.retrieveLiteReferenceSet(legacy);
   for (const entry of legacyNarrowed.entries) {
     assert.ok(entry.logo, `${entry.variantId} shown to a hasLogo request without a slot`);
   }
+  assert.ok(
+    legacyNarrowed.entries.some(refusesShape),
+    'a shapeless hasLogo request must not be narrowed by shape',
+  );
 });
 
 test('locked decisions satisfy category, slots, capacity, and structured style semantics', () => {
