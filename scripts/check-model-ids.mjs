@@ -49,7 +49,7 @@ const ROUTE_LITERAL = /\b(?:model|id):\s*'([a-z0-9](?:[a-z0-9-]*[a-z0-9])?\/[A-Z
  * explicitly. Read separately from the route scan because THIS is where a non-gateway id can
  * live — a bare `gpt-5.6` has no slash and never matches ROUTE_LITERAL at all.
  */
-const CATALOG_ENTRY = /provider:\s*'(anthropic|openai|vercel|huggingface)',[\s\S]{0,400}?\bid:\s*'([^']+)'/g;
+const CATALOG_ENTRY = /provider:\s*'(anthropic|openai|google|vercel|huggingface)',[\s\S]{0,400}?\bid:\s*'([^']+)'/g;
 
 const walk = (dir) => {
   const out = [];
@@ -130,6 +130,19 @@ const PROVIDERS = {
       });
       if (!res.ok) throw new Error(`anthropic listing answered ${res.status}`);
       return new Set((await res.json()).data.map((m) => m.id));
+    },
+  },
+  google: {
+    label: 'Google AI',
+    keyName: 'GOOGLE_API_KEY',
+    async list(key) {
+      // The OpenAI-compatible listing, which is the surface the google adapter posts to - so
+      // this checks the ids that route actually accepts. It answers them prefixed `models/`.
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models', {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      if (!res.ok) throw new Error(`google listing answered ${res.status}`);
+      return new Set((await res.json()).data.map((m) => String(m.id).replace(/^models\//, '')));
     },
   },
   huggingface: {

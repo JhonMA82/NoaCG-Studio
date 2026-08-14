@@ -260,10 +260,15 @@ values; the spec persists as a cross-session draft and, on Create, lands on the 
 nothing (pinned by e2e/ai-more-control.spec.ts).
 
 **The step has THREE execution tiers** (`AiSettings.tier`, picked under ⚙ AI settings - the
-one panel every tier can reach): **NoaCG Lite**, **NoaCG Pro**, and **Custom provider**. The
-default resolves to Lite when the server offers it, else Custom - exactly the pre-tier
-behaviour. Lite and Pro are managed experiences of the SAME workflow (no model picking);
-Custom is the deliberate advanced surface carrying the full `AiProviderSettings`.
+one panel every tier can reach): **NoaCG Lite**, **NoaCG Pro** and **Bring your own key**
+(stored id `custom` - the label changed, the id never can). The default resolves to Lite when
+the server offers it, else BYO key. Lite and Pro are managed experiences of the SAME workflow -
+no model picking and NO mechanism named in their copy; BYO key is the deliberate advanced
+surface carrying `AiProviderSettings` with `allowManaged={false}`, since the managed route is
+not a thing a user chooses. A tier this build does not offer is ABSENT rather than greyed:
+**Pro renders only under `proTierOffered()`** (`VITE_AI_PRO_ENABLED`, default off) until its
+hosted route lands. The tier contract, the price targets and the price-book rule behind each
+model row are src/ai/AGENTS.md's.
 
 The PIPELINES behind Lite and Pro are src/ai/AGENTS.md's contract (and docs/NOACG_PRO_PLAN.md
 §7); what belongs here is what each tier does to this STEP.
@@ -277,11 +282,11 @@ and never enters the template or the saved graphic. Lite disabled = the BYO surf
 
 **Pro** shows the concept image with its provider-reported cost plus the per-region editability
 report (`data-testid="pro-report"`, keyed to the template by WeakMap so a restored past result
-shows its own concept). Its settings carry the AI Gateway key surface only
-(`AiProviderSettings fixedProvider/showModel`) - a normal Pro user picks no models. Categories
+shows its own concept). Its settings carry NO chooser at all - no provider, no model, no key -
+because a managed tier that asks for a credential is not managed. Categories
 clamp to lower-third/auto, spec-field findings demote to warnings (`demoteSpecFields`: fixed
 contract, no repair loop), and refine/fix stand down because regenerate is the honest move.
-With no gateway credential the tier says so and runs the offline stub, which is what keeps
+With no hosted route it says so and runs the offline stub, which is what keeps
 e2e/pro.spec.ts token-free. The step passes the FIRST "use it as it is" upload in as
 `logoMark`; the ordering that makes that safe is src/ai/AGENTS.md's.
 
