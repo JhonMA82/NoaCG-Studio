@@ -127,8 +127,11 @@ export const AI_MODELS: AiModelOption[] = [
   },
   {
     provider: 'google',
-    id: 'gemini-2.5-flash',
-    label: 'Gemini 2.5 Flash',
+    // Verified callable on a fresh Google key 2026-08-14. Do NOT put a 2.5-series id here: the
+    // listing still advertises them and they answer 404 "no longer available to new users",
+    // which is exactly the trap a fallback suggestion must not walk someone into.
+    id: 'gemini-3.1-flash-lite',
+    label: 'Gemini 3.1 Flash Lite',
     blurb: 'Fallback suggestion when live Google discovery is unavailable.',
     role: 'default',
   },

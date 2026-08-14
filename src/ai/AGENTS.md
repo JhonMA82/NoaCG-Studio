@@ -96,6 +96,22 @@ the vendor prefix, the dot-vs-dash separator and the dated snapshot suffix, and 
 ambiguous or unmatched model is left unpriced and unsuggested rather than guessed at; the model
 box takes free text, so nothing is ever blocked by the book being wrong.
 
+**A LISTING IS NOT AN ENTITLEMENT, and no filter can fix that** (measured on Google,
+2026-08-14). `gemini-2.5-flash` and `gemini-2.5-flash-lite` appear in both of Google's own
+listings, indistinguishable from live models in every published field, and answer 404 "no longer
+available to new users" on a key created after their retirement. Discovery has nothing to filter
+on, so the honest place to help is the ERROR: `providerFailure` maps that shape to "not available
+on this account - the provider lists it but will not serve it". Two consequences worth keeping:
+a curated fallback id in `settings.ts` must be one VERIFIED by a real call, not merely listed
+(`gemini-3.1-flash-lite` is, as of that date), and `scripts/check-model-ids.mjs` cannot catch
+this class at all - it checks presence, and presence is exactly what lies here.
+
+**Verified end to end on real customer credentials 2026-08-14:** Hugging Face
+(`Qwen/Qwen2.5-Coder-3B-Instruct`, 74 schema-capable routes listed for the token) and Google
+(`gemini-3.1-flash-lite`), both returning schema-valid objects through the real adapters. HF
+issues USER ACCESS TOKENS needing the **Inference Providers** permission, never API keys - hence
+`credentialNoun` and the `HF_TOKEN` variable name.
+
 ## Retrieval - the shortlist of proven designs (`retrieval.ts`)
 
 **LIVE, on the ADAPT route only.** The design stage used to be handed `catalogDigest()` - **430
