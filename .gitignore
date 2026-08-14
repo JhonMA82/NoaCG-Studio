@@ -51,8 +51,12 @@ pro-brand-*/
 # The stinger corpus brand-swap review rig (scripts/stinger-review.mjs): one page per stinger
 # with the fonts and GSAP inlined. Regenerated on demand in one second.
 stinger-review-out/
+# LICENSED STOCK. The commercial stingers the teardown measures are bought clips - they may be
+# read on this machine and must never reach the public repo. 309 MB of them were sitting
+# untracked and un-ignored in the primary checkout, one `git add -A` away from being published.
+example-stingers/
 # The reference teardown's output (scripts/stinger-teardown.mjs): contact sheets and per-frame
-# alpha series derived from licensed stock clips that live outside the repo.
+# alpha series derived from those clips.
 stinger-teardown-out/
 # The gate's captured frames, sheets and alpha series (scripts/stinger-gate.mjs), and the
 # sheets copied out of it for review. Hundreds of 1920x1080 PNGs; regenerated in two minutes.
