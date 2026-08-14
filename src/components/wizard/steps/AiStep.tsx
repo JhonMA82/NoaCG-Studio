@@ -2,7 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getAiProvider } from '../../../ai';
 import { brainstorm, type ChatMessage } from '../../../ai/brainstorm';
 import { EXAMPLE_PROMPTS } from '../../../ai/examplePrompts';
-import { aiConfigured, loadAiSettings, saveAiSettings, type AiTier } from '../../../ai/settings';
+import {
+  AI_PROVIDERS,
+  DEFAULT_BYOK_PROVIDER,
+  aiConfigured,
+  isByokProvider,
+  loadAiSettings,
+  proTierOffered,
+  saveAiSettings,
+  type AiTier,
+} from '../../../ai/settings';
 import type { AiPath, AiTemplateChange, GenerateContext, GenerateOptions, SpxValidator } from '../../../ai/provider';
 import type { DesignSpec } from '../../../ai/designSpec';
 import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/preferences';
@@ -105,7 +114,7 @@ function routeLabel(path: AiPath | null): string | null {
     case 'custom':
       return '✦ Custom build — exercised end to end in the live playout bench.';
     case 'pro':
-      return '✧ Image-model visual direction, rebuilt as ordinary editable layers.';
+      return '✧ Art-directed design, delivered as ordinary editable layers.';
     default:
       return null;
   }
@@ -158,12 +167,24 @@ const PRO_STAGE_LABELS: Record<ProStage, string> = {
   validate: 'Validating and testing playout…',
 };
 
-/** The three execution tiers as the settings panel offers them. Descriptions deliberately
- *  name no vendor or model - those belong to each tier's own detail area. */
+/**
+ * The execution tiers as the settings panel offers them.
+ *
+ * A tier describes an OUTCOME, never the machinery that produces it: the managed tiers name no
+ * vendor, no model and no transport, so replacing the engine behind one costs no copy and
+ * misleads nobody in the meantime (owner, 2026-08-14). Only the bring-your-own-key tier names
+ * vendors, because there the vendor IS the decision the user is making.
+ *
+ * `custom` keeps its stored id - see AI_TIERS in src/ai/settings.ts.
+ */
 const TIER_OPTIONS: { id: AiTier; name: string; hint: string }[] = [
   { id: 'lite', name: 'NoaCG Lite', hint: 'Included free — one excellent editable graphic per request, nothing to configure.' },
-  { id: 'pro', name: 'NoaCG Pro', hint: 'An image model draws the visual direction; NoaCG rebuilds it as editable code. Curated routes, priced per generation, on your own key.' },
-  { id: 'custom', name: 'Custom provider', hint: 'Advanced — bring your own provider, key, and models.' },
+  { id: 'pro', name: 'NoaCG Pro', hint: 'A richer, art-directed graphic from the same brief. Our harness designs it; nothing to configure.' },
+  {
+    id: 'custom',
+    name: 'Bring your own key',
+    hint: 'Run it on your own OpenAI, Anthropic, Google or Hugging Face key — any model that provider offers, at that provider’s prices.',
+  },
 ];
 
 /**
@@ -249,25 +270,45 @@ export default function AiStep({
   }, [needsSignIn]);
   const [settings, setSettings] = useState(loadAiSettings);
   // THE EXECUTION TIER. Lite and Pro are managed experiences of the SAME creation workflow;
-  // 'custom' is the advanced BYO surface. The saved preference wins where it is honourable:
-  // a saved 'lite' on a server that stopped offering it falls back to custom, and no saved
-  // choice resolves to Lite when the server offers it (the historical default) else custom.
+  // 'custom' is the bring-your-own-key surface. The saved preference wins where it is
+  // honourable: a saved tier this build does not offer falls back rather than failing, and no
+  // saved choice resolves to Lite when the server offers it (the historical default) else BYO
+  // key. A tier that is merely OFF is never listed as unavailable either - see the render.
   const liteOffered = Boolean(liteStatus?.enabled);
+  const proOffered = proTierOffered();
+  const fallbackTier: AiTier = liteOffered ? 'lite' : 'custom';
   const tier: AiTier =
     settings.tier === 'lite'
-      ? liteOffered ? 'lite' : 'custom'
-      : settings.tier ?? (liteOffered ? 'lite' : 'custom');
+      ? liteOffered ? 'lite' : fallbackTier
+      : settings.tier === 'pro'
+        ? proOffered ? 'pro' : fallbackTier
+        : settings.tier ?? fallbackTier;
   const liteMode = tier === 'lite';
   const proMode = tier === 'pro';
   const liteActive = liteMode && Boolean(liteStatus?.available);
+  const tierOptions = TIER_OPTIONS.filter((option) => option.id !== 'pro' || proOffered);
+
+  // THE BYO-KEY TIER RUNS ON A KEY THE USER OWNS. The saved route can point at the managed
+  // transport (it is the harness default, and every bench sets it), which would spend NoaCG's
+  // own credential under a tier whose whole promise is the opposite - so entering this tier
+  // moves the route onto a real bring-your-own-key provider. Saving also re-picks that
+  // provider's default model (saveAiSettings), so no gateway model id is left behind in the box.
+  useEffect(() => {
+    if (tier !== 'custom' || isByokProvider(settings.provider)) return;
+    saveAiSettings({ provider: DEFAULT_BYOK_PROVIDER });
+    setSettings(loadAiSettings());
+  }, [tier, settings.provider]);
 
   /* The one-line read-back beside the ⚙ button (re-design/handoff.md §3a): which tier is
      running and, on the tier where models are the user's own, what it will call. A managed
      tier deliberately names no model — that is the point of it. */
   const settingsSummary =
     tier === 'lite' ? 'NoaCG Lite · included'
-    : tier === 'pro' ? 'NoaCG Pro · image-guided'
-    : [settings.provider, settings.model].filter(Boolean).join(' · ');
+    : tier === 'pro' ? 'NoaCG Pro · included in Pro'
+    : [
+        AI_PROVIDERS.find((provider) => provider.id === settings.provider)?.label ?? settings.provider,
+        settings.model,
+      ].filter(Boolean).join(' · ');
   // Pro's standard routes ride the Vercel AI Gateway; without a credential there the flow runs
   // the deterministic offline stub (and says so), exactly like the custom tier's stub provider.
   const proRemote = settings.configuredProviders.includes('vercel');
@@ -699,7 +740,7 @@ export default function AiStep({
         return;
       }
       if (proMode) {
-        setError('NoaCG Pro designs from a visual concept and does not convert imported templates. Open it as code, or switch the AI tier to Custom provider to convert it.');
+        setError('NoaCG Pro designs a new graphic and does not convert imported templates. Open it as code, or switch the AI tier to “Bring your own key” to convert it.');
         return;
       }
       void run(
@@ -883,7 +924,7 @@ export default function AiStep({
           {liteMode
             ? 'Included for free users. This quality release concentrates on one excellent editable lower third, then validates and exercises it in the live playout bench. Other graphic types are explained instead of being forced into a poor design.'
             : proMode
-              ? 'An image model draws the visual direction; NoaCG rebuilds it as an ordinary editable graphic — live text fields, reconstructed shapes, deterministic motion, every export target. This first release designs lower thirds.'
+              ? 'A richer, art-directed graphic from the same brief, and an ordinary editable one — live text fields, real shapes, deterministic motion, every export target. This first release designs lower thirds.'
               : 'Describe what you need, and optionally add artwork or an existing template. Every result is validated and exercised in a live playout test before you can create it, and lands as clean, editable code.'}
         </p>
         {liteMode && liteStatus?.allowance && (
@@ -894,8 +935,8 @@ export default function AiStep({
         )}
         {proMode && !proRemote && (
           <p className="hint" data-testid="pro-offline-note">
-            No AI Gateway key is configured, so this runs the built-in offline concept — the
-            full flow, without any model calls. Add a key under ⚙ AI settings.
+            This build has no hosted Pro route, so it runs the built-in offline design — the
+            full flow, without any model calls.
           </p>
         )}
       </div>
@@ -1014,9 +1055,9 @@ export default function AiStep({
           ))}
           {proMode && (
             <p className="hint" data-testid="pro-upload-note">
-              Uploads do not steer the image concept yet — an as-is mark asks the design for a
-              logo slot and is bundled into it, and colours read from your image can be applied
-              as the exact brand accent below.
+              Uploads do not steer the design yet — an as-is mark asks the design for a logo
+              slot and is bundled into it, and colours read from your image can be applied as
+              the exact brand accent below.
             </p>
           )}
           {images.length > 0 && (
@@ -1375,10 +1416,12 @@ export default function AiStep({
                 <button className="gallery-close" onClick={() => setShowSettings(false)} title="Close">✕</button>
               </div>
               {/* THE EXECUTION TIER. Lite and Pro are managed experiences of this same
-                  creation workflow — no model picking; Custom is the deliberate advanced
-                  route where provider, key, and models are the user's own. */}
+                  creation workflow — no model picking, and no mechanism named; the BYO-key
+                  tier is the deliberate route where provider, key, and models are the user's
+                  own. A tier this build does not offer is ABSENT, not greyed: an unbuilt door
+                  described in the present tense is the defect this panel just fixed. */}
               <div className="ai-tier" role="radiogroup" aria-label="AI tier" data-testid="ai-tier">
-                {TIER_OPTIONS.map((option) => {
+                {tierOptions.map((option) => {
                   const unavailable = option.id === 'lite' && !liteOffered;
                   return (
                     <label
@@ -1403,25 +1446,22 @@ export default function AiStep({
                   );
                 })}
               </div>
+              {/* Pro has NO chooser at all — no provider, no model, no key. The copy states the
+                  outcome and stops there, so replacing what runs underneath costs no wording
+                  and promises nothing about how it is done. */}
               {proMode && (
                 <div style={{ marginTop: 10 }} data-testid="ai-pro-settings">
                   <p className="hint">
-                    NoaCG Pro picks its own models for every stage — there is nothing to
-                    configure. The standard route draws one visual concept and one design
-                    interpretation per generation; the concept's real cost is shown on the
-                    result. Until a hosted Pro plan exists it runs on your own AI Gateway key.
+                    NoaCG Pro is a managed tier: describe the graphic and it is designed for
+                    you. There is nothing to configure, and the cost of each generation is shown
+                    on the result.
                   </p>
-                  <AiProviderSettings
-                    settings={settings}
-                    onChange={saveSetting}
-                    fixedProvider="vercel"
-                    showModel={false}
-                  />
                 </div>
               )}
               {tier === 'custom' && (
                 <div style={{ marginTop: 10 }}>
-                  <AiProviderSettings settings={settings} onChange={saveSetting} />
+                  {/* The tier's promise IS the key, so the managed route is not on offer here. */}
+                  <AiProviderSettings settings={settings} onChange={saveSetting} allowManaged={false} />
                 </div>
               )}
             </div>

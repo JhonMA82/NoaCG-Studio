@@ -27,16 +27,36 @@ export interface AiProviderOption {
   blurb: string;
 }
 
+/**
+ * THE BRING-YOUR-OWN-KEY PROVIDERS - the whole user-facing provider vocabulary.
+ *
+ * Deliberately a SUBSET of `AI_PROVIDER_IDS`: `vercel` is the managed transport NoaCG funds
+ * its own tiers through, never a choice a user makes (see modelTypes.ts). The two lists are
+ * separate on purpose - collapsing them either offers our plumbing as a product or breaks
+ * every managed route.
+ */
 export const AI_PROVIDERS: AiProviderOption[] = [
-  { id: 'vercel', label: 'Vercel AI Gateway', blurb: 'Hundreds of models through one OpenAI-compatible endpoint - the NoaCG default.' },
-  { id: 'anthropic', label: 'Anthropic', blurb: 'Claude models direct from Anthropic, on your own key.' },
-  { id: 'openai', label: 'OpenAI', blurb: 'OpenAI models direct through the Responses API, on your own key.' },
+  { id: 'openai', label: 'OpenAI', blurb: 'GPT models on your own OpenAI key. Your key pays for every generation.' },
+  { id: 'anthropic', label: 'Anthropic', blurb: 'Claude models on your own Anthropic key. Your key pays for every generation.' },
+  { id: 'google', label: 'Google', blurb: 'Gemini models on your own Google AI key. Your key pays for every generation.' },
   {
     id: 'huggingface',
     label: 'Hugging Face',
-    blurb: 'Open-weight models with a compatible hosted Inference Provider endpoint.',
+    blurb: 'Open-weight models through Hugging Face Inference Providers, on your own key.',
   },
 ];
+
+export const BYOK_PROVIDER_IDS: AiProviderId[] = AI_PROVIDERS.map((provider) => provider.id);
+
+/** Whether a route is one a USER can be asked to choose and pay for. */
+export function isByokProvider(provider: AiProviderId): boolean {
+  return BYOK_PROVIDER_IDS.includes(provider);
+}
+
+/** The bring-your-own-key surface's own default route. Separate from `DEFAULT_PROVIDER`
+ *  below, which is the MANAGED transport: a tier whose whole promise is "your key" must
+ *  never resolve to the key NoaCG pays for. */
+export const DEFAULT_BYOK_PROVIDER: AiProviderId = 'openai';
 
 /** Central model catalog. The rest of NoaCG only stores opaque provider/model routes. */
 export const AI_MODELS: AiModelOption[] = [
@@ -95,6 +115,13 @@ export const AI_MODELS: AiModelOption[] = [
     blurb: 'Proprietary route; any supported model id can be entered.',
   },
   {
+    provider: 'google',
+    id: 'gemini-2.5-flash',
+    label: 'Gemini 2.5 Flash',
+    blurb: 'Fallback suggestion when live Google discovery is unavailable.',
+    role: 'default',
+  },
+  {
     provider: 'huggingface',
     id: 'openai/gpt-oss-120b',
     label: 'GPT-OSS 120B via Hugging Face',
@@ -104,12 +131,33 @@ export const AI_MODELS: AiModelOption[] = [
 ];
 
 /** The Create-with-AI execution tiers. 'lite' and 'pro' are managed experiences (no model
- *  picking); 'custom' is the advanced bring-your-own-provider surface. */
+ *  picking); 'custom' is the BRING YOUR OWN KEY surface.
+ *
+ *  **The id `custom` is persisted** (localStorage `spx-gfx-ai`), so it stays as it is while the
+ *  label the user reads changed to "Bring your own key" - renaming the id would silently reset
+ *  every visitor who had chosen that tier. */
 export const AI_TIERS = ['lite', 'pro', 'custom'] as const;
 export type AiTier = (typeof AI_TIERS)[number];
 
 export function isAiTier(value: unknown): value is AiTier {
   return typeof value === 'string' && (AI_TIERS as readonly string[]).includes(value);
+}
+
+/**
+ * Whether NoaCG Pro is OFFERED on this build (`VITE_AI_PRO_ENABLED=1`). Default OFF.
+ *
+ * Pro's pipeline exists and its specs run, but the tier has no hosted route yet: what shipped
+ * asked the user for their own gateway key and described a mechanism that was retired
+ * 2026-08-10. Until the hosted route lands the honest number of Pro doors is zero, so the tier
+ * is built and invisible - one flag, flipped by the session that ships the route
+ * (`claude/pro-hosted-route`), rather than a half-finished door in front of the first user.
+ *
+ * A visitor who had already chosen Pro resolves to another tier while it is off; the saved
+ * value is untouched, so flipping the flag gives them their choice back.
+ */
+export function proTierOffered(): boolean {
+  const flag = env('VITE_AI_PRO_ENABLED').trim().toLowerCase();
+  return flag === '1' || flag === 'true';
 }
 
 export interface AiSettings {
@@ -149,10 +197,11 @@ export interface AiConfiguration {
   providers: AiProviderStatus[];
 }
 
-// The silent default - what an unset VITE_AI_PROVIDER resolves to - is an OPEN model through
-// the Vercel AI Gateway, by policy: expensive proprietary routes (Claude, GPT) are chosen
+// The silent default - what an unset VITE_AI_PROVIDER resolves to - is an OPEN model on the
+// MANAGED transport, by policy: expensive proprietary routes (Claude, GPT) are chosen
 // deliberately (saved settings, env, or the picker), never because an environment variable is
-// missing.
+// missing. This is the harness's fallback route, NOT a user-facing choice - the bring-your-own-key
+// surface resolves through DEFAULT_BYOK_PROVIDER instead.
 export const DEFAULT_PROVIDER: AiProviderId = 'vercel';
 export const DEFAULT_MODEL = 'alibaba/qwen3-coder-next';
 

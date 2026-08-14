@@ -18,10 +18,16 @@ export default {
     }
     try {
       const userKeys = readUserAiKeys(req);
+      const userKey = userKeys[provider];
+      const key = userKey || managedAiKey(provider) || undefined;
+      // WHICH KEY PAYS travels with the rows, because a price nobody can attribute is half an
+      // answer: the same model costs the user money on their own key and costs NoaCG money on
+      // a managed one.
       return json(await discoverProviderModels(
         provider,
-        userKeys[provider] || managedAiKey(provider) || undefined,
+        key,
         output,
+        key ? (userKey ? 'user' : 'managed') : undefined,
       ));
     } catch {
       return json({

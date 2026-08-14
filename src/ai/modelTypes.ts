@@ -2,12 +2,14 @@
 // server adapters. Creative AI's higher-level AIProvider contract remains the product
 // seam; these types only normalize the model transport beneath the existing harness.
 
-// `vercel` is the NoaCG-funded transport: Vercel AI Gateway's OpenAI-compatible Chat
-// Completions endpoint, authenticated by an AI Gateway key or the deployment's OIDC token.
-// It replaced OpenRouter as the managed gateway (docs/AI_PROVIDER_GATEWAY.md). The other
-// three remain the BRING-YOUR-OWN-KEY escape hatches: two direct provider APIs, plus one
-// alternative gateway, for a capability or a route Vercel does not carry.
-export const AI_PROVIDER_IDS = ['anthropic', 'openai', 'vercel', 'huggingface'] as const;
+// `vercel` is the NoaCG-funded TRANSPORT and nothing else: Vercel AI Gateway's
+// OpenAI-compatible Chat Completions endpoint, authenticated by an AI Gateway key or the
+// deployment's OIDC token (docs/AI_PROVIDER_GATEWAY.md). **It is never offered to a user as a
+// choice** - how NoaCG reaches a model on its own money is an implementation detail, and a
+// door that names it describes our plumbing instead of the product (owner, 2026-08-14). The
+// user-facing list is `AI_PROVIDERS` in settings.ts, which is deliberately a SUBSET of this
+// one: the four BRING-YOUR-OWN-KEY providers a user can pay for directly.
+export const AI_PROVIDER_IDS = ['anthropic', 'openai', 'google', 'vercel', 'huggingface'] as const;
 export type AiProviderId = (typeof AI_PROVIDER_IDS)[number];
 
 export function isAiProviderId(value: unknown): value is AiProviderId {
@@ -47,7 +49,19 @@ export interface AiDiscoveredModel {
    *  multimodal language model that answers with an image bills through its ordinary output
    *  tokens instead and carries no value here. */
   imagePriceUsd?: number | null;
-  source: 'vercel-ai-gateway' | 'huggingface-router';
+  /** Where the ROW came from. A direct provider lists its own model ids (the only ids its API
+   *  actually accepts); the price beside them is looked up separately, because none of the
+   *  three direct APIs publishes one. */
+  source:
+    | 'vercel-ai-gateway'
+    | 'huggingface-router'
+    | 'anthropic-api'
+    | 'openai-api'
+    | 'google-generative-ai';
+  /** Which key pays for a call on this row - the honest half of a price. `user` = the key the
+   *  visitor stored for this provider, `managed` = a NoaCG-funded server key. Absent where the
+   *  listing was read without any key at all. */
+  paidBy?: 'user' | 'managed';
 }
 
 export interface AiModelCatalogResponse {
