@@ -26,6 +26,56 @@ import { boolEnv, envRoute, intEnv, numberEnv } from './aiLiteProfile.js';
 import { PRO_MAX_GENERATION_COST_USD, PRO_STANDARD_ROUTES } from '../../src/ai/pro/contract.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
 
+/**
+ * How long a Pro reservation may hold its FLEET slot without the server hearing from it, and
+ * how a caller that finds every slot taken should wait.
+ *
+ * THE PROBLEM THIS SOLVES IS A CLASSROOM. Thirty students press Create within a few seconds of
+ * each other; the fleet has far fewer slots than that; and the reservation endpoint answered
+ * `shared_capacity` immediately, so most of the room saw an error rather than a queue. Lite has
+ * had the answer since its first production round (`aiLiteRateLimit.ts`): retry the ADMISSION
+ * with jitter, and hold the slot on a SHORT lease so a dead browser stops owning capacity.
+ *
+ * Pro needed both, and the second is the one that makes the first work. A Pro reservation was
+ * booked for the profile's whole `expiryMs` - fifteen minutes - because unlike Lite the model
+ * calls happen in the BROWSER, so nothing server-side marked the work finished. Retrying into a
+ * fleet whose slots are held for fifteen minutes is just a slower error. The slot is now leased
+ * for one call at a time and RENEWED by every settled call, so a live generation keeps its seat
+ * and an abandoned one frees it within a lease.
+ *
+ * **The spacing is NOT measured, and that is stated rather than hidden.** Lite's 17.8 s came
+ * from 18 real generations; Pro has produced none through this route, and the browser telemetry
+ * ring never reaches the server. So the default below is a starting value, tunable without a
+ * deploy - and `POST /api/ai/pro/outcome` now records `runtime_ms`, which is what will let a
+ * later change replace it with a real turnover the way Lite's was.
+ */
+export const PRO_DEFAULT_RETRY_SPACING_MS = 8_000;
+
+/** One classroom behind a NAT may submit 60 requests/minute (the Lite figure, same rooms).
+ *  Admission polling may never be less bounded than the work it protects, so the attempt count
+ *  is the smaller of that headroom and a hard three. */
+const CLASSROOM_NAT_REQUESTS_PER_WINDOW = 60;
+
+export interface ProCapacityRetryPlan {
+  maxAttempts: number;
+  retrySpacingMs: number;
+  activeLeaseMs: number;
+}
+
+export function proCapacityRetryPlan(profile: ProProfile): ProCapacityRetryPlan {
+  const slots = Math.max(1, Math.floor(profile.maxConcurrentFleet));
+  const classroomHeadroom = Math.max(1, Math.floor(CLASSROOM_NAT_REQUESTS_PER_WINDOW / slots));
+  return {
+    maxAttempts: Math.max(1, Math.min(3, classroomHeadroom)),
+    retrySpacingMs: intEnv('AI_PRO_RETRY_SPACING_MS', PRO_DEFAULT_RETRY_SPACING_MS, 500, 60_000),
+    // ONE call's configured timeout plus an equal margin for the browser work between calls
+    // (the downscale, the compile, the runtime bench). Derived from a configured bound rather
+    // than from an invented duration, and renewed per settled call - so the number only has to
+    // cover the gap between two server touches, never the whole generation.
+    activeLeaseMs: Math.max(1, Math.floor(profile.timeoutMs)) * 2,
+  };
+}
+
 /** The audited provider slugs a managed Pro call may be served by, same shape as Lite's. */
 function providerSlugs(): string[] {
   return (process.env.AI_PRO_GATEWAY_PROVIDERS ?? process.env.AI_LITE_GATEWAY_PROVIDERS ?? '')

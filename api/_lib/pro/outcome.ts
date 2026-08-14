@@ -32,6 +32,10 @@ function validate(value: unknown): ProOutcomeRequest {
       throw new Error('rules');
     }
   }
+  if (body.runtimeMs !== undefined
+    && (!Number.isInteger(body.runtimeMs) || Number(body.runtimeMs) < 0 || Number(body.runtimeMs) > 1_800_000)) {
+    throw new Error('runtime');
+  }
   return body as unknown as ProOutcomeRequest;
 }
 
@@ -63,6 +67,11 @@ export default {
     await store.update(record.id, {
       status: body.status,
       validationRuleCodes: body.ruleCodes?.slice(0, 30) ?? record.validationRuleCodes,
+      // How long the whole generation took, end to end. Recorded because Pro's admission
+      // RETRY SPACING is currently an unmeasured default (aiProProfile.ts): Lite's 17.8 s came
+      // from 18 real generations, and this column is what will let Pro's be replaced by a real
+      // turnover instead of staying a number somebody chose.
+      runtimeMs: body.runtimeMs ?? record.runtimeMs,
       rejectionReason: body.status === 'failed' ? body.reason ?? 'generation_failed' : null,
     });
     return json({ recorded: true });

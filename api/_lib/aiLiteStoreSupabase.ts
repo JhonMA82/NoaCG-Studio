@@ -233,6 +233,7 @@ export class SupabaseLiteGenerationStore implements LiteGenerationStore {
       p_generation_id: input.generationId,
       p_user_id: input.userId,
       p_cost_usd: input.costUsd,
+      p_lease_ms: Math.max(0, Math.floor(input.leaseMs)),
     });
     if (error) throw new Error('Pro call settlement failed: ' + error.message);
   }

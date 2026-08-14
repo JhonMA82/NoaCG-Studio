@@ -77,4 +77,7 @@ export interface ProOutcomeRequest {
   reason?: string;
   /** Validation rule codes the platform's gate reported, for quality attribution. */
   ruleCodes?: string[];
+  /** How long the whole generation took, end to end. Not accounting - it is what lets Pro's
+   *  admission retry spacing stop being an unmeasured default (api/_lib/aiProProfile.ts). */
+  runtimeMs?: number;
 }

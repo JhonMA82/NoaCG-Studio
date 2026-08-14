@@ -641,6 +641,22 @@ plan replaces the concept-and-reconstruct engine, and an allowance that encoded 
 have to be rewritten with it. The route's only shape-assumption is `AI_PRO_MAX_CALLS`, a bound
 rather than a description.
 
+**A FLEET SLOT FOLLOWS THE WORK, NOT THE CLOCK, and that is what makes Pro usable by a class.**
+Thirty students press Create within seconds of each other. Two things were wrong together: the
+reservation answered `shared_capacity` on its first observation, and it booked the slot for the
+profile's whole 15-minute expiry - so most of the room got an error, waiting on slots that did
+not turn over. Now the admission RETRIES the shared slot with jitter (`reserveProCapacity`,
+Lite's shape), and the reservation is taken on a lease covering ONE call which every settled
+call renews (`proCapacityRetryPlan`, migration 0046). A live generation keeps its seat; an
+abandoned tab frees it within a lease instead of a quarter of an hour. **Only the fleet slot is
+retried** - a quota, the user's own overlap, the spend ceiling and a duplicate are durable
+answers, and re-asking them would just spend the classroom's request budget.
+
+**The retry SPACING is not measured, and says so.** Lite's 17.8 s came from 18 timed
+generations; Pro has produced none through this route and the telemetry ring is browser-local.
+`AI_PRO_RETRY_SPACING_MS` is a starting value, and `/api/ai/pro/outcome` now records
+`runtime_ms` so it can be replaced by a real turnover the way Lite's was.
+
 `PRO_STANDARD_ROUTES` (`pro/pipeline.ts`) is pinned so a normal Pro user never picks models; **do not
 change it without re-running `npm run bench:pro` paid stages** - and pass `--save-fixtures`, because the
 2026-08-08 round did not and its twelve interpretations are gone. Offline the deterministic stub

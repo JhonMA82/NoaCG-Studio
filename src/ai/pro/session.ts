@@ -37,6 +37,10 @@ export interface ProSession {
   generationId: string;
   expiresAt: number;
   maxGenerationCostUsd: number;
+  /** When the reservation was opened, so the outcome can report how long the whole generation
+   *  took. That number is what lets the server's admission retry spacing stop being an
+   *  unmeasured default (`api/_lib/aiProProfile.ts`). */
+  startedAt: number;
 }
 
 async function headers(): Promise<Record<string, string>> {
@@ -63,9 +67,10 @@ async function checked<T>(response: Response): Promise<T> {
  * Is hosted Pro available to this visitor, and what is left of their allowance?
  *
  * Resolves to null on any failure - an offline build with no `/api`, a network error, a
- * deployment that predates this route. The caller reads null as "no hosted Pro here" and
- * falls back to the behaviour Pro had before it existed: a bring-your-own key, or the
- * deterministic offline stub.
+ * deployment that predates this route. Null means the tier is NOT OFFERED: since 2026-08-14 a
+ * NoaCG tier runs on NoaCG's own service or it is absent, so there is no bring-your-own-key
+ * fallback here and no stub door to walk into (src/ai/AGENTS.md, "The tiers a user is
+ * offered"). AiStep drops Pro from the chooser entirely.
  */
 export async function loadProStatus(): Promise<ProStatusResponse | null> {
   try {
@@ -84,6 +89,7 @@ export async function loadProStatus(): Promise<ProStatusResponse | null> {
  * `duplicate_request` rather than spending a second allowance slot.
  */
 export async function openProSession(): Promise<ProSession> {
+  const startedAt = Date.now();
   const reservation = await checked<ProReservationResponse>(
     await fetch('/api/ai/pro/generations', {
       method: 'POST',
@@ -95,6 +101,7 @@ export async function openProSession(): Promise<ProSession> {
     generationId: reservation.generationId,
     expiresAt: Date.parse(reservation.expiresAt),
     maxGenerationCostUsd: reservation.maxGenerationCostUsd,
+    startedAt,
   };
 }
 
@@ -115,6 +122,8 @@ export async function reportProOutcome(
     status,
     ...(detail.reason ? { reason: detail.reason } : {}),
     ...(detail.ruleCodes?.length ? { ruleCodes: detail.ruleCodes.slice(0, 30) } : {}),
+    // Clamped to the server's own bound so a machine whose clock jumped cannot write nonsense.
+    runtimeMs: Math.min(1_800_000, Math.max(0, Date.now() - session.startedAt)),
   };
   try {
     await fetch('/api/ai/pro/outcome', {

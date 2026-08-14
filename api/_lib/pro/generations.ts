@@ -10,9 +10,10 @@
 import { ipHash, json, methodGuard, readJson } from '../http.js';
 import { proError } from './http.js';
 import { resolveProGate } from './gate.js';
-import { admitTaskIp } from '../aiLiteRateLimit.js';
+import { admitTaskIp, jitteredCapacityDelay } from '../aiLiteRateLimit.js';
+import { proCapacityRetryPlan, type ProCapacityRetryPlan } from '../aiProProfile.js';
 import { PRO_TASK_ID } from '../aiTaskRegistry.js';
-import { getLiteGenerationStore, type LiteReservation } from '../aiLiteStore.js';
+import { getLiteGenerationStore, type LiteGenerationStore, type LiteReservation } from '../aiLiteStore.js';
 import type { ProReservationResponse } from '../../../src/ai/proTypes.js';
 
 const MAX_BODY_BYTES = 2_000;
@@ -34,6 +35,46 @@ export function proReservationError(reservation: Exclude<LiteReservation, { stat
     return proError('fleet_spend_ceiling', 'NoaCG Pro is temporarily unavailable.', 503, false);
   }
   return proError('allowance_exhausted', 'Your current NoaCG Pro allowance has been used.', 429);
+}
+
+interface CapacityRetryDependencies {
+  now(): number;
+  random(): number;
+  sleep(ms: number): Promise<void>;
+}
+
+const CAPACITY_RETRY_DEFAULTS: CapacityRetryDependencies = {
+  now: () => Date.now(),
+  random: () => Math.random(),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
+
+/**
+ * Retry ONLY the shared fleet slot, exactly as Lite does.
+ *
+ * A class presses Create within a few seconds of each other and there are far fewer slots than
+ * students, so answering `shared_capacity` on the first observation hands most of the room an
+ * error instead of a queue. Every other verdict - a quota, the user's own overlap, the spend
+ * ceiling, a duplicate - is a DURABLE answer and returns at once: retrying those would only
+ * spend the classroom's request budget re-asking a question already answered.
+ *
+ * Each observation carries the identical user and idempotency key, so only the successful
+ * reservation can consume a start however many times this loops.
+ */
+export async function reserveProCapacity(
+  store: LiteGenerationStore,
+  input: Parameters<LiteGenerationStore['reserve']>[0],
+  plan: ProCapacityRetryPlan,
+  dependencies: CapacityRetryDependencies = CAPACITY_RETRY_DEFAULTS,
+): Promise<LiteReservation> {
+  for (let attempt = 0; attempt < plan.maxAttempts; attempt += 1) {
+    const reservation = await store.reserve({ ...input, now: dependencies.now() });
+    if (reservation.status !== 'fleet-concurrency' || attempt === plan.maxAttempts - 1) {
+      return reservation;
+    }
+    await dependencies.sleep(jitteredCapacityDelay(plan.retrySpacingMs, dependencies.random));
+  }
+  throw new Error('Pro capacity retry exhausted without a reservation result.');
 }
 
 export default {
@@ -74,8 +115,9 @@ export default {
     }
 
     const profile = gate.effectiveProfile;
+    const plan = proCapacityRetryPlan(profile);
     const now = Date.now();
-    const reservation = await (await getLiteGenerationStore()).reserve({
+    const reservation = await reserveProCapacity(await getLiteGenerationStore(), {
       userId: gate.user.userId,
       ipHash: callerIpHash,
       idempotencyKey,
@@ -96,9 +138,14 @@ export default {
         maxConcurrentPerUser: profile.maxConcurrentPerUser,
         maxConcurrentFleet: profile.maxConcurrentFleet,
         dailyFleetSpendUsd: profile.dailyFleetSpendUsd,
-        expiryMs: profile.expiryMs,
+        // The SHORT lease, not the profile's whole expiry. A Pro reservation holds a fleet slot
+        // (and the caller's own concurrency seat) for as long as it is unexpired, and Pro's
+        // model calls run in the BROWSER - so booking fifteen minutes meant one abandoned tab
+        // cost the class a seat for a quarter of an hour. Every settled call renews it
+        // (migration 0046), so a live generation keeps its seat and a dead one frees it.
+        expiryMs: plan.activeLeaseMs,
       },
-    });
+    }, plan);
     if (reservation.status !== 'created') return proReservationError(reservation);
 
     const response: ProReservationResponse = {
