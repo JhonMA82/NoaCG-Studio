@@ -7,6 +7,7 @@
 
 import { liteProfile, type LiteProfile } from './aiLiteProfile.js';
 import { importAnalysisProfile, type ImportAnalysisProfile } from './aiImportAnalysisProfile.js';
+import { proProfile, type ProProfile } from './aiProProfile.js';
 // fundedModelRoute subsumes approvedModelRoute: it looks the entry up in the catalog AND
 // applies the funded-route rule, so the gate below needs only the one predicate.
 import { approvedModelRoute, approvedTextRoute, fundedModelRoute, modelRouteKey } from './aiModelCatalog.js';
@@ -14,9 +15,10 @@ import type { ModelPrice } from './aiGateway.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
 import { IMPORT_ANALYSIS_LIMITS } from '../../src/ai/importAnalysis/contract.js';
 
-export type AiTaskId = 'lite-design-spec' | 'imported-graphic-analysis';
+export type AiTaskId = 'lite-design-spec' | 'imported-graphic-analysis' | 'pro-generate';
 export const LITE_TASK_ID: AiTaskId = 'lite-design-spec';
 export const IMPORT_ANALYSIS_TASK_ID: AiTaskId = 'imported-graphic-analysis';
+export const PRO_TASK_ID: AiTaskId = 'pro-generate';
 
 export type AiTaskTier = 'anonymous' | 'free' | 'byo' | 'paid';
 
@@ -44,6 +46,24 @@ export interface TaskRoutePolicy {
   requireZdr: boolean;
   structuredMode: 'json-schema' | 'tool';
   maxProviderCostUsd: number;
+  /**
+   * Which of this task's routes are called for IMAGE output, and are therefore exempt from
+   * the two rules built around reading a structured text answer at a per-token price.
+   *
+   * It exists because NoaCG Pro's concept route (`google/gemini-3.1-flash-image`) is a
+   * catalogued, audited, ZDR-verified route that both rules refuse on purpose:
+   * `approvedTextRoute` is false for it, and `fundedModelRoute` answers no for every image
+   * entry because the funded PRICE CEILING measures input/output text tokens and no ceiling
+   * for image work has been decided (docs/ADMIN.md §9, aiModelCatalog.ts). Declaring the
+   * route here does not waive the bound - it names which bound applies. An image route's
+   * spend is held by `maxProviderCostUsd`, BOOKED per generation before the call and settled
+   * after it, which is a bound on the whole bill rather than on the half the token ceiling
+   * can see.
+   *
+   * Absent (the default) means the task sends only text requests, and both rules apply
+   * unchanged - so Lite's and import-analysis's gates are byte-identical to before.
+   */
+  imageRoutes?: ModelRoute[];
 }
 
 export type TaskLedgerKind = 'ai_generations' | 'ai_gateway_requests';
@@ -142,9 +162,68 @@ export function importAnalysisTaskProfile(profile: ImportAnalysisProfile = impor
   };
 }
 
+/**
+ * The HOSTED NoaCG Pro task: a paid-shaped generation NoaCG's own key serves, admitted and
+ * accounted through the same ai_generations ledger (migration 0044).
+ *
+ * It is registered although its spend flows through the GENERIC gateway proxy rather than a
+ * task-owned endpoint, because registration is what makes the allowance real: the admin models
+ * page walks AI_TASK_IDS, and `taskConfigured` is the fail-closed gate that stops an env
+ * repoint at an unpriced or unapproved route from being billed.
+ *
+ * TIERS SAY `free`, AND THAT IS ABOUT WHO PAYS RATHER THAN WHAT IT COSTS THE USER. Hosted Pro
+ * is the surface the product will eventually charge for, but there is nothing to buy today: a
+ * signed-in account with no plan reaches it and NoaCG's key settles the bill. `noacgFunded`
+ * reads this label to decide whether the funded-route rule binds (decision 5: who pays decides
+ * the route), so labelling it `paid` before billing exists would switch that gate off on the
+ * one surface whose per-generation cost is 250x Lite's. It moves to `paid` the day a user's
+ * money is what pays. Until then the ALLOWANCE stands in for the price - a small daily quota
+ * rather than an open tap.
+ *
+ * THE ENGINE IS NOT DESCRIBED HERE. The route list is what the profile funds, not a pipeline.
+ * docs/NOACG_PRO_PLAN.md §15 replaces the current concept-and-reconstruct engine; a registry
+ * entry that encoded its stages would have to be rewritten with it.
+ */
+export function proTaskProfile(profile: ProProfile = proProfile()): TaskProfile {
+  const [concept, interpret] = profile.routes;
+  return {
+    taskId: PRO_TASK_ID,
+    enabled: profile.enabled,
+    schema: { id: 'pro-hosted', version: profile.promptVersion },
+    tiers: ['free'],
+    limits: {
+      // Pro's model calls are made by the browser pipeline through the generic proxy, which
+      // carries its own body and token bounds; this task's bound is money, not tokens. The
+      // numbers are stated rather than zeroed so the registry's shape stays readable.
+      outputTokens: 7000,
+      repairOutputTokens: 7000,
+      estimatedInputTokens: 12_000,
+      maxImages: 1,
+      maxImageResolution: { width: 1920, height: 1080 },
+    },
+    timeoutMs: profile.timeoutMs,
+    maxAttempts: profile.maxCallsPerGeneration,
+    retryLimit: 1,
+    routePolicy: {
+      primary: concept,
+      fallbacks: [interpret],
+      prices: profile.prices,
+      gatewayProviders: profile.gatewayProviders,
+      requireZdr: profile.requireZdr,
+      structuredMode: 'json-schema',
+      maxProviderCostUsd: profile.maxProviderCostUsd,
+      // The concept route generates an IMAGE. See TaskRoutePolicy.imageRoutes for which
+      // bound applies to it and why the per-token ceiling cannot.
+      imageRoutes: [concept],
+    },
+    ledger: { kind: 'ai_generations', profile: profile.id },
+  };
+}
+
 const TASKS: Record<AiTaskId, () => TaskProfile> = {
   'lite-design-spec': () => liteTaskProfile(),
   'imported-graphic-analysis': () => importAnalysisTaskProfile(),
+  'pro-generate': () => proTaskProfile(),
 };
 
 export function taskProfile(taskId: AiTaskId): TaskProfile {
@@ -156,13 +235,22 @@ export function taskProfile(taskId: AiTaskId): TaskProfile {
  *  a task added there is included without a second list to keep in step. */
 export const AI_TASK_IDS = Object.keys(TASKS) as AiTaskId[];
 
+function declaredImageRoute(policy: TaskRoutePolicy, route: ModelRoute): boolean {
+  return (policy.imageRoutes ?? []).some(
+    (declared) => declared.provider === route.provider && declared.model === route.model,
+  );
+}
+
 function routeConfigured(policy: TaskRoutePolicy, route: ModelRoute): boolean {
   if (route.provider !== 'vercel') return true;
-  // A catalogued route that produces IMAGES cannot serve a registered task - every task here
-  // sends a text request and reads a structured answer. The catalog held only text models
-  // until the Pro concept route was audited into it, so this is the check that stops an env
-  // edit from pointing Lite at an image model and discovering it on the first call.
-  if (approvedModelRoute(route) && !approvedTextRoute(route)) return false;
+  // A catalogued route that produces IMAGES cannot serve a task that did not ASK for one -
+  // every text task here sends a text request and reads a structured answer. This is the
+  // check that stops an env edit from pointing Lite at an image model and discovering it on
+  // the first call, and the declaration is what tells the two cases apart: Pro's concept
+  // route is an image route on purpose, Lite pointed at one is a misconfiguration.
+  if (approvedModelRoute(route) && !approvedTextRoute(route) && !declaredImageRoute(policy, route)) {
+    return false;
+  }
   return Boolean(policy.prices[modelRouteKey(route)]) && policy.gatewayProviders.length > 0;
 }
 
@@ -174,8 +262,15 @@ function noacgFunded(task: TaskProfile): boolean {
 }
 
 /** A funded route priced against the task's OWN table, so an env pricing override cannot
- *  smuggle the free tier onto a route the project would not pay for. */
+ *  smuggle the free tier onto a route the project would not pay for.
+ *
+ *  A DECLARED IMAGE ROUTE is held to catalog approval instead of to the per-token price
+ *  ceiling, for the reason `TaskRoutePolicy.imageRoutes` states: the ceiling measures text
+ *  tokens and would clear or refuse an image route on a rule that misses most of its bill.
+ *  What bounds it is `maxProviderCostUsd`, booked per generation. Approval is NOT waived -
+ *  an unaudited image model is refused exactly as before. */
 function fundedRoute(policy: TaskRoutePolicy, route: ModelRoute): boolean {
+  if (declaredImageRoute(policy, route)) return approvedModelRoute(route);
   return fundedModelRoute(route, policy.prices[modelRouteKey(route)] ?? null);
 }
 

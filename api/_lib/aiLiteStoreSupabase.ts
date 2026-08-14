@@ -7,6 +7,7 @@ import type {
   LiteJudgeReservation,
   LiteReservation,
   LiteUsageSnapshot,
+  ProCallAdmission,
 } from './aiLiteStore.js';
 import type {
   LiteLowerThirdIntentKind,
@@ -40,6 +41,7 @@ interface GenerationRow {
   rejection_reason: string | null;
   feedback_reason: string | null;
   judge_count: number;
+  pro_call_count: number;
   created_at: string;
   updated_at: string;
   expires_at: string;
@@ -73,6 +75,7 @@ function fromRow(row: GenerationRow): LiteGenerationRecord {
     rejectionReason: row.rejection_reason,
     feedbackReason: row.feedback_reason,
     judgeCount: Number(row.judge_count ?? 0),
+    proCallCount: Number(row.pro_call_count ?? 0),
     createdAt: Date.parse(row.created_at),
     updatedAt: Date.parse(row.updated_at),
     expiresAt: Date.parse(row.expires_at),
@@ -207,6 +210,31 @@ export class SupabaseLiteGenerationStore implements LiteGenerationStore {
       p_delta_usd: deltaUsd,
     });
     if (error) throw new Error('Lite judge cost settlement failed: ' + error.message);
+  }
+
+  async admitProCall(input: Parameters<LiteGenerationStore['admitProCall']>[0]): Promise<ProCallAdmission> {
+    const { data, error } = await (await sb()).rpc('admit_ai_pro_call', {
+      p_generation_id: input.generationId,
+      p_user_id: input.userId,
+      p_max_calls: input.maxCalls,
+      p_generation_ceiling_usd: input.generationCeilingUsd,
+    });
+    if (error) throw new Error('Pro call admission failed: ' + error.message);
+    const result = Array.isArray(data) ? data[0] : data;
+    return {
+      status: (result?.admission_status ?? 'not-found') as ProCallAdmission['status'],
+      calls: Number(result?.calls ?? 0),
+      spentUsd: Number(result?.spent_usd ?? 0),
+    };
+  }
+
+  async recordProCall(input: Parameters<LiteGenerationStore['recordProCall']>[0]): Promise<void> {
+    const { error } = await (await sb()).rpc('record_ai_pro_call', {
+      p_generation_id: input.generationId,
+      p_user_id: input.userId,
+      p_cost_usd: input.costUsd,
+    });
+    if (error) throw new Error('Pro call settlement failed: ' + error.message);
   }
 
   async qualityPriors(input: Parameters<LiteGenerationStore['qualityPriors']>[0]): Promise<LiteVariantQualityPrior[]> {

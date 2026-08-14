@@ -761,11 +761,21 @@ export function validateGatewayBody(value: unknown): AiGatewayRequestBody {
     && body.surface !== 'spike') {
     throw new GatewayError('invalid_request', 'The AI request surface is invalid.', 400, false);
   }
+  // A hosted Pro reservation id. Shape-checked here and MEANING-checked by the ledger, which
+  // is the only place that can answer whether it is live, owned and still inside its ceiling.
+  if (
+    body.proGenerationId !== undefined
+    && (typeof body.proGenerationId !== 'string'
+      || !/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(body.proGenerationId))
+  ) {
+    throw new GatewayError('invalid_request', 'The AI request reservation is invalid.', 400, false);
+  }
   return {
     request: request as unknown as ModelRequest,
     route: validateRoute(body.route),
     ...(fallbacks.length ? { fallbacks } : {}),
     ...(body.surface ? { surface: body.surface } : {}),
+    ...(body.proGenerationId ? { proGenerationId: body.proGenerationId as string } : {}),
   };
 }
 
