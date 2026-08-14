@@ -1,15 +1,41 @@
 import { test, expect, type Page } from '@playwright/test';
 import { enableAdvancedMode } from './_create';
 
-// NoaCG Pro - the image-guided pipeline as an execution TIER of the ONE Create-with-AI
-// step (docs/NOACG_PRO_PLAN.md §7): no separate wizard card, the tier is chosen under
+// NoaCG Pro - the pipeline as an execution TIER of the ONE Create-with-AI step
+// (docs/NOACG_PRO_PLAN.md §7): no separate wizard card, the tier is chosen under
 // ⚙ AI settings, and the brief/fields/uploads workflow is the shared one.
+//
+// THE TIER IS OFFERED ONLY UNDER `VITE_AI_PRO_ENABLED` (2026-08-14), because it has no hosted
+// route yet. So this file splits: the first test pins the tier's ABSENCE while the flag is off
+// - the state every user is in today, and the one thing that must never silently regress - and
+// everything after it runs only where the flag is on, which is the same environment the dev
+// server under test was given. A conditional skip is the honest shape here: the pipeline code
+// is unchanged and still worth covering the day the tier ships, and pretending to cover a door
+// nobody can open is how the door came to describe a retired pipeline in the first place.
 //
 // The offline suite runs the STUB pipeline (no OpenRouter key configured): a deterministic
 // locally-drawn concept compiled through the real normalizer, compiler and production
 // validator - so what is pinned here is the product flow and the honesty of the report,
 // with zero tokens. The remote path differs only in where the concept and interpretation
 // come from.
+
+/** What the dev server under test was given - the same variable the app reads. */
+const PRO_OFFERED = ['1', 'true'].includes((process.env.VITE_AI_PRO_ENABLED ?? '').trim().toLowerCase());
+
+test('pro: while it has no hosted route, the tier is not a door at all', async ({ page }) => {
+  test.skip(PRO_OFFERED, 'the flag is on for this run, so the tier is meant to be offered');
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await expect(page.locator('[data-entry="pro"]')).toHaveCount(0);
+  await page.locator('[data-entry="ai"]').click();
+  await expect(page.getByTestId('ai-tier')).toBeVisible();
+  // ABSENT, not greyed: a tier listed as unavailable still advertises itself.
+  await expect(page.getByTestId('ai-tier-pro')).toHaveCount(0);
+  await expect(page.getByTestId('ai-tier')).not.toContainText('NoaCG Pro');
+});
+
+test.describe(() => {
+  test.skip(!PRO_OFFERED, 'NoaCG Pro is not offered unless VITE_AI_PRO_ENABLED is set');
 
 async function toProTier(page: Page) {
   // Pro creates end in the EDITOR (wz-finish-editor) - an Advanced door now (step 6).
@@ -30,10 +56,13 @@ test('pro: a tier of Create with AI - offline says so, no model pickers, Next wa
 
   // Offline builds run the stub and say so - nothing pretends a model was involved.
   await expect(page.getByTestId('pro-offline-note')).toBeVisible();
-  // A normal Pro user picks NO models: the tier's settings carry the key surface only.
+  // A managed tier has NO chooser at all - no provider, no model, no key. One that asks for a
+  // credential is not managed, and its copy names an outcome rather than a mechanism.
   await expect(page.getByTestId('ai-pro-settings')).toBeVisible();
   await expect(page.getByTestId('ai-pro-settings').getByText('Model', { exact: true })).toHaveCount(0);
-  await expect(page.getByTestId('ai-pro-settings').getByText('Vercel AI Gateway key', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('ai-pro-settings').getByText('Provider', { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('ai-pro-settings').locator('#ai-user-key')).toHaveCount(0);
+  await expect(page.getByTestId('ai-pro-settings')).not.toContainText(/gateway|vercel/i);
   // Nothing to finish yet.
   await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();
 });
@@ -557,4 +586,6 @@ test('pro: decorative regions with panel geometry are rebuilt, and a duplicate b
   expect(out.unitPad.top).toBe(0);
   expect(out.unitPad.right).toBe(0);
   expect(out.unitPad.bottom).toBeGreaterThan(0);
+});
+
 });

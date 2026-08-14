@@ -55,14 +55,13 @@ export default function AiProviderSettings({ settings, onChange, allowManaged = 
     ?? (managedSelected ? MANAGED_OPTION.label : provider);
   /* WHICH KEY PAYS, in the model row's own hint. The discovery rows carry it per model; this
      says it once for the model actually selected, including the honest third state - a route
-     nobody has a key for yet. */
-  const payerNote = managedSelected
-    ? ' — included with NoaCG'
+     nobody has a key for yet. It LEADS the hint rather than trailing it: the sentence after it
+     is either a price or a blurb, both of which already end in their own punctuation. */
+  const payerSentence = managedSelected || (!current?.userKey && current?.managedKey)
+    ? 'Included with NoaCG.'
     : current?.userKey
-      ? ` — charged to your ${providerLabel} key`
-      : current?.managedKey
-        ? ' — included with NoaCG'
-        : ` — needs your ${providerLabel} key`;
+      ? `Charged to your ${providerLabel} key.`
+      : `Needs your ${providerLabel} key.`;
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -200,12 +199,14 @@ export default function AiProviderSettings({ settings, onChange, allowManaged = 
             ))}
         </datalist>
         <p className="dlg-hint" data-testid="ai-model-cost">
-          {selectedDiscovered
-            ? `${selectedDiscovered.contextLength?.toLocaleString() ?? 'Unknown'} context - ${
-                selectedDiscovered.inputModalities.join(', ')
-              } input - ${modelPriceLabel(selectedDiscovered)}${payerNote}`
-            : `${curatedModels.find((model) => model.id === settings.model)?.blurb
-              ?? 'Any model id supported by this provider.'}${payerNote}`}
+          {`${payerSentence} ${
+            selectedDiscovered
+              ? `${selectedDiscovered.contextLength?.toLocaleString() ?? 'Unknown'} context - ${
+                  selectedDiscovered.inputModalities.join(', ')
+                } input - ${modelPriceLabel(selectedDiscovered)}`
+              : curatedModels.find((model) => model.id === settings.model)?.blurb
+                ?? 'Any model id supported by this provider.'
+          }`}
         </p>
       </div>
 
