@@ -138,7 +138,9 @@ test('pro: an as-is upload is bundled into the logo slot it asked the concept fo
       slotValue: slot?.value ?? null,
       bundled: t.assets.some((a) => a.path === 'images/mark.png'),
       srcInMarkup: slot ? new RegExp(`<img[^>]*id="${slot.field}"[^>]*src="images/mark.png"`).test(t.html) : false,
-      outcomes: compiled.report.outcomes.map((o) => o.detail).join(' | '),
+      // The per-region report's own words about what became of the mark - `note`, which is
+      // where fillProLogoSlot writes it (src/ai/pro/logoAsset.ts).
+      outcomes: compiled.report.outcomes.map((o) => o.note ?? '').join(' | '),
     };
   });
   // The field carries the path and the file really rides the template - a value pointing at
