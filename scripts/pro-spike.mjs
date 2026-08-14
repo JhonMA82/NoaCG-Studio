@@ -74,6 +74,26 @@ const BASE = `http://localhost:${devPort()}`;
 const OUT = path.resolve(
   process.argv.slice(2).find((a) => a.startsWith('--out='))?.slice('--out='.length) ?? 'pro-spike-out',
 );
+/**
+ * THE TWO CLIP NUMBERS THE GALLERY PRINTS, hoisted here for the same reason `OUT` is: the
+ * `--rebuild` branch a few lines below builds a gallery, the gallery captions its clips with
+ * these, and a `const` declared further down the file is in temporal dead zone by then. That is
+ * not hypothetical - `--rebuild` threw `Cannot access 'CLIP_FPS' before initialization` from
+ * the moment clips were added until the owner tried to rebuild a gallery. It is the same trap
+ * `ledgerPath` is a function declaration to avoid, one scope over.
+ *
+ * CLIP_FPS: playback rate of the encoded strips. The clip advances virtual time by exactly
+ * 1/CLIP_FPS per frame, so a strip plays at the speed the graphic really runs at - to within
+ * the one frame a phase length can fail to divide by. Deliberately CAPTURE_FPS rather than a
+ * cinematic 25: broadcast entrances are half-second events, so at 25 fps that quantization
+ * error reaches 8% of the phase, and the round exists to read easing and settle.
+ *
+ * UPDATE_LEAD_MS: how far before the update cue the update CLIP starts. The strip's five stills
+ * begin at the instant update() fires, so without a lead-in the clip is a frozen frame.
+ */
+const CLIP_FPS = 50;
+const UPDATE_LEAD_MS = 300;
+
 const BANK = path.resolve('benchmarks/pro/v1/briefs.json');
 const DECODING = path.resolve('benchmarks/pro/v1/spike/decoding.json');
 const BRANDS = path.resolve('benchmarks/pro/v1/spike/brands.json');
@@ -149,7 +169,10 @@ if (flag('rebuild')) {
   const ledger = JSON.parse(await readFile(path.join(OUT, 'results.json'), 'utf8'));
   await blindTheFrames(ledger.results);
   await writeFile(path.join(OUT, 'results.json'), `${JSON.stringify(ledger, null, 2)}\n`);
-  await writeFile(path.join(OUT, 'review.html'), reviewHtml(ledger.results));
+  await writeFile(path.join(OUT, 'review.html'), reviewHtml(ledger.results, {
+    name: path.basename(OUT),
+    capturedAt: ledger.capturedAt ?? null,
+  }));
   await writeNotesTemplate(path.join(OUT, 'notes.md'), ledger.results);
   console.log(`Rebuilt ${path.join(OUT, 'review.html')} from ${ledger.results.length} record(s). No tokens spent.`);
   process.exit(0);
@@ -442,7 +465,6 @@ const SAMPLES_PER_STRIP = 5;
  *  25: broadcast entrances are half-second events, so at 25 fps that quantization error reaches
  *  8% of the phase, and the round exists to read easing and settle. The cost is capture wall
  *  time (about 15 s per item, no tokens), which the generation call dwarfs. */
-const CLIP_FPS = 50;
 /** Encoded width. The stills stay 1920x1080; a clip is for reading MOTION, and half size keeps a
  *  30-item gallery in the tens of megabytes instead of the hundreds. */
 const CLIP_WIDTH = 960;
@@ -450,10 +472,6 @@ const CLIP_WIDTH = 960;
  *  thousand screenshots. Past this the clip is dropped rather than sampled coarsely - a clip
  *  that silently plays at the wrong speed is worse than no clip. */
 const CLIP_MAX_FRAMES = 400;
-/** How far before the update cue the update CLIP starts. Out here with the other clip constants
- *  rather than inside the page's schedule block because the gallery captions it - a reviewer has
- *  to be told the clip starts before the strip does, or the timings will not add up. */
-const UPDATE_LEAD_MS = 300;
 
 /**
  * Mount one graphic in a virtual-clock document, register its cues, and return the sample plan.
@@ -1151,7 +1169,10 @@ await writeLedger();
 const reviewFile = path.join(OUT, paid ? 'review.html' : 'control-review.html');
 const notesFile = path.join(OUT, paid ? 'notes.md' : 'control-notes.md');
 await blindTheFrames(results);
-await writeFile(reviewFile, reviewHtml(results));
+await writeFile(reviewFile, reviewHtml(results, {
+  name: path.basename(OUT),
+  capturedAt: new Date().toISOString(),
+}));
 await writeNotesTemplate(notesFile, results);
 
 const candidates = results.filter((r) => r.kind === 'candidate' && !r.skipped && !r.error);
@@ -1228,6 +1249,9 @@ async function blindTheFrames(all) {
 async function writeLedger() {
   await writeFile(ledgerPath(), `${JSON.stringify({
     base: BASE,
+    /** When this round was captured - so a gallery can say WHICH round a reviewer is looking at
+     *  rather than carrying the same title as every other one ever produced. */
+    capturedAt: new Date().toISOString(),
     mode: paid ? 'paid' : 'control',
     route: paid ? route : null,
     frontierReason,
@@ -1250,8 +1274,16 @@ async function writeLedger() {
 /** The BLIND gallery: opaque ids, no verdict, no arm, no checkpoint, everything shuffled by
  *  blind id rather than by run order - run order alone would leak the arms, since the two
  *  arms of one brief are produced back to back. */
-function reviewHtml(all) {
+function reviewHtml(all, round = {}) {
   const shown = [...all].filter((r) => !r.skipped && !r.error).sort((a, b) => hash(a.blindId) - hash(b.blindId));
+  // WHICH ROUND IS THIS? Every gallery this rig had ever produced carried the identical title,
+  // so two rounds a day apart were indistinguishable on screen - the owner opened the second
+  // one and said it looked like the one they had already done. They were right, and about more
+  // than the title: the anchors are re-derived from committed fixtures, so six of the eight
+  // rendered byte-identically to the previous round's.
+  const name = round.name ? ` · ${round.name}` : '';
+  const when = round.capturedAt ? ` · ${String(round.capturedAt).slice(0, 10)}` : '';
+  const heading = `NoaCG Pro - blind review${name}${when} · ${shown.length} items`;
   const sections = shown.map((r) => {
     const strips = ['entrance', 'update', 'exit'].map((strip) => {
       const frames = (r.frames ?? []).filter((f) => f.strip === strip);
@@ -1293,7 +1325,7 @@ function reviewHtml(all) {
   }).join('\n');
 
   return `<!doctype html><meta charset="utf-8">
-<title>NoaCG Pro Phase 0 - blind review</title>
+<title>${heading}</title>
 <style>
 body{background:#101216;color:#e8e9ec;font:14px/1.5 system-ui;padding:24px;max-width:1600px;margin:0 auto}
 h1{font-size:20px} h2{font-size:16px;border-top:1px solid #2a2d34;padding-top:18px;margin-top:32px}
@@ -1305,11 +1337,16 @@ img{border:1px solid #2a2d34;background:#000;display:block}
 figure{margin:0} figcaption{color:#9aa0ab;font-size:11px;margin-top:2px}
 .note{color:#f6a623} .lead{color:#9aa0ab;max-width:70ch}
 </style>
-<h1>NoaCG Pro Phase 0 - blind review</h1>
+<h1>${heading}</h1>
 <p class="lead">Every item below is shown WITHOUT its arm, checkpoint, cost or validator verdict,
 and the anchors (adapt-first outputs and strong catalog graphics) are mixed in among the
 candidates. Write your notes in <code>notes.md</code> first, then run
 <code>node scripts/pro-spike.mjs --reveal</code>.</p>
+<p class="lead"><strong>Some of these will look familiar, and that is the design.</strong> The
+anchors are a FIXED reference set, re-derived from the same committed fixtures every round, so
+they render identically from one round to the next - that is what makes them a yardstick and
+what keeps two rounds comparable. Judge each item on what it is rather than on whether you have
+seen it before, and do not spend long re-deciding one you recognise.</p>
 <p class="lead">Read each one for: deliberate hierarchy, proportion, spacing and composition;
 whether it looks like a real broadcast graphic rather than a tutorial component; whether the
 motion supports the composition; and whether local CSS/SVG polish would finish it or a
