@@ -149,11 +149,16 @@ export function isAiTier(value: unknown): value is AiTier {
  * Pro's pipeline exists and its specs run, but the tier has no hosted route yet: what shipped
  * asked the user for their own gateway key and described a mechanism that was retired
  * 2026-08-10. Until the hosted route lands the honest number of Pro doors is zero, so the tier
- * is built and invisible - one flag, flipped by the session that ships the route
- * (`claude/pro-hosted-route`), rather than a half-finished door in front of the first user.
+ * is built and invisible, rather than a half-finished door in front of the first user.
  *
  * A visitor who had already chosen Pro resolves to another tier while it is off; the saved
  * value is untouched, so flipping the flag gives them their choice back.
+ *
+ * **THIS FLAG IS A PLACEHOLDER FOR A SERVER ANSWER, and the branch that replaces it already
+ * exists.** `claude/pro-hosted-route` adds `AI_PRO_ENABLED` plus `GET /api/ai/pro/status`, the
+ * same shape Lite's availability already takes. Whoever merges the two: DELETE this function
+ * and `VITE_AI_PRO_ENABLED`, and gate the tier on that status exactly as `liteStatus` is gated.
+ * Two switches for one door is how a tier comes to be visible on a deployment that refuses it.
  */
 export function proTierOffered(): boolean {
   const flag = env('VITE_AI_PRO_ENABLED').trim().toLowerCase();

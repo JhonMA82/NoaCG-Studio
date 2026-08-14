@@ -79,7 +79,10 @@ Four rules, all of them things the shipped build got wrong before 2026-08-14:
   transport, so replacing the engine behind one costs no copy - and cannot leave the door
   describing a pipeline that was retired, which is exactly how Pro shipped describing image
   reconstruction two months after it was dropped. **Pro is built and NOT OFFERED**
-  (`proTierOffered()`, `VITE_AI_PRO_ENABLED`, default off) until a hosted route exists.
+  (`proTierOffered()`, `VITE_AI_PRO_ENABLED`, default off) until a hosted route exists. That
+  client flag is a PLACEHOLDER: `claude/pro-hosted-route` already carries `AI_PRO_ENABLED` and
+  `GET /api/ai/pro/status`, so merging the two means deleting the flag and gating on the server
+  answer, the way Lite's availability already works. **One door takes one switch.**
 
 **Every model row carries a price per 1M tokens and says which key pays it.** None of the three
 direct provider APIs publishes a price with its listing (measured), so `aiModelDiscovery.ts`
