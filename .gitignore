@@ -49,6 +49,9 @@ creative-gallery/
 lite-bench-out*/
 pro-bench-out*/
 lite-eval-out*/
+# The §2 value gate's three arms, its blind sheet and the key that unblinds it
+# (scripts/ai-lite-value-gate.mjs). The key must never be committed: it is the whole blind.
+lite-value-gate-out*/
 # The Pro feasibility round's two extra rigs (benchmarks/pro/round-2026-08-08): Lite driven over
 # the Pro brief bank, and the state-machine generation probe with its emitted code.
 lite-on-pro-out*/

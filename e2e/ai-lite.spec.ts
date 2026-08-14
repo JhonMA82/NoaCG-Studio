@@ -105,7 +105,8 @@ test('Lite creates one grounded graphic, records usability and acceptance, and o
   await expect(page.getByTestId('ai-tier')).toBeVisible();
   await expect(page.getByTestId('ai-tier-lite').getByRole('radio')).toBeChecked();
   await expect(page.getByTestId('ai-tier-custom')).toContainText('Bring your own key');
-  // Pro has no hosted route yet, so it is not offered at all (VITE_AI_PRO_ENABLED).
+  // Pro is offered only where the server hosts it and the backend can meter it - neither is
+  // true offline - so it is not a door here at all (e2e/pro.spec.ts pins the rule).
   await expect(page.getByTestId('ai-tier-pro')).toHaveCount(0);
   await expect(page.getByTestId('ai-settings').getByText('Provider', { exact: true })).toHaveCount(0);
   await expect(page.getByTestId('ai-settings').getByText('Model', { exact: true })).toHaveCount(0);

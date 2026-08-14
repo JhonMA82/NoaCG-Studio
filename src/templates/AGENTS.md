@@ -118,6 +118,21 @@ tile-wall presentation, which no longer ships):
   child renumbers every `nth-child` selector the design wrote about its own children - lt02 put
   the name under its underline), and **cap the mark's height rather than fixing it** (a fixed
   height hands a portrait crest the power to set the strap's height through its own aspect).
+  **A strap gathers the design's own children into one `.{prefix}-lockup` div**, so the box holds
+  exactly two items in one row. That is not tidiness: the first version left them loose and gave
+  the mark `grid-row: 1 / -1`, which is a NO-OP against a rule that declares columns only (a
+  negative row line counts back from the EXPLICIT grid, and with no row track `-1` resolves to
+  line 1). Measured 2026-08-14 - the mark sat in row ONE, beside the name: it re-grew the strap it
+  was moved to protect (lt11 +7.7%, lt32 +18%, lt02 +6.6% with a crest) and sat 19-28px above the
+  stack's centre on every design. There is no count-free way to span an unknown number of implicit
+  rows, so the wrapper removes the rows from the question; with it, a crest costs a strap ZERO
+  height and sits at offset 0 on all 24 designs. Two rules from the same measurement: **the clear
+  space is the mark's own MARGIN, never the box's `column-gap`** (a track is charged its gap even
+  when nothing is in it, so an empty slot shifted the words 26px), and the lockup takes
+  `row-gap: inherit`, which is what keeps a design that spaced its lines from its own box spacing
+  them identically. Five designs (lt07, lt08, lt41, lt49, lt53) style `.{prefix}-logo` in their
+  CSS without declaring a slot, so `designHasLogoSlot` misses them and their own sizing wins -
+  pre-existing, unchanged, and the reason a sweep must compare against BARE rather than assume.
 - **shared/standard.ts** - CategorySpec, assembleStandard, makeDefineVariant, and
   `convertToDataRegion` - the Timeline v2 flip: convert a freshly assembled template's legacy
   ANIMATION region into the NOACG_ANIM data block + interpreter through the parity-proven
@@ -799,14 +814,15 @@ picked file replaces it).
   `<img id="fN" class="{prefix}-logo">` leading the box + placeholder CSS) from
   `assembleStandard` when `logoEnabled` and `designHasLogoSlot` says the design has none.
   **The shared slot has TWO arrangements, decided by the category, never per design:** lower
-  thirds place the mark BESIDE the text - a leading grid column engaged through `.has-image`
-  on the box, vertically centred, with the box cap widened so the mark's column never comes
-  out of the text's measure (the audit's `logo-costs-text`) - because the 2026-08-13 Pro
-  brand round's blind review made compactness a standing rule ("do not place a logo above or
-  below the lower third; prefer beside"); every other category keeps the stacked band above
-  the text, because a card is a vertical composition and a mark above its heading reads as a
-  header. An EMPTY slot changes nothing in either arrangement - the grid keys on the class
-  `setFieldValue` toggles. Pinned by `e2e/wizard-logo.spec.ts`.
+  thirds place the mark BESIDE the text - the box becomes a two-column, ONE-ROW grid, the
+  design's own children gathered into a `.{prefix}-lockup` beside it and the mark vertically
+  centred on that whole stack - because the 2026-08-13 Pro brand round's blind review made
+  compactness a standing rule ("do not place a logo above or below the lower third; prefer
+  beside"); every other category keeps the stacked band above the text, because a card is a
+  vertical composition and a mark above its heading reads as a header. An EMPTY slot changes
+  nothing in either arrangement: the hidden `<img>` stops being a grid item and its margin -
+  which is where the clear space lives, deliberately, rather than in a track gap - goes with
+  it. Pinned by `e2e/wizard-logo.spec.ts`.
   **A MARK IS NOT A PICTURE, and the slot has to be drawn for that.** The shared slot is a BAND
   sized by height with its width free - it was a 56px square until 2026-08-09, which held a crest
   and reduced a 4:1 wordmark to a 20px strip and a 10:1 sponsor rail to about 8px, so "bring your

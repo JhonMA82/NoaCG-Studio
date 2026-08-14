@@ -78,15 +78,16 @@ Four rules, all of them things the shipped build got wrong before 2026-08-14:
 - **A managed tier names an OUTCOME, never a mechanism.** Lite and Pro name no vendor, model or
   transport, so replacing the engine behind one costs no copy - and cannot leave the door
   describing a pipeline that was retired, which is exactly how Pro shipped describing image
-  reconstruction two months after it was dropped. **Pro is built and NOT OFFERED**
-  (`proTierOffered()`, `VITE_AI_PRO_ENABLED`, default off) until a hosted route exists. That
-  client flag is a PLACEHOLDER: `claude/pro-hosted-route` already carries `AI_PRO_ENABLED` and
-  `GET /api/ai/pro/status`, so merging the two means deleting the flag and gating on the server
-  answer, the way Lite's availability already works. **One door takes one switch** - two of them
-  means a deployment that meters Pro on the server and still shows no door, or the reverse.
-  **Order ratified by the owner 2026-08-14: this tier work lands FIRST, and the hosted-route
-  session performs the deletion** - it rewrites this region of `AiStep` anyway, and it owns the
-  server answer that replaces the flag.
+  reconstruction two months after it was dropped.
+- **A NoaCG TIER RUNS ON NOACG'S OWN SERVICE OR IT IS NOT OFFERED** (owner, 2026-08-14). It
+  never asks a customer for a key to reach our own models or harness. Pro is therefore offered
+  on exactly two conditions, ANDed: the server says hosted Pro is available to this visitor
+  (`GET /api/ai/pro/status`, `AI_PRO_ENABLED`) **and** the deployment carries the backend that
+  route is metered through (`proOffered = proHosted && isBackendConfigured()`). Where either is
+  false the tier is ABSENT - not greyed, and never degraded into a key request. **One door
+  takes one switch:** there is no client flag for Pro and there must not be one, or a
+  deployment meters it while showing no door, or shows one it will refuse. The key row in
+  `AiProviderSettings` stands down on the managed route for the same reason.
 
 **Every model row carries a price per 1M tokens and says which key pays it.** None of the three
 direct provider APIs publishes a price with its listing (measured), so `aiModelDiscovery.ts`
@@ -622,8 +623,23 @@ is no parallel brief vocabulary. That is a UI and contract economy, not a shared
 §9). `compileProConcept` refuses before the interpretation when the concept alone spent it, and
 again on the total. `generateProConcept` deliberately does NOT throw on a breach: the image is
 already billed, so it returns with its cost and only the next call is stopped - the 2026-08-08
-lesson about early returns destroying paid concepts. Browser-side, so it is a cost control and not
-a server booking; an unreported cost counts as zero.
+lesson about early returns destroying paid concepts. An unreported cost counts as zero.
+
+**HOSTED Pro is now a server BOOKING as well, against the same number** (`AI_PRO_ENABLED`, default
+off; `docs/AI_TASK_REGISTRY.md`). The browser ceiling was for a long time "the only thing standing
+between a route change and an open tap", because Pro rode the general model surface with no
+registered task; `pro-generate` is that task. `src/ai/pro/session.ts` opens ONE reservation per
+generation (`POST /api/ai/pro/generations`) and the pipeline forwards `proGenerationId` on every
+model call; `/api/ai/generate` admits each call against it and settles the provider's real cost
+into `ai_generations` (migration 0044). So the two enforcement points are deliberately the same
+constant: the browser's is a cost control, the ledger's is the bound. **A `session` of null is the
+bring-your-own-key and offline-stub path, unchanged** - a caller spending their own key is never
+metered, and neither `e2e/pro.spec.ts` nor the bench changes.
+
+**Nothing in the hosted route knows what the pipeline DOES**, and that is deliberate: §15 of the
+plan replaces the concept-and-reconstruct engine, and an allowance that encoded its stages would
+have to be rewritten with it. The route's only shape-assumption is `AI_PRO_MAX_CALLS`, a bound
+rather than a description.
 
 `PRO_STANDARD_ROUTES` (`pro/pipeline.ts`) is pinned so a normal Pro user never picks models; **do not
 change it without re-running `npm run bench:pro` paid stages** - and pass `--save-fixtures`, because the

@@ -71,7 +71,8 @@ test('the tiers are NoaCG Lite and Bring your own key — and Pro is not a door 
   await expect(tiers.getByTestId('ai-tier-custom')).toContainText('Bring your own key');
   // The old label named a "provider" the tier never asked for.
   await expect(tiers).not.toContainText('Custom provider');
-  // Built, flagged off (VITE_AI_PRO_ENABLED): a tier with no hosted route is absent, not greyed.
+  // Built, and offered only where the server hosts it and the backend can meter it: a tier
+  // that cannot run here is absent, not greyed (the rule itself is e2e/pro.spec.ts's).
   await expect(tiers.getByTestId('ai-tier-pro')).toHaveCount(0);
 });
 

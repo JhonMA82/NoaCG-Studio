@@ -8,7 +8,6 @@ import {
   aiConfigured,
   isByokProvider,
   loadAiSettings,
-  proTierOffered,
   saveAiSettings,
   type AiTier,
 } from '../../../ai/settings';
@@ -26,10 +25,13 @@ import {
   compileProConcept,
   generateProConcept,
   PRO_STANDARD_ROUTES,
+  ProCostCeilingError,
   type ProResult,
   type ProStage,
 } from '../../../ai/pro/pipeline';
-import { stubCompilePro, stubProConcept } from '../../../ai/pro/stub';
+import { loadProStatus, openProSession, reportProOutcome } from '../../../ai/pro/session';
+import { isBackendConfigured } from '../../../backend/config';
+import type { ProStatusResponse } from '../../../ai/proTypes';
 import { PRO_SUPPORTED_CATEGORIES, standardProBrief } from '../../../ai/pro/brief';
 import {
   emptyGenerationSpec,
@@ -179,6 +181,8 @@ const PRO_STAGE_LABELS: Record<ProStage, string> = {
  */
 const TIER_OPTIONS: { id: AiTier; name: string; hint: string }[] = [
   { id: 'lite', name: 'NoaCG Lite', hint: 'Included free — one excellent editable graphic per request, nothing to configure.' },
+  // Pro's hint says nothing about whose key pays because the answer is never the user's: a
+  // NoaCG tier runs on NoaCG's own service or it is not offered at all.
   { id: 'pro', name: 'NoaCG Pro', hint: 'A richer, art-directed graphic from the same brief. Our harness designs it; nothing to configure.' },
   {
     id: 'custom',
@@ -268,6 +272,21 @@ export default function AiStep({
       alive = false;
     };
   }, [needsSignIn]);
+  // undefined = still resolving; null = no hosted Pro on this server.
+  const [proStatus, setProStatus] = useState<ProStatusResponse | null | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    void loadProStatus()
+      .then((status) => {
+        if (alive) setProStatus(status);
+      })
+      .catch(() => {
+        if (alive) setProStatus(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [needsSignIn]);
   const [settings, setSettings] = useState(loadAiSettings);
   // THE EXECUTION TIER. Lite and Pro are managed experiences of the SAME creation workflow;
   // 'custom' is the bring-your-own-key surface. The saved preference wins where it is
@@ -275,7 +294,15 @@ export default function AiStep({
   // saved choice resolves to Lite when the server offers it (the historical default) else BYO
   // key. A tier that is merely OFF is never listed as unavailable either - see the render.
   const liteOffered = Boolean(liteStatus?.enabled);
-  const proOffered = proTierOffered();
+  // HOSTED PRO IS THE ONLY PRO (owner, 2026-08-14). A NoaCG tier runs on NoaCG's own service or
+  // it is not offered - it never asks a customer for a key to reach our own models. So the tier
+  // appears on exactly two conditions, both of which have to be true at once: the SERVER says
+  // hosted Pro is available to this visitor (`AI_PRO_ENABLED` plus their entitlement and
+  // allowance), and this deployment actually carries the backend that route is metered through.
+  // The second is not belt-and-braces: hosted Pro reserves and settles per account, so a build
+  // with no backend cannot run it however the status answers.
+  const proHosted = Boolean(proStatus?.available);
+  const proOffered = proHosted && isBackendConfigured();
   const fallbackTier: AiTier = liteOffered ? 'lite' : 'custom';
   const tier: AiTier =
     settings.tier === 'lite'
@@ -307,14 +334,11 @@ export default function AiStep({
      tier deliberately names no model — that is the point of it. */
   const settingsSummary =
     tier === 'lite' ? 'NoaCG Lite · included'
-    : tier === 'pro' ? 'NoaCG Pro · included in Pro'
+    : tier === 'pro' ? 'NoaCG Pro · included'
     : [
         AI_PROVIDERS.find((provider) => provider.id === settings.provider)?.label ?? settings.provider,
         settings.model,
       ].filter(Boolean).join(' · ');
-  // Pro's standard routes ride the Vercel AI Gateway; without a credential there the flow runs
-  // the deterministic offline stub (and says so), exactly like the custom tier's stub provider.
-  const proRemote = settings.configuredProviders.includes('vercel');
   const aiReady = liteMode ? liteActive : proMode ? true : aiConfigured(settings);
   // Opens itself ONCE, after the tier is known: a custom-tier visitor with no provider
   // configured needs the setup in front of them, a Lite visitor does not.
@@ -762,11 +786,15 @@ export default function AiStep({
       const proValidate: SpxValidator = async (t) => demoteSpecFields(await validate(t));
       void run(async (options) => {
         const proBrief = standardProBrief(brief, activeSpec, uploads);
+        // HOSTED PRO opens a reservation first: one allowance slot, one cost ceiling, covering
+        // every model call the generation makes. There is no second path any more - the tier is
+        // only offered where this reservation can be made (see `proOffered`), which is what
+        // makes "no key to supply" true rather than merely written.
+        const session = await openProSession();
         options.onProgress?.(PRO_STAGE_LABELS.concept);
-        const concept = proRemote
-          ? await generateProConcept(proBrief, PRO_STANDARD_ROUTES.concept)
-          : await stubProConcept(proBrief);
+        const concept = await generateProConcept(proBrief, PRO_STANDARD_ROUTES.concept, session);
         const compileOptions = {
+          session,
           resolution,
           fps,
           validate: proValidate,
@@ -779,10 +807,27 @@ export default function AiStep({
           // left the file behind.
           logoMark: uploads.find((upload) => upload.purpose === 'asset') ?? null,
         };
-        const compiled = proRemote
-          ? await compileProConcept(proBrief, concept, compileOptions)
-          : await stubCompilePro(proBrief, concept, compileOptions);
+        let compiled: ProResult;
+        try {
+          compiled = await compileProConcept(proBrief, concept, compileOptions);
+        } catch (error) {
+          // The spend is already recorded server-side; what the ledger cannot see from there
+          // is that the generation produced nothing usable. Report it and re-throw so the
+          // user still sees the failure.
+          await reportProOutcome(session, 'failed', {
+            reason: error instanceof ProCostCeilingError ? 'cost_ceiling' : 'generation_failed',
+          });
+          throw error;
+        }
         proDetails.current.set(compiled.template, compiled);
+        await reportProOutcome(
+          session,
+          compiled.validation && !compiled.validation.ok ? 'failed' : 'usable',
+          {
+            ...(compiled.validation && !compiled.validation.ok ? { reason: 'platform_validation' } : {}),
+            ruleCodes: compiled.validation?.errors.map((finding) => finding.rule) ?? [],
+          },
+        );
         const change: AiTemplateChange = {
           template: compiled.template,
           summary: `Image-guided design: ${compiled.report.textFields} editable text field(s), ${compiled.report.panelsRebuilt} rebuilt shape(s).`,
@@ -790,7 +835,9 @@ export default function AiStep({
           ...(compiled.validation ? { validation: compiled.validation } : {}),
         };
         return change;
-      }, PRO_STAGE_LABELS.concept);
+      }, PRO_STAGE_LABELS.concept).then(() => {
+        if (proHosted) void loadProStatus().then(setProStatus).catch(() => undefined);
+      });
       return;
     }
     if (liteActive) {
@@ -934,12 +981,6 @@ export default function AiStep({
           <p className="hint" data-testid="lite-allowance">
             {liteStatus.allowance.dailySuccessesRemaining} successful generation(s) left today ·{' '}
             {liteStatus.allowance.monthlySuccessesRemaining} this month
-          </p>
-        )}
-        {proMode && !proRemote && (
-          <p className="hint" data-testid="pro-offline-note">
-            This build has no hosted Pro route, so it runs the built-in offline design — the
-            full flow, without any model calls.
           </p>
         )}
       </div>
@@ -1454,10 +1495,18 @@ export default function AiStep({
                   and promises nothing about how it is done. */}
               {proMode && (
                 <div style={{ marginTop: 10 }} data-testid="ai-pro-settings">
-                  <p className="hint">
-                    NoaCG Pro is a managed tier: describe the graphic and it is designed for
-                    you. There is nothing to configure, and the cost of each generation is shown
-                    on the result.
+                  {/* Nothing to choose, know, or supply — no provider, no model, no key. The
+                      allowance read-back is the only thing worth showing, because it is the one
+                      limit the user can actually run into. The tier is not offered at all where
+                      that is not true, so there is no second branch here asking for a key. */}
+                  <p className="hint" data-testid="ai-pro-hosted-note">
+                    NoaCG Pro runs on NoaCG&apos;s own service — there is nothing to configure and
+                    no key to supply. It picks its own models for every stage, and the real cost
+                    of each generation is shown on the result.
+                    {proStatus?.allowance
+                      ? ` ${proStatus.allowance.dailyStartsRemaining} generation(s) left today,
+                          ${proStatus.allowance.monthlyStartsRemaining} this month.`
+                      : ''}
                   </p>
                 </div>
               )}

@@ -18,6 +18,7 @@
 // project's AGPL-3.0.
 import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,7 +28,21 @@ const workflowDir = path.join(repoRoot, '.github', 'workflows');
 // Run the CLI's own module with this Node, not the `node_modules/.bin` shim. On Windows that
 // shim is a `.cmd`, and Node refuses to spawn a batch file without `shell: true` (EINVAL) - and
 // reaching for a shell to fix that puts every path through cmd.exe quoting for no gain.
-const cli = path.join(repoRoot, 'node_modules', '@action-validator', 'cli', 'cli.mjs');
+//
+// RESOLVE it rather than joining `<repoRoot>/node_modules`: a linked worktree usually has an
+// EMPTY local node_modules and resolves every dependency by walking up to the primary checkout's,
+// so the hardcoded path made `npm run build` fail there with MODULE_NOT_FOUND on a checkout where
+// nothing was actually missing - and this check is a CI gate, so the failure looked like the
+// workflows being invalid. The package.json is resolved rather than the file, because a package's
+// "exports" map need not expose its bin path (scripts/dev-bench.mjs hit exactly that with Vite).
+const require = createRequire(import.meta.url);
+let cli;
+try {
+  cli = path.join(path.dirname(require.resolve('@action-validator/cli/package.json')), 'cli.mjs');
+} catch {
+  console.error('Could not resolve @action-validator/cli. Try `npm install`.');
+  process.exit(1);
+}
 
 let files;
 try {

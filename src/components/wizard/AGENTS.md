@@ -266,9 +266,9 @@ the server offers it, else BYO key. Lite and Pro are managed experiences of the 
 no model picking and NO mechanism named in their copy; BYO key is the deliberate advanced
 surface carrying `AiProviderSettings` with `allowManaged={false}`, since the managed route is
 not a thing a user chooses. A tier this build does not offer is ABSENT rather than greyed:
-**Pro renders only under `proTierOffered()`** (`VITE_AI_PRO_ENABLED`, default off) until its
-hosted route lands. The tier contract, the price targets and the price-book rule behind each
-model row are src/ai/AGENTS.md's.
+**Pro renders only where it can run** - the server offers hosted Pro AND the deployment has the
+backend to meter it (see below). The tier contract, the price targets and the price-book rule
+behind each model row are src/ai/AGENTS.md's.
 
 The PIPELINES behind Lite and Pro are src/ai/AGENTS.md's contract (and docs/NOACG_PRO_PLAN.md
 §7); what belongs here is what each tier does to this STEP.
@@ -282,13 +282,23 @@ and never enters the template or the saved graphic. Lite disabled = the BYO surf
 
 **Pro** shows the concept image with its provider-reported cost plus the per-region editability
 report (`data-testid="pro-report"`, keyed to the template by WeakMap so a restored past result
-shows its own concept). Its settings carry NO chooser at all - no provider, no model, no key -
-because a managed tier that asks for a credential is not managed. Categories
+shows its own concept). **The tier is OFFERED only where it can actually run** - the server says
+hosted Pro is available to this visitor (`/api/ai/pro/status`) AND the deployment carries the
+backend that route is metered through (`proOffered = proHosted && isBackendConfigured()`). Where
+that is false the tier is ABSENT, never a greyed row and never a key request: a NoaCG tier runs
+on NoaCG's own service or it is not offered (owner, 2026-08-14). Its settings are therefore one
+read-back with the remaining allowance (`ai-pro-hosted-note`) and no chooser of any kind - no
+provider, no model, no key. **A hosted deployment is never reachable from the browser** - no
+flag, no query parameter, no localStorage key - which is the property `e2e/pro.spec.ts` pins by
+answering the status endpoint and nothing else. A generation opens ONE reservation before the
+first model call and reports its outcome after the last (`src/ai/pro/session.ts`); the spend is
+recorded server-side and is never a number this step sends. Categories
 clamp to lower-third/auto, spec-field findings demote to warnings (`demoteSpecFields`: fixed
 contract, no repair loop), and refine/fix stand down because regenerate is the honest move.
-With no hosted route it says so and runs the offline stub, which is what keeps
-e2e/pro.spec.ts token-free. The step passes the FIRST "use it as it is" upload in as
-`logoMark`; the ordering that makes that safe is src/ai/AGENTS.md's.
+The step no longer carries a stub branch of its own - the tier is absent where a real
+generation cannot run - so `e2e/pro.spec.ts` stays token-free by driving `pro/stub.ts` directly,
+the way `scripts/pro-bench.mjs` already does. The step passes the FIRST "use it as it is" upload
+in as `logoMark`; the ordering that makes that safe is src/ai/AGENTS.md's.
 
 The harness is ON BY DEFAULT, with the **"Use NoaCG harness (3 options)"** checkbox
 (`AiSettings.useHarness`, default true — the benchmark showed it a clean win) still able to

@@ -210,8 +210,13 @@ export default function AiProviderSettings({ settings, onChange, allowManaged = 
         </p>
       </div>
 
+      {/* NO KEY ROW ON THE MANAGED ROUTE. A customer is never asked for a key to reach NoaCG's
+          own models or harness (owner, 2026-08-14) - that route runs on our service or it is
+          not offered. A key belongs to the user's OWN provider, which is the only case this
+          row exists for. */}
+      {!managedSelected && (
       <div className="dlg-row">
-        <label htmlFor="ai-user-key">{managedSelected ? 'Key' : `${providerLabel} key`}</label>
+        <label htmlFor="ai-user-key">{`${providerLabel} key`}</label>
         <div className="dlg-pair">
           <input
             id="ai-user-key"
@@ -238,8 +243,11 @@ export default function AiProviderSettings({ settings, onChange, allowManaged = 
                   : 'Blank key = NoaCG-managed server key. Any model id the provider supports.'
                 : 'The key is sent once to this server and is never saved in browser-readable storage.'}
         </p>
-        {message && <p className="dlg-hint" role="status">{message}</p>}
       </div>
+      )}
+      {/* Outside the key row on purpose: a discovery or configuration failure has to be
+          readable on the managed route too, where there is no key row to carry it. */}
+      {message && <p className="dlg-hint" role="status">{message}</p>}
     </div>
   );
 }
