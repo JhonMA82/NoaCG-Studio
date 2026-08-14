@@ -2062,7 +2062,7 @@ export function validateLiteDecision(
   // the mark. Both are recorded as adjustments, so the ledger can count how often a brand's mark
   // cannot be honoured - which is a CATALOG gap to draw against, not a model failure.
   let logoReselect: string | null = null;
-  let logoPlate: 'light' | 'dark' | null = null;
+  let logoInkUnreadable = false;
   if (spec.useLogoSlot && entry?.logoSlot && request.mark?.backing === 'transparent' && request.mark.ink) {
     // The REQUEST's panel outranks the model's: under the brand palette contract below, a
     // requested panel is what ships, so judging the mark against the model's version would
@@ -2105,12 +2105,16 @@ export function validateLiteDecision(
         && capacityHolds(candidate)
         && !(panelIsLight && candidate.logoSlot?.surface === 'dark')
         && reads(candidate));
-      // A well is the LAST resort and the one that always works: the catalog cannot currently
-      // offer a chassis whose logo surface is the opposite tone to its own package, so without
-      // it every unreadable pairing ended with the mark dropped. The mark keeps its own tone,
-      // the graphic keeps its design, and the picture is not touched.
+      // And when no chassis suits it, the pairing is RECORDED rather than papered over. The
+      // painted well that used to sit here was removed on the owner's decision (2026-08-14):
+      // it passed a contrast meter and read as a logo pasted onto the graphic in a white box no
+      // design ever drew. What it caught is the case the catalog cannot answer at all - the tone
+      // defeating the mark is the USER's package, not the design's - so the remaining choices
+      // were to drop the customer's mark silently or to break the composition, and this is the
+      // third: the mark stays, and how often it happens becomes a number
+      // (`src/templates/shared/logoSlot.ts` carries the same note from the other side).
       if (swap) logoReselect = swap.variantId;
-      else logoPlate = ink === 'light' ? 'dark' : 'light';
+      else logoInkUnreadable = true;
     }
   }
   // Colour is decided by WHO ASKED, not by what the model returned (`applyLiteBrandPalette`):
@@ -2176,12 +2180,14 @@ export function validateLiteDecision(
   if (logoReselect) {
     repaired.variantId = logoReselect;
     adjustments.push('logo_chassis_reselected');
-  } else if (logoPlate) {
-    // The mark keeps its own tone and the graphic keeps its design; the well is what makes the
-    // two compatible. Recorded, because how often it is needed is the measure of a catalog that
-    // has no design offering a logo surface in the opposite tone to its own package.
-    repaired.logoPlate = logoPlate;
-    adjustments.push('logo_plated');
+  } else if (logoInkUnreadable) {
+    // Nothing is done to the graphic - deliberately. This is the pairing the catalog cannot
+    // answer (the tone defeating the mark is the user's package), and the two things the
+    // platform COULD do here are both worse than the defect: dropping the customer's mark
+    // without saying so, or pasting a well behind it. So it ships as designed and the ledger
+    // counts it, which is what turns "their logo did not read" into a number somebody can act
+    // on - a brand kit missing its knockout version is a fact about the kit.
+    adjustments.push('logo_ink_unreadable_on_surface');
   }
   return {
     decision: { status: 'ready', spec: repaired, ...(skin ? { skin } : {}) },

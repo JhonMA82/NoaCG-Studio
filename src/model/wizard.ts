@@ -287,18 +287,6 @@ export interface WizardOptions {
   /** Whether an 'optional'-logo design should include its logo slot (field + <img>).
    *  Unset falls back to "an image was provided"; 'built-in' designs always have one. */
   logoEnabled?: boolean;
-  /**
-   * Paint a WELL behind the mark, in this tone, because it would not read on the surface the
-   * design gives it. Absent (the default, and every path that existed before this) paints none.
-   *
-   * A brand kit routinely owns one tone of its mark - a white knockout, or a dark lockup - and
-   * the design's own surface is whatever the package made it. Measured 2026-08-09, that pairing
-   * ends with an invisible logo often enough to matter, and the alternatives are all worse: the
-   * picture may not be recoloured (it is the one thing "use it as it is" promises), and moving
-   * the mark to another design breaks the text when the packages differ in tone. A well is what
-   * a broadcast designer draws for exactly this, and it changes nothing about the picture.
-   */
-  logoPlate?: 'light' | 'dark';
   /** The artwork that IS the graphic (the Import Graphic flow's imported-design category).
    *  Its natural size decides the design's size, so it is measured at import, not guessed. */
   designArt?: DesignArt;
@@ -351,8 +339,6 @@ export interface ResolvedOptions {
   importedImages: AssetFile[];
   logoAssetPath: string | null;
   logoEnabled: boolean;
-  /** The well painted behind the mark, or null for none (see WizardOptions.logoPlate). */
-  logoPlate: 'light' | 'dark' | null;
   designArt: DesignArt | null;
 }
 
@@ -530,7 +516,6 @@ export function resolveOptions(variant: TemplateVariant, options: WizardOptions 
     logoEnabled:
       variant.logo === 'built-in' ||
       (variant.logo === 'optional' && (options.logoEnabled ?? !!options.logoAssetPath)),
-    logoPlate: options.logoPlate ?? null,
     designArt: options.designArt ?? null,
   };
 }

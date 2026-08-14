@@ -158,13 +158,6 @@ export interface LiteDesignSpec {
   lines: { title: string; sample: string; role: LiteLowerThirdLineRole }[];
   extraFields?: { title: string; ftype: 'textfield' | 'textarea' | 'number' | 'filelist'; value: string }[];
   useLogoSlot?: boolean;
-  /**
-   * A WELL painted behind the mark, in this tone. Set by the SERVER's semantic repair, never by
-   * the model - it is deliberately absent from the structured output schema, because it is not a
-   * taste decision: it is what the platform does when it measures that the mark would not read
-   * on the surface the chosen design gives it (`benchmarks/lite/BRAND-ROUND-2026-08-09.md` §2).
-   */
-  logoPlate?: 'light' | 'dark';
   /** Still on the wire, deliberately IGNORED by the compile since v9 - Lite assembles with
    *  `keepChassisZone`, so placement is the chosen design's own `defaultZone`. It cannot be
    *  deleted while the model still emits it (liteContract.ts). */

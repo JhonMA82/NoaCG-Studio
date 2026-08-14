@@ -253,6 +253,17 @@ stylesheet, or the bundled fonts. A claim ABOVE the measurement fails as the def
 four characters below fails as stale. **An adjective is what a chassis may say only where nothing can
 measure it.**
 
+**A STRAP SPENDS WIDTH, NEVER HEIGHT, and a mark carries NO PLATE** (owner, 2026-08-14 - the
+rule the matrix gallery bought). The shared slot places a lower third's mark BESIDE the words:
+stacking it made `lt02` 83% taller, `lt11` 57%, and lt11 served 44% of the volume matrix, so most
+branded output was a strap turning into a block (`docs/AI_LITE_BRAND_PLAN.md` §3.7,
+`src/templates/AGENTS.md` for the injection rules). The platform's painted well is REMOVED with
+it: a dark-ink mark on a dark package is the USER's palette defeating the mark, no chassis re-pick
+can fix that, and the two remaining moves - dropping the customer's mark or pasting a white box
+over the design - are both worse than the defect. The mark ships where the design puts it and the
+pairing is recorded (`logo_ink_unreadable_on_surface`). `ls12`'s fixed dark tile is the one
+ratified exception, because it is a designed part of that composition rather than a repair.
+
 **A BRAND MARK is under the same rule, and `LiteCatalogEntry.logoSlot` is the measurement.**
 `node scripts/ai-lite-brand-audit.mjs --lite --check` renders a real mark into a real slot and
 reads the frame back - size, aspect, crop, clear space, containment, ink contrast against the

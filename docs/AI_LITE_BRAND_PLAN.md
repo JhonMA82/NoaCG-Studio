@@ -38,7 +38,7 @@ Two standing constraints frame everything below:
 | --- | --- | --- |
 | Brand palette on the request | `LiteGenerationRequest.palette` (accent/text/textDim/panel), project brand wins in `specToTemplate` | LIVE |
 | Brand mark, measured | `LiteMarkDescriptor` (shape/backing/ink, `probeMark`, pixels never leave the machine) + `LiteCatalogEntry.logoSlot` (fits + surface, audit-gated) | LIVE, v14 |
-| Mark legibility repair | server semantic repair: re-pick chassis, else paint a well (`logoPlate`) - never drop, never fail | LIVE |
+| Mark legibility repair | server semantic repair: re-pick a chassis whose surface suits the mark; the painted well is REMOVED (§3.7) and an unanswerable pairing is recorded instead | LIVE, **changed 2026-08-14** |
 | Brand geometry audit | `scripts/ai-lite-brand-audit.mjs` - 9 painted-frame rules (slot, paint, aspect, crop, size, clear space, containment, ink contrast, house-amber survival) | LIVE, free |
 | Brand brief bank | `scripts/ai-lite-brand-fixtures.mjs` (8 briefs, 5 authored mark shapes) | LIVE |
 | Frozen banks + rigs | 30-brief bank, 8 semantic briefs, `ai-lite-eval.mjs` / `bench:lite` / `bench:lite:semantic` / `bench:preflight`, gallery + report | LIVE |
@@ -187,6 +187,21 @@ Three things the frames caught that no gate would have:
 graphic's own ground, because a plate reads as artwork pasted onto the template. `ls12`'s
 opposite-tone tile STAYS (owner, 2026-08-14) - it is the §3.4 chassis and the only thing keeping
 a knockout-only mark legible on a light package (16.82:1 against 1.14:1 elsewhere).
+
+**The platform's own well is REMOVED with it (owner, 2026-08-14).** `logoPlate` painted a fixed
+near-white or near-black rectangle behind a mark whose ink could not read on the design's surface;
+the matrix gallery showed what that looks like on air, and it is the pasted-on white box the rule
+refuses. The whole path is gone - the CSS in `shared/logoSlot.ts`, the decision that set it, and
+the field through `LiteDesignSpec` / `DesignSpec` / `WizardOptions` (nothing else ever wrote it).
+
+What it used to catch does not go away, and pretending otherwise would be the dishonest part: a
+DARK-ink mark on a DARK brand package is defeated by the user's own palette, not by the design, so
+no chassis re-pick can fix it. The two remaining moves are both worse than the defect - dropping
+the customer's mark silently, or breaking the composition - so **the mark ships where the design
+puts it and the pairing is recorded** (`logo_ink_unreadable_on_surface`). The real fix belongs to
+the brand kit: a channel with only a dark lockup needs its knockout version for a dark package,
+and the ledger is what will say how often that actually happens. The `logo_plated` adjustment code
+retires with the feature.
 
 ### 3.4 The opposite-tone chassis (owner decision 2, 2026-08-09) - DONE 2026-08-13
 

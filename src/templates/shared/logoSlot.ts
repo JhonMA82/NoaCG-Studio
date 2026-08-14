@@ -17,32 +17,28 @@ export function designHasLogoSlot(design: StandardDesign, prefix: string): boole
   );
 }
 
-/**
- * The WELL behind the mark, painted only when the design's own surface cannot show it.
- *
- * The neutrals are fixed rather than derived from the palette on purpose: the well exists
- * precisely because the palette's surface is the wrong tone, so deriving it from that palette is
- * how it ends up wrong again. Both clear WCAG's 3:1 non-text floor against a pure white or a
- * pure black mark with room to spare, which is what a knockout and a dark lockup actually are.
- *
- * Padding is the clear space the manual asks for, INSIDE the well - so the mark keeps its own
- * air rather than touching the edge of the thing drawn to hold it. Nothing here reaches the
- * picture: no radius, no crop, no filter, no uneven scale, which is what `assetIntegrity.ts`
- * refuses on a mark the user said to use as it is.
- */
-function plateCss(prefix: string, o: ResolvedOptions): string {
-  if (!o.logoPlate) return '';
-  const fill = o.logoPlate === 'light' ? '#f2f4f7' : '#12161c';
-  return `
-
-/* The logo WELL: the mark's own reading surface, because the design's would have hidden it. */
-.${prefix}-logo {
-  box-sizing: content-box;         /* the padding is clear space, not part of the mark's size */
-  padding: calc(10px * var(--scale));  /* clear space between the mark and the well's edge */
-  background: ${fill};             /* ${o.logoPlate} well - fixed, never the palette's surface */
-}`;
-}
-
+// ── THE WELL IS GONE (owner decision, 2026-08-14) ─────────────────────────────────────
+//
+// A mark whose ink could not read on the design's own surface used to be given a painted well
+// underneath - a fixed near-white or near-black rectangle. It worked, in the sense that a
+// contrast meter passed it, and it is exactly what the owner refused on sight in the matrix
+// gallery: the mark stopped being part of the lower third and became a logo pasted on top of
+// it, in a white box that no design ever drew.
+//
+// The ladder above it stays: a mark that cannot read on the chosen chassis gets a chassis whose
+// surface suits it (`logo_chassis_reselected`). What the well used to catch was the case no
+// chassis can fix, because the tone that defeats the mark is the USER's package rather than the
+// design's - a dark-ink mark on a dark brand palette. There is no drawn answer to that inside
+// the catalog, and the two answers that remain are both worse than they look:
+//
+//   · dropping the mark breaks the promise the whole brand slot exists to make, and does it
+//     silently, on the one element the customer is most certain about;
+//   · pasting a well on breaks the composition, which is what this decision refuses.
+//
+// So the mark stays where the design puts it and the pairing is RECORDED instead
+// (`logo_ink_unreadable_on_surface` in the semantic validator). The honest fix belongs with the
+// brand kit - a channel with a dark-only mark needs its knockout version for a dark package -
+// and the ledger is what will say how often that actually happens.
 /**
  * ── A STRAP SPENDS WIDTH, NEVER HEIGHT ────────────────────────────────────────────────
  *
@@ -73,7 +69,11 @@ function sideBySideCss(prefix: string): string {
 /* The mark sits BESIDE the words, never above them (see the note in shared/logoSlot.ts). */
 .${prefix}-box {
   display: grid;                   /* two columns: the mark, then everything the design draws */
-  grid-template-columns: auto 1fr; /* the mark takes only the width its own shape needs */
+  /* minmax(0, 1fr), not a plain 1fr: an fr track has a MIN-CONTENT floor, so the words refuse
+     to shrink and the strap grows past its own width cap instead - measured as
+     lite-hold-overflow on lt25 with a long academic role beside a wide lockup, twice. The
+     mark's column takes the width its shape needs and the text column absorbs the rest. */
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;             /* the mark is centred against the whole stack */
   column-gap: calc(26px * var(--scale));  /* the mark's clear space from the words */
 }
@@ -132,7 +132,13 @@ function sideBySideSizeCss(prefix: string): string {
 .${prefix}-logo {
   height: auto;                    /* the artwork no longer dictates a row height */
   max-height: calc(68px * var(--scale));  /* …and can never out-grow the two lines beside it */
-  max-width: calc(190px * var(--scale));  /* a wide rail letterboxes inside this */
+  /* 132px, in line with what the designs that hand-author a side slot chose for themselves
+     (lt30 124, lt37 126, ls29 136). It was 190 for one round and that was too greedy for a
+     SHARED slot: on lt25, whose measure is narrow, the column took the width a long academic
+     role needed and the identity lines wrapped - bench-line-wrap twice, surfacing as
+     lite-hold-overflow. A slot every design inherits has to be modest, because it cannot know
+     which design's measure it is spending. */
+  max-width: calc(132px * var(--scale));
   margin-bottom: 0;                /* the grid's column gap is the clear space now */
 }`;
 }
@@ -191,7 +197,7 @@ export function applyLogoSlot(design: StandardDesign, prefix: string, o: Resolve
   max-width: calc(260px * var(--scale));  /* the cap a very wide rail letterboxes inside */
   margin-bottom: calc(20px * var(--scale));  /* clear space: a quarter of the mark's height */
   object-fit: contain;             /* show the whole logo, never crop a wide wordmark */
-}${sideBySideSizeCss(prefix)}${plateCss(prefix, o)}`;
+}${sideBySideSizeCss(prefix)}`;
 
   return {
     ...design,
