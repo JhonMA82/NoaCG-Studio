@@ -219,6 +219,25 @@ test('an expired reservation and somebody else\'s answer without revealing which
   assert.equal(foreign.status, 'not-found');
 });
 
+test('a settlement the ledger refuses never fails the request that was already billed', async () => {
+  // By the time settlement runs the money is gone. Throwing would hand the caller a 500 for
+  // work they paid for, and the natural response to a 500 is to retry - spending it again.
+  const broken = {
+    usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2, estimatedCost: { amount: 0.07, currency: 'USD' as const, source: 'provider' as const } },
+    provider: 'vercel',
+    model: 'google/gemini-3.1-flash-image',
+    output: null,
+    attempts: [],
+  };
+  configureBackend();
+  // No reachable Supabase, so the store's RPC throws - the exact case being pinned.
+  await settleManagedProCall(
+    { ...PRO_BODY, proGenerationId: '00000000-0000-4000-8000-000000000000' },
+    'user-1',
+    broken as unknown as Parameters<typeof settleManagedProCall>[2],
+  );
+});
+
 test('settlement is skipped entirely when the provider billed nothing accountable', async () => {
   const store = new MemoryLiteGenerationStore();
   const now = Date.now();

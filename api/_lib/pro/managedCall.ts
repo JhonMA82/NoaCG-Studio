@@ -110,6 +110,17 @@ export async function admitManagedProCall(
  * under-booked - the safe direction - and leaves the next call admissible, which is correct
  * because nothing was spent.
  *
+ * A FAILING SETTLEMENT MUST NOT FAIL THE REQUEST. By the time this runs the provider has
+ * answered and the money is gone, so throwing would hand the caller a 500 for work they were
+ * already billed for - and the natural response to a 500 is to retry, which spends it again.
+ * The ledger write is warned about and dropped, like the gateway ledger's own
+ * (`recordGatewayRequest`).
+ *
+ * What that costs is bounded and worth stating. A lost FIRST settlement leaves the row holding
+ * the reservation's conservative worst case, so the fleet is over-booked rather than under -
+ * the safe direction. A lost later one under-counts by that call's cost, so the ceiling admits
+ * at most one more call than it should, and `maxCallsPerGeneration` still stops the run.
+ *
  * HONEST LIMIT, stated rather than discovered later: a provider that answers without a cost
  * figure settles as zero, exactly as `proSpendExceeds` reads an unset cost. That is a reason
  * to keep every Pro route inside the audited catalog, where the price is known, which is what
@@ -121,9 +132,13 @@ export async function settleManagedProCall(
   result: ModelResult | null,
 ): Promise<void> {
   if (!body.proGenerationId || !userId || !result) return;
-  await (await getLiteGenerationStore()).recordProCall({
-    generationId: body.proGenerationId,
-    userId,
-    costUsd: result.usage.estimatedCost?.amount ?? 0,
-  });
+  try {
+    await (await getLiteGenerationStore()).recordProCall({
+      generationId: body.proGenerationId,
+      userId,
+      costUsd: result.usage.estimatedCost?.amount ?? 0,
+    });
+  } catch (error) {
+    console.warn('Pro call settlement failed:', error instanceof Error ? error.message : error);
+  }
 }
