@@ -25,6 +25,7 @@ function blankPlan(): AdminPlan {
     features: {},
     limits: {},
     renderTier: 'free',
+    autoAssignEmailDomains: [],
     renderFormats: null,
     billing: {},
     sortOrder: 0,
@@ -93,6 +94,11 @@ export function PlansSection({ session }: { session: AdminSessionResponse }) {
                 <td>
                   {plan.name}
                   {plan.isDefault ? <Pill tone="ok">default</Pill> : null}
+                  {/* A domain rule grants access to accounts that do not exist yet, so it
+                      belongs in the LIST rather than one click inside the editor. */}
+                  {plan.autoAssignEmailDomains.map((domain) => (
+                    <Pill key={domain} tone="muted">@{domain}</Pill>
+                  ))}
                   <div className="admin-muted">{plan.description}</div>
                 </td>
                 <td className="admin-mono">{plan.key}</td>
@@ -198,6 +204,32 @@ function PlanEditor({
             onChange={(next) => patch({ features: { ...draft.features, [key]: next } })}
           />
         ))}
+      </section>
+
+      <section className="admin-block">
+        <h3>Who gets this plan automatically</h3>
+        <p className="admin-muted">
+          Email domains, one per line, without the <code>@</code>. Anyone signing in with an address at one
+          of them inherits this plan when they have no plan assigned by hand - so a cohort does not have to
+          be granted access one person at a time, and somebody who has not signed up yet is covered when
+          they do. An explicit assignment, a grant, or a manual override still wins over this. One domain
+          can only belong to one plan.
+        </p>
+        <Field label="Email domains" hint="Leave empty to assign this plan by hand only.">
+          <textarea
+            rows={3}
+            value={draft.autoAssignEmailDomains.join('\n')}
+            placeholder="arcada.fi"
+            onChange={(event) =>
+              patch({
+                autoAssignEmailDomains: event.target.value
+                  .split('\n')
+                  .map((line) => line.trim().toLowerCase().replace(/^@+/, ''))
+                  .filter(Boolean),
+              })
+            }
+          />
+        </Field>
       </section>
 
       <section className="admin-block">

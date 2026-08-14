@@ -26,7 +26,7 @@ import {
 } from '../../src/entitlements/contract.js';
 
 import { RENDER_LIMITS, allowedFormats, resolveTier, validateRenderRequest } from '../../src/render/limits.js';
-import { applyEntitlementToLiteProfile, gatedFeature, surfaceRefused } from './entitlements.js';
+import { applyEntitlementToLiteProfile, emailDomain, gatedFeature, surfaceRefused } from './entitlements.js';
 import { liteProfile } from './aiLiteProfile.js';
 
 const NOW = '2026-07-29T12:00:00.000Z';
@@ -577,4 +577,68 @@ test('same-rank grants are last-wins, so the loader must hand them over ordered'
   // Reversed input reverses the answer - which is precisely why the order is not optional.
   const descending = resolveEntitlement({ ...bare('user-1'), grants: [newer, older] });
   assert.equal(allows(descending, 'community.publish'), false);
+});
+
+// ── the email-domain plan (migration 0045) ───────────────────────────────────────────────
+//
+// The mechanism exists because `user_plans` and `user_grants` are both keyed on `user_id`, so
+// neither can authorize somebody who has not signed up yet - which is the whole population a
+// cohort is made of. What is pinned here is the PARSING half (pure, and where a wrong answer
+// silently widens access) plus the precedence claim the feature rests on. The database half -
+// normalization, one-domain-one-plan - is exercised by migration 0045's own self-check.
+
+test('an email domain is read strictly, so a malformed address matches no plan', () => {
+  assert.equal(emailDomain('student@arcada.fi'), 'arcada.fi');
+  assert.equal(emailDomain('  Student@Arcada.FI  '), 'arcada.fi', 'case and padding are not identity');
+  assert.equal(emailDomain('first.last+tag@arcada.fi'), 'arcada.fi');
+
+  // Every one of these must be null. A domain guess that is WRONG hands a stranger a plan.
+  for (const bad of [
+    null, undefined, '', 'arcada.fi', '@arcada.fi', 'student@', 'student@@arcada.fi',
+    'a@b@arcada.fi', 'student@arcada', 'student@.fi', 'student@arcada.', 'student@.',
+  ]) {
+    assert.equal(emailDomain(bad), null, `${JSON.stringify(bad)} must not resolve to a domain`);
+  }
+});
+
+test('a domain plan is an ASSIGNED plan, so a grant and an override still outrank it', () => {
+  // The load side puts the domain plan in the same slot an explicit assignment uses, which is
+  // the whole safety argument: a domain widens WHO gets a plan, never what a plan outranks.
+  // If that ever stopped being true, a domain could quietly defeat a deliberate per-user deny.
+  const domainPlan: PlanShape = {
+    key: 'arcada',
+    name: 'Arcada',
+    features: { 'ai.pro': true },
+    limits: {},
+    renderTier: 'free',
+    renderFormats: null,
+  };
+  const onPlan = resolveEntitlement({ ...bare('user-1'), plan: domainPlan });
+  assert.equal(allows(onPlan, 'ai.pro'), true);
+  assert.equal(onPlan.features['ai.pro'].source, 'plan');
+
+  const denied = resolveEntitlement({
+    ...bare('user-1'),
+    plan: domainPlan,
+    grants: [grant({ key: 'ai.pro', value: false, reason: 'misuse' })],
+  });
+  assert.equal(allows(denied, 'ai.pro'), false, 'a per-user deny must beat the domain plan');
+
+  // And suspension still short-circuits everything, domain plan or not.
+  const suspended = resolveEntitlement({ ...bare('user-1'), plan: domainPlan, accountState: 'suspended' });
+  assert.equal(allows(suspended, 'ai.pro'), false);
+});
+
+test('closing ai.pro on the default plan denies it, which is what makes the domain the door', () => {
+  // Today's production shape and the change it needs, together. The seeded `free` plan omits
+  // `ai.pro` entirely, so it falls through to DEFAULT_SIGNED_IN_PLAN - where it is TRUE. That
+  // is why switching hosted Pro on without closing the default would hand it to everybody.
+  const seeded: PlanShape = {
+    key: 'free', name: 'Free', features: {}, limits: {}, renderTier: 'free', renderFormats: null,
+  };
+  assert.equal(allows(resolveEntitlement({ ...bare('user-1'), plan: seeded }), 'ai.pro'), true,
+    'an omitted key inherits the built-in default, which allows Pro');
+
+  const closed: PlanShape = { ...seeded, features: { 'ai.pro': false } };
+  assert.equal(allows(resolveEntitlement({ ...bare('user-1'), plan: closed }), 'ai.pro'), false);
 });

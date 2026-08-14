@@ -119,6 +119,9 @@ export interface AdminPlan {
   features: Partial<Record<FeatureKey, boolean>>;
   limits: Partial<Record<LimitKey, number | null>>;
   renderTier: string;
+  /** Email domains whose users inherit this plan when they have no explicit assignment
+   *  (migration 0045). Lowercase and bare - no `@`. Empty = assigned explicitly only. */
+  autoAssignEmailDomains: string[];
   renderFormats: string[] | null;
   /** Billing preparation only. Nothing in the product reads this. */
   billing: { amountCents?: number; currency?: string; interval?: string; externalPriceRef?: string };

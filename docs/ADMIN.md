@@ -92,6 +92,38 @@ test fails otherwise, which is how an unlabelled or default-less key is kept out
 hard-coded anywhere, and a deployment can create, rename and archive plans without a release.
 Exactly one plan row may carry `is_default`.
 
+### A plan can name the email domains it covers
+
+`plans.auto_assign_email_domains` (migration 0045). A signed-in user with **no explicit
+`user_plans` assignment** inherits the plan whose domains include their email's domain.
+
+It exists because `user_plans` and `user_grants` are both keyed on `user_id`, so **neither can
+authorize somebody who has not signed up yet** - which is exactly the population a cohort is
+made of. Granting a class access one person at a time means chasing each student after they
+register, every course. A domain is the fact that is known in advance.
+
+What it does NOT change:
+
+- **Precedence.** A domain plan lands in the same slot an explicit assignment does, at the same
+  rank. An explicit assignment beats it, a grant beats that, a manual override beats that, and
+  suspension and the instance-wide kill switch still short-circuit everything. A domain widens
+  WHO gets a plan; it never changes what a plan outranks.
+- **The one-resolver rule.** The match happens inside `loadEntitlementRows`, so "why does this
+  user have access" is still the `sourceLabel` the resolver returned. An env var read somewhere
+  else would have been a second decider and a second answer.
+- **Content-freeness.** The column holds a domain, never an address. The email is read
+  server-side from `auth.users` with the service key and never leaves that function.
+
+Two rules the schema enforces rather than documents: domains are **normalized on write**
+(lowercased, `@` stripped, trimmed, deduped, junk dropped), and **one domain may belong to only
+one plan** - `plan_email_domains` is a table whose primary key says so, kept in step by a
+trigger, because a uniqueness rule spanning the unnested elements of an array column across
+rows is not expressible as a Postgres constraint. Two plans claiming one domain would make the
+resolver's answer depend on row order, the same non-determinism `0021` prevents for grants.
+
+An **archived** plan is never inherited by domain. Its explicit assignments are somebody's
+deliberate decision and keep working; sweeping a whole domain onto an archived plan is not.
+
 `plans.billing` (`{amount_cents, currency, interval, external_price_ref}`) exists so a future
 payment integration has somewhere to land. **No code reads it.** Billing is not built here.
 
