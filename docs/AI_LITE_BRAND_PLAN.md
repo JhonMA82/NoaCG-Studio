@@ -163,9 +163,22 @@ the ballot actually failed on, live in the wizard's Style step next to the palet
 It reports and never repairs - §3.7's two repairs are still worse than the defect - and it judges
 TRANSPARENT ink only: swept over all 23 mark-capable lower thirds, luminance flagged two own-field
 crests that render perfectly, because a blue crest on a red tile separates by hue. Pinned by
-`e2e/mark-legibility.spec.ts`, mutation-tested. **The mark-SIZE rule is still open**: the shared
-slot caps a mark at `68px * --scale` with no relation to the type beside it, which is what "the
-logo is too small" measured on four of the eight briefs.
+`e2e/mark-legibility.spec.ts`, mutation-tested.
+
+**The SIZE half is built too (2026-08-14, `src/templates/shared/logoSlot.ts`).** The slot's WIDTH
+cap bound before its height cap, so a 4:1 wordmark painted 33px beside a 54px name and a 13:1 rail
+painted ten pixels at 1080p - which is what "the logo is too small" was, on four of the eight
+briefs. Raising that cap alone is measurably wrong: over all 23 mark-capable lower thirds it
+wrapped 1-3 designs and grew those straps up to 73% TALLER, i.e. §3.7's own failure arriving
+through the width. The strap's own wrap cap is widened by the mark's column instead, so the words
+keep their measure and the graphic spends WIDTH. Measured: wordmark 33 -> 65px, rail 10 -> 20px,
+crest 68 -> 84px, zero newly wrapped lines (two designs stopped wrapping), zero height growth,
+nothing outside the title-safe area; 84px is the ceiling because 96 starts setting the strap's
+height. All five catalog gates and the lower-third L3 sweep pass; pinned by
+`e2e/wizard-logo.spec.ts`, mutation-tested.
+
+**What remains from the ballot** are the two non-mark notes: a rule/underline crossing the name on
+two designs, and a title with no contrast on a light package.
 
 ## 3. Close the brand-fidelity gaps first - platform work, all free
 

@@ -133,6 +133,22 @@ tile-wall presentation, which no longer ships):
   them identically. Five designs (lt07, lt08, lt41, lt49, lt53) style `.{prefix}-logo` in their
   CSS without declaring a slot, so `designHasLogoSlot` misses them and their own sizing wins -
   pre-existing, unchanged, and the reason a sweep must compare against BARE rather than assume.
+  **THE MARK'S SIZE IS THREE MEASURED NUMBERS, and the third is the strap's own wrap cap**
+  (2026-08-14, the value-gate ballot's other finding - the logo was called too small on four of
+  eight briefs). The WIDTH cap used to bind before the height cap, so a 4:1 wordmark painted 33px
+  beside a 54px name and a 13:1 rail painted TEN pixels at 1080p; only a 1:1 crest ever reached
+  the height cap. **Raising the width cap alone is the obvious fix and is wrong**: measured over
+  all 23 mark-capable lower thirds, 180px wrapped one design, 220px two and 260px three, and each
+  wrapped line grew that strap by up to 73% - the failure the beside-the-text rule exists to
+  prevent, arriving through the width. So `applyLogoSlot` WIDENS the box's own `maxTextWidthCss`
+  cap by the mark's column (260 + 26px) instead: the words keep their whole measure and the
+  graphic grows in the one dimension a strap may spend. Measured result: wordmark 33 -> 65px,
+  rail 10 -> 20px, crest 68 -> 84px, ZERO newly wrapped lines (two designs STOPPED wrapping),
+  ZERO height growth, nothing outside the title-safe area. 84px is the height ceiling because at
+  96 the mark starts setting the row's height itself (+8.5%) and at 110 +19.7%. The cap
+  arithmetic reads `computeMaxTextWidth`, the same function the assembler calls, so the two
+  cannot disagree unless this category grows a `CategorySpec.maxTextWidth` of its own - it has
+  none. Pinned by `e2e/wizard-logo.spec.ts`, mutation-tested.
 - **shared/standard.ts** - CategorySpec, assembleStandard, makeDefineVariant, and
   `convertToDataRegion` - the Timeline v2 flip: convert a freshly assembled template's legacy
   ANIMATION region into the NOACG_ANIM data block + interpreter through the parity-proven
