@@ -201,7 +201,7 @@ export const IMPORT_ANALYSIS_OUTPUT: StructuredOutput = {
   },
 };
 
-// ---- Wire types (browser client <-> /api/ai/tasks/import-analysis*) ----
+// ---- Wire types (browser client <-> /api/ai/tasks/import-analysis[-status|-outcome]) ----
 
 export interface ImportAnalysisRequest {
   idempotencyKey: string;

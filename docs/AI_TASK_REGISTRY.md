@@ -28,7 +28,7 @@ registry does not duplicate them.
 The second is **`imported-graphic-analysis`** (plan §6): one server-owned vision call
 over the user's downscaled artwork, proposal-only, behind
 `AI_TASK_IMPORT_ANALYSIS_ENABLED` (default off). Endpoints
-`/api/ai/tasks/import-analysis` (+ `/status`, `/outcome`), profile
+`/api/ai/tasks/import-analysis` (+ `-status`, `-outcome`), profile
 `api/_lib/aiImportAnalysisProfile.ts`, browser harness `src/ai/importAnalysis/`
 (contract + client + deterministic normalizer), UI = the Import Graphic Text step's
 `AnalyzeProposalPanel` applying accepted suggestions as ordinary `DesignFieldSpec`s. Its
@@ -59,9 +59,11 @@ probe agrees across the tree - `/api/ai/lite/nonexistent` is answered by Lite's 
 because `api/ai/lite/[...path].ts` is one), and two spare against the Hobby cap of 12 is not
 headroom to spend on a route table. `scripts/check-api-route-depth.mjs` is the gate.
 
-**The same break still affects `imported-graphic-analysis`**: `/api/ai/tasks/import-analysis`
-routes, but its `/status` and `/outcome` siblings are platform 404s. Nobody has hit it because
-the task is flag-gated off, and fixing it is a separate change with its own verification.
+**`imported-graphic-analysis` had the same break and is fixed the same way.** Its `/status` and
+`/outcome` siblings were platform 404s; they are now `import-analysis-status` and
+`import-analysis-outcome`, single segments under `api/ai/tasks/[...path].ts` like the analysis
+call itself. Nobody had hit it because the task is flag-gated off. Its browser client is in the
+gate's `CLIENT_SOURCES`, so the depth is checked on every build rather than remembered.
 
 **Where the reservation binds.** It needs an accounts backend and the ledger. A self-hosted
 instance with a gateway key and no Supabase has neither, so the requirement does not apply

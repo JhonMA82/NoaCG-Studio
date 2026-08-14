@@ -351,7 +351,7 @@ if (ARM !== 'model') {
     });
     try {
       const token = await minter.freshToken((process.env.NOACG_VISION_BEARER_TOKEN ?? '').trim());
-      await waitForReady('/api/ai/tasks/import-analysis/status', token);
+      await waitForReady('/api/ai/tasks/import-analysis-status', token);
       console.log('  server ready');
       const { rows, totalCost } = await runArm('model', token);
       const s = summarize('model', model, rows, totalCost);

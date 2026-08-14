@@ -34,6 +34,7 @@ const CLIENT_SOURCES = [
   'src/ai/liteClient.ts',
   'src/ai/modelGateway.ts',
   'src/ai/modelCatalog.ts',
+  'src/ai/importAnalysis/client.ts',
 ];
 
 /** A routed function whose own directory absorbs segments before the catch-all sees them.
