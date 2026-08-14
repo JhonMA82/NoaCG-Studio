@@ -3,26 +3,33 @@
 -- docs/NOACG_PRO_PLAN.md §10: "BYO/self-host is the first product funding posture unless a
 -- managed allowance is explicitly costed through the task registry" - this is that costing).
 --
--- Three changes:
+-- Four changes:
 --
 --  1. The `profile` CHECK widens to admit 'pro'. Everything else the reservation needs already
 --     exists: 0015 made usage counting and reservation PROFILE-SCOPED, so ai_task_usage and
 --     reserve_ai_task_generation serve Pro unchanged, with their own quota lane and their own
 --     daily fleet spend ceiling.
 --
---  2. `admit_ai_pro_call` / `record_ai_pro_call` - the per-CALL pair. Pro differs from Lite in
+--  2. `pro_call_count` - how many model calls this reservation has paid for. It gets a column
+--     of its own, the way `judge_count` did in 0013, and not because a new column is tidier:
+--     `attempt_count` is bounded `<= 2` by 0010, which is LITE's hard session ceiling and an
+--     invariant of that profile (src/ai/AGENTS.md). Pro makes two calls plus retry headroom, so
+--     reusing that column would have meant widening one task's guard to hold another task's
+--     number. This is measured rather than reasoned: the first version of this migration did
+--     reuse `attempt_count`, and the self-check at the foot of the file hit the constraint on
+--     the first push - the whole migration rolled back, production untouched, which is the
+--     entire reason the self-check calls these functions instead of merely creating them.
+--
+--  3. `admit_ai_pro_call` / `record_ai_pro_call` - the per-CALL pair. Pro differs from Lite in
 --     one way that matters to money: ONE generation makes SEVERAL model calls, and the server
 --     that spends the money is the generic gateway proxy, not this task's own endpoint. The
 --     reservation books the whole generation's worst case up front (the Lite shape); each call
---     is then admitted against that booking and settles its real cost into it.
+--     is then admitted against that booking and settles its real cost into it. The counter is
+--     also what makes the first settlement REPLACE the booked worst case rather than add to
+--     it: at 0 the row still holds the reservation's conservative figure, and adding actual
+--     spend on top of it would count the generation twice. Every later call adds.
 --
---     `attempt_count` is the call counter, which is what it already means everywhere else in
---     this table. It is also what makes the first settlement REPLACE the booked worst case
---     rather than add to it: at attempt_count = 0 the row still holds the reservation's
---     conservative figure, and adding actual spend on top of it would count the generation
---     twice. Every later call adds.
---
---  3. Grants: service_role only, like every other function here. The API is the only caller.
+--  4. Grants: service_role only, like every other function here. The API is the only caller.
 --
 -- Content-free as ever - accounting, routes and outcome codes only. No brief, no concept
 -- image, no interpretation, no generated code.
@@ -31,6 +38,9 @@ alter table public.ai_generations
   drop constraint if exists ai_generations_profile_check;
 alter table public.ai_generations
   add constraint ai_generations_profile_check check (profile in ('lite', 'import-analysis', 'pro'));
+
+alter table public.ai_generations
+  add column if not exists pro_call_count integer not null default 0 check (pro_call_count >= 0);
 
 -- May this reservation pay for one more model call?
 --
@@ -64,7 +74,7 @@ begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('ai-task-fleet:pro', 73190001));
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_user_id::text, 7319));
 
-  select generation.expires_at, generation.attempt_count, generation.provider_cost_usd, generation.profile
+  select generation.expires_at, generation.pro_call_count, generation.provider_cost_usd, generation.profile
     into v_expires_at, v_calls, v_spent, v_profile
   from public.ai_generations as generation
   where generation.id = p_generation_id
@@ -76,7 +86,7 @@ begin
     return query select 'expired'::text, v_calls, v_spent; return;
   elsif v_calls >= p_max_calls then
     return query select 'call-limit'::text, v_calls, v_spent; return;
-  -- Only once a real cost has been settled: while attempt_count is 0 the row still carries the
+  -- Only once a real cost has been settled: while pro_call_count is 0 the row still carries the
   -- booked worst case, which is by construction the ceiling and would refuse the first call.
   elsif v_calls > 0 and v_spent > p_generation_ceiling_usd then
     return query select 'cost-ceiling'::text, v_calls, v_spent; return;
@@ -109,7 +119,7 @@ begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('ai-task-fleet:pro', 73190001));
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_user_id::text, 7319));
 
-  select generation.attempt_count, generation.profile into v_calls, v_profile
+  select generation.pro_call_count, generation.profile into v_calls, v_profile
   from public.ai_generations as generation
   where generation.id = p_generation_id
     and generation.user_id = p_user_id;
@@ -119,13 +129,17 @@ begin
   end if;
 
   update public.ai_generations as generation
-  set attempt_count = generation.attempt_count + 1,
+  set pro_call_count = generation.pro_call_count + 1,
       -- The first settlement REPLACES the reservation's booked worst case; every later one adds.
-      provider_cost_usd = case when generation.attempt_count = 0 then 0 else generation.provider_cost_usd end
-        + pg_catalog.greatest(p_cost_usd, 0),
+      -- `greatest` is deliberately UNQUALIFIED: it is a SQL grammar construct, not a function
+      -- resolved through search_path, so `pg_catalog.greatest(...)` does not exist and the
+      -- statement fails at 42883 - which is exactly what the self-check below caught on the
+      -- first push. `coalesce` is unqualified for the same reason throughout 0015.
+      provider_cost_usd = case when generation.pro_call_count = 0 then 0 else generation.provider_cost_usd end
+        + greatest(p_cost_usd, 0),
       updated_at = pg_catalog.now()
   where generation.id = p_generation_id
-  returning generation.attempt_count, generation.provider_cost_usd into v_calls, v_spent;
+  returning generation.pro_call_count, generation.provider_cost_usd into v_calls, v_spent;
 
   return query select 'recorded'::text, v_calls, v_spent;
 end;
@@ -191,17 +205,34 @@ begin
     raise exception '0044 self-check (d) FAILED: second settlement gave % spent', v_spent;
   end if;
 
-  -- (e) Past the ceiling, the next call is refused.
+  -- (e) The counter runs past Lite's `attempt_count <= 2`, which is the whole reason it is a
+  --     column of its own. Four settlements is the default AI_PRO_MAX_CALLS.
+  perform public.record_ai_pro_call(v_id, v_owner, 0.001);
+  select call_status, calls into v_status, v_calls from public.record_ai_pro_call(v_id, v_owner, 0.001);
+  if v_status is distinct from 'recorded' or v_calls <> 4 then
+    raise exception '0044 self-check (e) FAILED: the 4th call gave % at % calls', v_status, v_calls;
+  end if;
+  select admission_status into v_status from public.admit_ai_pro_call(v_id, v_owner, 4, 999);
+  if v_status is distinct from 'call-limit' then
+    raise exception '0044 self-check (e) FAILED: the call cap did not bind (%)', v_status;
+  end if;
+
+  -- (f) Past the ceiling, the next call is refused.
   perform public.record_ai_pro_call(v_id, v_owner, 0.20);
   select admission_status into v_status from public.admit_ai_pro_call(v_id, v_owner, 99, 0.15);
   if v_status is distinct from 'cost-ceiling' then
-    raise exception '0044 self-check (e) FAILED: a generation past its ceiling was admitted (%)', v_status;
+    raise exception '0044 self-check (f) FAILED: a generation past its ceiling was admitted (%)', v_status;
   end if;
 
-  -- (f) Somebody else's id is not found, never expired or over budget.
+  -- (g) Somebody else's id is not found, never expired or over budget.
   select admission_status into v_status from public.admit_ai_pro_call(v_id, gen_random_uuid(), 99, 0.15);
   if v_status is distinct from 'not-found' then
-    raise exception '0044 self-check (f) FAILED: a foreign generation answered %', v_status;
+    raise exception '0044 self-check (g) FAILED: a foreign generation answered %', v_status;
+  end if;
+
+  -- (h) Lite's own guard survived all of it: nothing above touched attempt_count.
+  if (select attempt_count from public.ai_generations where id = v_id) <> 0 then
+    raise exception '0044 self-check (h) FAILED: a Pro call moved attempt_count, which is Lite''s';
   end if;
 
   delete from public.ai_generations where id = v_id;

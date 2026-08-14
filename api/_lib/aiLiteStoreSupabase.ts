@@ -41,6 +41,7 @@ interface GenerationRow {
   rejection_reason: string | null;
   feedback_reason: string | null;
   judge_count: number;
+  pro_call_count: number;
   created_at: string;
   updated_at: string;
   expires_at: string;
@@ -74,6 +75,7 @@ function fromRow(row: GenerationRow): LiteGenerationRecord {
     rejectionReason: row.rejection_reason,
     feedbackReason: row.feedback_reason,
     judgeCount: Number(row.judge_count ?? 0),
+    proCallCount: Number(row.pro_call_count ?? 0),
     createdAt: Date.parse(row.created_at),
     updatedAt: Date.parse(row.updated_at),
     expiresAt: Date.parse(row.expires_at),

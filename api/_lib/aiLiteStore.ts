@@ -73,6 +73,14 @@ export interface LiteGenerationRecord {
   feedbackReason: string | null;
   /** Skin vision judgements booked against this generation (the per-generation cap). */
   judgeCount: number;
+  /** How many model calls a hosted PRO reservation has paid for (migration 0044).
+   *
+   *  A column of its own rather than `attemptCount`, which 0010 bounds `<= 2` - Lite's hard
+   *  session ceiling and an invariant of that profile. Pro makes two calls plus retry headroom,
+   *  so reusing it would have widened one task's guard to hold another task's number. The
+   *  database refused it on the first push, which is why the two implementations agree here
+   *  rather than only in the one with no constraints. */
+  proCallCount: number;
   createdAt: number;
   updatedAt: number;
   expiresAt: number;
@@ -199,6 +207,7 @@ function newRecord(input: Parameters<LiteGenerationStore['reserve']>[0]): LiteGe
     rejectionReason: null,
     feedbackReason: null,
     judgeCount: 0,
+    proCallCount: 0,
     createdAt: input.now,
     updatedAt: input.now,
     expiresAt: input.now + input.profile.expiryMs,
@@ -298,12 +307,12 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
     if (!record || record.userId !== input.userId || record.profile !== 'pro') {
       return { status: 'not-found', calls: 0, spentUsd: 0 };
     }
-    const seen = { calls: record.attemptCount, spentUsd: record.providerCostUsd };
+    const seen = { calls: record.proCallCount, spentUsd: record.providerCostUsd };
     if (record.expiresAt <= input.now) return { status: 'expired', ...seen };
-    if (record.attemptCount >= input.maxCalls) return { status: 'call-limit', ...seen };
+    if (record.proCallCount >= input.maxCalls) return { status: 'call-limit', ...seen };
     // Only once a real cost has been settled: while attemptCount is 0 the row still carries
     // the booked worst case, which IS the ceiling and would refuse the first call.
-    if (record.attemptCount > 0 && record.providerCostUsd > input.generationCeilingUsd) {
+    if (record.proCallCount > 0 && record.providerCostUsd > input.generationCeilingUsd) {
       return { status: 'cost-ceiling', ...seen };
     }
     return { status: 'admitted', ...seen };
@@ -314,8 +323,8 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
     if (!record || record.userId !== input.userId || record.profile !== 'pro') return;
     this.records.set(record.id, {
       ...record,
-      attemptCount: record.attemptCount + 1,
-      providerCostUsd: (record.attemptCount === 0 ? 0 : record.providerCostUsd) + Math.max(0, input.costUsd),
+      proCallCount: record.proCallCount + 1,
+      providerCostUsd: (record.proCallCount === 0 ? 0 : record.providerCostUsd) + Math.max(0, input.costUsd),
       updatedAt: Date.now(),
     });
   }

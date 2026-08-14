@@ -247,7 +247,24 @@ test('settlement is skipped entirely when the provider billed nothing accountabl
   await settleManagedProCall({ ...PRO_BODY, proGenerationId: id }, 'user-1', null);
   const record = await store.get(id);
   assert.equal(record?.providerCostUsd, PRO_MAX_GENERATION_COST_USD);
-  assert.equal(record?.attemptCount, 0);
+  assert.equal(record?.proCallCount, 0);
+});
+
+test('a Pro call never touches attempt_count, which belongs to Lite', async () => {
+  // The database enforces this - `attempt_count <= 2` (migration 0010) is Lite's hard session
+  // ceiling - and it enforced it the hard way: the first version of migration 0044 used that
+  // column as the Pro call counter and was refused on push at the third call. The memory store
+  // has no constraints, so it agreed with the broken version happily. That divergence is what
+  // this pins, on the side that cannot fail on its own.
+  const store = new MemoryLiteGenerationStore();
+  const now = Date.now();
+  const id = await reservedPro(store, now);
+  for (let i = 0; i < 4; i += 1) {
+    await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.001 });
+  }
+  const record = await store.get(id);
+  assert.equal(record?.proCallCount, 4);
+  assert.equal(record?.attemptCount, 0, 'Lite\'s bounded counter must be untouched');
 });
 
 // ── the registry gate, which is what stops an env repoint being billed ───────────────────
