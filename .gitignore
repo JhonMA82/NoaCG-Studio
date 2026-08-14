@@ -9,12 +9,21 @@ playwright-report/
 blob-report/
 playwright/.cache/
 
-# Local SPX reference templates (kept on disk, not in the repo)
-example_projects/
+# REFERENCE MEDIA DROPPED AT THE REPO ROOT - never publish, any of it.
+#
+# Licensed stock, client material, broadcaster templates and their media and fonts, kept on
+# this machine for the harness and the teardown scripts to READ. None of it may reach GitHub
+# or any other remote: it is not ours to publish, and this repository is public.
+#
+# The rule is deliberately the SHAPE rather than a list. Every one of these folders arrived
+# unannounced - somebody dropped a set of examples in to be measured - and a list only ever
+# covers the ones that already caused a scare. `example-stingers/` sat here untracked and
+# un-ignored for a day, 309 MB of bought clips one `git add -A` away from being published.
+# Anchored to the root, so nothing inside src/ or docs/ is caught by accident.
+/example-*/
+/example_*/
 
-# Real-world SPX production projects (client material - broadcaster templates, media,
-# fonts under their own licences). Reference-only, must never reach the public repo.
-# scripts/spx-corpus-sweep.mjs reads the corpus and writes its report to spx-corpus-out/.
+# Real-world SPX production projects, and the report scripts/spx-corpus-sweep.mjs writes.
 spx_examples/
 spx-corpus-out/
 
@@ -47,6 +56,17 @@ pro-machine-out*/
 # The Pro Phase 0 spike's captures (docs/NOACG_PRO_PLAN.md §0): hold frames, stress holds,
 # virtual-clock motion strips, the blind gallery and its key.
 pro-spike-out*/
+pro-brand-*/
+# The stinger corpus brand-swap review rig (scripts/stinger-review.mjs): one page per stinger
+# with the fonts and GSAP inlined. Regenerated on demand in one second.
+stinger-review-out/
+# The reference teardown's output (scripts/stinger-teardown.mjs): contact sheets and per-frame
+# alpha series derived from the licensed clips ignored at the top of this file.
+stinger-teardown-out/
+# The gate's captured frames, sheets and alpha series (scripts/stinger-gate.mjs), and the
+# sheets copied out of it for review. Hundreds of 1920x1080 PNGs; regenerated in two minutes.
+stinger-gate-out/
+stinger-sheets/
 
 # The bench dev server's own output (scripts/dev-bench.mjs) - a local trace of how the
 # server died, useful on this machine and meaningless anywhere else.

@@ -147,17 +147,30 @@ function sideBySideSizeCss(prefix: string): string {
  * Inject the shared logo slot into a design: the <img> as the first child of the
  * .{prefix}-box, its placeholder CSS, and the filelist field (id after every user field).
  * Returns the design untouched when the box wrapper can't be found — never a broken layout.
+ *
+ * TWO ARRANGEMENTS, decided by the CATEGORY (the prefix), never per design:
+ *
+ *   - LOWER THIRDS place the mark BESIDE the text - a leading column, vertically centred.
+ *     The 2026-08-13 Pro brand round's blind review made this a standing rule: "lower thirds
+ *     should stay vertically compact - do not place a logo above or below the lower third;
+ *     prefer placing the logo beside the text/banner." The stacked band got that exact note
+ *     on the hand-authored control itself.
+ *   - Everything else (info cards, alerts, public info) keeps the stacked BAND above the
+ *     text: a card is a vertical composition and a mark above its heading reads as a header,
+ *     not as wasted height - the review rule was about straps, and widening it uninvited
+ *     would redesign 70+ cards on a lower-third finding.
  */
 export function applyLogoSlot(design: StandardDesign, prefix: string, o: ResolvedOptions): StandardDesign {
   const boxOpen = `<div class="${prefix}-box">`;
   const at = design.html.indexOf(boxOpen);
   if (at < 0) return design;
 
+  const beside = prefix === 'lower-third';
   const logoField = `f${o.lines.length + o.extraFields.length + (design.extraFields?.length ?? 0)}`;
   const logoPath = o.logoAssetPath ?? '';
 
   const imgHtml =
-    `\n      <!-- Logo (image field ${logoField}) — leads the box as a rounded square. Empty = hidden. -->` +
+    `\n      <!-- Logo (image field ${logoField}) — ${beside ? 'leads the box beside the text' : 'a band above the text'}. Empty = hidden. -->` +
     `\n      <img id="${logoField}" class="${prefix}-logo"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />`;
 
   // WHERE the mark goes in the markup is not a formatting choice, and on a strap it is not the
@@ -198,6 +211,7 @@ export function applyLogoSlot(design: StandardDesign, prefix: string, o: Resolve
   margin-bottom: calc(20px * var(--scale));  /* clear space: a quarter of the mark's height */
   object-fit: contain;             /* show the whole logo, never crop a wide wordmark */
 }${sideBySideSizeCss(prefix)}`;
+
 
   return {
     ...design,

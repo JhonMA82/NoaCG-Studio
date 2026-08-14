@@ -798,6 +798,15 @@ picked file replaces it).
   `shared/logoSlot.ts` `applyLogoSlot` injects the standard slot (filelist field +
   `<img id="fN" class="{prefix}-logo">` leading the box + placeholder CSS) from
   `assembleStandard` when `logoEnabled` and `designHasLogoSlot` says the design has none.
+  **The shared slot has TWO arrangements, decided by the category, never per design:** lower
+  thirds place the mark BESIDE the text - a leading grid column engaged through `.has-image`
+  on the box, vertically centred, with the box cap widened so the mark's column never comes
+  out of the text's measure (the audit's `logo-costs-text`) - because the 2026-08-13 Pro
+  brand round's blind review made compactness a standing rule ("do not place a logo above or
+  below the lower third; prefer beside"); every other category keeps the stacked band above
+  the text, because a card is a vertical composition and a mark above its heading reads as a
+  header. An EMPTY slot changes nothing in either arrangement - the grid keys on the class
+  `setFieldValue` toggles. Pinned by `e2e/wizard-logo.spec.ts`.
   **A MARK IS NOT A PICTURE, and the slot has to be drawn for that.** The shared slot is a BAND
   sized by height with its width free - it was a 56px square until 2026-08-09, which held a crest
   and reduced a 4:1 wordmark to a 20px strip and a 10:1 sponsor rail to about 8px, so "bring your

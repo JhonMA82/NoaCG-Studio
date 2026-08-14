@@ -176,6 +176,23 @@ try {
   process.exit(1);
 }
 
+// The BRAND round's condition rides the probe too: a probe must ask the round's question at
+// the round's size (the Phase 0 lesson - an undersized probe passed a checkpoint the real
+// prompt broke). The first fixture brand stands in; its mark is probed in the page like the
+// runner does.
+const BRANDS = path.resolve('benchmarks/pro/v1/spike/brands.json');
+const brandsFixture = JSON.parse(await readFile(BRANDS, 'utf8'));
+const probeBrandRaw = brandsFixture.brands[0];
+const markFile = path.resolve(path.dirname(BRANDS), probeBrandRaw.mark);
+const markBytes = await readFile(markFile);
+const markExt = path.extname(markFile).toLowerCase();
+const markMime = markExt === '.svg' ? 'image/svg+xml' : markExt === '.png' ? 'image/png' : 'image/jpeg';
+const probeBrandInput = {
+  ...probeBrandRaw,
+  markFileName: path.basename(markFile),
+  markDataUrl: `data:${markMime};base64,${markBytes.toString('base64')}`,
+};
+
 const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
@@ -223,17 +240,33 @@ for (const candidate of candidates) {
       // whether the endpoint can SERVE the call is the real thing.
       const spikeRun = await import('/src/ai/spike/run.ts' + bust);
       const spikeExemplars = await import('/src/ai/spike/exemplars.ts' + bust);
+      const { probeMark } = await import('/src/assets/assetInfo.ts' + bust);
       const probeBrief = {
         brief: 'A plain two-line lower third: a dark panel, one accent bar, a simple entrance and exit.',
         name: 'Alexandra Riva',
         title: 'Chief Political Correspondent',
+      };
+      // The round is BRAND-conditioned now, so the probe is too (same size, same demands):
+      // the brand block, the measured mark facts and the slot contract all ride the message.
+      const probe = await probeMark({
+        path: `images/${input.brand.markFileName}`,
+        data: input.brand.markDataUrl,
+      });
+      if (!probe) throw new Error(`probeMark could not read ${input.brand.markFileName}`);
+      const brand = {
+        id: input.brand.id,
+        name: input.brand.name,
+        world: input.brand.world,
+        typeface: input.brand.typeface,
+        palette: input.brand.palette,
+        mark: { path: `images/${input.brand.markFileName}`, dataUrl: input.brand.markDataUrl, probe },
       };
       const selection = spikeExemplars.exemplarsFor(probeBrief.brief);
       const answer = await callModelDetailed({
         system: spikeRun.spikeSystemPrompt(),
         messages: [{
           role: 'user',
-          content: spikeRun.spikeUserMessage(probeBrief, spikeExemplars.exemplarBlock(selection.variants)),
+          content: spikeRun.spikeUserMessage(probeBrief, spikeExemplars.exemplarBlock(selection.variants), brand),
         }],
         tool: TEMPLATE_TOOL,
         route: { provider: input.provider, model: input.modelId },
@@ -265,7 +298,7 @@ for (const candidate of candidates) {
     } catch (error) {
       return { ok: false, ms: Date.now() - started, error: String(error?.message ?? error).slice(0, 400) };
     }
-  }, { provider, modelId, ...decoding });
+  }, { provider, modelId, brand: probeBrandInput, ...decoding });
 
   const licence = licenceFor(modelId);
   const verdict = { candidate, licence: licence ?? 'UNKNOWN - needs a human answer', ...result };

@@ -128,13 +128,22 @@ test('0020 refuses to apply unless the lockdown demonstrably holds', () => {
   assert.match(selfScoped, /to_regprocedure\('public\.is_suspended\(uuid\)'\)/i);
 });
 
-test('no migration changes the session role', () => {
+test('no migration hands back a different role than it was given', () => {
   // `supabase db push` connects as an unprivileged cli_login_postgres and elevates with
   // SET SESSION ROLE postgres. A RESET ROLE (or a bare SET ROLE) inside a migration drops the
   // session back down, and the CLI then fails to write supabase_migrations.schema_migrations -
   // rolling the whole migration back on an error that looks unrelated. Cost one failed apply.
   // Comments are stripped first: 0020 documents this trap at length, and the write-up naming
   // RESET ROLE must not read as the statement itself.
+  //
+  // The danger is landing on the WRONG role when the statement after the migration runs, so that -
+  // not the SET itself - is what this checks. RESET ROLE and SET SESSION ROLE are banned outright:
+  // both are permanent and neither can be undone without knowing what was there. `SET LOCAL ROLE`
+  // is allowed only where the file captured `current_role` first and sets it back by name, which
+  // is the only way a self-check can act as a CLIENT role (0042 has to insert as `authenticated`
+  // to prove a trigger still fires for a role holding no EXECUTE). Cost a second failed apply:
+  // RESET ROLE looked like the way home from a SET LOCAL ROLE, and it is not - it lands on
+  // session_user, the login role, which holds no grants on anything.
   const stripComments = (sql) => sql.replace(/--[^\n]*/g, '');
   // SELF-DISCOVERING, and that is the point: this trap belongs to every migration, not to the
   // two that happened to exist when it was found. A hardcoded list silently stops covering the
@@ -143,7 +152,31 @@ test('no migration changes the session role', () => {
   for (const name of migrationFiles) {
     const code = stripComments(allMigrations.get(name));
     assert.doesNotMatch(code, /\breset\s+role\b/i, `${name} resets the session role`);
-    assert.doesNotMatch(code, /\bset\s+(local\s+|session\s+)?role\b/i, `${name} sets the session role`);
+    assert.doesNotMatch(code, /\bset\s+session\s+role\b/i, `${name} sets the session role`);
+
+    // Everything below is about SET LOCAL ROLE, which is conditional rather than banned.
+    const switches = code.match(/\bset\s+local\s+role\s+(?!%I\b)/gi) ?? [];
+    const restores = code.match(/\bset\s+local\s+role\s+%I['"]\s*,\s*\w+/gi) ?? [];
+    const bareSet = code.match(/\bset\s+role\b/gi) ?? [];
+    assert.equal(bareSet.length, 0, `${name} uses a bare SET ROLE; only SET LOCAL ROLE is undoable`);
+    if (switches.length === 0) {
+      assert.equal(restores.length, 0, `${name} restores a role it never changed`);
+      continue;
+    }
+    assert.match(
+      code,
+      /:=\s*current_role\b/i,
+      `${name} changes role without capturing current_role, so it cannot put it back`,
+    );
+    // Strictly greater, not >=: every switch away needs its own way back AND the exception
+    // handler needs one, because a self-check that raises must not leave the role changed for
+    // whatever the CLI runs next. A count that merely balances is the shape of a file that
+    // restores on the happy path only.
+    assert.ok(
+      restores.length > switches.length,
+      `${name} changes role ${switches.length}x and restores it ${restores.length}x - the ` +
+        'exception path needs a restore of its own',
+    );
   }
 });
 

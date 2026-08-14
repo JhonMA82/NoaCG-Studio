@@ -50,11 +50,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Fails on high/critical only — the tracked low/moderate advisories (repo maintenance
-      # notes) stay a report, not a weekly alarm.
-      - name: Dependency audit
-        run: npm audit --audit-level=high
-
       - name: Staleness report (non-blocking)
         run: npm outdated || true
 
@@ -75,6 +70,19 @@ jobs:
       # catches a production-only failure, so it must be able to turn the run red.
       - name: Pinned model ids
         run: npm run check:models
+
+      # Fails on high/critical only — the tracked low/moderate advisories (repo maintenance
+      # notes) stay a report, not a weekly alarm.
+      #
+      # LAST on purpose. A step that exits non-zero ends the job, so while this ran first, three
+      # weeks of dev-only advisories in the build toolchain silently prevented the two checks
+      # above from running at all — and those are the ones that catch a failure only production
+      # would show. The advisory database is also the noisiest input here (it moves without a
+      # commit, and most of what it flags lives in tooling that never reaches a user), so it is
+      # the step most likely to be red for a reason nobody needs to act on this week. Anything
+      # that can block the signal must therefore come after it.
+      - name: Dependency audit
+        run: npm audit --audit-level=high
 
       # Fail-loud: one rolling tracking issue, updated per red run.
       - name: File / update the failure issue

@@ -183,6 +183,24 @@ Three things the frames caught that no gate would have:
   (`logo-costs-text`, only on this design). Format won over shape coverage - a deliberate
   capability loss, declared rather than claimed.
 
+**Two sessions built this independently, and the other one landed on `main` first**
+(`2556aa23`, from the same Pro brand-round rule). The merge keeps THIS implementation (owner,
+2026-08-14) because it carries the measurements: the per-chassis height numbers, the capped
+rather than fixed mark height, the 132px width cap, and lt32's honest declaration. Two ideas from
+the other version are NOT in it and are worth measuring before they are dismissed:
+
+- **Gate the grid on `.has-image`** (the class `setFieldValue` already toggles when the slot holds
+  a file), so a design whose slot is enabled but EMPTY keeps its own layout untouched. Ours
+  applies the grid whenever the slot exists, which leaves an empty slot paying the column gap.
+- **Widen the box instead of narrowing the mark.** Their answer to `logo-costs-text` was to raise
+  the box's own max-width by the mark column's worst case; ours was to cap the mark at 132px.
+  Theirs keeps big wordmarks at the cost of a wider strap - a different trade on the same
+  measurement, and the frames are what should decide it.
+
+Their version also injects the mark as the box's FIRST child, which is the `nth-child`
+renumbering this session measured on lt02 (the name renders under its own underline). That is the
+one part of it that should not come back.
+
 **The plate rule, with one ratified exception.** A mark carries no filled well: it sits on the
 graphic's own ground, because a plate reads as artwork pasted onto the template. `ls12`'s
 opposite-tone tile STAYS (owner, 2026-08-14) - it is the §3.4 chassis and the only thing keeping

@@ -71,6 +71,46 @@ test('logo toggle + custom upload: the created template carries the field, asset
   expect(src.startsWith('data:image/png')).toBeTruthy();
 });
 
+test('a lower third places the logo BESIDE the text, not above it', async ({ page }) => {
+  // The 2026-08-13 Pro brand round's standing review rule: lower thirds stay vertically
+  // compact - the mark sits beside the text/banner, never stacked above it. The shared slot
+  // arranges that with a grid engaged through .has-image on the box; info cards (the test
+  // above) keep the stacked band, because a card is a vertical composition.
+  await toFieldsStep(page, 'Lower thirds', 'House Strap');
+
+  const logoSection = page.locator('.panel-section', { hasText: 'Include a logo slot' });
+  await logoSection.getByRole('checkbox').check();
+  await logoSection.locator('input[type="file"]').setInputFiles({
+    name: 'club-crest.png',
+    mimeType: 'image/png',
+    buffer: PNG,
+  });
+  await expect(logoSection.locator('img[alt="Logo preview"]')).toBeVisible();
+
+  await awaitPreviewRebuild(page, async () => {
+    await finishIntoEditor(page);
+    await expect(page.locator('.wz-modal')).toBeHidden();
+  });
+
+  const t = await createdTemplate(page);
+  // The slot is the shared one, and the box ships laid out for it from the first frame.
+  expect(t.html).toContain('class="lower-third-logo"');
+  expect(t.html).toContain('class="lower-third-box has-image"');
+
+  // Rendered: the box is a grid and the mark sits BESIDE the first text line - overlapping
+  // it vertically, wholly to its left - rather than in a row of its own above it.
+  const frame = page.frameLocator('iframe.preview-frame');
+  await expect(frame.locator('.lower-third-box')).toHaveCSS('display', 'grid');
+  const boxes = await frame.locator('.lower-third-box').evaluate((box) => {
+    const logo = box.querySelector('.lower-third-logo')!.getBoundingClientRect();
+    const line = box.querySelector('#f0')!.getBoundingClientRect();
+    return { logo: { right: logo.right, top: logo.top, bottom: logo.bottom }, line: { left: line.left, top: line.top, bottom: line.bottom } };
+  });
+  expect(boxes.logo.right).toBeLessThanOrEqual(boxes.line.left);
+  expect(boxes.logo.top).toBeLessThan(boxes.line.bottom);
+  expect(boxes.logo.bottom).toBeGreaterThan(boxes.line.top);
+});
+
 test('logo toggle off: nothing is injected', async ({ page }) => {
   await toFieldsStep(page, 'Topic', 'Hairline Card');
   // Offered but left off (the default when no image was imported).

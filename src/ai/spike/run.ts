@@ -44,10 +44,15 @@ import type { SpxValidator } from '../provider';
 import type { ValidationResult } from '../../validation/validateTemplate';
 import type { SpxTemplate } from '../../model/types';
 import { exemplarBlock, exemplarsFor } from './exemplars';
+import { grammarLesson } from './grammar';
+import { brandBlock, fillBrandMark, type BrandFillReport, type SpikeBrand } from './brand';
 
-/** The two arms. `exemplar` sees two or three complete designs; `none` sees the scaffold
- *  alone. The arms differ in the exemplar block and in nothing else. */
-export type SpikeArm = 'exemplar' | 'none';
+/** The three arms. `exemplar` sees two or three complete designs; `none` sees the scaffold
+ *  alone; `grammar` sees a few hundred tokens of region lesson instead of the designs
+ *  (docs/NOACG_PRO_PLAN.md §14 item 3 - the ablation on whether the exemplar block's ~34,500
+ *  tokens are buying a convertible timeline a sentence could have taught). The arms differ in
+ *  ONE block of the user message and in nothing else. */
+export type SpikeArm = 'exemplar' | 'none' | 'grammar';
 
 /** One brief from the 12-brief bank (benchmarks/pro/v1/briefs.json). */
 export interface SpikeBrief {
@@ -72,6 +77,10 @@ export interface SpikeRunOptions {
   route: ModelRoute;
   decoding: SpikeDecoding;
   validate: SpxValidator;
+  /** The BRAND round's condition (docs/NOACG_PRO_PLAN.md §14 item 0): when present, the brief
+   *  is conditioned on this brand in BOTH arms, the emitted design must declare a mark slot,
+   *  and the ground step fills it with the brand's real mark before validation. */
+  brand?: SpikeBrand;
   onProgress?: (message: string) => void;
 }
 
@@ -84,6 +93,9 @@ export interface SpikeRunResult {
   /** Which exemplars the arm was shown, and how retrieval chose them. Empty on `none`. */
   exemplarIds: string[];
   exemplarReason: string;
+  /** What the deterministic mark fill did (brand rounds only): which slot the design declared,
+   *  the bundled path, and whether the model broke the no-src contract. */
+  fill?: BrandFillReport;
   costUsd: number;
   usage: { input: number; output: number };
   model: string;
@@ -95,10 +107,25 @@ export interface SpikeRunResult {
  * model's ability to guess how many fields a strap has - and the deterministic gate would
  * otherwise fail results for a reason that has nothing to do with the eye.
  */
-export function spikeUserMessage(brief: SpikeBrief, exemplars: string): ContentBlock[] {
-  const logoLine = brief.includeLogo
-    ? '\n- A brand mark: one `filelist` image field, with a visible placeholder when empty.'
-    : '';
+export function spikeUserMessage(brief: SpikeBrief, armBlock: string, brand?: SpikeBrand): ContentBlock[] {
+  // On a brand round the mark is always present and its contract is the brand block's; the
+  // bare filelist line is the generic Phase 0 shape, kept for brand-less runs.
+  const logoLine = brand
+    ? '\n- The customer\'s brand mark, in the slot you declare (see "The brand mark\'s slot" below).'
+    : brief.includeLogo
+      ? '\n- A brand mark: one `filelist` image field, with a visible placeholder when empty.'
+      : '';
+  const brandSection = brand ? `${brandBlock(brand)}\n\n` : '';
+  const judged = brand
+    ? `The rendered graphic, on air, over real footage: hierarchy, proportion, spacing, the
+composition as a whole, whether the motion serves the reading order - and whether the result
+is unmistakably ${brand.name}'s graphic rather than anyone's. Answer the brief's own world -
+a public-broadcast newsroom and a Saturday-night entertainment show are not the same design
+problem with different colours.`
+    : `The rendered graphic, on air, over real footage: hierarchy, proportion, spacing, the
+composition as a whole, and whether the motion serves the reading order. Answer the brief's
+own world - a public-broadcast newsroom and a Saturday-night entertainment show are not the
+same design problem with different colours.`;
   const text = `Design and build a LOWER THIRD for this brief.
 
 ## The brief
@@ -112,13 +139,10 @@ Both lines are LIVE operator fields - the sample values above are what an operat
 the day, so the composition has to hold text of roughly that length and a good deal longer
 without breaking.
 
-## What is being judged
-The rendered graphic, on air, over real footage: hierarchy, proportion, spacing, the
-composition as a whole, and whether the motion serves the reading order. Answer the brief's
-own world - a public-broadcast newsroom and a Saturday-night entertainment show are not the
-same design problem with different colours.
+${brandSection}## What is being judged
+${judged}
 
-${exemplars}`;
+${armBlock}`;
   return [{ type: 'text', text }];
 }
 
@@ -128,11 +152,16 @@ export function spikeSystemPrompt(): string {
 }
 
 export async function runSpikeBrief(options: SpikeRunOptions): Promise<SpikeRunResult> {
-  const { brief, arm, route, decoding, validate } = options;
+  const { brief, arm, route, decoding, validate, brand } = options;
   const selection = arm === 'exemplar'
     ? exemplarsFor(brief.brief)
-    : { variants: [], reason: 'no-exemplar arm' };
-  const userContent = spikeUserMessage(brief, exemplarBlock(selection.variants));
+    : { variants: [], reason: `${arm} arm - no exemplars` };
+  // The one block the arms vary. `grammar` and `none` both show no designs; what separates
+  // them is whether the region lesson is present, which is the ablation's whole question.
+  const armBlock = arm === 'exemplar' ? exemplarBlock(selection.variants)
+    : arm === 'grammar' ? grammarLesson()
+      : '';
+  const userContent = spikeUserMessage(brief, armBlock, brand);
   const system = spikeSystemPrompt();
 
   const call = (messages: { role: 'user' | 'assistant'; content: ContentBlock[] | string }[]) =>
@@ -168,8 +197,18 @@ export async function runSpikeBrief(options: SpikeRunOptions): Promise<SpikeRunR
   };
   account(first.usage);
 
-  // The same deterministic grounding the custom path runs on every emit.
-  const ground = (e: EmittedTemplate): SpxTemplate => convertEmittedRegion(toTemplate(e));
+  // The same deterministic grounding the custom path runs on every emit - plus, on a brand
+  // round, the mark FILL, inside the ground step on purpose: every repair round then
+  // re-validates a FILLED template (the as-is screen has a baked src to find), and the
+  // template the gates measure is the template the human sees.
+  let lastFill: BrandFillReport | undefined;
+  const ground = (e: EmittedTemplate): SpxTemplate => {
+    const converted = convertEmittedRegion(toTemplate(e));
+    if (!brand) return converted;
+    const filled = fillBrandMark(converted, brand);
+    lastFill = filled.fill;
+    return filled.template;
+  };
 
   let repairRounds = 0;
   const { emitted, validation } = await repairLoop<
@@ -224,6 +263,7 @@ ${current.template.js}`,
     repairRounds,
     exemplarIds: selection.variants.map((v) => v.id),
     exemplarReason: selection.reason,
+    fill: lastFill,
     costUsd,
     usage,
     model: first.model,

@@ -992,6 +992,13 @@ this round, and one decision it should make early:
    decorating it) and brand-driven DIVERGENCE (different brands, same brief, visibly different
    graphics - the sameness tripwire adapt-first already lives under). On the chosen checkpoint that
    round costs about $0.26. Item 1 below is a precondition for it, not a parallel task.
+   **RAN 2026-08-13: 30/30 for $0.63, owner-read blind. Verdict and the named follow-ups (the
+   mark-surface "bounding box" defect, the catalog side-slot, animated motion review - the last
+   of those BUILT 2026-08-13: every strip is also a looping real-speed webm in the blind gallery,
+   the five stills and the mark-motion gate untouched) are the
+   top entry of `docs/AI_ATTEMPTS.md`; archive `pro-brand-qwen3-coder-2026-08-13`. No four-tints
+   sameness appeared; the exemplar arm's 12/12 editable timelines vs the no-exemplar arm's 0/18
+   is the first measured evidence for the exemplar block.**
 
 1. **The logo contract is the named gap and the first real work.** The owner's own words: find a
    structure and plan for how a mark is placed so it fits the design, and how it animates
@@ -1001,13 +1008,92 @@ this round, and one decision it should make early:
    (`LiteCatalogEntry.logoSlot`, `scripts/ai-lite-brand-audit.mjs --check`, `docs/AI_LITE_PLAN.md`
    §7). A GENERATED design has no catalog slot to declare, so the equivalent contract for authored
    graphics is genuinely new, and the MOTION half has no precedent anywhere in the repo.
+
+   **BUILT 2026-08-13 (`src/ai/spike/brand.ts`), and the brand-round harness with it.** The
+   contract as shipped: the DECLARATION is part of the emitted design - one `filelist` field bound
+   to an empty `<img id="fN">` whose geometry and surface are the model's decisions, taught with
+   the mark's measured shape/backing/ink (`probeMark`, Lite's own vocabulary); the FILL is
+   deterministic (`fillBrandMark`, the fillProLogoSlot recipe, inside the ground step so repair
+   rounds re-validate a FILLED template with the as-is screen armed); the GATE is a rendered
+   measurement (`measureRenderedMark`, the Lite brand audit's thresholds); the MOTION half samples
+   the slot through the virtual clock (`markMotionState` - "did it move" is measured, "was it
+   meaningful" stays the §0.2 human read). Beside it: the synthetic brand fixture
+   (`benchmarks/pro/v1/spike/brands.json` + four measured marks), the divergence cell, the
+   alignment-axis instrument calibrated over all 90 catalog lower thirds
+   (`src/ai/spike/axisCheck.ts` + `benchmarks/pro/v1/spike/axis-calibration.json`: 3/90 base rate,
+   text pairs flagged only when aligned on NO side), and the per-generation code audit
+   (`scripts/spike-code-audit.mjs`, item 0a's countable half). Zero-token control green including
+   a mark-fill control (`control-mark`: the kestrel wordmark filled into lt11's shared band and
+   measured CLEAN). The paid round itself still needs the owner's explicit OK with a stated cap.
+
+   **THE SURFACE HALF, ATTEMPTED STRUCTURALLY (owner decision 2026-08-13: "take it structurally
+   like Lite"). The DECISION shipped; the DRAWING is blocked on placement, which is a product
+   call.** `decideMarkSurface` now answers, deterministically and with no rendering, whether the
+   design's own panel carries this mark's ink: an own-field mark never needs a surface, and a
+   transparent one is compared against the design's declared `--panel-bg` - composited over black
+   AND white where the panel is translucent, evaluated at every stop where it is a gradient, worst
+   case wins. Which neutral a field would use is computed rather than assumed from "light ink" or
+   "dark ink", because the mid-tone case breaks that assumption (the sunbeam roundel at 0.49 reads
+   at 1.8:1 on the light neutral and 9.4:1 on the dark one). Measured over the ablation round's 15
+   generations it fires on exactly the three the rendered gate flags for `ink-contrast` - the
+   measurement and the need agree, and every record now carries the answer.
+   **DRAWING the field failed twice, and both failures say the same thing.** A wrapper using
+   `align-self: stretch` computed to `stretch` and was used at the mark's own height (the slot
+   sits in the design's own flex container and the mark's `height: 100%` makes the cross size
+   circular), so it hugged the mark - the defect it exists to remove - and its padding took two
+   marks under the minimum legible size. A `display: contents` wrapper painting a bleeding
+   `::before` kept every mark's size exactly and painted the band across the middle of the panel,
+   over the text, because a pseudo-element with no box of its own resolves against whatever
+   ancestor happens to be positioned; the rendered gate cannot see a pseudo-element either.
+   **A surface can only be "a band of the composition" if the platform knows the composition.**
+   Lite draws one because Lite owns PLACEMENT too - `applyLogoSlot` puts the mark in a grid column
+   of a box it controls. **So the platform took placement (owner, same day) and the defect class
+   closed.** The model declares the slot; the fill moves that `<img>` into a leading column of the
+   box at the catalog's audited size, and because the column is a grid item the platform owns,
+   `align-self: stretch` gives the mark's surface the full height of the text stack - a band, not
+   a plate. Over the ablation round's 15 saved generations: clean 4 → **13**, not-painted 5 → 0,
+   bounding-box-well 10 → 1, ink-contrast 3 → 0, and the mark still disappears when the operator
+   clears the field on all 15. A design that already declares `.{prefix}-box.has-image` keeps its
+   own placement - that is the catalog slot's signature, and the control caught the one commit
+   where the platform laid its grid over the catalog's. What stays the model's: whether the
+   composition leads with the mark or leans on the text, the panel's air, what the mark sits
+   beside. What is now ours: the seat and what its ink reads against.
+
+   **MEASURED WHOLE ON FRESH GENERATIONS, 2026-08-13 ($0.083, archive
+   `pro-seated-round-qwen3-coder-2026-08-13`): 12/12 captured, 12/12 contract-clean, 12/12 seated,
+   10/12 marks CLEAN, none unpainted, no contrast failures.** Across the three grammar-arm rounds
+   on the same briefs and brands: clean marks 2/12 → 8/11 (teaching) → 10/12 (teaching + seat),
+   unpainted 5 → 0, contrast failures 2 → 0. Item 1 is closed; the mark contract is a contract
+   rather than an instruction. Editable timelines stayed 0/12, which is the grammar arm's own
+   number and the exemplar ablation's business, not this one's.
+
+   **WHERE THE CONTRACT STANDS AFTER THE 2026-08-13 ABLATION, and the one decision it now needs.**
+   Two halves are settled and structural: the FILL guarantees a filled mark PAINTS (it stamps
+   `has-image` on the root and the box and appends a scoped display rule, after 5 of 12 marks in
+   that round never appeared - the designs hid their own `<img>` and their un-hide rule was keyed
+   at the wrong level, following a prompt line that points at an example carrying no image field),
+   and the MOTION half reads. **The SURFACE half is not settled and prose has not moved it:** the
+   well-integration teaching was written after the brand round and measured on the ablation, and
+   the boxed rate is 8/12 taught against 9/18 untaught - flat to worse, once the invisible marks
+   are repaired and can be judged at all. **The decision owed is who owns the mark's surface.**
+   Teaching it again is the option already tried twice. The alternative is the shape the rest of
+   this contract already uses and Lite proved: the design declares the slot, the PLATFORM decides
+   what the mark sits on, and the model never draws that surface - the only version of the rule
+   that cannot be got wrong. Full measurement: `docs/AI_ATTEMPTS.md` top entry.
 2. **The checkpoint is decided: `alibaba/qwen3-coder`** (owner, 2026-08-12), on a read of both
    galleries - better AND ~19x cheaper, 24/24 complete and contract-clean where kimi-k3 reached
    21/24 and could not finish three exemplar-arm briefs at all.
-3. **Decide whether the exemplar block survives.** It costs ~34,500 tokens per call - about 80% of
-   the round's spend - and on the pair the owner examined it produced a result indistinguishable
-   from showing no exemplars at all. Section 5 treats complete-exemplar retrieval as a pillar; this
-   round is the first evidence against it, and an ablation is owed before Phase 3 builds on it.
+3. **Decide whether the exemplar block survives. DECIDED 2026-08-13: IT SURVIVES.** It costs
+   ~34,500 tokens per call - about 80% of the round's spend - and on the pair the owner examined it
+   produced a result indistinguishable from showing no exemplars at all. Section 5 treats
+   complete-exemplar retrieval as a pillar, so the ablation was owed before Phase 3 built on it.
+   **It ran for $0.215 of a $0.40 cap** (`pro-exemplar-ablation-qwen3-coder-2026-08-13`): the same
+   12 briefs with a ~480-token region lesson in the block's slot (`src/ai/spike/grammar.ts`, the
+   `grammar` arm) returned **1 of 12 editable timelines against the exemplar arm's 12 of 12**, and
+   three exemplar re-runs reproduced the stored arm exactly on that axis, so the comparison is
+   against a live arm. A worked example of the region conforms; a description of one does not, and
+   the explicit "do not hand-write `NOACG_ANIM`" changed the rate of that behaviour by nothing.
+   Full record: `docs/AI_ATTEMPTS.md` top entry.
 
 **Four harness faults cost roughly $5 of the round's ~$16**, every one of them a case of the rig
 measuring itself: a probe that asked a smaller question than the round, an output budget pinned
@@ -1033,3 +1119,112 @@ intentional and it paid: falsify model taste before funding infrastructure, and 
 infrastructure's own scores certify the visual work it exists to improve. This round is the
 argument for the second half of that sentence - every deterministic gate passed the frame with a
 broken brand mark in it, and a human found it in seconds.
+
+## 15. What Pro is FOR - the 2026-08-14 reckoning, and the plan that follows
+
+Written after the third owner blind read in two days, at the owner's request: *"we are doing
+minor changes to these graphics… we need to broaden our repertoire… we need a system where it
+can reliably create all the graphics based on some rules, rather than us giving feedback to each
+graphic."* That reaction is correct and the measurements agree with it, so this section replaces
+optimism with what three rounds actually showed.
+
+### 15.1 Where three rounds got us
+
+| round | airable (owner) | what changed |
+| --- | --- | --- |
+| brand round (2026-08-13) | 14/30 | first brand conditioning |
+| seated round | 6/12 | platform seats the mark |
+| instruments round | **7/12** | spacing + proportion reporting |
+
+**Airable moved 6 → 7 of 12 while three separate pieces of machinery were built.** The machinery
+worked on its own terms - clean marks went 2/12 → 11/12, contract failures went to zero, every
+mark is seated - but the owner's verdict barely moved, because the failures left over are not
+the ones any of it addressed.
+
+### 15.2 The five failures decompose into ONE thing
+
+Every failed item in the instruments round is a PANEL-LAYOUT decision:
+
+- text sitting on the design's own rule (2 items - the instruments catch these)
+- text overflowing the panel onto the picture (1 - **the instrument reported roomy padding**,
+  because it measures from children CONTAINED by the panel and silently drops anything that
+  escapes; the worst case reads as the most comfortable)
+- a composition stranding the text in a corner with the frame mostly empty (1 - nothing measures
+  composition)
+- furniture around the mark inflating the whole graphic (1)
+
+**Not one failure was colour, typography, motion, or brand fidelity.** Those are working: the
+palettes drive, the divergence cell shows four brands producing genuinely different designs, the
+marks are clean. What is failing is the model composing a panel - and it has failed at roughly
+the same rate through three rounds of teaching, measuring and repair.
+
+Meanwhile the adapt-first anchors pass the owner's eye every single round, dismissed as "template
+graphic", **because nothing on that path composes a panel at all.**
+
+### 15.3 The one intervention that has ever moved a rate
+
+Ranked by what actually happened (docs/DESIGN_PRINCIPLES.md carries the general form):
+
+| approach | measured effect |
+| --- | --- |
+| ask the model to exercise judgement | none (9/18 → 8/12) |
+| state a boundary | large (2/12 → 8/11) |
+| **remove the decision** | **largest (→ 10/12), and it stays removed** |
+
+Three rounds of evidence say the same thing the mark contract said: a defect class ends when the
+platform owns the decision, not when the model is told about it.
+
+### 15.4 So what is Pro FOR?
+
+Lite is catalog-grounded, free, one graphic, about $0.0003 a generation, and its open problem is
+SAMENESS. Pro costs real money and has to be worth it. Three candidate answers, scored against
+what is measured rather than hoped:
+
+1. **"The model composes an original graphic."** This is the current premise and it is the one
+   failing. 5 of 12 still fail on layout after three rounds. It is also the answer that competes
+   most directly with adapt-first, which already delivers catalog-grade output for a fraction of
+   a cent - so even when it works it earns little.
+2. **"The model designs for THIS customer's brand."** Measured and working: brand-conditioned
+   palettes, typefaces and a real mark, with genuine divergence between brands. Lite cannot do
+   this at depth - it carries a logo and a palette onto a fixed chassis.
+3. **"The model designs a brand's on-air LOOK, and the platform builds every graphic in it."**
+   Not attempted. A channel does not need one lower third; it needs a lower third, an info card,
+   a ticker, a scoreboard and a holding screen that visibly belong to each other. The catalog
+   already enforces sibling consistency through the project brand and the style families, and the
+   type registry already carries 22 graphic types with their structure declared.
+
+**The recommendation is 3, built on 2, and it retires 1.** Pro stops being "a model draws a
+panel" and becomes "a model decides a design language, the platform renders that language across
+every graphic type the show needs". That plays to what is measured to work, avoids what is
+measured to fail, and is a thing Lite structurally cannot do - which is the only honest basis for
+charging for it.
+
+### 15.5 The plan
+
+**Phase A - take the panel.** The platform owns each graphic type's structure and spacing; the
+model supplies the design LANGUAGE as parameters (palette, type scale and weight, shape and
+corner language, accent form and weight, density, motion character). This is `applyLogoSlot` and
+`fillBrandMark` generalised from the mark to the whole composition, and it kills all five
+remaining failure modes by construction rather than by inspection. The measurable claim: layout
+failures go to zero and the round's verdict becomes a judgement about the LOOK.
+
+**Phase B - broaden the repertoire.** New brief banks per graphic type, starting with the ones a
+show cannot go on air without. The type registry supplies the structure, so each new type costs a
+brief bank and a calibration sweep rather than a new pipeline.
+
+**Phase C - package coherence.** One design language, N graphic types, judged as a SET. The
+sibling rule the catalog already lives under becomes Pro's headline feature and its own gate.
+
+**Throughout, the loop that replaces per-graphic feedback:** a blind read names a defect CLASS →
+it becomes a removed decision or a measurement → the round reports a RATE → the next blind read
+hunts only for NEW classes. Per-graphic feedback is the discovery mechanism; it was never meant
+to be the fix mechanism, and this section exists because we ran it as one for three rounds.
+
+### 15.6 Owed before Phase A
+
+- **The panel-overflow bug**: `spacingCheck` must count content that escapes its panel instead of
+  dropping it. It reported comfortable padding on a graphic whose name hung off the edge.
+- **The seated-mark control** has now been failed by the owner twice ("name in the top right,
+  logo centred, empty space underneath"). A control a reviewer fails is not a yardstick.
+- **The catalog's own shared logo slot** was flagged for padding in two consecutive rounds, by
+  both the owner and the instrument (`padding-lopsided`). That is catalog work, not spike work.
