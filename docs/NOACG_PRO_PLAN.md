@@ -1119,3 +1119,112 @@ intentional and it paid: falsify model taste before funding infrastructure, and 
 infrastructure's own scores certify the visual work it exists to improve. This round is the
 argument for the second half of that sentence - every deterministic gate passed the frame with a
 broken brand mark in it, and a human found it in seconds.
+
+## 15. What Pro is FOR - the 2026-08-14 reckoning, and the plan that follows
+
+Written after the third owner blind read in two days, at the owner's request: *"we are doing
+minor changes to these graphics… we need to broaden our repertoire… we need a system where it
+can reliably create all the graphics based on some rules, rather than us giving feedback to each
+graphic."* That reaction is correct and the measurements agree with it, so this section replaces
+optimism with what three rounds actually showed.
+
+### 15.1 Where three rounds got us
+
+| round | airable (owner) | what changed |
+| --- | --- | --- |
+| brand round (2026-08-13) | 14/30 | first brand conditioning |
+| seated round | 6/12 | platform seats the mark |
+| instruments round | **7/12** | spacing + proportion reporting |
+
+**Airable moved 6 → 7 of 12 while three separate pieces of machinery were built.** The machinery
+worked on its own terms - clean marks went 2/12 → 11/12, contract failures went to zero, every
+mark is seated - but the owner's verdict barely moved, because the failures left over are not
+the ones any of it addressed.
+
+### 15.2 The five failures decompose into ONE thing
+
+Every failed item in the instruments round is a PANEL-LAYOUT decision:
+
+- text sitting on the design's own rule (2 items - the instruments catch these)
+- text overflowing the panel onto the picture (1 - **the instrument reported roomy padding**,
+  because it measures from children CONTAINED by the panel and silently drops anything that
+  escapes; the worst case reads as the most comfortable)
+- a composition stranding the text in a corner with the frame mostly empty (1 - nothing measures
+  composition)
+- furniture around the mark inflating the whole graphic (1)
+
+**Not one failure was colour, typography, motion, or brand fidelity.** Those are working: the
+palettes drive, the divergence cell shows four brands producing genuinely different designs, the
+marks are clean. What is failing is the model composing a panel - and it has failed at roughly
+the same rate through three rounds of teaching, measuring and repair.
+
+Meanwhile the adapt-first anchors pass the owner's eye every single round, dismissed as "template
+graphic", **because nothing on that path composes a panel at all.**
+
+### 15.3 The one intervention that has ever moved a rate
+
+Ranked by what actually happened (docs/DESIGN_PRINCIPLES.md carries the general form):
+
+| approach | measured effect |
+| --- | --- |
+| ask the model to exercise judgement | none (9/18 → 8/12) |
+| state a boundary | large (2/12 → 8/11) |
+| **remove the decision** | **largest (→ 10/12), and it stays removed** |
+
+Three rounds of evidence say the same thing the mark contract said: a defect class ends when the
+platform owns the decision, not when the model is told about it.
+
+### 15.4 So what is Pro FOR?
+
+Lite is catalog-grounded, free, one graphic, about $0.0003 a generation, and its open problem is
+SAMENESS. Pro costs real money and has to be worth it. Three candidate answers, scored against
+what is measured rather than hoped:
+
+1. **"The model composes an original graphic."** This is the current premise and it is the one
+   failing. 5 of 12 still fail on layout after three rounds. It is also the answer that competes
+   most directly with adapt-first, which already delivers catalog-grade output for a fraction of
+   a cent - so even when it works it earns little.
+2. **"The model designs for THIS customer's brand."** Measured and working: brand-conditioned
+   palettes, typefaces and a real mark, with genuine divergence between brands. Lite cannot do
+   this at depth - it carries a logo and a palette onto a fixed chassis.
+3. **"The model designs a brand's on-air LOOK, and the platform builds every graphic in it."**
+   Not attempted. A channel does not need one lower third; it needs a lower third, an info card,
+   a ticker, a scoreboard and a holding screen that visibly belong to each other. The catalog
+   already enforces sibling consistency through the project brand and the style families, and the
+   type registry already carries 22 graphic types with their structure declared.
+
+**The recommendation is 3, built on 2, and it retires 1.** Pro stops being "a model draws a
+panel" and becomes "a model decides a design language, the platform renders that language across
+every graphic type the show needs". That plays to what is measured to work, avoids what is
+measured to fail, and is a thing Lite structurally cannot do - which is the only honest basis for
+charging for it.
+
+### 15.5 The plan
+
+**Phase A - take the panel.** The platform owns each graphic type's structure and spacing; the
+model supplies the design LANGUAGE as parameters (palette, type scale and weight, shape and
+corner language, accent form and weight, density, motion character). This is `applyLogoSlot` and
+`fillBrandMark` generalised from the mark to the whole composition, and it kills all five
+remaining failure modes by construction rather than by inspection. The measurable claim: layout
+failures go to zero and the round's verdict becomes a judgement about the LOOK.
+
+**Phase B - broaden the repertoire.** New brief banks per graphic type, starting with the ones a
+show cannot go on air without. The type registry supplies the structure, so each new type costs a
+brief bank and a calibration sweep rather than a new pipeline.
+
+**Phase C - package coherence.** One design language, N graphic types, judged as a SET. The
+sibling rule the catalog already lives under becomes Pro's headline feature and its own gate.
+
+**Throughout, the loop that replaces per-graphic feedback:** a blind read names a defect CLASS →
+it becomes a removed decision or a measurement → the round reports a RATE → the next blind read
+hunts only for NEW classes. Per-graphic feedback is the discovery mechanism; it was never meant
+to be the fix mechanism, and this section exists because we ran it as one for three rounds.
+
+### 15.6 Owed before Phase A
+
+- **The panel-overflow bug**: `spacingCheck` must count content that escapes its panel instead of
+  dropping it. It reported comfortable padding on a graphic whose name hung off the edge.
+- **The seated-mark control** has now been failed by the owner twice ("name in the top right,
+  logo centred, empty space underneath"). A control a reviewer fails is not a yardstick.
+- **The catalog's own shared logo slot** was flagged for padding in two consecutive rounds, by
+  both the owner and the instrument (`padding-lopsided`). That is catalog work, not spike work.

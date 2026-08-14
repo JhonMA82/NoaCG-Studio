@@ -207,6 +207,33 @@ an anchor is hand-authored, and neither is a thing to infer from a stylesheet. R
 the same saved generations with the guard fixed: 11/11 placed, 8 clean, contrast failures 1 → 0,
 and the mark still hides when the field is cleared on all 11.
 
+**THE THIRD BLIND READ SAYS THE PREMISE IS WRONG, NOT THE POLISH (2026-08-14, owner, on the
+instruments round).** 7 of 12 airable - against 6 of 12 the round before and 14 of 30 in the
+brand round - while three separate pieces of machinery were built and every machine measure
+improved (clean marks 2/12 → 11/12, contract failures to zero, every mark seated). The owner's
+words: *"we are doing minor changes to these graphics… we are not at the stage where it's just
+minor changes that are going to fix it… we need a system where it can reliably create all the
+graphics based on some rules, rather than us giving feedback to each graphic."*
+
+**Every one of the five failures is a PANEL-LAYOUT decision** - text on the design's own rule
+(2), text overflowing the panel onto the picture (1), a composition stranding the text in a
+corner (1), furniture around the mark inflating the graphic (1). **None was colour, typography,
+motion or brand fidelity**, all of which are working. And the adapt-first anchors pass the
+owner's eye every round, dismissed as "template graphic", because nothing on that path composes
+a panel at all. Three rounds of teaching, measuring and repairing the model's composition moved
+the human verdict by one item.
+
+**The instruments caught 2 of the 5, and one MISS is an instrument bug worth the entry:**
+`spacingCheck` reported 3.92 type sizes of right padding - a roomy number - on the graphic whose
+name hangs off the panel onto the footage, because it measures padding from children CONTAINED
+by the panel and silently drops anything that escapes it. **The worst case read as the most
+comfortable.** Fourth measurement in this rig to answer a flattering version of its own question.
+
+The conclusion and the plan are `docs/NOACG_PRO_PLAN.md` §15: Pro stops being "a model composes a
+panel" (the failing premise, and the one that competes hardest with a path costing a fraction of
+a cent) and becomes "a model decides a design LANGUAGE, the platform renders it across every
+graphic type a show needs" - built on brand conditioning, which is the half that measures well.
+
 **THE MARK CONTRACT MEASURED WHOLE, ON FRESH GENERATIONS (2026-08-13, $0.083 of a $0.35 cap;
 archive `pro-seated-round-qwen3-coder-2026-08-13`).** 12 of 12 captured, 12 of 12 contract-clean,
 12 of 12 seated by the platform. The three grammar-arm rounds, same 12 briefs, same brands, same
