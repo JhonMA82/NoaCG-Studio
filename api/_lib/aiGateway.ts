@@ -670,9 +670,57 @@ export const huggingFaceAdapter: ProviderAdapter = {
   },
 };
 
+/** Google's Gemini models on the user's own key.
+ *
+ *  Modelled on the Hugging Face adapter above rather than on Gemini's native
+ *  `generateContent` API: Google publishes an OpenAI-compatible surface at
+ *  `/v1beta/openai`, which speaks the same chat-completions request and response shape the
+ *  gateway adapter already parses. One request shape means one place to fix a parsing bug,
+ *  and no second structured-output dialect to keep in step with the harness.
+ *
+ *  `seed` is deliberately not forwarded: the compatibility layer rejects parameters it does
+ *  not implement, and a benchmark preference must never be able to fail a user's generation. */
+export const googleAdapter: ProviderAdapter = {
+  id: 'google',
+  endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+  createRequest(request, route, key) {
+    refuseImageOutput(request, 'google');
+    return {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: route.model,
+        messages: [{ role: 'system', content: request.system }, ...chatContent(request.messages)],
+        max_tokens: request.maxTokens ?? 16000,
+        ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
+        ...(request.structuredOutput
+          ? {
+              response_format: {
+                type: 'json_schema',
+                json_schema: {
+                  name: request.structuredOutput.name,
+                  description: request.structuredOutput.description,
+                  strict: false,
+                  schema: request.structuredOutput.schema,
+                },
+              },
+            }
+          : {}),
+      }),
+    };
+  },
+  parseResponse(value, request, route) {
+    return vercelGatewayAdapter.parseResponse(value, request, route);
+  },
+};
+
 export const AI_ADAPTERS: Record<AiProviderId, ProviderAdapter> = {
   anthropic: anthropicAdapter,
   openai: openAiAdapter,
+  google: googleAdapter,
   vercel: vercelGatewayAdapter,
   huggingface: huggingFaceAdapter,
 };

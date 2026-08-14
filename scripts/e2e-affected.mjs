@@ -41,10 +41,13 @@ const MAP = [
   // of which live here - it was previously nightly-only for src/ai changes, which is exactly
   // the surface it exists to protect.
   [/^src\/ai\/pro\//, ['pro.spec.ts', 'import-graphic.spec.ts']],
-  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-retrieval.spec.ts', 'adapt-first.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts', 'pro.spec.ts', 'lite-line-fit.spec.ts', 'lite-type-floor.spec.ts', 'lite-parity.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts']],
+  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-tiers.spec.ts', 'ai-retrieval.spec.ts', 'adapt-first.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts', 'pro.spec.ts', 'lite-line-fit.spec.ts', 'lite-type-floor.spec.ts', 'lite-parity.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts']],
   // The AI step and its child panels are what the ai-* specs actually drive; the generic
   // wizard rule below does not name them, which silently left an AiStep edit unpinned.
-  [/^src\/components\/wizard\/steps\/(AiStep|ai\/)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-more-control.spec.ts', 'ai-consent.spec.ts', 'image-purpose.spec.ts', 'adapt-first.spec.ts', 'pro.spec.ts']],
+  [/^src\/components\/wizard\/steps\/(AiStep|ai\/)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-tiers.spec.ts', 'ai-more-control.spec.ts', 'ai-consent.spec.ts', 'image-purpose.spec.ts', 'adapt-first.spec.ts', 'pro.spec.ts']],
+  // The shared provider/model/key surface. The tier door is where its WORDING is pinned - the
+  // one defect class (a mislabelled tier, a transport offered as a choice) that builds green.
+  [/^src\/components\/AiProviderSettings\.tsx$/, ['ai-tiers.spec.ts', 'video-settings.spec.ts', 'ai.spec.ts']],
   // The pilot brief bank is read by the anchor re-verification (the decay rule) - a bank edit
   // needs that spec and nothing else.
   [/^benchmarks\/creative\//, ['creative-routing.spec.ts']],
@@ -59,7 +62,7 @@ const MAP = [
   // video fonts into public/player-host/index.html, which the video specs load.
   [/^scripts\/build-player-host/, ['video-player-host.spec.ts', 'video-project.spec.ts', 'video-readability.spec.ts']],
   [/^src\/render\//, ['render.spec.ts', 'render-schedule.spec.ts']],
-  [/^api\/(ai\/|_lib\/ai)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-more-control.spec.ts', 'video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts']],
+  [/^api\/(ai\/|_lib\/ai)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-tiers.spec.ts', 'ai-more-control.spec.ts', 'video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts']],
   [/^api\//, ['render.spec.ts', 'render-schedule.spec.ts']],
   [/^scripts\/aiDevPlugin/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-more-control.spec.ts']],
   [/^src\/export\//, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'template-pack-10.spec.ts']],

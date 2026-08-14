@@ -59,3 +59,15 @@ export function modelPriceLabel(model: AiDiscoveredModel): string {
   if (model.inputPerMillion === null || model.outputPerMillion === null) return 'Price unavailable';
   return `$${model.inputPerMillion.toFixed(2)} in / $${model.outputPerMillion.toFixed(2)} out per 1M`;
 }
+
+/** A price is only half an answer without WHO PAYS it: the same number is the user's money on
+ *  their own key and NoaCG's on a managed one. Empty where the server reported neither. */
+export function modelPayerLabel(model: AiDiscoveredModel): string {
+  return model.paidBy === 'user' ? 'your key' : model.paidBy === 'managed' ? 'included' : '';
+}
+
+/** What one model costs and who it costs, as one row-sized string. */
+export function modelCostLabel(model: AiDiscoveredModel): string {
+  const payer = modelPayerLabel(model);
+  return payer ? `${modelPriceLabel(model)} · ${payer}` : modelPriceLabel(model);
+}

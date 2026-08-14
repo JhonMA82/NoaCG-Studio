@@ -52,6 +52,50 @@ Two rules the repo paid to learn, binding everywhere here:
   first failure. A prohibition suppresses the behaviour it constrains. When a teaching change moves a
   rate, suspect the FRAMING before the rule.
 
+## The tiers a user is offered (`settings.ts`, the ⚙ panel in AiStep)
+
+**LIVE.** One door, and behind it three tiers - two of which a user can reach today.
+
+| Tier | Stored id | Label | Price target per finished graphic |
+|---|---|---|---|
+| Lite | `lite` | NoaCG Lite | **100 graphics per €1** (~€0.01); measured **$0.00032** |
+| Pro | `pro` | NoaCG Pro | **~€10 per 100** (~€0.10 each) |
+| Bring your own key | `custom` | Bring your own key | whatever the user's provider charges |
+
+Four rules, all of them things the shipped build got wrong before 2026-08-14:
+
+- **The stored id is not the label.** `custom` is persisted per browser (`spx-gfx-ai`); renaming
+  it silently resets everyone who chose it. Change copy freely, ids never.
+- **A price target is a commitment about the ROUTE.** Missing it changes which model a tier
+  calls, never what a user is charged. Lite has ~30x of headroom, so its route choice is a
+  QUALITY decision (`docs/GOALS.md` NEXT).
+- **The managed transport is never user-facing.** `AI_PROVIDER_IDS` (modelTypes.ts) is the
+  transport set; `AI_PROVIDERS` (settings.ts) is the BRING-YOUR-OWN-KEY subset a user picks
+  from - openai, anthropic, google, huggingface. They are deliberately two lists: collapsing
+  them either sells our plumbing as a product or breaks every managed route. The BYO-key tier
+  additionally MOVES a stored managed route onto a real user-key provider
+  (`DEFAULT_BYOK_PROVIDER`), because a tier promising "your key" must not spend ours.
+- **A managed tier names an OUTCOME, never a mechanism.** Lite and Pro name no vendor, model or
+  transport, so replacing the engine behind one costs no copy - and cannot leave the door
+  describing a pipeline that was retired, which is exactly how Pro shipped describing image
+  reconstruction two months after it was dropped.
+- **A NoaCG TIER RUNS ON NOACG'S OWN SERVICE OR IT IS NOT OFFERED** (owner, 2026-08-14). It
+  never asks a customer for a key to reach our own models or harness. Pro is therefore offered
+  on exactly two conditions, ANDed: the server says hosted Pro is available to this visitor
+  (`GET /api/ai/pro/status`, `AI_PRO_ENABLED`) **and** the deployment carries the backend that
+  route is metered through (`proOffered = proHosted && isBackendConfigured()`). Where either is
+  false the tier is ABSENT - not greyed, and never degraded into a key request. **One door
+  takes one switch:** there is no client flag for Pro and there must not be one, or a
+  deployment meters it while showing no door, or shows one it will refuse. The key row in
+  `AiProviderSettings` stands down on the managed route for the same reason.
+
+**Every model row carries a price per 1M tokens and says which key pays it.** None of the three
+direct provider APIs publishes a price with its listing (measured), so `aiModelDiscovery.ts`
+reads the managed catalog as a PRICE BOOK, matched by `modelPriceKey` - which normalizes away
+the vendor prefix, the dot-vs-dash separator and the dated snapshot suffix, and nothing else. An
+ambiguous or unmatched model is left unpriced and unsuggested rather than guessed at; the model
+box takes free text, so nothing is ever blocked by the book being wrong.
+
 ## Retrieval - the shortlist of proven designs (`retrieval.ts`)
 
 **LIVE, on the ADAPT route only.** The design stage used to be handed `catalogDigest()` - **430
@@ -635,8 +679,10 @@ Two rules reach outside the pilot and bind here:
 
 - `modelTypes.ts` + `modelGateway.ts` - the provider-neutral model-call contract and browser client. The
   server adapters in `api/_lib/aiGateway.ts` implement Vercel AI Gateway (the MANAGED transport, and the
-  only one NoaCG funds), plus Anthropic, OpenAI Responses and compatible Hugging Face Inference Providers
-  as bring-your-own-key routes - without branching the harness. Retention is TWO filters, ANDed by the
+  only one NoaCG funds), plus Anthropic, OpenAI Responses, Google's OpenAI-compatible surface and
+  compatible Hugging Face Inference Providers as bring-your-own-key routes - without branching the
+  harness. A new BYO-key adapter is modelled on the Hugging Face one: same chat-completions shape, same
+  parser, no second structured-output dialect. Retention is TWO filters, ANDed by the
   gateway: `disallowPromptTraining` is free on every plan and pinned on for every managed call, and
   `zeroDataRetention` is the Pro/Enterprise superset - so a task requiring ZDR fails closed with
   `zdr_unavailable` rather than degrading quietly. The per-request price cap OpenRouter enforced has no

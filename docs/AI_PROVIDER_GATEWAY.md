@@ -11,7 +11,7 @@ transport beneath that system.
 2. The browser sends a provider-neutral request to `POST /api/ai/generate`.
 3. The server selects exactly the requested provider/model route.
 4. `api/_lib/aiGateway.ts` adapts the request to Anthropic Messages, OpenAI Responses, or
-   Vercel AI Gateway / Hugging Face OpenAI-compatible Chat Completions.
+   OpenAI-compatible Chat Completions (Vercel AI Gateway, Google AI, Hugging Face).
 5. The server normalizes text or structured output, errors, token usage, route attempts, and
    optional estimated-cost metadata before returning it to the unchanged harness.
 
@@ -38,11 +38,23 @@ images, generated output, provider bodies, and raw IPs never enter it, and a led
 never fails the generation. It is deliberately separate from Lite's `ai_generations` ledger so
 gateway traffic cannot consume Lite's fleet-spend and concurrency budgets.
 
-Large provider catalogs are discovered server-side through `GET /api/ai/models`
+Provider catalogs are discovered server-side through `GET /api/ai/models`
 (`api/_lib/aiModelDiscovery.ts`). Vercel AI Gateway's models listing and Hugging Face's
 Inference Providers router supply ids, capabilities, limits, availability, and current prices.
 The gateway listing is PUBLIC - a credential only scopes it to the team - so discovery keeps
-working in the keyless weekly audit. `docs/VIDEO_MODEL_BENCHMARK.md` defines the video
+working in the keyless weekly audit.
+
+**A DIRECT provider (Anthropic, OpenAI, Google) lists its own ids and carries no prices.** Each
+answers only for the key that asks, which is why discovery there needs one, and none of the
+three publishes a price with its listing - measured, not assumed. So the gateway listing is read
+a second time as a PRICE BOOK, matched by `modelPriceKey`, which normalizes away exactly three
+differences: the vendor prefix, the dot-vs-dash separator, and the dated snapshot suffix
+(`claude-sonnet-4-5-20250929` = `anthropic/claude-sonnet-4.5`). Two rules keep that honest - an
+ambiguous key is dropped rather than guessed, and an unreachable price book costs prices but
+never the listing itself. The book also supplies the structured-output capability the picker
+filters on, so a direct row the harness could not run on is not suggested; the model box takes
+free text, so nothing is ever blocked. Rows carry `paidBy` (`user` | `managed`), because a price
+nobody can attribute is half an answer. `docs/VIDEO_MODEL_BENCHMARK.md` defines the video
 compatibility filter and repeatable quality benchmark.
 
 **The gateway publishes capability TAGS, not a parameter support matrix**, and one
@@ -142,14 +154,16 @@ profile); turning it off is an explicit, audited, per-task server decision.
 
 Browser-visible values are non-secret:
 
-- `VITE_AI_PROVIDER`: `vercel`, `anthropic`, `openai`, or `huggingface`.
+- `VITE_AI_PROVIDER`: `vercel`, `anthropic`, `openai`, `google`, or `huggingface`.
 - `VITE_AI_MODEL`: an opaque model id for the selected provider.
 - `VITE_AI_FALLBACKS`: optional JSON array of ordered `{provider, model}` routes.
 
 `vercel` is the MANAGED transport - Vercel AI Gateway's OpenAI-compatible Chat Completions
-API at `https://ai-gateway.vercel.sh/v1`, and the only provider NoaCG funds. The other three
-are bring-your-own-key escape hatches: two direct provider APIs, plus one alternative gateway,
-for a route or capability Vercel does not carry.
+API at `https://ai-gateway.vercel.sh/v1`, and the only provider NoaCG funds. The other four
+are the BRING-YOUR-OWN-KEY set: three direct provider APIs, plus one alternative gateway, for
+a route or capability the managed transport does not carry. **Only those four are ever shown
+to a user** (`AI_PROVIDERS` in `src/ai/settings.ts`); which transport NoaCG spends its own
+money through is not a product decision, and no user-facing string names it.
 
 Managed keys are server-only:
 
@@ -160,6 +174,7 @@ Managed keys are server-only:
   loads it into `process.env` exactly as production does.
 - `ANTHROPIC_API_KEY`
 - `OPENAI_API_KEY`
+- `GOOGLE_API_KEY` (or the conventional `GEMINI_API_KEY`)
 - `HUGGINGFACE_API_KEY` (or the conventional `HF_TOKEN`)
 
 Optional user-provided keys require `AI_KEY_ENCRYPTION_SECRET` with at least 32 characters.
@@ -303,6 +318,12 @@ non-production server. Deployed Lite always requires the durable server ledger; 
 override fails closed in production and on Vercel.
 
 ## Future adapters
+
+A new bring-your-own-key provider is five things and no more: a `ProviderAdapter` (model it on
+the Hugging Face one - same chat-completions shape, same parser, no second structured-output
+dialect), an id in `AI_PROVIDER_IDS`, a `managedAiKey` entry, an `AI_PROVIDERS` row with the
+label a user reads, and a listing in both `aiModelDiscovery.ts` and
+`scripts/check-model-ids.mjs`. Google, added 2026-08-14, is the worked example.
 
 Ollama, vLLM, and rented GPU inference are future `ProviderAdapter` implementations. They
 must enter through the same server interface and normalized result contract. Local hosting,

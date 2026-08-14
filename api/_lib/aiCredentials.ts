@@ -92,6 +92,7 @@ export function managedAiKey(provider: AiProviderId): string {
   const names: Record<AiProviderId, string> = {
     anthropic: 'ANTHROPIC_API_KEY',
     openai: 'OPENAI_API_KEY',
+    google: 'GOOGLE_API_KEY',
     vercel: 'AI_GATEWAY_API_KEY',
     huggingface: 'HUGGINGFACE_API_KEY',
   };
@@ -99,7 +100,11 @@ export function managedAiKey(provider: AiProviderId): string {
     ? process.env.HF_TOKEN
     : provider === 'vercel'
       ? process.env.VERCEL_OIDC_TOKEN
-      : '';
+      // Google's own SDKs and the Gemini docs both use GEMINI_API_KEY, so a machine set up
+      // for Gemini already carries it under that name.
+      : provider === 'google'
+        ? process.env.GEMINI_API_KEY
+        : '';
   return (process.env[names[provider]] || conventionalFallback || '').trim();
 }
 

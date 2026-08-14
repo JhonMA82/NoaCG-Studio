@@ -128,6 +128,34 @@ test('selects Hugging Face through its OpenAI-compatible inference router', asyn
   assert.deepEqual(result.usage, { inputTokens: 7, outputTokens: 2, totalTokens: 9 });
 });
 
+test('selects Google through its OpenAI-compatible surface, and never forwards a seed', async () => {
+  const routed = body('google', 'gemini-2.5-flash');
+  routed.request.temperature = 0.3;
+  // A bench preference must not be able to fail a user's generation: Google's compatibility
+  // layer rejects parameters it does not implement.
+  routed.request.seed = 41723;
+  let calledUrl = '';
+  let sent: Record<string, unknown> = {};
+  const result = await executeGatewayRequest(routed, {
+    keyFor,
+    fetchImpl: async (input, init) => {
+      calledUrl = String(input);
+      sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: 'ok' } }],
+        usage: { prompt_tokens: 5, completion_tokens: 3 },
+      }));
+    },
+  });
+
+  assert.equal(calledUrl, 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
+  assert.equal(sent.model, 'gemini-2.5-flash');
+  assert.equal(sent.temperature, 0.3);
+  assert.equal(sent.seed, undefined);
+  assert.equal(result.provider, 'google');
+  assert.deepEqual(result.usage, { inputTokens: 5, outputTokens: 3, totalTokens: 8 });
+});
+
 test('sends the managed gateway routing policy and normalizes the answer', async () => {
   let sent: Record<string, unknown> = {};
   const result = await executeGatewayRequest(body('vercel', 'vendor/model'), {
