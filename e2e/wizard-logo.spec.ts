@@ -120,6 +120,26 @@ test('a lower third places the logo BESIDE the text, not above it', async ({ pag
   expect(boxes.logo.right).toBeLessThanOrEqual(boxes.line.left);
   expect(boxes.logo.top).toBeLessThan(boxes.line.bottom);
   expect(boxes.logo.bottom).toBeGreaterThan(boxes.line.top);
+
+  // …and it is centred on the WHOLE stack, not on the first line. The rule that used to claim
+  // this - `grid-row: 1 / -1` on the mark - is a NO-OP: a negative row line counts back from
+  // the EXPLICIT grid, and the rule declares columns only, so the mark sat in row one. Measured
+  // 2026-08-14: 19-28px above the stack's centre on every strap, and a crest re-grew lt11 by
+  // 7.7%, which is the height a strap was moved beside the words to stop spending. The design's
+  // own children are gathered into .lower-third-lockup so that there is ONE row to centre on.
+  // The stack is measured as the union of everything in the box that is not the mark, never as
+  // the wrapper element: the wrapper is one WAY of reaching the rule, and a guard written
+  // against it would pass the moment a later version reached the rule differently - and fail
+  // with a null dereference rather than with the distance, which is the number under test.
+  const centres = await frame.locator('.lower-third-box').evaluate((box) => {
+    const logo = box.querySelector('.lower-third-logo')!.getBoundingClientRect();
+    const rest = [...box.children].filter((el) => !el.classList.contains('lower-third-logo'))
+      .map((el) => el.getBoundingClientRect()).filter((r) => r.height > 0);
+    const top = Math.min(...rest.map((r) => r.top));
+    const bottom = Math.max(...rest.map((r) => r.bottom));
+    return { logo: (logo.top + logo.bottom) / 2, stack: (top + bottom) / 2 };
+  });
+  expect(Math.abs(centres.logo - centres.stack)).toBeLessThan(1);
 });
 
 test('logo toggle off: nothing is injected', async ({ page }) => {

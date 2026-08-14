@@ -50,17 +50,35 @@ export function designHasLogoSlot(design: StandardDesign, prefix: string): boole
  * horizontal format; height is the one dimension it cannot spend, and turning a strap into a
  * block is the same mistake the Pro harness measured on its own concepts.
  *
- * So for straps only, the box becomes a two-column grid: the mark in column one spanning every
- * row, everything else the design already emits stacked in column two, in source order.
+ * So for straps only, the box becomes a TWO-COLUMN, ONE-ROW grid: the mark in column one, and
+ * everything the design already emits gathered into column two as a single stack.
  *
- * GRID rather than flex, and column assignment by rule rather than by wrapping the design's
- * content, because this helper serves every 'optional'-logo design in the category and cannot
- * know any one of their box layouts. Flex would make each existing child a column of its own;
- * wrapping them would mean finding the box's matching close tag by string surgery. Auto-placement
- * alone would drop the second child beside the mark and the third UNDER it - hence the explicit
- * span and the `:not()` rule, which are what make this safe for a design this file has never
- * seen. The mark also stays INSIDE the box on purpose: the presets animate `.{prefix}-box`, so a
- * mark placed beside the box as its sibling would sit still while the strap moved.
+ * ── WHY THE DESIGN'S CHILDREN ARE WRAPPED ─────────────────────────────────────────────
+ *
+ * The first version left them as direct children of the box and gave the mark
+ * `grid-row: 1 / -1` to span them. **That span is a no-op, and it was measured as one.** A
+ * negative row line counts back from the end of the EXPLICIT grid, and this rule declares
+ * columns only - so with no explicit row track `-1` resolves to line 1, the end is not after
+ * the start, and the browser falls back to a single row. The mark therefore sat in ROW ONE,
+ * beside the NAME rather than beside the stack, and it sized that row:
+ *
+ *   · lt11 with a square mark grew 147.3px -> 158.6px (+7.7%), lt02 113.4 -> 120.9 (+6.6%),
+ *     lt05 133.5 -> 137.8 - a strap spending height again, through the back door;
+ *   · and the mark's centre sat 19-28px ABOVE the text stack's centre on every strap measured
+ *     (0.28-0.80 of the mark's own height), which is the owner's "logo centred, empty space
+ *     underneath" note arriving as geometry.
+ *
+ * There is no count-free way to span an unknown number of implicit rows, so the rows are
+ * removed from the problem instead: the design's own children go into one `.{prefix}-lockup`
+ * div, the box holds exactly two items, and one row is all there is to centre against. Finding
+ * the box's matching close tag is not the obstacle it once looked like - `boxCloseIndex` below
+ * already does it, because the mark is inserted there.
+ *
+ * The wrapper also RETIRES the renumbering hazard rather than dodging it: the design's children
+ * keep their positions 1..n inside it, so an `nth-child` rule the design wrote about its own
+ * children means what it always meant, wherever the mark goes. The mark also stays INSIDE the
+ * box on purpose: the presets animate `.{prefix}-box`, so a mark placed beside the box as its
+ * sibling would sit still while the strap moved.
  */
 function sideBySideCss(prefix: string): string {
   if (prefix !== 'lower-third') return '';
@@ -68,21 +86,32 @@ function sideBySideCss(prefix: string): string {
 
 /* The mark sits BESIDE the words, never above them (see the note in shared/logoSlot.ts). */
 .${prefix}-box {
-  display: grid;                   /* two columns: the mark, then everything the design draws */
+  display: grid;                   /* two columns, ONE row: the mark, then the design's stack */
   /* minmax(0, 1fr), not a plain 1fr: an fr track has a MIN-CONTENT floor, so the words refuse
      to shrink and the strap grows past its own width cap instead - measured as
      lite-hold-overflow on lt25 with a long academic role beside a wide lockup, twice. The
      mark's column takes the width its shape needs and the text column absorbs the rest. */
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;             /* the mark is centred against the whole stack */
-  column-gap: calc(26px * var(--scale));  /* the mark's clear space from the words */
+  align-items: center;             /* the mark is centred against the WHOLE stack */
+  /* The clear space is the mark's own margin (below), never a gap between the TRACKS: a track
+     is charged its gap whether or not anything is in it, so a slot the operator has left empty
+     would shift the words sideways. Measured: 26px on lt11 while the gap was ours, and 10px on
+     lt02, whose own 10px gap reached the columns the moment ours was gone. The design's ROW gap
+     is untouched, and the lockup below inherits it. */
+  column-gap: 0;
 }
-.${prefix}-box > .${prefix}-logo {
-  grid-column: 1;                  /* the mark's own column… */
-  grid-row: 1 / -1;                /* …spanning every row the design emits */
-}
-.${prefix}-box > *:not(.${prefix}-logo) {
-  grid-column: 2;                  /* everything else stacks beside it, in source order */
+/* Both placed explicitly: the stack comes FIRST in the markup (the mark is appended last, so
+   the design's own children are never renumbered), and only an explicit area puts the mark on
+   the left of something that precedes it. */
+.${prefix}-box > .${prefix}-logo { grid-area: 1 / 1; }
+.${prefix}-box > .${prefix}-lockup { grid-area: 1 / 2; }
+.${prefix}-lockup {
+  display: grid;                   /* the design's own lines, stacked as its box stacked them */
+  /* …including whatever row gap that box declared. The box is one row now, so its own gap has
+     nothing left to space; inheriting is what keeps a design like lt36 or lt47 spacing its
+     lines exactly as it did before the slot existed. */
+  row-gap: inherit;
+  min-width: 0;                    /* a long line shrinks here instead of widening the strap */
 }`;
 }
 
@@ -118,10 +147,16 @@ function boxCloseIndex(html: string, from: number): number {
  * it is emitted AFTER that rule rather than beside the grid rules: same selector, same
  * specificity, so order is what decides.
  *
- * The margin below the mark goes (it was clear space for a row that no longer exists; the grid's
- * column gap is the clear space now), and the fixed height becomes a CAP. A fixed height would
- * hand a portrait crest the power to set the strap's height again through its own aspect - the
- * exact failure this whole change is about, arriving through the back door.
+ * The margin below the mark becomes a margin BESIDE it, and the fixed height becomes a CAP. A
+ * fixed height would hand a portrait crest the power to set the strap's height again through its
+ * own aspect - the exact failure this whole change is about, arriving through the back door.
+ *
+ * THE CLEAR SPACE IS THE MARK'S MARGIN, not the box's `column-gap`, and that is the difference
+ * between an empty slot costing nothing and an empty slot shifting the words. A slot the
+ * operator has not filled hides its `<img>`, which stops it being a grid item - but the column
+ * TRACK survives, and a gap between tracks is charged whether or not either holds anything. The
+ * margin disappears with the element it is on, so a strap with the slot switched on and no file
+ * in it lays out exactly like a strap with no slot at all.
  */
 function sideBySideSizeCss(prefix: string): string {
   if (prefix !== 'lower-third') return '';
@@ -139,18 +174,19 @@ function sideBySideSizeCss(prefix: string): string {
      lite-hold-overflow. A slot every design inherits has to be modest, because it cannot know
      which design's measure it is spending. */
   max-width: calc(132px * var(--scale));
-  margin-bottom: 0;                /* the grid's column gap is the clear space now */
+  margin: 0 calc(26px * var(--scale)) 0 0;  /* the mark's clear space from the words */
 }`;
 }
 
 /**
- * Inject the shared logo slot into a design: the <img> as the first child of the
- * .{prefix}-box, its placeholder CSS, and the filelist field (id after every user field).
- * Returns the design untouched when the box wrapper can't be found — never a broken layout.
+ * Inject the shared logo slot into a design: the <img> inside the .{prefix}-box, its placeholder
+ * CSS, and the filelist field (id after every user field). Returns the design untouched when the
+ * box wrapper can't be found — never a broken layout.
  *
  * TWO ARRANGEMENTS, decided by the CATEGORY (the prefix), never per design:
  *
- *   - LOWER THIRDS place the mark BESIDE the text - a leading column, vertically centred.
+ *   - LOWER THIRDS place the mark BESIDE the text - a leading column, centred on the whole
+ *     stack, with the design's own children gathered into one `.{prefix}-lockup` beside it.
  *     The 2026-08-13 Pro brand round's blind review made this a standing rule: "lower thirds
  *     should stay vertically compact - do not place a logo above or below the lower third;
  *     prefer placing the logo beside the text/banner." The stacked band got that exact note
@@ -169,9 +205,9 @@ export function applyLogoSlot(design: StandardDesign, prefix: string, o: Resolve
   const logoField = `f${o.lines.length + o.extraFields.length + (design.extraFields?.length ?? 0)}`;
   const logoPath = o.logoAssetPath ?? '';
 
-  const imgHtml =
-    `\n      <!-- Logo (image field ${logoField}) — ${beside ? 'leads the box beside the text' : 'a band above the text'}. Empty = hidden. -->` +
-    `\n      <img id="${logoField}" class="${prefix}-logo"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />`;
+  const markHtml = (indent: string): string =>
+    `\n${indent}<!-- Logo (image field ${logoField}) — ${beside ? 'sits beside the stack above, centred on it' : 'a band above the text'}. Empty = hidden. -->` +
+    `\n${indent}<img id="${logoField}" class="${prefix}-logo"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />`;
 
   // WHERE the mark goes in the markup is not a formatting choice, and on a strap it is not the
   // front. A design addresses its own children positionally - lt02 drops every line after the
@@ -182,11 +218,28 @@ export function applyLogoSlot(design: StandardDesign, prefix: string, o: Resolve
   // As the LAST child it renumbers nothing, because every existing child keeps its index. The
   // grid below then places it in the first column regardless of source order, which is what grid
   // placement is for.
-  const insertAt = prefix === 'lower-third' ? boxCloseIndex(design.html, at) : at + boxOpen.length;
-  const html = insertAt < 0
-    ? design.html
-    : design.html.slice(0, insertAt) + imgHtml + design.html.slice(insertAt);
-  if (insertAt < 0) return design;
+  let html: string;
+  if (beside) {
+    // A strap gathers the design's own children into one lockup first (see sideBySideCss): the
+    // box then holds exactly two items in one row, which is the only shape the mark can be
+    // centred against without knowing how many rows the design draws.
+    const closeAt = boxCloseIndex(design.html, at);
+    if (closeAt < 0) return design;
+    const openEnd = at + boxOpen.length;
+    const raw = design.html.slice(openEnd, closeAt);
+    // The design's own markup, one level deeper - re-indented rather than left hanging, because
+    // the code the wizard writes is code the user opens (principle 2).
+    const inner = raw.replace(/\s+$/, '').replace(/\n/g, '\n  ');
+    const closeIndent = /\n([ \t]*)$/.exec(raw)?.[1] ?? '      ';
+    html = `${design.html.slice(0, openEnd)}
+${closeIndent}  <!-- Everything the design draws, kept together so the mark sits beside the whole stack. -->
+${closeIndent}  <div class="${prefix}-lockup">${inner}
+${closeIndent}  </div>${markHtml(`${closeIndent}  `)}
+${closeIndent}${design.html.slice(closeAt)}`;
+  } else {
+    const insertAt = at + boxOpen.length;
+    html = design.html.slice(0, insertAt) + markHtml('      ') + design.html.slice(insertAt);
+  }
 
   const css = `${design.css}${sideBySideCss(prefix)}
 
