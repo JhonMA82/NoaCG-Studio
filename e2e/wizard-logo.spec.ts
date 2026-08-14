@@ -74,8 +74,11 @@ test('logo toggle + custom upload: the created template carries the field, asset
 test('a lower third places the logo BESIDE the text, not above it', async ({ page }) => {
   // The 2026-08-13 Pro brand round's standing review rule: lower thirds stay vertically
   // compact - the mark sits beside the text/banner, never stacked above it. The shared slot
-  // arranges that with a grid engaged through .has-image on the box; info cards (the test
-  // above) keep the stacked band, because a card is a vertical composition.
+  // arranges that with a two-column grid on the box; info cards (the test above) keep the
+  // stacked band, because a card is a vertical composition.
+  //
+  // Measured 2026-08-14, which is why the rule is worth a spec: stacked, the mark made lt02
+  // 83% taller, lt25 74% and lt11 57%, and lt11 serves most branded output.
   await toFieldsStep(page, 'Lower thirds', 'House Strap');
 
   const logoSection = page.locator('.panel-section', { hasText: 'Include a logo slot' });
@@ -93,9 +96,17 @@ test('a lower third places the logo BESIDE the text, not above it', async ({ pag
   });
 
   const t = await createdTemplate(page);
-  // The slot is the shared one, and the box ships laid out for it from the first frame.
+  // The slot is the shared one…
   expect(t.html).toContain('class="lower-third-logo"');
-  expect(t.html).toContain('class="lower-third-box has-image"');
+  // …and it is the box's LAST child. That is not a formatting detail: a design addresses its
+  // own children positionally (lt02 drops every line after the first below its underline with
+  // `.lower-third-mask:nth-child(n + 2)`), so a mark inserted at the FRONT renumbers all of
+  // them and the name renders under the rule. Measured 2026-08-14; the grid places the mark in
+  // column one regardless of source order, so nothing is lost by putting it last.
+  const logoAt = t.html.indexOf('lower-third-logo');
+  const lastLineAt = t.html.lastIndexOf('lower-third-mask');
+  expect(logoAt).toBeGreaterThan(0);
+  expect(logoAt).toBeGreaterThan(lastLineAt);
 
   // Rendered: the box is a grid and the mark sits BESIDE the first text line - overlapping
   // it vertically, wholly to its left - rather than in a row of its own above it.
