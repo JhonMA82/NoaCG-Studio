@@ -62,8 +62,10 @@ headroom to spend on a route table. `scripts/check-api-route-depth.mjs` is the g
 **`imported-graphic-analysis` had the same break and is fixed the same way.** Its `/status` and
 `/outcome` siblings were platform 404s; they are now `import-analysis-status` and
 `import-analysis-outcome`, single segments under `api/ai/tasks/[...path].ts` like the analysis
-call itself. Nobody had hit it because the task is flag-gated off. Its browser client is in the
-gate's `CLIENT_SOURCES`, so the depth is checked on every build rather than remembered.
+call itself. Nobody had hit it because the task is flag-gated off. The gate reads BOTH sides of
+the question from the tree - every `/api/` path named anywhere under `src/`, against the
+catch-all directories under `api/` - so a new client file or a new function is covered without
+the script being edited, and a path builder's interpolation counts as exactly one segment.
 
 **Where the reservation binds.** It needs an accounts backend and the ledger. A self-hosted
 instance with a gateway key and no Supabase has neither, so the requirement does not apply
