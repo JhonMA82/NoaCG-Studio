@@ -264,6 +264,19 @@ over the design - are both worse than the defect. The mark ships where the desig
 pairing is recorded (`logo_ink_unreadable_on_surface`). `ls12`'s fixed dark tile is the one
 ratified exception, because it is a designed part of that composition rather than a repair.
 
+**RECORDING IT WAS NOT ENOUGH, and the value gate is what proved it** (owner's blind ballot,
+2026-08-14 - `docs/AI_LITE_BRAND_PLAN.md` §2.2). A ledger column is not a place anyone looks: a
+knockout mark on a light package shipped invisible on the generated arm AND on the arm a person
+branded by hand, where nothing was recorded at all. `validation/markLegibility.ts` now MEASURES it
+on the rendered frame - the mark's ink probed with the same `probeMarkElement` a real upload goes
+through, against every surface it could be composited over - and says so twice: as the always-on
+`bench-mark-unreadable` warning in the runtime bench, and live in the wizard's Style step, beside
+the palette that broke it. Still no repair, for the reasons above; the change is that the person
+who can fix it is told. **Judged for TRANSPARENT ink only**: swept over all 23 mark-capable lower
+thirds, luminance flagged 2 own-field crests that render perfectly (a blue crest on a red tile
+separates by hue), and a gate whose false positives are the designs that carry a crest best would
+teach authors to ignore it. Pinned by `e2e/mark-legibility.spec.ts`, including the wizard path.
+
 **A BRAND MARK is under the same rule, and `LiteCatalogEntry.logoSlot` is the measurement.**
 `node scripts/ai-lite-brand-audit.mjs --lite --check` renders a real mark into a real slot and
 reads the frame back - size, aspect, crop, clear space, containment, ink contrast against the

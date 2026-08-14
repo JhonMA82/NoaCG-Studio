@@ -156,6 +156,17 @@ trade. **A mark-legibility gate and a mark-SIZE rule are the platform work any r
 first** - and both are free, model or no model. Two more, from the same notes: a rule/underline
 crossing the name on two designs, and a title with no contrast on a light package.
 
+**The legibility half is BUILT (2026-08-14, `src/validation/markLegibility.ts`).** The mark's ink
+is probed on the rendered frame and measured against every surface it could be composited over;
+below 3:1 it is reported as the always-on `bench-mark-unreadable` bench warning and, for the path
+the ballot actually failed on, live in the wizard's Style step next to the palette that broke it.
+It reports and never repairs - §3.7's two repairs are still worse than the defect - and it judges
+TRANSPARENT ink only: swept over all 23 mark-capable lower thirds, luminance flagged two own-field
+crests that render perfectly, because a blue crest on a red tile separates by hue. Pinned by
+`e2e/mark-legibility.spec.ts`, mutation-tested. **The mark-SIZE rule is still open**: the shared
+slot caps a mark at `68px * --scale` with no relation to the type beside it, which is what "the
+logo is too small" measured on four of the eight briefs.
+
 ## 3. Close the brand-fidelity gaps first - platform work, all free
 
 "Exactly the brand's colours" is currently not guaranteed. The gaps, in priority order:
