@@ -71,6 +71,48 @@ documented advanced path. The banks, audit and ledger stay - they gate any futur
 
 First read at 8 briefs x 3 arms; a pass is confirmed at 20+ joined items before any public claim.
 
+### 2.1 The round as built - 2026-08-14, AWAITING THE OWNER'S BALLOT
+
+Rig: `scripts/ai-lite-value-gate.mjs` (arms + blind sheet + the verdict), filming through the
+shared lifecycle rig `scripts/ai-lite-capture.mjs` that `ai-lite-eval.mjs` now also uses - two
+capture loops would have made the arms differ by their rig rather than by their content.
+
+**Spend: approved up to ~$0.04 for the Lite arm, actual $0.0069** for 8 cells, 8 of 8
+machine-usable, route `google/gemini-2.5-flash-lite` via the gateway, `--env=.env.bench.local`
+preflight green first. The other two arms cost nothing - they are `variant.create()`, the wizard's
+own assembler. Bench rows went to the in-memory ledger, which `scripts/bench-env.mjs` now writes
+for every lite profile rather than leaving to memory (§4.4's `ledger_update` wipeout).
+
+**The eight briefs are matrix cells**, not new fixtures: five are a diagonal of the grid (five
+jobs x five marks x five palettes, each exactly once) and three add the pairings worth a human's
+eye, including a knockout-only mark on a light package. The Lite arm was REGENERATED rather than
+taken from the 2026-08-13 archive, because §3.7 (a strap spends width; the painted well is gone)
+landed after that round and the gate must judge what the product does today.
+
+Two deliberate departures from the wording above, both recorded because they change what the
+round measures:
+
+- **The template arm carries the brief's words, not the design's shipped sample names.** With
+  "Jane Doe" on screen the reviewer identifies that arm instantly and the round stops being
+  blind. It also makes the template arm stronger, never weaker.
+- **The free arms find their design by STYLE FAMILY, not by a text query.** Measured while
+  building this: every lower third declares itself relevant to every programme, so a family or
+  format chip returns all 82 with an identical score, and the text index is token-AND ("news
+  anchor lower third" matches nothing). Browse's order is then the catalog's, so the honest model
+  of a user is the one choice the storefront really offers - the style that suits the show,
+  taking its first mark-capable design; a second brief on the same job takes the next one.
+
+**The predeclared rule, operationalized before the ballot was taken:** "clearly beats" = a
+strictly higher brand-fit score on that brief; "at least equal" = a quality score no lower than
+the DIY arm's; "a clear majority" = more than half the fully judged briefs; "accepted" = an item
+the reviewer would air as-is or after minor edits. `--verdict <ballot.jsonl>` applies exactly
+that and prints PASS or FAIL with the per-brief rows.
+
+The ballot asks four things per item: on air for this brand (yes / minor edits / no), brand fit
+1-5, quality 1-5, and a brand-fidelity defect tick. Nothing in the sheet, the filenames, the
+ordering or the position says which arm an item is; the mapping lives only in
+`value-gate-key.json` beside it, which must not be opened before the ballot is in.
+
 ## 3. Close the brand-fidelity gaps first - platform work, all free
 
 "Exactly the brand's colours" is currently not guaranteed. The gaps, in priority order:
