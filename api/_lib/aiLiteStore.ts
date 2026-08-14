@@ -164,7 +164,14 @@ export interface LiteGenerationStore {
    *  settlement replaces the reservation's booked worst case; every later one adds. Called
    *  even when the call failed: a billed call that produced nothing still spent money, and a
    *  ledger that recorded only successes is how a wholesale failure reports $0.0000. */
-  recordProCall(input: { generationId: string; userId: string; costUsd: number }): Promise<void>;
+  recordProCall(input: {
+    generationId: string;
+    userId: string;
+    costUsd: number;
+    /** Push the reservation's lease this far forward - the heartbeat that lets a Pro fleet
+     *  slot follow the WORK rather than the clock (migration 0046). Only ever forward. */
+    leaseMs: number;
+  }): Promise<void>;
   qualityPriors(input: {
     now: number;
     windowDays: number;
@@ -325,6 +332,9 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
       ...record,
       proCallCount: record.proCallCount + 1,
       providerCostUsd: (record.proCallCount === 0 ? 0 : record.providerCostUsd) + Math.max(0, input.costUsd),
+      // Only ever forward: a late settlement from a call that overran must not shorten a lease
+      // a later call already extended.
+      expiresAt: Math.max(record.expiresAt, Date.now() + Math.max(0, input.leaseMs)),
       updatedAt: Date.now(),
     });
   }

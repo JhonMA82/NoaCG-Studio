@@ -102,6 +102,61 @@ export interface EntitlementRows {
   grants: GrantShape[];
 }
 
+/** The domain half of an email address, lowercased - or null for anything that is not one.
+ *  Deliberately strict about the shape it will match on: exactly one `@`, something either
+ *  side of it, and a dot in the domain. A malformed address must resolve to NO plan rather
+ *  than to a surprising one. */
+export function emailDomain(email: string | null | undefined): string | null {
+  const value = (email ?? '').trim().toLowerCase();
+  const at = value.indexOf('@');
+  if (at <= 0 || at !== value.lastIndexOf('@')) return null;
+  const domain = value.slice(at + 1);
+  return domain.length > 3 && domain.includes('.') && !domain.startsWith('.') && !domain.endsWith('.')
+    ? domain
+    : null;
+}
+
+/**
+ * The plan this user's EMAIL DOMAIN gives them, for a user with no explicit assignment
+ * (migration 0045).
+ *
+ * It exists because `user_grants` and `user_plans` are both keyed on `user_id`, so neither can
+ * authorize somebody who has not signed up yet - which is exactly the population a cohort is
+ * made of. A domain is the fact that is known in advance.
+ *
+ * The email is read SERVER-SIDE from `auth.users` with the service key and never leaves this
+ * function; what the resolver receives is a plan, the same shape an explicit assignment
+ * produces. Nothing about the address reaches the browser or the ledger.
+ *
+ * Every failure degrades to null - no plan, so the built-in defaults - matching this module's
+ * standing posture: a lookup that cannot answer must never widen OR narrow access by accident.
+ */
+async function planForEmailDomain(
+  db: Awaited<ReturnType<typeof adminDb>>,
+  userId: string,
+): Promise<PlanShape | null> {
+  try {
+    const { data: user } = await db.auth.admin.getUserById(userId);
+    const domain = emailDomain(user?.user?.email);
+    if (!domain) return null;
+    // The domain table's PRIMARY KEY is what makes this a single answer rather than a race
+    // (see the migration): one domain can only ever name one plan.
+    const { data } = await db
+      .from('plan_email_domains')
+      .select('plans!inner(key, name, features, limits, render_tier, render_formats, status)')
+      .eq('domain', domain)
+      .maybeSingle();
+    const row = data as { plans: (PlanRow & { status?: string }) | (PlanRow & { status?: string })[] } | null;
+    const planRow = Array.isArray(row?.plans) ? row?.plans[0] : row?.plans;
+    // An ARCHIVED plan is not an offer. Its explicit assignments are somebody's deliberate
+    // decision and keep working; sweeping a whole domain onto an archived plan is not.
+    if (!planRow || planRow.status === 'archived') return null;
+    return toPlan(planRow);
+  } catch {
+    return null;
+  }
+}
+
 const EMPTY: EntitlementRows = { accountState: 'active', plan: null, grants: [] };
 
 /**
@@ -143,7 +198,11 @@ export async function loadEntitlementRows(userId: string): Promise<EntitlementRo
     const assigned = assignment.data as { expires_at: string | null; plans: PlanRow | PlanRow[] } | null;
     const expired = assigned?.expires_at ? Date.parse(assigned.expires_at) <= Date.now() : false;
     const planRow = Array.isArray(assigned?.plans) ? assigned?.plans[0] : assigned?.plans;
-    const plan = planRow && !expired ? toPlan(planRow) : null;
+    // An explicit assignment wins; only a user who has none falls through to their email
+    // domain's plan (migration 0045). Both land in the SAME `plan` slot at the same precedence
+    // rank, so a grant or a manual override still outranks either - a domain widens who gets a
+    // plan, never what a plan outranks.
+    const plan = planRow && !expired ? toPlan(planRow) : await planForEmailDomain(db, userId);
 
     const rows = (grants.data ?? []) as GrantRow[];
     return { accountState: state, plan, grants: rows.map(toGrant).filter((g): g is GrantShape => g !== null) };

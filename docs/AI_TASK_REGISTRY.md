@@ -41,16 +41,27 @@ The launch route is settled by the vision benchmark (plan §8) before the flag t
 The third is **`pro-generate`** - hosted NoaCG Pro, behind `AI_PRO_ENABLED` (default off).
 It is the one task whose model calls are made by the BROWSER pipeline through the generic
 gateway proxy rather than by an endpoint of its own, because the pipeline that decides what
-to ask for runs there. So the task splits in two: `POST /api/ai/pro/generations` opens a
+to ask for runs there. So the task splits in two: `POST /api/ai/pro-generations` opens a
 RESERVATION against `ai_generations` with `profile = 'pro'` (migration 0044), booking the
 whole generation's worst case, and `/api/ai/generate` admits each managed Pro call against
 that reservation and settles its real provider cost into it
-(`api/_lib/pro/managedCall.ts`). `/api/ai/pro/status` reports availability and the
-allowance; `/api/ai/pro/outcome` records what became of the generation, never what it cost -
+(`api/_lib/pro/managedCall.ts`). `/api/ai/pro-status` reports availability and the
+allowance; `/api/ai/pro-outcome` records what became of the generation, never what it cost -
 the server that spent the money writes that. Profile `api/_lib/aiProProfile.ts`, browser
-session client `src/ai/pro/session.ts`, wire types `src/ai/proTypes.ts`. All three paths
-mount inside `api/ai/[...path].ts` rather than as functions of their own, because the Hobby
-cap has 2 spare and once cost production four days of dead deploys.
+session client `src/ai/pro/session.ts`, wire types `src/ai/proTypes.ts`.
+
+**All three are SINGLE SEGMENTS under `/api/ai/`, and that is a platform constraint rather
+than a style choice.** Measured on production 2026-08-14: a `[...path].ts` function here
+routes exactly ONE segment. `/api/ai/pro` reached the shared table and answered its own JSON
+404; `/api/ai/pro/status` never reached any code and got the platform's `NOT_FOUND`. The same
+probe agrees across the tree - `/api/ai/lite/nonexistent` is answered by Lite's router while
+`/api/ai/lite/a/b` is a platform 404. So a nested path costs a FUNCTION (Lite works only
+because `api/ai/lite/[...path].ts` is one), and two spare against the Hobby cap of 12 is not
+headroom to spend on a route table. `scripts/check-api-route-depth.mjs` is the gate.
+
+**The same break still affects `imported-graphic-analysis`**: `/api/ai/tasks/import-analysis`
+routes, but its `/status` and `/outcome` siblings are platform 404s. Nobody has hit it because
+the task is flag-gated off, and fixing it is a separate change with its own verification.
 
 **Where the reservation binds.** It needs an accounts backend and the ledger. A self-hosted
 instance with a gateway key and no Supabase has neither, so the requirement does not apply

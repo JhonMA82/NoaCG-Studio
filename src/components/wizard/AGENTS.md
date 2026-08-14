@@ -225,6 +225,15 @@ values from a latest-template ref, and gates the auto-entrance on `document.font
 (capped) so a font choice shows on the entrance itself. Pinned by e2e/wizard-preview.spec.ts,
 wizard-logo.spec.ts, and wizard-filters.spec.ts.
 
+**THE STYLE STEP WARNS WHEN THE PALETTE JUST ERASED THE LOGO** (`useMarkLegibility` ->
+`validation/markLegibility.ts`, owner's value-gate ballot 2026-08-14). It measures its OWN
+offscreen frame rather than the live preview, because WizardPreview's iframe deliberately carries
+no `allow-same-origin` and its pixels cannot be read from the app at all. Debounced past the
+preview's own 220ms and skipped entirely unless the draft carries a logo - a graphic with no mark
+cannot fail it and must not pay for the render. It reports; it never repairs (the two available
+repairs are dropping the customer's mark or pasting a plate over the design, both refused in
+`templates/shared/logoSlot.ts`). Pinned by e2e/mark-legibility.spec.ts.
+
 **Create with AI** (Entry card -> steps/AiStep, mode 'ai') is the MERGED describe/import step.
 One drop zone accepts images AND an existing .html/.zip template. A dropped template parses
 deterministically (model/importTemplate.ts) into a card with two actions: **"Open as code (no
@@ -283,7 +292,7 @@ and never enters the template or the saved graphic. Lite disabled = the BYO surf
 **Pro** shows the concept image with its provider-reported cost plus the per-region editability
 report (`data-testid="pro-report"`, keyed to the template by WeakMap so a restored past result
 shows its own concept). **The tier is OFFERED only where it can actually run** - the server says
-hosted Pro is available to this visitor (`/api/ai/pro/status`) AND the deployment carries the
+hosted Pro is available to this visitor (`/api/ai/pro-status`) AND the deployment carries the
 backend that route is metered through (`proOffered = proHosted && isBackendConfigured()`). Where
 that is false the tier is ABSENT, never a greyed row and never a key request: a NoaCG tier runs
 on NoaCG's own service or it is not offered (owner, 2026-08-14). Its settings are therefore one

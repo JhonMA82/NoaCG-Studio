@@ -223,7 +223,7 @@ export interface AiGatewayRequestBody {
   /** Absent means the general harness, which no feature key gates. */
   surface?: AiGatewaySurface;
   /**
-   * The hosted NoaCG Pro reservation this call is paid for by (`POST /api/ai/pro/generations`).
+   * The hosted NoaCG Pro reservation this call is paid for by (`POST /api/ai/pro-generations`).
    *
    * REQUIRED for `surface: 'pro'` on NoaCG's own key, and meaningless otherwise. It is what
    * makes hosted Pro an allowance rather than a label: without it the surface tag is

@@ -15,6 +15,11 @@ interface Props {
   /** The BUILT preview template's CSS - the source the "Fine-tune this design" rows
    *  enumerate (every `:root` variable the design declares, beyond the palette's four). */
   builtCss: string | null;
+  /** Set when the graphic's own logo cannot be read where this palette puts it - measured on the
+   *  rendered frame (`validation/markLegibility.ts`). It belongs on THIS step because the palette
+   *  is the half of the pairing the user is choosing here: the mark arrived as it is, and the
+   *  package is what just made it disappear. */
+  markWarning?: string | null;
 }
 
 
@@ -61,7 +66,7 @@ function placementSummaryOf(draft: WizardDraft): string {
 }
 
 /** Step 4 — colors, font, size, and position. */
-export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) {
+export default function StyleStep({ variant, draft, onDraft, builtCss, markWarning }: Props) {
   // Everything ELSE the design declares in its :root - its other colours, and its shape
   // (radius, blur, accent weight, tracking, weights, the kicker typeface) - editable right
   // here, so nothing about a design's look needs the editor (docs/GOALS.md "Student release"
@@ -183,6 +188,17 @@ export default function StyleStep({ variant, draft, onDraft, builtCss }: Props) 
     <div>
       <div className="panel-section">
         <h3>Palette <span className="muted">one accent + neutrals — retint anytime via the CSS variables</span></h3>
+        {/* A logo that has gone invisible against the package chosen here. Stated, never
+            repaired: the two available repairs are dropping the customer's mark or pasting a
+            plate over the design, and both were ruled out as worse than the defect
+            (`src/templates/shared/logoSlot.ts`). The person who can actually fix it - by
+            reaching for the other version of their mark, or a different package - is standing
+            right here. */}
+        {markWarning && (
+          <p className="wz-mark-warning" role="status" data-testid="mark-legibility-warning">
+            {markWarning}
+          </p>
+        )}
         <div className="wz-palettes">
           {palettes.map((p) => (
             <button
