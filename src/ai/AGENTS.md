@@ -579,8 +579,23 @@ is no parallel brief vocabulary. That is a UI and contract economy, not a shared
 §9). `compileProConcept` refuses before the interpretation when the concept alone spent it, and
 again on the total. `generateProConcept` deliberately does NOT throw on a breach: the image is
 already billed, so it returns with its cost and only the next call is stopped - the 2026-08-08
-lesson about early returns destroying paid concepts. Browser-side, so it is a cost control and not
-a server booking; an unreported cost counts as zero.
+lesson about early returns destroying paid concepts. An unreported cost counts as zero.
+
+**HOSTED Pro is now a server BOOKING as well, against the same number** (`AI_PRO_ENABLED`, default
+off; `docs/AI_TASK_REGISTRY.md`). The browser ceiling was for a long time "the only thing standing
+between a route change and an open tap", because Pro rode the general model surface with no
+registered task; `pro-generate` is that task. `src/ai/pro/session.ts` opens ONE reservation per
+generation (`POST /api/ai/pro/generations`) and the pipeline forwards `proGenerationId` on every
+model call; `/api/ai/generate` admits each call against it and settles the provider's real cost
+into `ai_generations` (migration 0044). So the two enforcement points are deliberately the same
+constant: the browser's is a cost control, the ledger's is the bound. **A `session` of null is the
+bring-your-own-key and offline-stub path, unchanged** - a caller spending their own key is never
+metered, and neither `e2e/pro.spec.ts` nor the bench changes.
+
+**Nothing in the hosted route knows what the pipeline DOES**, and that is deliberate: §15 of the
+plan replaces the concept-and-reconstruct engine, and an allowance that encoded its stages would
+have to be rewritten with it. The route's only shape-assumption is `AI_PRO_MAX_CALLS`, a bound
+rather than a description.
 
 `PRO_STANDARD_ROUTES` (`pro/pipeline.ts`) is pinned so a normal Pro user never picks models; **do not
 change it without re-running `npm run bench:pro` paid stages** - and pass `--save-fixtures`, because the

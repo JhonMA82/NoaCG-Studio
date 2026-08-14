@@ -882,7 +882,12 @@ The operating policy is:
 - development may use a hosted open-weight checkpoint; the architecture must also support
   self-hosting the pinned weights;
 - BYO/self-host is the first product funding posture unless a managed allowance is explicitly
-  costed through the task registry;
+  costed through the task registry - **done 2026-08-14**: `pro-generate` is a registered task
+  with a reservation ledger, a per-generation ceiling booked server-side, and a small default
+  quota (`docs/AI_TASK_REGISTRY.md`). It ships switched OFF (`AI_PRO_ENABLED`), so turning it
+  on is a decision made against the measured $0.0777 rather than a deployment side effect. The
+  route is deliberately engine-agnostic and does not have to change when §15's Phase A replaces
+  the pipeline;
 - no model is needed at playback or export time;
 - the later smaller specialist, prompt-prefix caching and batching are cost optimizations only
   after quality is secure.

@@ -558,3 +558,77 @@ test('pro: decorative regions with panel geometry are rebuilt, and a duplicate b
   expect(out.unitPad.right).toBe(0);
   expect(out.unitPad.bottom).toBeGreaterThan(0);
 });
+
+// ── HOSTED Pro: the tier with nothing to choose, know, or supply ─────────────────────────
+//
+// The offline suite has no /api, so `loadProStatus` resolves null and the tier stays exactly
+// what the specs above pin: a bring-your-own key, or the stub. These two drive the OTHER
+// branch by answering the status endpoint, which is the only thing that distinguishes them -
+// there is no flag, no query parameter and no localStorage key that turns hosted Pro on in a
+// browser, and that is the property worth pinning.
+
+/** Answer /api/ai/pro/status as a deployment that offers hosted Pro. */
+async function withHostedPro(page: Page, allowance = { daily: 3, monthly: 10 }) {
+  await page.route('**/api/ai/pro/status', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      profile: 'pro',
+      enabled: true,
+      available: true,
+      requiresSignIn: false,
+      maxGenerationCostUsd: 0.15,
+      allowance: {
+        dailyStartsRemaining: allowance.daily,
+        monthlyStartsRemaining: allowance.monthly,
+        dailySuccessesRemaining: 2,
+        monthlySuccessesRemaining: 8,
+      },
+    }),
+  }));
+}
+
+test('pro: a hosted deployment asks the user for no key, no provider and no model', async ({ page }) => {
+  await withHostedPro(page);
+  await toProTier(page);
+
+  // The whole point of the tier: nothing to supply. The BYO key field is GONE, not merely
+  // optional - a hosted user who sees a key field has been asked for something.
+  const settings = page.getByTestId('ai-pro-settings');
+  await expect(settings).toBeVisible();
+  await expect(settings.getByTestId('ai-pro-hosted-note')).toBeVisible();
+  await expect(settings.getByText('Vercel AI Gateway key', { exact: true })).toHaveCount(0);
+  await expect(settings.getByText('Model', { exact: true })).toHaveCount(0);
+  // And the tier is REMOTE, so the offline stub notice must not claim a model was skipped.
+  await expect(page.getByTestId('pro-offline-note')).toHaveCount(0);
+});
+
+test('pro: a hosted deployment reads back the allowance, which is the one limit a user can hit', async ({ page }) => {
+  await withHostedPro(page, { daily: 1, monthly: 4 });
+  await toProTier(page);
+  const note = page.getByTestId('ai-pro-hosted-note');
+  await expect(note).toContainText('1 generation(s) left today');
+  await expect(note).toContainText('4 this month');
+});
+
+test('pro: a hosted status the server refuses leaves the tier exactly as it was', async ({ page }) => {
+  // available:false is the shape a signed-out visitor, a withdrawn plan and a switched-off
+  // profile all produce. None of them may quietly turn the tier into "hosted, but broken":
+  // it has to fall back to the key the user can actually supply.
+  await page.route('**/api/ai/pro/status', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      profile: 'pro',
+      enabled: true,
+      available: false,
+      requiresSignIn: true,
+      reason: 'sign-in',
+      maxGenerationCostUsd: 0.15,
+    }),
+  }));
+  await toProTier(page);
+  await expect(page.getByTestId('ai-pro-hosted-note')).toHaveCount(0);
+  await expect(page.getByTestId('ai-pro-settings').getByText('Vercel AI Gateway key', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('pro-offline-note')).toBeVisible();
+});

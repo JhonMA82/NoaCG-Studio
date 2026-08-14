@@ -28,6 +28,7 @@ import {
   type ProInterpretationV1,
 } from './contract';
 import { normalizeProInterpretation } from './normalize';
+import type { ProSession } from './session';
 import { compileProPlan, ProCompileError, type ProCompileResult } from './compile';
 import { fillProLogoSlot } from './logoAsset';
 
@@ -110,10 +111,20 @@ function measure(dataUrl: string): Promise<{ width: number; height: number }> {
 /** ONE image call on the explicitly chosen image route. The route is pinned whole (provider
  *  and model), so the session's text-model fallbacks can never answer an image request.
  *
+ *  `session` is the HOSTED reservation this call is paid for by, when there is one. Passing
+ *  null is the bring-your-own-key and offline-stub path, unchanged from before hosted Pro
+ *  existed: no reservation, no allowance, the caller's own key.
+ *
  *  The per-generation ceiling (`PRO_MAX_GENERATION_COST_USD`) is enforced in
  *  `compileProConcept`, not here - see the note at the cost read below for why a breach must
- *  not cost the caller the image it already paid for. */
-export async function generateProConcept(brief: ProBrief, imageRoute: ModelRoute): Promise<ProConcept> {
+ *  not cost the caller the image it already paid for. On the hosted path the server enforces
+ *  the same ceiling against the same number, which is the half a browser cannot be trusted
+ *  with; these two are deliberately the same constant. */
+export async function generateProConcept(
+  brief: ProBrief,
+  imageRoute: ModelRoute,
+  session: ProSession | null = null,
+): Promise<ProConcept> {
   const run = startAiRun('pro-generate');
   const t0 = Date.now();
   try {
@@ -123,6 +134,7 @@ export async function generateProConcept(brief: ProBrief, imageRoute: ModelRoute
       expect: 'image',
       route: imageRoute,
       surface: 'pro',
+      ...(session ? { proGenerationId: session.generationId } : {}),
     });
     const image = result.images?.[0];
     if (!image) throw new Error('The image model returned no image.');
@@ -186,6 +198,9 @@ export async function compileProConcept(
     /** The whole generation's ceiling, concept included. Defaults to
      *  `PRO_MAX_GENERATION_COST_USD`; the bench passes its own when probing a route. */
     maxCostUsd?: number;
+    /** The hosted reservation paying for this generation, when there is one. Null is the
+     *  bring-your-own-key and offline path (src/ai/pro/session.ts). */
+    session?: ProSession | null;
   } = {},
 ): Promise<ProResult> {
   const ceiling = options.maxCostUsd ?? PRO_MAX_GENERATION_COST_USD;
@@ -223,6 +238,7 @@ export async function compileProConcept(
       maxTokens: outputBudget(7000),
       ...(options.interpretRoute ? { route: options.interpretRoute } : {}),
       surface: 'pro',
+      ...(options.session ? { proGenerationId: options.session.generationId } : {}),
     });
     // Read the cost BEFORE the shape check: an off-shape answer was still served and still
     // billed, so a throw from here has to carry the number out with it.

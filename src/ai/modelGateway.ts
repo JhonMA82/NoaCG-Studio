@@ -30,6 +30,9 @@ export interface GatewayModelRequest extends Omit<ModelRequest, 'structuredOutpu
    *  never set it by hand: `src/ai/video/videoGateway.ts` and `src/ai/pro/proGateway.ts`
    *  are the only places it is filled in, so a new gated call cannot forget it. */
   surface?: AiGatewaySurface;
+  /** The hosted NoaCG Pro reservation paying for this call (src/ai/pro/session.ts). Absent on
+   *  a bring-your-own-key run, which spends the caller's own money and needs no allowance. */
+  proGenerationId?: string;
   /** Pin the FULL route for this call, bypassing the session's provider/model AND its
    *  fallbacks. For calls whose modality the session route cannot serve (an image
    *  generation on a text session model), where a settings fallback would be a silent
@@ -54,6 +57,7 @@ export async function callModelDetailed(request: GatewayModelRequest): Promise<M
     model: _model,
     modelRole: _modelRole,
     surface,
+    proGenerationId,
     route: pinnedRoute,
     ...providerNeutralRequest
   } = request;
@@ -80,6 +84,7 @@ export async function callModelDetailed(request: GatewayModelRequest): Promise<M
     // session model, not to a call that pinned a different capability.
     ...(!pinnedRoute && settings.fallbacks.length ? { fallbacks: settings.fallbacks } : {}),
     ...(surface ? { surface } : {}),
+    ...(proGenerationId ? { proGenerationId } : {}),
   };
   const token = await getAccessToken();
   const response = await fetch('/api/ai/generate', {
