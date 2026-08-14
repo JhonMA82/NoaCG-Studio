@@ -16,7 +16,7 @@ plan §13):
 | `tiers` | Who may run it: `anonymous`, `free`, `byo`, `paid`. Lite is `['free']`. |
 | `limits` | Token budgets plus `maxImages` / `maxImageResolution` for vision tasks (Lite: 0 / null - logos ride the deterministic browser pipeline). |
 | `timeoutMs`, `maxAttempts`, `retryLimit` | The bounded execution policy handed to the gateway. |
-| `routePolicy` | Primary + explicit fallbacks, prices, gateway provider allowlist, ZDR requirement, structured mode, per-call cost ceiling. |
+| `routePolicy` | Primary + explicit fallbacks, prices, gateway provider allowlist, ZDR requirement, structured mode, per-call cost ceiling, and `imageRoutes` (below). |
 | `ledger` | Which ledger the task writes and the row discriminator (`ai_generations` pins its values with a CHECK constraint - a new value ships its migration in the same commit). |
 
 The first registered task is **`lite-design-spec`**: a VIEW over `liteProfile()`, so the
@@ -38,6 +38,26 @@ consumes another's quotas or fleet budget). Quotas per ratified decision 3: 1 im
 (downscaled to at most 1920x1080 client-side), 10 successful analyses/day, 100/month.
 The launch route is settled by the vision benchmark (plan §8) before the flag turns on.
 
+The third is **`pro-generate`** - hosted NoaCG Pro, behind `AI_PRO_ENABLED` (default off).
+It is the one task whose model calls are made by the BROWSER pipeline through the generic
+gateway proxy rather than by an endpoint of its own, because the pipeline that decides what
+to ask for runs there. So the task splits in two: `POST /api/ai/pro/generations` opens a
+RESERVATION against `ai_generations` with `profile = 'pro'` (migration 0044), booking the
+whole generation's worst case, and `/api/ai/generate` admits each managed Pro call against
+that reservation and settles its real provider cost into it
+(`api/_lib/pro/managedCall.ts`). `/api/ai/pro/status` reports availability and the
+allowance; `/api/ai/pro/outcome` records what became of the generation, never what it cost -
+the server that spent the money writes that. Profile `api/_lib/aiProProfile.ts`, browser
+session client `src/ai/pro/session.ts`, wire types `src/ai/proTypes.ts`. All three paths
+mount inside `api/ai/[...path].ts` rather than as functions of their own, because the Hobby
+cap has 2 spare and once cost production four days of dead deploys.
+
+**Where the reservation binds.** It needs an accounts backend and the ledger. A self-hosted
+instance with a gateway key and no Supabase has neither, so the requirement does not apply
+there and managed Pro behaves as it always did. Where the ledger DOES exist, it binds
+whether or not hosted Pro is switched on: on a deployment that can meter Pro spend,
+unmetered managed Pro spend is exactly the thing being closed.
+
 `taskConfigured(task)` is the fail-closed gate the Lite endpoints now call (generalizing
 `liteProfileConfigured()`): every managed gateway route needs a current price and a provider
 endpoint allowlist, and every free/anonymous-tier route must be a catalog-approved entry
@@ -46,7 +66,32 @@ that is also **funded-eligible** (below). A misconfigured route refuses with
 
 Free and anonymous tiers are exactly the tiers NoaCG pays for, which is why they carry
 both constraints; `byo` and `paid` spend the caller's own money on routes they chose, so
-neither the catalog nor the price ceiling applies to them.
+neither the catalog nor the price ceiling applies to them. **Hosted Pro is labelled `free`
+for that reason and not as a product claim**: it is the surface the product will charge
+for, but until a user's money is what pays, NoaCG's is - and labelling it `paid` early
+would switch the funded-route gate off on the most expensive surface in the tree.
+
+### `imageRoutes` - which bound applies to a route that draws
+
+Two rules here are built around reading a structured TEXT answer at a per-token price, and
+both refuse an image entry on purpose: `approvedTextRoute` is false for one, and
+`fundedModelRoute` answers no for every image entry because the funded price ceiling
+measures input/output text tokens and **no ceiling for image work has been decided**
+(docs/ADMIN.md §9).
+
+Pro's concept route is a catalogued, audited, ZDR-verified image model, so it needs the
+question answered rather than dodged. `TaskRoutePolicy.imageRoutes` names which of a task's
+routes are called for image output. It does not waive a bound - it says which one applies:
+
+- catalog approval is still required, unchanged;
+- the per-token price ceiling does not apply, because it would clear or refuse the route on
+  a rule that misses most of its bill;
+- what bounds the spend instead is `maxProviderCostUsd`, **booked per generation** before
+  the call and settled after it.
+
+Absent (the default) means the task sends only text requests and both rules apply unchanged,
+so Lite's and import-analysis's gates are byte-identical to before it existed. An UNDECLARED
+image route is still refused, so this is not a general exemption.
 
 ## The approved-route catalog (`api/_lib/aiModelCatalog.ts`)
 

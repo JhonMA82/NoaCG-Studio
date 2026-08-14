@@ -277,8 +277,16 @@ and never enters the template or the saved graphic. Lite disabled = the BYO surf
 
 **Pro** shows the concept image with its provider-reported cost plus the per-region editability
 report (`data-testid="pro-report"`, keyed to the template by WeakMap so a restored past result
-shows its own concept). Its settings carry the AI Gateway key surface only
-(`AiProviderSettings fixedProvider/showModel`) - a normal Pro user picks no models. Categories
+shows its own concept). Its settings surface is decided by the SERVER, through
+`/api/ai/pro/status` alone: where hosted Pro is available (`proHosted`) there is no provider,
+model or key to supply and the panel is a read-back with the remaining allowance
+(`ai-pro-hosted-note`); otherwise it carries the AI Gateway key surface
+(`AiProviderSettings fixedProvider/showModel`) as before. **A hosted deployment is never
+reachable from the browser** - no flag, no query parameter, no localStorage key - which is the
+property `e2e/pro.spec.ts` pins by answering the status endpoint and nothing else. Either way a
+normal Pro user picks no models. A hosted generation opens ONE reservation before the first
+model call and reports its outcome after the last (`src/ai/pro/session.ts`); the spend is
+recorded server-side and is never a number this step sends. Categories
 clamp to lower-third/auto, spec-field findings demote to warnings (`demoteSpecFields`: fixed
 contract, no repair loop), and refine/fix stand down because regenerate is the honest move.
 With no gateway credential the tier says so and runs the offline stub, which is what keeps
