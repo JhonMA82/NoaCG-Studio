@@ -13,7 +13,7 @@
 import { GatewayError } from '../aiGateway.js';
 import { serverAuthConfigured } from '../auth.js';
 import { getLiteGenerationStore, liteLedgerConfigured } from '../aiLiteStore.js';
-import { proProfile, proRouteFunded, type ProProfile } from '../aiProProfile.js';
+import { proCapacityRetryPlan, proProfile, proRouteFunded, type ProProfile } from '../aiProProfile.js';
 import type { AiGatewayRequestBody, ModelResult } from '../../../src/ai/modelTypes.js';
 
 /**
@@ -137,6 +137,9 @@ export async function settleManagedProCall(
       generationId: body.proGenerationId,
       userId,
       costUsd: result.usage.estimatedCost?.amount ?? 0,
+      // The heartbeat: this call finished, so the generation is alive and keeps its fleet slot
+      // for another lease. An abandoned one stops renewing and frees the slot for the class.
+      leaseMs: proCapacityRetryPlan(proProfile()).activeLeaseMs,
     });
   } catch (error) {
     console.warn('Pro call settlement failed:', error instanceof Error ? error.message : error);

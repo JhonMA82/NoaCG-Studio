@@ -30,6 +30,7 @@ interface PlanRow {
   features: unknown;
   limits: unknown;
   render_tier: string;
+  auto_assign_email_domains: string[] | null;
   render_formats: string[] | null;
   billing: unknown;
   sort_order: number;
@@ -59,6 +60,7 @@ function toPlan(row: PlanRow, assignedCount: number): AdminPlan {
     features,
     limits,
     renderTier: row.render_tier,
+    autoAssignEmailDomains: row.auto_assign_email_domains ?? [],
     renderFormats: row.render_formats,
     billing: {
       amountCents: typeof billing.amount_cents === 'number' ? billing.amount_cents : undefined,
@@ -194,6 +196,17 @@ export default {
       ? plan.renderFormats.filter((value): value is string => typeof value === 'string' && FORMATS.includes(value))
       : null;
 
+    // The email domains this plan applies to automatically (migration 0045). Bounded here and
+    // NORMALIZED in the database, so the stored shape is the one the resolver reads whichever
+    // surface wrote it; this side only refuses what is obviously not a domain.
+    const domains = Array.isArray(plan.autoAssignEmailDomains)
+      ? plan.autoAssignEmailDomains
+          .filter((value): value is string => typeof value === 'string')
+          .map((value) => value.trim().toLowerCase().replace(/^@+/, ''))
+          .filter((value) => value.length > 3 && value.length <= 253 && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(value))
+          .slice(0, 20)
+      : [];
+
     const billingIn = record(plan.billing);
     const row = {
       key,
@@ -201,6 +214,7 @@ export default {
       description: typeof plan.description === 'string' ? plan.description.trim().slice(0, 500) : '',
       features: sanitizeFeatures(plan.features),
       limits: sanitizeLimits(plan.limits),
+      auto_assign_email_domains: domains,
       render_tier: renderTier,
       render_formats: renderFormats && renderFormats.length ? renderFormats : null,
       // Stored, never read by any code path. Kept as snake_case so a future billing
@@ -230,7 +244,10 @@ export default {
       targetType: 'plan',
       targetId: result.data?.id ?? id ?? '',
       summary: `${id ? 'updated' : 'created'} plan ${name}`,
-      detail: { key, renderTier, features: row.features, limits: row.limits },
+      // Domains are audited beside the features: sweeping a whole domain onto a plan is an
+      // ACCESS change for everyone at that address, present and future, and it is the one
+      // edit here that grants access to accounts that do not exist yet.
+      detail: { key, renderTier, features: row.features, limits: row.limits, emailDomains: domains },
     });
 
     return json({ ok: true, id: result.data?.id ?? id });

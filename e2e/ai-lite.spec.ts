@@ -99,12 +99,15 @@ test('Lite creates one grounded graphic, records usability and acceptance, and o
   await expect(page.getByTestId('ai-attach')).toHaveCount(0);
   await expect(page.getByText(/Gemini|Qwen|OpenRouter|Anthropic|OpenAI/)).toHaveCount(0);
 
-  // AI settings still exists in Lite - it is where the execution TIER is chosen (Lite /
-  // Pro / Custom) - but while Lite is the tier it offers NO provider or model surface.
+  // AI settings still exists in Lite - it is where the execution TIER is chosen (Lite or
+  // bring your own key) - but while Lite is the tier it offers NO provider or model surface.
   await page.getByRole('button', { name: /AI settings/ }).click();
   await expect(page.getByTestId('ai-tier')).toBeVisible();
   await expect(page.getByTestId('ai-tier-lite').getByRole('radio')).toBeChecked();
-  await expect(page.getByTestId('ai-tier-pro')).toBeVisible();
+  await expect(page.getByTestId('ai-tier-custom')).toContainText('Bring your own key');
+  // Pro is offered only where the server hosts it and the backend can meter it - neither is
+  // true offline - so it is not a door here at all (e2e/pro.spec.ts pins the rule).
+  await expect(page.getByTestId('ai-tier-pro')).toHaveCount(0);
   await expect(page.getByTestId('ai-settings').getByText('Provider', { exact: true })).toHaveCount(0);
   await expect(page.getByTestId('ai-settings').getByText('Model', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: /AI settings/ }).click();

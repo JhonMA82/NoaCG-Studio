@@ -6,8 +6,9 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
 import { GatewayError } from '../aiGateway.js';
 import { admitManagedProCall, proAllowanceEnforceable, settleManagedProCall } from './managedCall.js';
-import { MemoryLiteGenerationStore } from '../aiLiteStore.js';
-import { proProfile } from '../aiProProfile.js';
+import { reserveProCapacity } from './generations.js';
+import { MemoryLiteGenerationStore, type LiteGenerationStore, type LiteReservation } from '../aiLiteStore.js';
+import { proCapacityRetryPlan, proProfile } from '../aiProProfile.js';
 import { proTaskProfile } from '../aiTaskRegistry.js';
 import { taskConfigured } from '../aiTaskRegistry.js';
 import { PRO_MAX_GENERATION_COST_USD, PRO_STANDARD_ROUTES } from '../../../src/ai/pro/contract.js';
@@ -167,14 +168,14 @@ test('the first settlement REPLACES the booked worst case; every later one adds'
   assert.equal(admission.status, 'admitted');
   assert.equal(admission.spentUsd, 0.15);
 
-  await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.07 });
+  await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.07, leaseMs: 240_000 });
   admission = await store.admitProCall({
     generationId: id, userId: 'user-1', now, maxCalls: 4, generationCeilingUsd: 0.15,
   });
   assert.equal(admission.status, 'admitted');
   assert.equal(admission.spentUsd, 0.07, 'the booking must be replaced, not added to');
 
-  await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.01 });
+  await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.01, leaseMs: 240_000 });
   admission = await store.admitProCall({
     generationId: id, userId: 'user-1', now, maxCalls: 4, generationCeilingUsd: 0.15,
   });
@@ -185,7 +186,7 @@ test('a generation past its ceiling admits no further call', async () => {
   const store = new MemoryLiteGenerationStore();
   const now = Date.now();
   const id = await reservedPro(store, now);
-  await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.2 });
+  await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.2, leaseMs: 240_000 });
   const admission = await store.admitProCall({
     generationId: id, userId: 'user-1', now, maxCalls: 9, generationCeilingUsd: 0.15,
   });
@@ -197,7 +198,7 @@ test('the call cap bounds a reservation even when every call is cheap', async ()
   const now = Date.now();
   const id = await reservedPro(store, now);
   for (let i = 0; i < 4; i += 1) {
-    await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.001 });
+    await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.001, leaseMs: 240_000 });
   }
   const admission = await store.admitProCall({
     generationId: id, userId: 'user-1', now, maxCalls: 4, generationCeilingUsd: 0.15,
@@ -260,7 +261,7 @@ test('a Pro call never touches attempt_count, which belongs to Lite', async () =
   const now = Date.now();
   const id = await reservedPro(store, now);
   for (let i = 0; i < 4; i += 1) {
-    await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.001 });
+    await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.001, leaseMs: 240_000 });
   }
   const record = await store.get(id);
   assert.equal(record?.proCallCount, 4);
@@ -298,4 +299,85 @@ test('the browser and the server hold a Pro generation to the SAME ceiling', () 
   // mean one of the two is decorative.
   process.env.AI_PRO_ENABLED = '1';
   assert.equal(proProfile().maxProviderCostUsd, PRO_MAX_GENERATION_COST_USD);
+});
+
+// ── the classroom: admission retry, and a slot that follows the work ─────────────────────
+//
+// Both halves of one defect. A class presses Create within seconds of each other, and the
+// reservation used to answer `shared_capacity` on the first observation - so most of the room
+// saw an error rather than a queue. Retrying alone would not have fixed it: a Pro reservation
+// was booked for the profile's whole 15-minute expiry, so the slots being waited on did not
+// turn over either.
+
+test('the fleet slot is retried, and only the fleet slot', async () => {
+  const answers: LiteReservation['status'][] = ['fleet-concurrency', 'fleet-concurrency', 'created'];
+  let calls = 0;
+  const store = {
+    async reserve() {
+      const status = answers[calls] ?? 'created';
+      calls += 1;
+      return status === 'created'
+        ? { status, record: { id: 'g1', userId: 'user-1' } } as unknown as LiteReservation
+        : { status } as LiteReservation;
+    },
+  } as unknown as LiteGenerationStore;
+
+  const slept: number[] = [];
+  const reservation = await reserveProCapacity(
+    store,
+    { userId: 'user-1', ipHash: 'ip', idempotencyKey: 'k', requestedCategory: null, now: 0, profile: {} as never },
+    { maxAttempts: 3, retrySpacingMs: 8000, activeLeaseMs: 240_000 },
+    { now: () => 0, random: () => 0.5, sleep: async (ms) => { slept.push(ms); } },
+  );
+  assert.equal(reservation.status, 'created');
+  assert.equal(calls, 3, 'it should keep asking while the fleet is full');
+  assert.equal(slept.length, 2, 'and wait between observations rather than hammering');
+});
+
+test('a durable refusal returns at once - retrying it would only spend the room\'s budget', async () => {
+  for (const durable of ['daily-start-limit', 'user-concurrency', 'fleet-spend', 'duplicate'] as const) {
+    let calls = 0;
+    const store = {
+      async reserve() {
+        calls += 1;
+        return { status: durable, record: {} } as unknown as LiteReservation;
+      },
+    } as unknown as LiteGenerationStore;
+    const reservation = await reserveProCapacity(
+      store,
+      { userId: 'u', ipHash: 'ip', idempotencyKey: 'k', requestedCategory: null, now: 0, profile: {} as never },
+      { maxAttempts: 3, retrySpacingMs: 8000, activeLeaseMs: 240_000 },
+      { now: () => 0, random: () => 0.5, sleep: async () => { throw new Error('must not sleep'); } },
+    );
+    assert.equal(reservation.status, durable);
+    assert.equal(calls, 1, `${durable} is a durable answer and must not be retried`);
+  }
+});
+
+test('a settled call RENEWS the lease, and a late short one never shortens it', async () => {
+  const store = new MemoryLiteGenerationStore();
+  const now = Date.now();
+  const id = await reservedPro(store, now);
+  const opened = (await store.get(id))?.expiresAt ?? 0;
+
+  await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.07, leaseMs: 1_800_000 });
+  const renewed = (await store.get(id))?.expiresAt ?? 0;
+  assert.ok(renewed > opened, 'a live generation must keep its seat');
+
+  // A call that overran settling after a later one must not pull the lease back in.
+  await store.recordProCall({ generationId: id, userId: 'user-1', costUsd: 0.001, leaseMs: 1 });
+  assert.equal((await store.get(id))?.expiresAt, renewed, 'the lease only ever moves forward');
+});
+
+test('the lease covers one call, not the whole profile expiry - that is what frees a class seat', () => {
+  process.env.AI_PRO_ENABLED = '1';
+  const profile = proProfile();
+  const plan = proCapacityRetryPlan(profile);
+  assert.ok(
+    plan.activeLeaseMs < profile.expiryMs,
+    'booking the full expiry is what made one abandoned tab cost the class a seat for 15 minutes',
+  );
+  assert.equal(plan.activeLeaseMs, profile.timeoutMs * 2);
+  // Bounded, so admission polling can never be less bounded than the work it protects.
+  assert.ok(plan.maxAttempts >= 1 && plan.maxAttempts <= 3);
 });
