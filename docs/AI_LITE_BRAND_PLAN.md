@@ -1,9 +1,14 @@
 # NoaCG Lite brand graphics - custom graphics that beat free templates, or nothing
 
-**Status: ACTIVE - ratified by the owner 2026-08-12 (§9).** This is the forward master plan for
-the Lite value pivot; the built-and-measured record it stands on is `docs/AI_LITE_PLAN.md` §7 and
-`benchmarks/lite/BRAND-AUDIT-2026-08-09.md`. Doctrine and code contract stay `src/ai/AGENTS.md`;
-dead ends stay `docs/AI_ATTEMPTS.md`. Nothing here widens any product surface until its gate says so.
+**Status: ITS OWN GATE ANSWERED NO - 2026-08-14.** The §2 value gate FAILED on the owner's blind
+ballot (§2.2), so the predeclared consequence is in force: **custom AI generation is retired from
+the roadmap for now**, free templates plus manual wizard branding stand, and the rest of this plan
+is a record rather than a queue of work. Read §2.2 first; the plan is otherwise unedited, because
+a plan rewritten after its own verdict cannot be checked against what it promised. **The platform
+work §2.2 names - a mark-legibility gate and a mark-SIZE rule - is free, is not AI work, and is
+what any revival needs first.** Ratified 2026-08-12 (§9); the built-and-measured record it stands
+on is `docs/AI_LITE_PLAN.md` §7 and `benchmarks/lite/BRAND-AUDIT-2026-08-09.md`. Doctrine and code
+contract stay `src/ai/AGENTS.md`; dead ends stay `docs/AI_ATTEMPTS.md`.
 
 ## 0. The thesis, restated as a falsifiable claim
 
@@ -112,6 +117,44 @@ The ballot asks four things per item: on air for this brand (yes / minor edits /
 1-5, quality 1-5, and a brand-fidelity defect tick. Nothing in the sheet, the filenames, the
 ordering or the position says which arm an item is; the mapping lives only in
 `value-gate-key.json` beside it, which must not be opened before the ballot is in.
+
+### 2.2 THE VERDICT - FAIL (owner's blind ballot, 2026-08-14)
+
+**The §2 gate FAILED. Lite beat the template arm on brand fit and held the DIY arm on quality on
+0 of 8 briefs, against a rule needing a clear majority.** Predeclared consequence, therefore in
+force: **custom AI generation is retired from the roadmap for now; free templates plus manual
+wizard branding stand, and "make it yourself with Claude Code" is the documented advanced path.**
+The banks, the audit and the ledger stay - they gate any future revival. Ballot, key and frames:
+`C:\claude\noacg-lite-eval-archive\value-gate-2026-08-14`.
+
+All 24 items were voted. What the owner would air:
+
+| arm | would air | brand fit | quality | defect ticks |
+| --- | --- | --- | --- | --- |
+| template | **0 of 8** | not scored | not scored | 8 |
+| DIY (wizard-branded) | **3 of 8** | 2.67 (n=3) | 3.50 (n=4) | 3 |
+| Lite | **2 of 8** | 3.00 (n=5) | 3.00 (n=5) | 0 |
+
+Two things the arithmetic alone would misreport, both stated so nobody re-reads this table as
+worse or better than it is:
+
+- **The 1-5 scores are partly unfilled** (Lite 3 of 8 unscored, DIY 5, template 8); the owner
+  voted the decision and wrote a note instead. The FAIL does not rest on them: Lite was airable
+  on 2 of 8 briefs, and no filling-in of missing scores reaches a majority from there.
+- **The template arm's 8 defect ticks are all "no logo"**, which is that arm's DEFINITION rather
+  than a fidelity defect - a free catalog design carries no customer mark. Read them as the
+  owner confirming the arm is what it claims to be, not as eight template bugs.
+
+**The finding that outlives the verdict: every failure named was the MARK, and it hit both
+branded arms.** In the owner's own words - a white mark on a white package ("white on white will
+never work... we should have all these obvious rules already"), a mark too small against the name
+on four separate items, and where the mark did get a backing the backing was too big for the text
+inside it. The DIY arm failed the identical white-on-white pairing, which places the defect in the
+PLATFORM, not the model: §3.7 removed the painted well and deliberately chose to record
+`logo_ink_unreadable_on_surface` rather than repair it, and this ballot is the owner refusing that
+trade. **A mark-legibility gate and a mark-SIZE rule are the platform work any revival needs
+first** - and both are free, model or no model. Two more, from the same notes: a rule/underline
+crossing the name on two designs, and a title with no contrast on a light package.
 
 ## 3. Close the brand-fidelity gaps first - platform work, all free
 
