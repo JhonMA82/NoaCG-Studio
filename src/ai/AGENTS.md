@@ -82,7 +82,11 @@ Four rules, all of them things the shipped build got wrong before 2026-08-14:
   (`proTierOffered()`, `VITE_AI_PRO_ENABLED`, default off) until a hosted route exists. That
   client flag is a PLACEHOLDER: `claude/pro-hosted-route` already carries `AI_PRO_ENABLED` and
   `GET /api/ai/pro/status`, so merging the two means deleting the flag and gating on the server
-  answer, the way Lite's availability already works. **One door takes one switch.**
+  answer, the way Lite's availability already works. **One door takes one switch** - two of them
+  means a deployment that meters Pro on the server and still shows no door, or the reverse.
+  **Order ratified by the owner 2026-08-14: this tier work lands FIRST, and the hosted-route
+  session performs the deletion** - it rewrites this region of `AiStep` anyway, and it owns the
+  server answer that replaces the flag.
 
 **Every model row carries a price per 1M tokens and says which key pays it.** None of the three
 direct provider APIs publishes a price with its listing (measured), so `aiModelDiscovery.ts`

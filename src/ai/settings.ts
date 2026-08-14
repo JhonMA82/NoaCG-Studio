@@ -156,9 +156,11 @@ export function isAiTier(value: unknown): value is AiTier {
  *
  * **THIS FLAG IS A PLACEHOLDER FOR A SERVER ANSWER, and the branch that replaces it already
  * exists.** `claude/pro-hosted-route` adds `AI_PRO_ENABLED` plus `GET /api/ai/pro/status`, the
- * same shape Lite's availability already takes. Whoever merges the two: DELETE this function
- * and `VITE_AI_PRO_ENABLED`, and gate the tier on that status exactly as `liteStatus` is gated.
- * Two switches for one door is how a tier comes to be visible on a deployment that refuses it.
+ * same shape Lite's availability already takes. That session - which lands AFTER this one, by
+ * the owner's decision of 2026-08-14 - DELETES this function and `VITE_AI_PRO_ENABLED` and
+ * gates the tier on that status exactly as `liteStatus` is gated. Two switches for one door is
+ * how a tier comes to be visible on a deployment that refuses it, or hidden on one that meters
+ * it.
  */
 export function proTierOffered(): boolean {
   const flag = env('VITE_AI_PRO_ENABLED').trim().toLowerCase();
