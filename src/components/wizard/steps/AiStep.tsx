@@ -295,9 +295,12 @@ export default function AiStep({
   // provider's default model (saveAiSettings), so no gateway model id is left behind in the box.
   useEffect(() => {
     if (tier !== 'custom' || isByokProvider(settings.provider)) return;
-    saveAiSettings({ provider: DEFAULT_BYOK_PROVIDER });
+    // A provider this visitor already has a key for beats the bare default: they configured it
+    // for exactly this.
+    const configured = settings.configuredProviders.find(isByokProvider);
+    saveAiSettings({ provider: configured ?? DEFAULT_BYOK_PROVIDER });
     setSettings(loadAiSettings());
-  }, [tier, settings.provider]);
+  }, [tier, settings.provider, settings.configuredProviders]);
 
   /* The one-line read-back beside the ⚙ button (re-design/handoff.md §3a): which tier is
      running and, on the tier where models are the user's own, what it will call. A managed
