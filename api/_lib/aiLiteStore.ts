@@ -17,10 +17,11 @@ export type LiteGenerationStatus =
   | 'failed'
   | 'expired';
 
-/** The ledger row discriminators migration 0015's CHECK constraint admits. The task
- *  registry maps task ids onto these ('lite-design-spec' -> 'lite'); a new value ships
- *  its constraint migration in the same commit. */
-export type AiLedgerProfile = 'lite' | 'import-analysis';
+/** The ledger row discriminators the CHECK constraint admits (0015 widened it to
+ *  'import-analysis', 0044 to 'pro'). The task registry maps task ids onto these
+ *  ('lite-design-spec' -> 'lite'); a new value ships its constraint migration in the
+ *  same commit. */
+export type AiLedgerProfile = 'lite' | 'import-analysis' | 'pro';
 
 /** The quota subset a reservation needs - LiteProfile and ImportAnalysisProfile both
  *  satisfy it structurally, which is what lets one store admit every task's ledger
@@ -98,6 +99,22 @@ export type LiteJudgeReservation =
   | { status: 'created'; judgeCount: number }
   | { status: 'not-found' | 'expired' | 'judge-limit' | 'fleet-spend' };
 
+/**
+ * May a hosted Pro reservation pay for one more model call? (migration 0044)
+ *
+ * Pro differs from every other ledger profile in one way that matters here: ONE generation
+ * makes SEVERAL model calls, and the server that spends the money is the generic gateway
+ * proxy rather than the task's own endpoint. So the reservation books the whole generation's
+ * worst case up front - the Lite shape - and each call is admitted against that booking and
+ * settles its real cost into it.
+ *
+ * Same oracle rule as the judge: a missing record and one owned by somebody else both answer
+ * 'not-found'.
+ */
+export type ProCallAdmission =
+  | { status: 'admitted'; calls: number; spentUsd: number }
+  | { status: 'not-found' | 'expired' | 'call-limit' | 'cost-ceiling'; calls: number; spentUsd: number };
+
 export interface LiteGenerationStore {
   /** Per-profile counting: one task's traffic never consumes another's allowance. */
   usage(profileId: AiLedgerProfile, userId: string, now: number): Promise<LiteUsageSnapshot>;
@@ -126,6 +143,20 @@ export interface LiteGenerationStore {
   }): Promise<LiteJudgeReservation>;
   /** Reconcile a booked worst case to the provider's real number (never below zero). */
   settleJudgeCost(id: string, deltaUsd: number): Promise<void>;
+  /** Admit ONE model call against a hosted Pro reservation - ownership, liveness, the
+   *  per-generation call cap and the per-generation cost ceiling, decided together. */
+  admitProCall(input: {
+    generationId: string;
+    userId: string;
+    now: number;
+    maxCalls: number;
+    generationCeilingUsd: number;
+  }): Promise<ProCallAdmission>;
+  /** Settle one Pro call's real provider cost into the reservation, and count it. The FIRST
+   *  settlement replaces the reservation's booked worst case; every later one adds. Called
+   *  even when the call failed: a billed call that produced nothing still spent money, and a
+   *  ledger that recorded only successes is how a wholesale failure reports $0.0000. */
+  recordProCall(input: { generationId: string; userId: string; costUsd: number }): Promise<void>;
   qualityPriors(input: {
     now: number;
     windowDays: number;
@@ -258,6 +289,33 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
     this.records.set(id, {
       ...current,
       providerCostUsd: Math.max(0, current.providerCostUsd + deltaUsd),
+      updatedAt: Date.now(),
+    });
+  }
+
+  async admitProCall(input: Parameters<LiteGenerationStore['admitProCall']>[0]): Promise<ProCallAdmission> {
+    const record = this.records.get(input.generationId);
+    if (!record || record.userId !== input.userId || record.profile !== 'pro') {
+      return { status: 'not-found', calls: 0, spentUsd: 0 };
+    }
+    const seen = { calls: record.attemptCount, spentUsd: record.providerCostUsd };
+    if (record.expiresAt <= input.now) return { status: 'expired', ...seen };
+    if (record.attemptCount >= input.maxCalls) return { status: 'call-limit', ...seen };
+    // Only once a real cost has been settled: while attemptCount is 0 the row still carries
+    // the booked worst case, which IS the ceiling and would refuse the first call.
+    if (record.attemptCount > 0 && record.providerCostUsd > input.generationCeilingUsd) {
+      return { status: 'cost-ceiling', ...seen };
+    }
+    return { status: 'admitted', ...seen };
+  }
+
+  async recordProCall(input: Parameters<LiteGenerationStore['recordProCall']>[0]): Promise<void> {
+    const record = this.records.get(input.generationId);
+    if (!record || record.userId !== input.userId || record.profile !== 'pro') return;
+    this.records.set(record.id, {
+      ...record,
+      attemptCount: record.attemptCount + 1,
+      providerCostUsd: (record.attemptCount === 0 ? 0 : record.providerCostUsd) + Math.max(0, input.costUsd),
       updatedAt: Date.now(),
     });
   }

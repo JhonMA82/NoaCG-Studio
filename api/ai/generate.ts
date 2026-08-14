@@ -4,6 +4,7 @@ import { managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
 import { executeGatewayRequest, GatewayError, validateGatewayBody } from '../_lib/aiGateway.js';
 import { surfaceExecutionPolicy, surfaceRoutePolicy } from '../_lib/aiSurfacePolicy.js';
 import { gatewayLedgerEntry, recordGatewayRequest } from '../_lib/aiGatewayLedger.js';
+import { admitManagedProCall, proAllowanceEnforceable, settleManagedProCall } from '../_lib/pro/managedCall.js';
 import { checkAiGenerateRateLimit } from '../_lib/rateLimit.js';
 import { gatedFeature, resolveUserEntitlement, surfaceRefused } from '../_lib/entitlements.js';
 import { allows } from '../../src/entitlements/contract.js';
@@ -145,6 +146,8 @@ export default {
 
     let result: ModelResult | null = null;
     let failure: GatewayError | null = null;
+    /** Set once a managed Pro call has been admitted, so only an admitted call settles. */
+    let proReservationAdmitted = false;
     try {
       // Inside the try so a refusal ledgers exactly like the BYO one does - an entitlement
       // refusal is an outcome worth counting, not a hole in the accounting.
@@ -156,6 +159,16 @@ export default {
       // the presented keys rather than inside keyFor, because the policy is a property of the
       // whole request while keyFor answers per provider.
       const byoPrimary = Boolean(userKeys[body.route.provider]);
+      // HOSTED NoaCG Pro: a managed Pro call must ride a live reservation, which is what turns
+      // the surface tag from a label into an allowance (api/_lib/pro/managedCall.ts). BYO is
+      // excluded by the same rule the routing policy below uses - a caller's own key on their
+      // own model is not ours to meter. The entitlement was already resolved by guardSurface;
+      // this adds the profile, the funded-route check and the quota.
+      if (body.surface === 'pro' && !byoPrimary && proAllowanceEnforceable()) {
+        await entitlementFor(); // verifies the token, so auth.user is resolved below
+        await admitManagedProCall(body, auth.user?.userId ?? null);
+        proReservationAdmitted = true;
+      }
       const gateway = byoPrimary ? undefined : surfaceRoutePolicy(body.surface, body.route);
       // A surface may also carry an EXECUTION policy - attempt budget and timeout. Only the
       // bench-only spike surface does today, and for a measured reason (aiSurfacePolicy.ts):
@@ -172,6 +185,14 @@ export default {
       failure = error instanceof GatewayError
         ? error
         : new GatewayError('invalid_request', 'The AI request is invalid.', 400, false);
+    }
+
+    // Settle what a managed Pro call cost into its own reservation, BEFORE the gateway ledger
+    // write below - the two record different things (a generation's running spend against its
+    // ceiling, versus one request's content-free accounting) and only the first can refuse the
+    // next call. Awaited for the same reason: a serverless instance must not drop it.
+    if (proReservationAdmitted) {
+      await settleManagedProCall(body, auth.user?.userId ?? null, result);
     }
 
     // Content-free accounting; awaited so a serverless instance can't drop the write,
