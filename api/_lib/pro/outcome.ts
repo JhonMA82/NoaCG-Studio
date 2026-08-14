@@ -1,4 +1,4 @@
-// POST /api/ai/pro/outcome - what became of a hosted Pro reservation.
+// POST /api/ai/pro-outcome - what became of a hosted Pro reservation.
 //
 // It records the OUTCOME and nothing about money: the cost is written by the server that spent
 // it (api/ai/generate.ts settles each call through record_ai_pro_call), because a figure the

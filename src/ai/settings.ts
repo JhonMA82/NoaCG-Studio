@@ -146,7 +146,7 @@ export function isAiTier(value: unknown): value is AiTier {
 /**
  * NOTE FOR ANYONE LOOKING FOR A PRO FLAG HERE: there isn't one, and there must not be.
  *
- * NoaCG Pro is offered by the SERVER or not at all - `GET /api/ai/pro/status` answers whether
+ * NoaCG Pro is offered by the SERVER or not at all - `GET /api/ai/pro-status` answers whether
  * hosted Pro is available to this visitor (`AI_PRO_ENABLED`, their entitlement, their
  * allowance), and AiStep additionally requires a configured backend, because that route
  * reserves and settles per account. A client flag beside a server answer is two switches for

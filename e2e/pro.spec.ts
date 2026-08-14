@@ -18,9 +18,9 @@ import { test, expect, type Page } from '@playwright/test';
 // quietly lost: the wizard walk through a hosted Pro generation and the allowance read-back,
 // both of which need a backend-configured deployment (e2e/configured/ territory).
 
-/** Answer /api/ai/pro/status as a deployment that offers hosted Pro. */
+/** Answer /api/ai/pro-status as a deployment that offers hosted Pro. */
 async function withHostedPro(page: Page, allowance = { daily: 3, monthly: 10 }) {
-  await page.route('**/api/ai/pro/status', (route) => route.fulfill({
+  await page.route('**/api/ai/pro-status', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({

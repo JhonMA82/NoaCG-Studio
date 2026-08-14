@@ -283,7 +283,7 @@ and never enters the template or the saved graphic. Lite disabled = the BYO surf
 **Pro** shows the concept image with its provider-reported cost plus the per-region editability
 report (`data-testid="pro-report"`, keyed to the template by WeakMap so a restored past result
 shows its own concept). **The tier is OFFERED only where it can actually run** - the server says
-hosted Pro is available to this visitor (`/api/ai/pro/status`) AND the deployment carries the
+hosted Pro is available to this visitor (`/api/ai/pro-status`) AND the deployment carries the
 backend that route is metered through (`proOffered = proHosted && isBackendConfigured()`). Where
 that is false the tier is ABSENT, never a greyed row and never a key request: a NoaCG tier runs
 on NoaCG's own service or it is not offered (owner, 2026-08-14). Its settings are therefore one

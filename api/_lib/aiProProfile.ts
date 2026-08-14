@@ -46,7 +46,7 @@ import type { ModelRoute } from '../../src/ai/modelTypes.js';
  * **The spacing is NOT measured, and that is stated rather than hidden.** Lite's 17.8 s came
  * from 18 real generations; Pro has produced none through this route, and the browser telemetry
  * ring never reaches the server. So the default below is a starting value, tunable without a
- * deploy - and `POST /api/ai/pro/outcome` now records `runtime_ms`, which is what will let a
+ * deploy - and `POST /api/ai/pro-outcome` now records `runtime_ms`, which is what will let a
  * later change replace it with a real turnover the way Lite's was.
  */
 export const PRO_DEFAULT_RETRY_SPACING_MS = 8_000;

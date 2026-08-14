@@ -82,7 +82,7 @@ Four rules, all of them things the shipped build got wrong before 2026-08-14:
 - **A NoaCG TIER RUNS ON NOACG'S OWN SERVICE OR IT IS NOT OFFERED** (owner, 2026-08-14). It
   never asks a customer for a key to reach our own models or harness. Pro is therefore offered
   on exactly two conditions, ANDed: the server says hosted Pro is available to this visitor
-  (`GET /api/ai/pro/status`, `AI_PRO_ENABLED`) **and** the deployment carries the backend that
+  (`GET /api/ai/pro-status`, `AI_PRO_ENABLED`) **and** the deployment carries the backend that
   route is metered through (`proOffered = proHosted && isBackendConfigured()`). Where either is
   false the tier is ABSENT - not greyed, and never degraded into a key request. **One door
   takes one switch:** there is no client flag for Pro and there must not be one, or a
@@ -629,7 +629,7 @@ lesson about early returns destroying paid concepts. An unreported cost counts a
 off; `docs/AI_TASK_REGISTRY.md`). The browser ceiling was for a long time "the only thing standing
 between a route change and an open tap", because Pro rode the general model surface with no
 registered task; `pro-generate` is that task. `src/ai/pro/session.ts` opens ONE reservation per
-generation (`POST /api/ai/pro/generations`) and the pipeline forwards `proGenerationId` on every
+generation (`POST /api/ai/pro-generations`) and the pipeline forwards `proGenerationId` on every
 model call; `/api/ai/generate` admits each call against it and settles the provider's real cost
 into `ai_generations` (migration 0044). So the two enforcement points are deliberately the same
 constant: the browser's is a cost control, the ledger's is the bound. **A `session` of null is the
@@ -654,7 +654,7 @@ answers, and re-asking them would just spend the classroom's request budget.
 
 **The retry SPACING is not measured, and says so.** Lite's 17.8 s came from 18 timed
 generations; Pro has produced none through this route and the telemetry ring is browser-local.
-`AI_PRO_RETRY_SPACING_MS` is a starting value, and `/api/ai/pro/outcome` now records
+`AI_PRO_RETRY_SPACING_MS` is a starting value, and `/api/ai/pro-outcome` now records
 `runtime_ms` so it can be replaced by a real turnover the way Lite's was.
 
 `PRO_STANDARD_ROUTES` (`pro/pipeline.ts`) is pinned so a normal Pro user never picks models; **do not

@@ -1,4 +1,4 @@
-// POST /api/ai/pro/generations - open ONE hosted Pro reservation.
+// POST /api/ai/pro-generations - open ONE hosted Pro reservation.
 //
 // This endpoint spends nothing. It admits the caller and books the generation's worst case
 // against the allowance; the model calls themselves go out through the generic gateway proxy

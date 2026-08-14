@@ -74,7 +74,7 @@ async function checked<T>(response: Response): Promise<T> {
  */
 export async function loadProStatus(): Promise<ProStatusResponse | null> {
   try {
-    const response = await fetch('/api/ai/pro/status', { headers: await headers() });
+    const response = await fetch('/api/ai/pro-status', { headers: await headers() });
     if (!response.ok) return null;
     return await response.json() as ProStatusResponse;
   } catch {
@@ -91,7 +91,7 @@ export async function loadProStatus(): Promise<ProStatusResponse | null> {
 export async function openProSession(): Promise<ProSession> {
   const startedAt = Date.now();
   const reservation = await checked<ProReservationResponse>(
-    await fetch('/api/ai/pro/generations', {
+    await fetch('/api/ai/pro-generations', {
       method: 'POST',
       headers: await headers(),
       body: JSON.stringify({ idempotencyKey: `pro-${uuid()}` }),
@@ -126,7 +126,7 @@ export async function reportProOutcome(
     runtimeMs: Math.min(1_800_000, Math.max(0, Date.now() - session.startedAt)),
   };
   try {
-    await fetch('/api/ai/pro/outcome', {
+    await fetch('/api/ai/pro-outcome', {
       method: 'POST',
       headers: await headers(),
       body: JSON.stringify(body),
