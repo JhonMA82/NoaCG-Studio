@@ -50,6 +50,18 @@ whether it needs a browser on this machine.
 
 Letters are the day's vocabulary and, once assigned, never move.
 
+**The letter travels with the session, everywhere.** It is the only handle the user has for
+telling six near-identical prompts apart hours later, so it is carried in three places and no
+fewer:
+
+- the wave table row,
+- the **branch name**: `<tool>/<letter>-<name>`, lower-case letter, e.g. `claude/a-ai-tier-door`,
+- the **first line of the prompt**, before anything else (section 5).
+
+A session whose letter appears in only one of the three is a session the user has to reconstruct
+by reading it. Never re-letter a session mid-day, and never reuse a letter that was held earlier -
+if a task is dropped, its letter dies with it.
+
 ### 2. What can run at once
 
 **File overlap is the expensive failure, and a file list alone does not find it.** Two sessions
@@ -83,8 +95,10 @@ Two different things, never blended:
   `git merge-tree`. Quote its own verdict words - `clear`, `caution`, `hold` - so the answer can be
   compared with what the safe-merge workflow prints an hour later. It is the authority here.
 - **Today's new sessions**, which have no branches yet, so the script cannot see them. Give the
-  order as an explicit PREDICTION from `TOUCHES`, `MINTS` and the wait-chain, and say that
-  `merge-order.mjs` should be re-run once the branches exist.
+  order as an explicit PREDICTION from `TOUCHES`, `MINTS` and the wait-chain - **as a numbered
+  list of LETTERS**, matching the wave table and the branch names, so it can be compared against
+  section 5 without re-reading either. Say that `merge-order.mjs` should be re-run once the
+  branches exist.
 
 **Section 3 is a report, not a pick.** A branch named here is NOT an offered safe-merge option, so
 "merge A" said to this session does not invoke that flow. Answer it by naming the branch, its
@@ -116,10 +130,18 @@ still goes below, and the decision stays the user's.
 ### 5. The prompts
 
 One fenced block per session, in START order, each pasteable into a fresh session. Compact -
-target ~20 lines:
+target ~20 lines.
+
+Open the section with a **one-line run order** naming the letters and nothing else, so the user
+can see the shape before reading a single prompt: *"Start now: A, C, D. Then B after A. Then E
+after D. F and G held."*
 
 ```
-BRANCH <tool>/<name>   START now | after A   TOUCHES <files>   MINTS <slot, or ->
+SESSION A - <three-word name>
+BRANCH <tool>/a-<name>
+START  now
+WAIT   nothing - start immediately
+TOUCHES <files>   MINTS <slot, or ->
 GOAL   One sentence: what is true when this is done.
 WHY    The real problem it solves, or the goal it serves.
 READ   file, file, file.
@@ -128,6 +150,17 @@ TRAPS  only what is written in no repo file
 GATE   npm run build, then push and read the CI run. Commit each verified step. Never land on main.
 ```
 
+- **`SESSION <letter>` is the first line, always**, before the branch and before anything else.
+  Same letter as the wave table, same letter as the branch name. This line exists for the user
+  scrolling back at 4pm, not for the session reading it.
+- **`START` and `WAIT` are two different facts and both are mandatory.** `START` is the position
+  in the day (`now`, or `after C`). `WAIT` is the *check that proves the wait is over*, written as
+  something runnable, e.g. `WAIT C landed - git branch --merged main | grep c-pro-panel, and its
+  worktree clean`. A session that starts now still carries `WAIT nothing - start immediately`,
+  because an absent line reads as an omission rather than as permission.
+- **A `WAIT` names a letter and a verifiable condition, never a time.** "after lunch", "once the
+  other one is further along" and "in parallel but a bit later" are not conditions. If the real
+  dependency is a shared file rather than a merge, say which file and say who owns it today.
 - **`<tool>` is whichever tool will run it** - `claude/…` or `codex/…`. Never hardcode one.
 - **WHY says what breaks if this is not done**, where GOAL says what will be true. It exists so
   the receiving session can TEST the assignment instead of obeying it. Same rule and same reason
@@ -201,3 +234,6 @@ a longer prompt.
 - **Stay usable all day.** "Can B start now" is three checks, all required: A's branch contained
   in `main` (`git branch --merged main`), A's worktree clean, and the shared file no longer listed
   in flight. Answer from those plus a fresh `worktree-activity.mjs` run - never by re-planning.
+  Those three checks are what B's own `WAIT` line already promised, so answering the question and
+  reading B's prompt must give the same answer; if they diverge, the `WAIT` line was written
+  wrong and gets corrected rather than explained.
