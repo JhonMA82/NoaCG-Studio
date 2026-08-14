@@ -25,6 +25,11 @@ export interface AiProviderOption {
   id: AiProviderId;
   label: string;
   blurb: string;
+  /** What this provider CALLS the credential it issues. Hugging Face issues user access
+   *  TOKENS and has no such thing as an API key, so a surface asking for a "Hugging Face key"
+   *  is asking for something that does not exist - the user then looks for it, does not find
+   *  it, and reasonably concludes the integration is broken. Defaults to 'key'. */
+  credential?: 'key' | 'token';
 }
 
 /**
@@ -42,9 +47,15 @@ export const AI_PROVIDERS: AiProviderOption[] = [
   {
     id: 'huggingface',
     label: 'Hugging Face',
-    blurb: 'Open-weight models through Hugging Face Inference Providers, on your own key.',
+    blurb: 'Open-weight models through Hugging Face Inference Providers, on your own access token.',
+    credential: 'token',
   },
 ];
+
+/** The word a provider uses for its own credential, for any surface that has to name it. */
+export function credentialNoun(provider: AiProviderId): 'key' | 'token' {
+  return AI_PROVIDERS.find((option) => option.id === provider)?.credential ?? 'key';
+}
 
 export const BYOK_PROVIDER_IDS: AiProviderId[] = AI_PROVIDERS.map((provider) => provider.id);
 

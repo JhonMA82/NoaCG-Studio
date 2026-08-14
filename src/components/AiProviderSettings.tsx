@@ -9,6 +9,7 @@ import {
 import {
   AI_PROVIDERS,
   DEFAULT_PROVIDER,
+  credentialNoun,
   deleteUserAiKey,
   isByokProvider,
   modelsForProvider,
@@ -53,15 +54,19 @@ export default function AiProviderSettings({ settings, onChange, allowManaged = 
   const selectedDiscovered = discovered.find((model) => model.id === settings.model);
   const providerLabel = AI_PROVIDERS.find((p) => p.id === provider)?.label
     ?? (managedSelected ? MANAGED_OPTION.label : provider);
-  /* WHICH KEY PAYS, in the model row's own hint. The discovery rows carry it per model; this
-     says it once for the model actually selected, including the honest third state - a route
-     nobody has a key for yet. It LEADS the hint rather than trailing it: the sentence after it
-     is either a price or a blurb, both of which already end in their own punctuation. */
+  // Each provider's OWN word for the credential it issues - Hugging Face has no API keys, only
+  // user access tokens, and asking for the wrong thing sends people looking for a page that
+  // does not exist.
+  const noun = credentialNoun(provider);
+  /* WHICH CREDENTIAL PAYS, in the model row's own hint. The discovery rows carry it per model;
+     this says it once for the model actually selected, including the honest third state - a
+     route nobody has one for yet. It LEADS the hint rather than trailing it: the sentence after
+     it is either a price or a blurb, both of which already end in their own punctuation. */
   const payerSentence = managedSelected || (!current?.userKey && current?.managedKey)
     ? 'Included with NoaCG.'
     : current?.userKey
-      ? `Charged to your ${providerLabel} key.`
-      : `Needs your ${providerLabel} key.`;
+      ? `Charged to your ${providerLabel} ${noun}.`
+      : `Needs your ${providerLabel} ${noun}.`;
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -116,9 +121,9 @@ export default function AiProviderSettings({ settings, onChange, allowManaged = 
       await saveUserAiKey(provider, key);
       setKey('');
       applyConfig(await refreshAiConfiguration());
-      setMessage('Provider key stored securely.');
+      setMessage(`Your ${providerLabel} ${noun} is stored securely.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not store the provider key.');
+      setMessage(error instanceof Error ? error.message : `Could not store the ${noun}.`);
     } finally {
       setBusy(false);
     }
@@ -130,9 +135,9 @@ export default function AiProviderSettings({ settings, onChange, allowManaged = 
     try {
       await deleteUserAiKey(provider);
       applyConfig(await refreshAiConfiguration());
-      setMessage('User-provided key removed.');
+      setMessage(`Your ${providerLabel} ${noun} was removed.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not remove the provider key.');
+      setMessage(error instanceof Error ? error.message : `Could not remove the ${noun}.`);
     } finally {
       setBusy(false);
     }
@@ -216,32 +221,32 @@ export default function AiProviderSettings({ settings, onChange, allowManaged = 
           row exists for. */}
       {!managedSelected && (
       <div className="dlg-row">
-        <label htmlFor="ai-user-key">{`${providerLabel} key`}</label>
+        <label htmlFor="ai-user-key">{`${providerLabel} ${noun}`}</label>
         <div className="dlg-pair">
           <input
             id="ai-user-key"
             type="password"
             autoComplete="off"
-            placeholder="Paste a provider key"
+            placeholder={`Paste your ${providerLabel} ${noun}`}
             value={key}
             disabled={busy || settings.keyStorageAvailable === false}
             onChange={(event) => setKey(event.target.value)}
           />
           <span className="row" style={{ gap: 8 }}>
-            <button disabled={busy || !key.trim()} onClick={() => void saveKey()}>Store key</button>
+            <button disabled={busy || !key.trim()} onClick={() => void saveKey()}>
+              {noun === 'token' ? 'Store token' : 'Store key'}
+            </button>
             {current?.userKey && <button disabled={busy} onClick={() => void removeKey()}>Remove</button>}
           </span>
         </div>
         <p className="dlg-hint">
           {settings.keyStorageAvailable === false
-            ? 'This server has not configured encrypted user-key storage.'
+            ? `This server has not configured encrypted storage for your own ${noun}.`
             : current?.userKey
-              ? 'A user key is stored in an encrypted HttpOnly cookie. It cannot be read by the app.'
-              : current?.managedKey
-                ? current.requiresSignIn
-                  ? 'A NoaCG-managed key is available after sign-in.'
-                  : 'Blank key = NoaCG-managed server key. Any model id the provider supports.'
-                : 'The key is sent once to this server and is never saved in browser-readable storage.'}
+              ? `Your ${noun} is stored in an encrypted HttpOnly cookie. It cannot be read by the app.`
+              : `The ${noun} is sent once to this server and is never saved in browser-readable storage.${
+                  noun === 'token' ? ' It needs the “Inference Providers” permission.' : ''
+                }`}
         </p>
       </div>
       )}

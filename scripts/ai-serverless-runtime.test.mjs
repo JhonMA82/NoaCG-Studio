@@ -208,7 +208,7 @@ test('Vercel-style JavaScript artifacts load and execute every Creative AI funct
         OPENAI_API_KEY: 'provider-key-placeholder-openai',
         GOOGLE_API_KEY: 'provider-key-placeholder-google',
         AI_GATEWAY_API_KEY: 'provider-key-placeholder-gateway',
-        HUGGINGFACE_API_KEY: 'provider-key-placeholder-huggingface',
+        HF_TOKEN: 'provider-key-placeholder-huggingface',
       }),
     },
   );

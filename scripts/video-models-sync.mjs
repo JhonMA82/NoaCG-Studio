@@ -20,7 +20,7 @@ try {
     discoverProviderModels('vercel', process.env.AI_GATEWAY_API_KEY),
     discoverProviderModels(
       'huggingface',
-      process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN,
+      process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN || process.env.HUGGINGFACE_API_KEY,
     ),
   ]);
   const snapshot = {
