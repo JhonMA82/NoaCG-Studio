@@ -24,6 +24,7 @@
 //   node scripts/stinger-gate.mjs --fps 25        # a different delivery standard
 //   node scripts/stinger-gate.mjs --only ink-sweep
 //   node scripts/stinger-gate.mjs --mark the-ledger --keep-frames
+//   node scripts/stinger-gate.mjs --mp4        # + an on-air clip and a clean clip per stinger
 //
 // Exit code 1 if any gate fails. Needs ffmpeg; spends no tokens and reaches no network.
 
@@ -52,6 +53,87 @@ const FPS = Number(arg('fps', '50'));
 const ONLY = arg('only');
 const MARK = arg('mark');
 const KEEP = has('keep-frames');
+const MP4 = has('mp4');
+
+/** Pre-roll and post-roll around the stinger in the on-air clip, in seconds. */
+const PRE = 0.7, POST = 1.3;
+
+/**
+ * Two MP4s per stinger, because they answer different questions.
+ *
+ * `-oncut.mp4` is THE TEST: the graphic keyed over MOVING footage, with the programme cut from
+ * one source to a visibly different one at exactly the Trigger Point we tell the operator to
+ * set. If the cut is hidden, the stinger works; if you can see it, the cover window is wrong
+ * no matter what the gate says. Two synthetic sources rather than real footage - they are
+ * deterministic, carry no licence, and being obviously different is the whole point: a cut
+ * that survives THESE is hidden behind anything.
+ *
+ * `-alpha.mp4` is the graphic alone over a checkerboard, for judging the motion itself without
+ * a background arguing with it.
+ *
+ * Both are browser captures, one screenshot per frame off the composition's own paused
+ * timeline - the same seek-per-frame model the render worker uses, but NOT the production
+ * render path. Verifying that path is its own item.
+ */
+function renderMp4s(seq, id, fps, frames, triggerFrame) {
+  const dur = frames / fps;
+  const tc = (PRE + triggerFrame / fps).toFixed(4);
+  const total = (PRE + dur + POST).toFixed(4);
+  const outCut = path.join(OUT, `${id}-oncut.mp4`);
+  const outAlpha = path.join(OUT, `${id}-alpha.mp4`);
+
+  // TWO PASSES, NOT ONE GRAPH. Building the programme and compositing the graphic onto it in a
+  // single filter graph DEADLOCKS: `concat` will not pull from its second segment until the
+  // first is exhausted, so the second source's frames pile up while `overlay` waits on the
+  // first - measured running for 100 seconds on a four second clip and producing nothing. Each
+  // half on its own finishes in about two seconds.
+  //
+  // Both programme sources are cheap on purpose. mandelbrot at 1080p50 was the first choice and
+  // it ate a gigabyte of memory without finishing; testsrc2 and gradients render in real time
+  // and differ enough in brightness and colour that an exposed cut is impossible to miss.
+  const prog = path.join(OUT, `_prog-${id}.mp4`);
+  const passes = [
+    ['ffmpeg', ['-v', 'error', '-y',
+      '-f', 'lavfi', '-i', `testsrc2=size=${W}x${H}:rate=${fps}:duration=${total}`,
+      '-f', 'lavfi', '-i',
+      `gradients=size=${W}x${H}:rate=${fps}:duration=${total}:c0=0x0B3D2E:c1=0x8FA9C4:x0=200:y0=120:x1=1700:y1=980:speed=0.04`,
+      '-filter_complex',
+      `[0:v]trim=0:${tc},setpts=PTS-STARTPTS[a];` +
+      `[1:v]trim=${tc}:${total},setpts=PTS-STARTPTS[b];` +
+      `[a][b]concat=n=2:v=1:a=0,format=yuv420p[v]`,
+      '-map', '[v]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16', '-t', total, prog]],
+    // tpad and NOT setpts on the graphic: shifting an overlay's timestamps forward makes
+    // `overlay` hold every main frame until the overlay stream produces its first, buffering
+    // the whole programme in RGBA. Padding with real transparent frames keeps both streams
+    // starting at zero and running the same length.
+    ['ffmpeg', ['-v', 'error', '-y', '-i', prog, '-framerate', String(fps), '-i', seq,
+      '-filter_complex',
+      `[1:v]format=rgba,tpad=start_duration=${PRE}:start_mode=add:color=0x00000000` +
+      `:stop_duration=${POST}:stop_mode=add[gfx];` +
+      `[0:v][gfx]overlay=format=auto,format=yuv420p[v]`,
+      '-map', '[v]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-t', total, outCut]],
+    // The graphic alone over a checkerboard, so transparency reads as transparency.
+    ['ffmpeg', ['-v', 'error', '-y',
+      '-f', 'lavfi', '-i', `color=c=0x2A2F38:size=${W}x${H}:rate=${fps}:duration=${total}`,
+      '-framerate', String(fps), '-i', seq,
+      '-filter_complex',
+      `[0:v]drawgrid=w=80:h=80:t=fill:c=0x3A404B@1[bg];` +
+      `[1:v]format=rgba,tpad=start_duration=${PRE}:start_mode=add:color=0x00000000` +
+      `:stop_duration=${POST}:stop_mode=add[gfx];` +
+      `[bg][gfx]overlay=format=auto,format=yuv420p[v]`,
+      '-map', '[v]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-t', total, outAlpha]],
+  ];
+
+  const errors = [];
+  for (const [bin, args] of passes) {
+    const r = spawnSync(bin, args, { encoding: 'utf8', timeout: 120_000 });
+    if (r.status !== 0) errors.push((r.stderr || r.error?.message || 'timed out').trim().split('\n').pop());
+  }
+  fs.rmSync(prog, { force: true });
+  return errors.length
+    ? { oncut: `FAILED: ${errors[0]}`, alpha: `FAILED: ${errors[0]}` }
+    : { oncut: outCut, alpha: outAlpha };
+}
 
 /** What the composition itself declares. The gate reads the SOURCE, never the page, so it
  *  cannot be fooled by a rig that decided its own window. */
@@ -183,6 +265,13 @@ async function main() {
       buildSheet({ input: seq, out: path.join(OUT, `${id}-sheet.png`), width: W, height: H,
         selectExpr: `not(mod(n\\,${Math.max(1, Math.floor(frames / 12))}))`, cellW: 360, cols: 6,
         tmpRoot: OUT, inputArgs: ['-framerate', String(FPS)] });
+
+      // MP4s last, while the captured frames are still on disk: motion is judged from a
+      // rendered clip and never from stills or a scrubbed pane (plan §4.1).
+      if (MP4) {
+        const m = renderMp4s(seq, id, FPS, frames, v.measured.atem.triggerPoint);
+        console.log(`    mp4  ${path.basename(m.oncut)}  ${path.basename(m.alpha)}`);
+      }
 
       fs.writeFileSync(path.join(OUT, `${id}-alpha.json`), JSON.stringify(
         stats.map((s) => ({ ...s, opaqueFrac: +s.opaqueFrac.toFixed(6), clearFrac: +s.clearFrac.toFixed(6), meanAlpha: +s.meanAlpha.toFixed(6) }))));

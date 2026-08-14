@@ -162,5 +162,28 @@ moved to 0.02-0.30 s and its slab started 3000 px closer failed exactly as it sh
 painting 90.6% of the frame, and 2 of 15 declared frames uncovered. The real exit code is 1 -
 checked without a pipe, because `| tail` reports the tail's status and hides the failure.
 
-**Still unmeasured:** motion quality, which per the plan's own rule is judged from a rendered
-MP4 and never from stills or a scrubbed pane.
+### Watching the motion
+
+```bash
+node scripts/stinger-gate.mjs --mp4 --mark kestrel-athletic
+```
+
+Two clips per stinger, because they answer different questions:
+
+- **`<id>-oncut.mp4` is the test.** The graphic keyed over MOVING footage, with the programme
+  cut from one source to a visibly different one at exactly the Trigger Point we tell the
+  operator to set. If the cut is hidden, the stinger does its job; if you can see it, the cover
+  window is wrong no matter what the gate said. The two sources are synthetic on purpose -
+  deterministic, no licence, and so obviously different that a cut which survives them is
+  hidden behind anything.
+- **`<id>-alpha.mp4`** is the graphic alone over a checkerboard, for judging the motion without
+  a background arguing with it.
+
+Both run 0.7 s of pre-roll, the 2 s stinger, and 1.3 s of post-roll.
+
+**They are browser captures**, one screenshot per frame off the composition's own paused
+timeline - the same seek-per-frame model the render worker uses, but NOT the production render
+path. Verifying that path end to end is its own item.
+
+**Still unmeasured:** whether the production render service produces the same pixels, and the
+PNG-sequence and ProRes export paths into an ATEM (plan §2.2).
