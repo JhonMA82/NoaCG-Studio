@@ -103,6 +103,39 @@ Usage is visible per resource on the organization's usage page. The **Spend Cap*
 settings) is the last line of defence: with it on, exceeding a quota restricts the project rather
 than billing for the overage.
 
+## Advisor warnings — the count that will never be zero, and the ones that must be
+
+`node scripts/supabase-advisors.mjs` fetches the dashboard's security and performance advisors and
+diffs them against `supabase/advisor-baseline.json`, failing only on a finding that is NEW. The
+count itself is not a target, and driving it to zero would mean dismantling the product:
+
+- **~24 `anon_security_definer_function_executable`.** The capability-URL model. A CasparCG or OBS
+  client holding an output slug, and an operator on a phone holding a control link, are
+  unauthenticated by construction (`docs/CLOUD_PLAYOUT.md`, `docs/CONTROL_LAYER.md`). RLS takes no
+  parameters, so a secret-slug capability can only be expressed as a definer function taking
+  `p_slug`. `SECURITY INVOKER` would end browser output and the public join page.
+- **~31 `authenticated_security_definer_function_executable`.** Mostly the same functions again,
+  plus the RLS predicate helpers — `is_moderator`, `is_suspended`, `feature_denied`,
+  `storage_within_quota`, `show_accepts`. A policy's expression runs as the QUERYING role, so the
+  role must hold EXECUTE on every function the policy names. Revoking one does not harden the
+  policy; it makes it fail closed. This is why a predicate cannot be locked down by revoking it.
+- **21 `rls_enabled_no_policy`.** RLS on with no policies is DENY-ALL: nothing but `service_role`
+  and definer functions can reach the table, which is stricter than any policy. No client code
+  selects from these tables (checked against every `from('…')` in `src/`).
+
+What is NOT permanent is an ACCIDENT wearing the same lint name. Supabase's default privileges
+grant EXECUTE on every new function in `public` to `anon`, `authenticated` and `service_role` as
+explicit per-role grants at CREATE time, so `revoke … from public` removes nothing and a migration
+that says nothing about roles ships an open function. That happened twice —
+`storage_within_quota` (0039, fixed by 0041) and the two identity trigger functions (0040, fixed by
+0042). **Every definer function in `public` must name the ROLES it revokes**, and
+`scripts/definer-grants.test.mjs` fails the build if one does not.
+
+Dashboard-only, so no migration can fix them: leaked-password protection (Auth → Passwords, on
+since 2026-08-13) and the Auth connection strategy (`auth_db_connections_absolute` — Auth holds a
+fixed 10 connections; switch it to percentage-based the day the instance is resized up, or the
+resize does nothing for Auth).
+
 ## Contents
 
 - `config.toml` — project settings for the open features. Auth is **invite-only**: the

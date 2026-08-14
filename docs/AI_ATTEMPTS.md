@@ -57,7 +57,8 @@ gradient plate on a dark panel was praised on `long-name` and `gradient-accent` 
 "visibly exposed" on `news-public`. Same geometry, same tones; what changed is the brief's world.
 So the check REPORTS and never gates, and the prompt now teaches the surface as a compositional
 element ("if deleting the mark would leave a floating plate that belongs to nothing, the mark
-has a bounding box, not a place in the design").
+has a bounding box, not a place in the design") - **which was then measured and does not work;
+see the ablation-round paragraph near the end of this entry before treating it as a fix.**
 
 **The own-field mark wins on today's contract.** The Ledger brand (a mark that brings its own
 field) took 6 of its 8 items to airable - no well decision to get wrong. The transparent
@@ -78,6 +79,20 @@ arm 18/18 read-only.** The exemplar block's ~34,500 tokens buy the CONVERTIBLE a
 falsification worth trying before Phase 3 leans on retrieval: teach the grammar-conformance
 lesson without three complete designs and see if conversion holds.
 
+**The 12/12-vs-0/18 claim is confirmed, and the ledger field that looked like it disagreed was
+the broken one (2026-08-13, free).** `codeAudit.region.converted` called 10 of the 18
+no-exemplar results converted while the validator demoted every one to a read-only timeline.
+Re-parsing all 30 saved templates with the real `parseAnimData` settles it: 12/12 and 0/18,
+agreeing with the demotion on 30 of 30. The audit field was a REGEX for the string `NOACG_ANIM`
+- and what those ten models did is write a block SHAPED like the data block that the parser
+rejects, which `convertEmittedRegion` cannot rescue (its own parse fails, so it restores the
+model's code verbatim: text present, nothing editable). That is a sharper finding than "they do
+not know the grammar" - unprompted, the model imitates the OUTPUT form it can see in the
+contract's name instead of writing the authoring GSAP the prompt asks for, so the ablation's
+lesson should forbid hand-writing `NOACG_ANIM` as explicitly as it teaches the builders. The
+audit now takes the parser's verdict from the page and reports `null` where nothing parsed it;
+a regex may not answer a parser's question.
+
 **Divergence: no four-tints failure.** Same brief under four brands produced genuinely different
 designs (`divergence.html`). The round's only NOT-ACCEPTABLE results are world-crossed pairings
 (`entertainment` under the sport and institutional brands) - brand-brief coherence degrades
@@ -88,9 +103,180 @@ output before sameness ever appears.
 AFTER the captures, so that generation's paid code was lost. Fixed the same hour: a lifecycle
 throw is a recorded RESULT, and the deliverable lands on disk the moment it exists.
 
-**RETRY WHEN** - not a retry; Phase 1 continues on this evidence. Owed next: the well-integration
-teaching plus the bounding-box check the owner asked for, the catalog side-slot option, animated
-motion review, and the exemplar-vs-grammar-teaching ablation above.
+**ANIMATED REVIEW IS BUILT (2026-08-13, free).** Each strip is now also encoded to a looping webm
+the blind gallery plays in place, sampled on the same virtual clock at exactly one playback frame
+per step so it runs at the graphic's real speed. The five stills are untouched - the mark-motion
+gate was calibrated on them - and the clip is what the §0.2 read now judges motion from. Two
+things the build had to get right: an early version fitted its grid across the phase AND folded
+the stills into the sequence, which made a 1340 ms entrance play as a 1.60 s clip (easing is read
+from timing, so a clip that misreports it is worse than none); and the update strip's five stills
+start at the instant `update()` fires, so its clip leads in 300 ms to show the swap happen rather
+than 900 ms of a frozen frame. Native `controls` are off - the bar lands exactly on the lower
+third. ffmpeg is optional; without it the gallery falls back to stills.
+
+**THE ABLATION RAN, AND THE EXEMPLAR BLOCK SURVIVES IT (2026-08-13, $0.215 of a $0.40 cap;
+archive `pro-exemplar-ablation-qwen3-coder-2026-08-13`).** Same 12 briefs, same brands, same
+pinned decoding, same `alibaba/qwen3-coder`, with a ~480-token lesson in the exemplar block's
+slot: what the ANIMATION region is for, the shape the importer reads, and an explicit
+instruction not to hand-write `NOACG_ANIM`. **1 of 12 editable timelines, against the exemplar
+arm's 12 of 12** - and three exemplar re-runs reproduced the stored arm exactly on that axis
+(retrieval identical, timelines editable 3/3), so the comparison is against a live arm, not a
+stale one. The ~34,500 tokens buy something a lesson does not teach.
+
+Two things worth carrying beyond this round. **The prohibition did not suppress the behaviour
+it named:** 6 of 12 wrote a `NOACG_ANIM`-shaped block anyway (the un-taught arm was 10 of 18 -
+the same rate), which is the §"write a constraint as INSPECTION" rule reappearing as a null
+result. And **the remaining 6 failed differently** - no block at all, authoring GSAP the
+importer still could not read - so the arm did not trade one failure for another, it simply
+did not move either. A worked example of a region conforms; a description of one does not.
+Cost stayed honest: $0.011 a generation against the exemplar arm's $0.028-$0.038.
+
+**THE WELL-INTEGRATION TEACHING DOES NOT WORK, MEASURED (2026-08-13, free).** The ablation
+round is its first paid outing, and re-measuring both rounds from their saved code with the
+SAME check says it moved nothing: the untaught no-exemplar arm was 9/18 boxed (50%), and the
+taught grammar arm is **8/12 (67%)** once the dead marks below are repaired and can be judged
+at all. Like-for-like on the exemplar arm, 8/12 before and 2/3 in the drift re-runs - flat.
+The rate looked like it had improved (5/12) only because five marks were invisible, and an
+invisible mark cannot be flagged for its surface.
+
+So the teaching has now been written twice and measured once, and prose is not what is missing.
+
+**TAKING IT STRUCTURALLY WAS TRIED (owner decision, same day): the DECISION shipped, the
+DRAWING did not, and the reason is the interesting part.** Deciding whether a mark needs a
+surface turns out to need nothing from the design - `decideMarkSurface` compares the mark's
+probed ink against the design's declared `--panel-bg`, compositing a translucent panel over
+black AND white and evaluating every stop of a gradient, worst case wins; which neutral a field
+would use is computed rather than assumed, because a mid-tone mark breaks the "light ink wants a
+dark field" rule (the sunbeam roundel reads 1.8:1 on the light neutral and 9.4:1 on the dark).
+Over the ablation's 15 generations it fires on exactly the three the rendered gate flags for
+`ink-contrast`. **Drawing the field failed twice**: a wrapper with `align-self: stretch` was used
+at the mark's own height (the slot sits in the design's own flex container and the mark's
+`height: 100%` makes the cross size circular), so it hugged the mark and its padding took two
+marks under the minimum legible size; a `display: contents` wrapper with a bleeding `::before`
+preserved every mark's size and painted the band across the middle of the panel over the text,
+because a pseudo-element with no box of its own resolves against whatever ancestor happens to be
+positioned - and the rendered gate cannot see a pseudo-element in the first place.
+**The transferable rule: a surface can only be "a band of the composition" if the platform knows
+the composition.** Lite can draw one because Lite owns PLACEMENT too. Taking the surface while
+leaving placement to the model asks the platform to draw a shape inside a layout it has never
+seen, which is why the same mistake produced two different-looking failures.
+
+**SO THE PLATFORM TOOK PLACEMENT (owner, 2026-08-13), and the defect class closed.** The model
+still declares the slot - the filelist field and the `<img id="fN">` are its emit, so the SPX
+field contract stays the operator's - and the fill MOVES that img into a leading column of the
+box, at the catalog's own audited size (fixed height, free width, wordmark cap). The column is a
+grid item, so `align-self: stretch` finally means something: it runs the full height of the text
+stack, which is what makes the mark's surface a band of the composition rather than a plate, and
+the same property did nothing one commit earlier because the platform did not own the container
+it was asking. Re-measured over the ablation round's 15 saved generations, filled and then
+cleared:
+
+| | before | after |
+| --- | --- | --- |
+| clean | 4 | **13** |
+| not-painted | 5 | 0 |
+| bounding-box-well | 10 | 1 |
+| ink-contrast | 3 | 0 |
+| hides when the operator clears the field | 15 | 15 |
+
+The two residuals are honest and both are geometry no placement fixes: `empty-optional` is a
+two-line strap whose panel is barely taller than the mark, so a full-height column and a
+mark-sized box are the same rectangle; `sports-live` reports a collision between the mark's rect
+and a SKEWED accent rule that visually passes between mark and text (the rect-vs-skew limit the
+axis instrument already documents).
+
+**AND THE FIRST GENERATIONS UNDER THE NEW CONTRACT (2026-08-13, $0.145 of a $0.30 cap, archive
+`pro-placement-round-qwen3-coder-2026-08-13`; 11 of 12 captured, one lost to the output-token
+ceiling). Clean marks 2/12 → 8/11, dead marks 5 → 0.** Same 12 briefs, brands, decoding and
+checkpoint as the ablation's grammar arm, so the comparison is like-for-like.
+
+**And it inverts the "teaching does not work" finding - because it is a different teaching.** The
+one that failed asked the model to DRAW a good surface (a judgement); this one tells it not to
+draw one at all and that the seat belongs to the platform (a boundary). A rule that removes a
+decision lands where a rule that refines one did not. **What it does not do is make the outcome
+independent of the model:** 8 of 11 complied, and compliance is what placement exists to stop
+depending on.
+
+**The round did not actually exercise placement, and the reason is worth more than the round
+was.** The guard meant to spare hand-authored CATALOG designs sniffed the CSS for
+`.{prefix}-box.has-image` - and every one of the 11 generated designs writes that rule, because
+reacting to the mark's presence is ordinary CSS. So the guard matched 11 of 11 and the platform
+placed nothing, in the round run to measure placing. Whether the platform owns a design's
+placement is now the CALLER's answer (`fillBrandMark(..., { place })`): a candidate is generated,
+an anchor is hand-authored, and neither is a thing to infer from a stylesheet. Re-measured over
+the same saved generations with the guard fixed: 11/11 placed, 8 clean, contrast failures 1 → 0,
+and the mark still hides when the field is cleared on all 11.
+
+**THE MARK CONTRACT MEASURED WHOLE, ON FRESH GENERATIONS (2026-08-13, $0.083 of a $0.35 cap;
+archive `pro-seated-round-qwen3-coder-2026-08-13`).** 12 of 12 captured, 12 of 12 contract-clean,
+12 of 12 seated by the platform. The three grammar-arm rounds, same 12 briefs, same brands, same
+pinned decoding and checkpoint throughout:
+
+| | clean marks | never painted | box-well | contrast fail | cost |
+| --- | --- | --- | --- | --- | --- |
+| no teaching, no seat | 2/12 | 5 | 5 | 2 | $0.215 |
+| teaching only | 8/11 | 0 | 1 | 1 | $0.145 |
+| **teaching + platform seat** | **10/12** | **0** | **2** | **0** | **$0.083** |
+
+Cheaper as well as better, and for a reason worth keeping: the void round below spent three
+times as much because it burned two repair rounds on every brief fighting a definition it had
+itself deleted. **A harness bug is not only a wrong measurement, it is a bill.**
+
+The two residual box-wells are the honest floor already described - a panel barely taller than
+its mark leaves a full-height column and a mark-sized box the same rectangle. **What the round
+does NOT change: editable timelines are 0/12**, exactly where the grammar arm has always sat
+(1/12, 1/11). Seating a mark was never going to buy a convertible region, and the exemplar
+ablation above already said what does.
+
+**THE SEATED ROUND BEFORE IT IS VOID, AND IT COST $0.25 TO LEARN THE OLDEST LESSON HERE AGAIN** (archive
+`pro-seated-round-VOID-definition-lost-2026-08-13`). The first round with placement actually
+live captured 12 of 12, seated 12 of 12, and produced the best mark findings of any round -
+11/12 CLEAN - **on twelve templates that were all invalid.** The move serialized the document's
+BODY, and an SPX definition lives in a `<script>` outside it, so every generation came back
+with no `SPXGCTemplateDefinition` and no DataFields: the field list the operator drives the
+graphic by, deleted by the step that moves an image. Nothing else in the round was wrong.
+
+**The control could not have caught it, and that is the finding.** The rig's whole first mode
+exists so a paid round never measures the harness - but the only marked control runs the
+CATALOG slot with placement OFF, so the seat had no zero-token coverage at all and the paid
+round was the first thing ever to execute it. **A control that does not run the code under test
+is not a control.** `control-seated-mark` now exercises the platform's seat every free run, on
+a hand-authored GENERATION-SHAPED document (full head, real definition, its own logo container
+to empty), and throws rather than reports on each property that round lost: the mark placed,
+the definition intact, three DataFields surviving, the doctype and stylesheet link kept, the
+emptied container gone. A broken harness must stop a run, not score it.
+
+**A third measurement bug of the same shape, caught by the same round.** The code audit read all
+11 as `spine: BROKEN` when nothing was broken: its box and root patterns demand the class
+attribute hold the prefix ALONE, and the platform's own `has-image` stamp sits beside it - while
+the real detector (`model/structure.ts` `detectPrefix`) parses the DOM and whose own comment says
+the prefix is "a DOM fact, not a text pattern". Three regexes now (`region.converted`, the box,
+the root) have answered a structural question wrongly in the flattering or the alarming
+direction. **A pattern over markup is a guess about markup.**
+
+**The control earned its keep again, mid-change.** `control-mark` went CLEAN → `collision` with
+its clear space at 0: the mark-fill anchor is a hand-authored CATALOG design that already carries
+`applyLogoSlot`'s slot, and the platform had laid its grid over the catalog's. A design whose CSS
+already declares `.{prefix}-box.has-image` - the catalog slot's own signature - now keeps its own
+placement. Two placement systems on one box is not a stricter contract, it is a broken one.
+
+**AND THE MARKS WERE NOT EVEN PAINTING - 5 of 12, now repaired (free).** Every one the same
+construction: the design hid its own `<img>` "until an image is provided" and wrote a second
+rule to bring it back - four keyed `has-image` on the ROOT where the shared runtime toggles it
+on the img's PARENT, and the fifth keyed the right element but set the CONTAINER's display and
+never touched the img. The prompt tells the model to use "the has-image pattern from the
+example" and the neutral skeleton in the example slot HAS NO IMAGE FIELD, so where the class
+lands was always a guess - dead teaching of exactly the kind the Lite side already names. The
+fill now stamps `has-image` on the root and the box and appends a scoped display rule for the
+filled id; the empty state is untouched, because the runtime sets `display` inline and inline
+wins. Measured over all fifteen saved generations: 5 repaired, 0 regressed, and the mark still
+disappears when the field is cleared on all 15.
+
+**RETRY WHEN** - not a retry; Phase 1 continues on this evidence. Owed next: the owner's call on
+who owns the mark's surface (above), and nothing else from this round - the catalog side-slot
+shipped and the exemplar question is closed for Phase 3's purposes. If the exemplar question is
+reopened, the cheap thing left untried is ONE authoring-shape region shown as code without the
+three complete designs around it.
 
 ### Models designing a broadcast graphic unaided
 **2026-08-12 · NoaCG Pro Phase 0 · `moonshotai/kimi-k3` · 20 of 24 captured, $4.58 · OWNER READ

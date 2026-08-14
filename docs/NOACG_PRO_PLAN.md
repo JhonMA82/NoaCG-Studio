@@ -993,7 +993,9 @@ this round, and one decision it should make early:
    graphics - the sameness tripwire adapt-first already lives under). On the chosen checkpoint that
    round costs about $0.26. Item 1 below is a precondition for it, not a parallel task.
    **RAN 2026-08-13: 30/30 for $0.63, owner-read blind. Verdict and the named follow-ups (the
-   mark-surface "bounding box" defect, the catalog side-slot, animated motion review) are the
+   mark-surface "bounding box" defect, the catalog side-slot, animated motion review - the last
+   of those BUILT 2026-08-13: every strip is also a looping real-speed webm in the blind gallery,
+   the five stills and the mark-motion gate untouched) are the
    top entry of `docs/AI_ATTEMPTS.md`; archive `pro-brand-qwen3-coder-2026-08-13`. No four-tints
    sameness appeared; the exemplar arm's 12/12 editable timelines vs the no-exemplar arm's 0/18
    is the first measured evidence for the exemplar block.**
@@ -1023,13 +1025,75 @@ this round, and one decision it should make early:
    (`scripts/spike-code-audit.mjs`, item 0a's countable half). Zero-token control green including
    a mark-fill control (`control-mark`: the kestrel wordmark filled into lt11's shared band and
    measured CLEAN). The paid round itself still needs the owner's explicit OK with a stated cap.
+
+   **THE SURFACE HALF, ATTEMPTED STRUCTURALLY (owner decision 2026-08-13: "take it structurally
+   like Lite"). The DECISION shipped; the DRAWING is blocked on placement, which is a product
+   call.** `decideMarkSurface` now answers, deterministically and with no rendering, whether the
+   design's own panel carries this mark's ink: an own-field mark never needs a surface, and a
+   transparent one is compared against the design's declared `--panel-bg` - composited over black
+   AND white where the panel is translucent, evaluated at every stop where it is a gradient, worst
+   case wins. Which neutral a field would use is computed rather than assumed from "light ink" or
+   "dark ink", because the mid-tone case breaks that assumption (the sunbeam roundel at 0.49 reads
+   at 1.8:1 on the light neutral and 9.4:1 on the dark one). Measured over the ablation round's 15
+   generations it fires on exactly the three the rendered gate flags for `ink-contrast` - the
+   measurement and the need agree, and every record now carries the answer.
+   **DRAWING the field failed twice, and both failures say the same thing.** A wrapper using
+   `align-self: stretch` computed to `stretch` and was used at the mark's own height (the slot
+   sits in the design's own flex container and the mark's `height: 100%` makes the cross size
+   circular), so it hugged the mark - the defect it exists to remove - and its padding took two
+   marks under the minimum legible size. A `display: contents` wrapper painting a bleeding
+   `::before` kept every mark's size exactly and painted the band across the middle of the panel,
+   over the text, because a pseudo-element with no box of its own resolves against whatever
+   ancestor happens to be positioned; the rendered gate cannot see a pseudo-element either.
+   **A surface can only be "a band of the composition" if the platform knows the composition.**
+   Lite draws one because Lite owns PLACEMENT too - `applyLogoSlot` puts the mark in a grid column
+   of a box it controls. **So the platform took placement (owner, same day) and the defect class
+   closed.** The model declares the slot; the fill moves that `<img>` into a leading column of the
+   box at the catalog's audited size, and because the column is a grid item the platform owns,
+   `align-self: stretch` gives the mark's surface the full height of the text stack - a band, not
+   a plate. Over the ablation round's 15 saved generations: clean 4 → **13**, not-painted 5 → 0,
+   bounding-box-well 10 → 1, ink-contrast 3 → 0, and the mark still disappears when the operator
+   clears the field on all 15. A design that already declares `.{prefix}-box.has-image` keeps its
+   own placement - that is the catalog slot's signature, and the control caught the one commit
+   where the platform laid its grid over the catalog's. What stays the model's: whether the
+   composition leads with the mark or leans on the text, the panel's air, what the mark sits
+   beside. What is now ours: the seat and what its ink reads against.
+
+   **MEASURED WHOLE ON FRESH GENERATIONS, 2026-08-13 ($0.083, archive
+   `pro-seated-round-qwen3-coder-2026-08-13`): 12/12 captured, 12/12 contract-clean, 12/12 seated,
+   10/12 marks CLEAN, none unpainted, no contrast failures.** Across the three grammar-arm rounds
+   on the same briefs and brands: clean marks 2/12 → 8/11 (teaching) → 10/12 (teaching + seat),
+   unpainted 5 → 0, contrast failures 2 → 0. Item 1 is closed; the mark contract is a contract
+   rather than an instruction. Editable timelines stayed 0/12, which is the grammar arm's own
+   number and the exemplar ablation's business, not this one's.
+
+   **WHERE THE CONTRACT STANDS AFTER THE 2026-08-13 ABLATION, and the one decision it now needs.**
+   Two halves are settled and structural: the FILL guarantees a filled mark PAINTS (it stamps
+   `has-image` on the root and the box and appends a scoped display rule, after 5 of 12 marks in
+   that round never appeared - the designs hid their own `<img>` and their un-hide rule was keyed
+   at the wrong level, following a prompt line that points at an example carrying no image field),
+   and the MOTION half reads. **The SURFACE half is not settled and prose has not moved it:** the
+   well-integration teaching was written after the brand round and measured on the ablation, and
+   the boxed rate is 8/12 taught against 9/18 untaught - flat to worse, once the invisible marks
+   are repaired and can be judged at all. **The decision owed is who owns the mark's surface.**
+   Teaching it again is the option already tried twice. The alternative is the shape the rest of
+   this contract already uses and Lite proved: the design declares the slot, the PLATFORM decides
+   what the mark sits on, and the model never draws that surface - the only version of the rule
+   that cannot be got wrong. Full measurement: `docs/AI_ATTEMPTS.md` top entry.
 2. **The checkpoint is decided: `alibaba/qwen3-coder`** (owner, 2026-08-12), on a read of both
    galleries - better AND ~19x cheaper, 24/24 complete and contract-clean where kimi-k3 reached
    21/24 and could not finish three exemplar-arm briefs at all.
-3. **Decide whether the exemplar block survives.** It costs ~34,500 tokens per call - about 80% of
-   the round's spend - and on the pair the owner examined it produced a result indistinguishable
-   from showing no exemplars at all. Section 5 treats complete-exemplar retrieval as a pillar; this
-   round is the first evidence against it, and an ablation is owed before Phase 3 builds on it.
+3. **Decide whether the exemplar block survives. DECIDED 2026-08-13: IT SURVIVES.** It costs
+   ~34,500 tokens per call - about 80% of the round's spend - and on the pair the owner examined it
+   produced a result indistinguishable from showing no exemplars at all. Section 5 treats
+   complete-exemplar retrieval as a pillar, so the ablation was owed before Phase 3 built on it.
+   **It ran for $0.215 of a $0.40 cap** (`pro-exemplar-ablation-qwen3-coder-2026-08-13`): the same
+   12 briefs with a ~480-token region lesson in the block's slot (`src/ai/spike/grammar.ts`, the
+   `grammar` arm) returned **1 of 12 editable timelines against the exemplar arm's 12 of 12**, and
+   three exemplar re-runs reproduced the stored arm exactly on that axis, so the comparison is
+   against a live arm. A worked example of the region conforms; a description of one does not, and
+   the explicit "do not hand-write `NOACG_ANIM`" changed the rate of that behaviour by nothing.
+   Full record: `docs/AI_ATTEMPTS.md` top entry.
 
 **Four harness faults cost roughly $5 of the round's ~$16**, every one of them a case of the rig
 measuring itself: a probe that asked a smaller question than the round, an output budget pinned

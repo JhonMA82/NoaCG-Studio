@@ -9,6 +9,11 @@
 //   node scripts/pro-spike.mjs --generate --route=… --arms=exemplar
 //   node scripts/pro-spike.mjs --control news-public       # a subset by brief id
 //
+//   # THE EXEMPLAR ABLATION (plan §14 item 3): the grammar arm across the bank, plus a few
+//   # exemplar re-runs to check the stored exemplar arm still reproduces.
+//   node scripts/pro-spike.mjs --generate --route=vercel:alibaba/qwen3-coder --max-cost=0.40 \
+//     --arms=grammar --drift-check=exemplar:news-public,sports-live,minimalist
+//
 // THE BRAND ROUND (the default since Phase 1): every brief is conditioned on a SYNTHETIC
 // brand from benchmarks/pro/v1/spike/brands.json - an invented organisation's name, palette,
 // typeface and REAL mark file, the mark's shape/backing/ink measured in the page by probeMark
@@ -23,13 +28,17 @@
 // lower third - plus the gallery's anchors - through the COMPLETE wrapper: the scaffold
 // contract, the deterministic gates, the 1920x1080 render set, the virtual-clock motion
 // strips, and the gallery. It spends nothing and calls no model. If the control looks
-// broken, the harness is broken, and a paid round would measure the harness. Two paid rounds
+// broken, the harness is broken, and a paid round would measure the harness. The strips are
+// PLAYED as well as laid out - each one is encoded to a webm the gallery loops in place, because
+// stills cannot judge motion (owner, after the brand round). ffmpeg is optional; without it the
+// gallery falls back to stills. Two paid rounds
 // have already been mis-read as model failure when the platform was at fault
 // (docs/AI_ATTEMPTS.md), and every deterministic gate stayed green through both - which is
 // why this is a picture a human looks at, not an assertion.
 //
-// THE RUN PROTOCOL (§0.1): the 12-brief bank, every brief in TWO arms (two or three
-// hand-vetted complete exemplars retrieved through shortlistFor / no exemplars at all), one
+// THE RUN PROTOCOL (§0.1): the 12-brief bank, every brief in the requested arms (two or three
+// hand-vetted complete exemplars retrieved through shortlistFor / no exemplars at all / the
+// region GRAMMAR LESSON in their place, src/ai/spike/grammar.ts), one
 // candidate each, one or at most two pinned open-weight checkpoints, decoding pinned in
 // benchmarks/pro/v1/spike/decoding.json, the shared two-round repair loop,
 // productionSpxValidator, composeDocument at 1920x1080, and an ANCHOR-MIXED BLINDED gallery.
@@ -45,8 +54,10 @@
 // Requires the dev server on this checkout's port. From a worktree, compose the environment
 // first: `node scripts/bench-env.mjs --profile=pro`, then start the bench dev server.
 
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { copyFile, mkdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { chromium } from 'playwright';
 import { devPort } from './dev-port.mjs';
 import { readEnvFile } from './ai-bench-server.mjs';
@@ -93,10 +104,38 @@ if (control && paid) {
   process.exit(1);
 }
 
+const KNOWN_ARMS = ['exemplar', 'none', 'grammar'];
 const ARMS = (value('arms') ?? 'exemplar,none').split(',').filter(Boolean);
 for (const arm of ARMS) {
-  if (arm !== 'exemplar' && arm !== 'none') {
-    console.error(`Unknown arm "${arm}" - the arms are exemplar and none.`);
+  if (!KNOWN_ARMS.includes(arm)) {
+    console.error(`Unknown arm "${arm}" - the arms are ${KNOWN_ARMS.join(', ')}.`);
+    process.exit(1);
+  }
+}
+
+/**
+ * --drift-check=<arm>:<brief,brief,…> - re-run a FEW briefs on an arm whose results a previous
+ * round already holds, so the comparison against those stored results can say whether they
+ * still reproduce.
+ *
+ * The exemplar ablation is the reason this exists. Re-running all twelve exemplar generations
+ * to compare against costs $0.46 and reproduces something already on disk under the same pinned
+ * decoding, checkpoint and brand assignment; reusing the stored arm costs nothing and assumes
+ * the provider has not moved under it. A handful of re-runs is the cheap way to CHECK that
+ * assumption instead of carrying it - and if they diverge, the ablation is read against fresh
+ * numbers rather than quietly against stale ones.
+ */
+const driftArg = value('drift-check');
+const driftCheck = driftArg
+  ? { arm: driftArg.split(':')[0], briefs: (driftArg.split(':')[1] ?? '').split(',').filter(Boolean) }
+  : null;
+if (driftCheck) {
+  if (!KNOWN_ARMS.includes(driftCheck.arm)) {
+    console.error(`--drift-check names an unknown arm "${driftCheck.arm}".`);
+    process.exit(1);
+  }
+  if (!driftCheck.briefs.length) {
+    console.error('--drift-check needs briefs: --drift-check=exemplar:news-public,sports-live');
     process.exit(1);
   }
 }
@@ -313,10 +352,16 @@ async function captureHold(item, measure = false) {
     const bust = '?t=' + Date.now();
     const { measureRenderedMark } = await import('/src/ai/spike/brand.ts' + bust);
     const { measureAxes } = await import('/src/ai/spike/axisCheck.ts' + bust);
+    const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts' + bust);
+    const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts' + bust);
     const doc = document.getElementById('spike-hold-frame')?.contentDocument;
     if (!doc) return null;
     return {
       axis: measureAxes(doc),
+      // Padding and gaps as ratios of type size - the other half of what the owner's blind
+      // reads keep naming (docs/DESIGN_PRINCIPLES.md §4, §9).
+      spacing: measureSpacing(doc, { markFieldId: markFieldId ?? null }),
+      proportion: measureProportion(doc, { markFieldId: markFieldId ?? null }),
       mark: markFieldId && markProbe ? measureRenderedMark(doc, markFieldId, markProbe) : null,
     };
   }, { markFieldId: item.markFieldId ?? null, markProbe: item.markProbe ?? null });
@@ -365,11 +410,50 @@ async function captureStressHold(item) {
 //   4. A CONTINUOUS PHASE reports a duration of 0 (runtimeScript's CONTINUOUS_S rule), so its
 //      strip is sampled over a fixed window - a looping entrance is motion, and collapsing it
 //      to one frame would hide the thing the strip exists to show.
+//
+// ── AND THE STRIPS ARE ALSO PLAYED, NOT ONLY LAID OUT ──────────────────────────────────
+//
+// The owner's rule from the brand round: STILLS CANNOT JUDGE MOTION. Five frames across an
+// entrance say where the graphic passed through, never how it felt getting there - easing,
+// overshoot, stagger and settle all live between the samples, and "does the motion support the
+// composition" is one of the questions §0.2 asks a human to answer.
+//
+// So each strip is ALSO sampled at a real frame rate and encoded to a webm the gallery plays in
+// place. Three properties make that safe to bolt onto an instrument that is already calibrated:
+//
+//   * THE FIVE STILL TIMES ARE UNCHANGED. The clip grid is merged INTO the same monotonic
+//     sample list rather than replacing it, so `frames` still carries exactly the five stills
+//     per strip that markMotionSummary, the blinding and the key already read. A denser mark
+//     sampling would be a better instrument and a DIFFERENT one, and the mark gate was
+//     calibrated 7/7 against this one.
+//   * THE CLIP IS THE SAME CLOCK. Nothing new is scrubbed: the extra samples are more seeks on
+//     the cursor the stills already advance, so a clip can never show motion the strip denies.
+//   * A MISSING ffmpeg DEGRADES TO WHAT WE HAD. The encoder is optional; without it the round
+//     still captures, still writes its ledger, and the gallery falls back to stills alone. A
+//     paid round must never die on a presentation dependency.
 
 /** A fixed virtual wall clock, so a clock-reading graphic renders the same frame every run. */
 const CAPTURE_EPOCH_MS = Date.UTC(2026, 0, 1, 20, 0, 0);
 const CAPTURE_FPS = 50;
 const SAMPLES_PER_STRIP = 5;
+/** Playback rate of the encoded strips. The clip advances virtual time by exactly 1/CLIP_FPS per
+ *  frame, so a strip plays back at the speed the graphic actually runs at - to within the one
+ *  frame a phase length can fail to divide by. Deliberately CAPTURE_FPS rather than a cinematic
+ *  25: broadcast entrances are half-second events, so at 25 fps that quantization error reaches
+ *  8% of the phase, and the round exists to read easing and settle. The cost is capture wall
+ *  time (about 15 s per item, no tokens), which the generation call dwarfs. */
+const CLIP_FPS = 50;
+/** Encoded width. The stills stay 1920x1080; a clip is for reading MOTION, and half size keeps a
+ *  30-item gallery in the tens of megabytes instead of the hundreds. */
+const CLIP_WIDTH = 960;
+/** A runaway phase (a template that reports a minutes-long entrance) must not turn into a
+ *  thousand screenshots. Past this the clip is dropped rather than sampled coarsely - a clip
+ *  that silently plays at the wrong speed is worse than no clip. */
+const CLIP_MAX_FRAMES = 400;
+/** How far before the update cue the update CLIP starts. Out here with the other clip constants
+ *  rather than inside the page's schedule block because the gallery captions it - a reviewer has
+ *  to be told the clip starts before the strip does, or the timings will not add up. */
+const UPDATE_LEAD_MS = 300;
 
 /**
  * Mount one graphic in a virtual-clock document, register its cues, and return the sample plan.
@@ -377,7 +461,10 @@ const SAMPLES_PER_STRIP = 5;
  * returned from `evaluate` cheaply - so the capture is a cursor the driver advances.
  */
 async function startCapture(item) {
-  return page.evaluate(async ({ template, data, stressData, epochMs, fps, samples, markFieldId }) => {
+  return page.evaluate(async ({
+    template, data, stressData, epochMs, fps, samples, clipFps, clipMaxFrames, updateLeadMs,
+    markFieldId,
+  }) => {
     const bust = '?t=' + Date.now();
     const { composeRenderDocument } = await import('/src/render/composeRenderDocument.ts' + bust);
     const { RENDER_RUNTIME_VERSION } = await import('/src/render/manifest.ts' + bust);
@@ -416,16 +503,59 @@ async function startCapture(item) {
     const updateAt = inMs + HOLD_BEFORE_UPDATE_MS;
     const stopAt = updateAt + UPDATE_WINDOW_MS + HOLD_AFTER_UPDATE_MS;
 
-    const spread = (strip, from, to) => {
-      if (to - from < 1) return [{ strip, index: 0, atMs: from }];
+    // The five STILL times, unchanged - and an EXACT-RATE clip grid merged in around them.
+    //
+    // The clip grid is spaced at exactly one playback frame (1000/clipFps ms) rather than being
+    // stretched to fit the phase, so a clip encoded at clipFps advances virtual time at wall
+    // speed and the motion plays back at the speed the graphic really runs at. The first version
+    // of this fitted N points across the phase AND fed the stills into the same sequence: a
+    // 1340 ms entrance came out as a 1.60 s clip, 19% slow and stuttering on the duplicated
+    // still frames - a clip that misreports timing is worse than no clip, because easing is
+    // read from timing.
+    //
+    // So the two sets stay separate in the SEQUENCE and merge only in the SEEK ORDER: a still
+    // that does not land on the grid is an extra screenshot the clip never contains, and one
+    // that does land on it is a single shot wearing both hats. Both lists are produced sorted
+    // and the merge preserves that, which is what the runtime's no-backward-seek rule needs.
+    const spread = (strip, from, to, clipFrom = from) => {
+      if (to - from < 1) return [{ strip, index: 0, atMs: from, still: true, clip: false }];
       const step = (to - from) / (samples - 1);
-      return Array.from({ length: samples }, (_, i) => ({ strip, index: i, atMs: from + step * i }));
+      const stills = Array.from({ length: samples },
+        (_, i) => ({ strip, index: i, atMs: from + step * i, still: true, clip: false }));
+      const frameMs = 1000 / clipFps;
+      const count = Math.floor((to - clipFrom) / frameMs) + 1;
+      if (count > clipMaxFrames) return stills;
+      const clip = Array.from({ length: count },
+        (_, i) => ({ strip, atMs: clipFrom + i * frameMs, still: false, clip: true }));
+      // The phase's own end, when the grid stops more than half a frame short of it - the last
+      // instant of an exit is the one that says whether the graphic actually left.
+      if (to - clip[count - 1].atMs > frameMs / 2) clip.push({ strip, atMs: to, still: false, clip: true });
+      const merged = [...stills, ...clip].sort((a, b) => a.atMs - b.atMs);
+      // Coincident times (the phase's start, usually its end) become ONE sample: seeking twice
+      // to the same instant is legal but would put a duplicate frame in the clip.
+      return merged.reduce((out, sample) => {
+        const last = out[out.length - 1];
+        if (last && Math.abs(last.atMs - sample.atMs) < 0.5) {
+          last.still = last.still || sample.still;
+          last.clip = last.clip || sample.clip;
+          if (sample.still) last.index = sample.index;
+          return out;
+        }
+        out.push(sample);
+        return out;
+      }, []);
     };
     const plan = {
       measured,
       samples: [
         ...spread('entrance', 0, inMs),
-        ...spread('update', updateAt, updateAt + UPDATE_WINDOW_MS),
+        // The update clip LEADS IN from before the cue fires. The strip's five stills begin at
+        // updateAt, which is the instant update() is delivered - so a still strip can only ever
+        // show the graphic already holding the new copy, and the clip built on those bounds was
+        // 900 ms of a frozen frame. The lead-in is clip-only: the still times are untouched, and
+        // it stays inside the 700 ms hold the schedule leaves after the entrance, so no seek
+        // rewinds into the previous strip.
+        ...spread('update', updateAt, updateAt + UPDATE_WINDOW_MS, updateAt - updateLeadMs),
         ...spread('exit', stopAt, stopAt + outMs),
       ],
       note: [
@@ -453,8 +583,10 @@ async function startCapture(item) {
         // The HOST's real rAF - the document's own is virtualized and would never resolve.
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         // The mark slot's animatable state at this instant - "did the mark move at all" is
-        // derived from these; whether the motion is MEANINGFUL stays the human's read.
-        const markState = markFieldId
+        // derived from these; whether the motion is MEANINGFUL stays the human's read. Read on
+        // the STILL samples only: the clip frames exist to be looked at, and feeding them to a
+        // gate calibrated on five samples would quietly change what the gate measures.
+        const markState = markFieldId && sample.still
           ? markMotionState(iframe.contentDocument, markFieldId)
           : null;
         return markState ? { ...sample, markState } : sample;
@@ -470,6 +602,9 @@ async function startCapture(item) {
     epochMs: CAPTURE_EPOCH_MS,
     fps: CAPTURE_FPS,
     samples: SAMPLES_PER_STRIP,
+    clipFps: CLIP_FPS,
+    clipMaxFrames: CLIP_MAX_FRAMES,
+    updateLeadMs: UPDATE_LEAD_MS,
     markFieldId: item.markFieldId ?? null,
   });
 }
@@ -477,11 +612,25 @@ async function startCapture(item) {
 async function captureMotion(item) {
   const plan = await startCapture(item);
   const frames = [];
+  const scratch = path.join(OUT, '.clip-frames', item.slug);
+  const clipCounts = new Map();
+  await mkdir(scratch, { recursive: true });
   for (;;) {
     const sample = await page.evaluate(() => window.__spikeCapture.next());
     if (!sample) break;
+    // One screenshot per instant, whichever hats the sample wears - a still and a clip frame at
+    // the same time are the same pixels, so shooting twice would only be a way for them to
+    // disagree. The clip's sequence numbering counts clip frames alone, so it stays a contiguous
+    // %04d run at exactly one playback frame apart.
+    const seq = sample.clip ? (clipCounts.get(sample.strip) ?? 0) : null;
+    if (sample.clip) clipCounts.set(sample.strip, seq + 1);
+    const shot = sample.clip
+      ? path.join(scratch, `${sample.strip}.${String(seq).padStart(4, '0')}.png`)
+      : path.join(scratch, `${sample.strip}.still-${sample.index}.png`);
+    await page.frameLocator('#spike-capture-frame').locator('body').screenshot({ path: shot });
+    if (!sample.still) continue;
     const file = `${item.slug}.${sample.strip}-${sample.index}.png`;
-    await page.frameLocator('#spike-capture-frame').locator('body').screenshot({ path: path.join(OUT, file) });
+    await copyFile(shot, path.join(OUT, file));
     frames.push({ ...sample, file });
   }
   const errors = await page.evaluate(() => {
@@ -490,7 +639,75 @@ async function captureMotion(item) {
     delete window.__spikeCapture;
     return list;
   });
-  return { plan, frames, errors, ...(item.markFieldId ? { markMotion: markMotionSummary(frames) } : {}) };
+  const clips = await encodeClips(item.slug, scratch, clipCounts);
+  await rm(scratch, { recursive: true, force: true }).catch(() => undefined);
+  // And the holder, once the last item has emptied it - an out-dir that is going to be archived
+  // should not carry a stray dot-directory. `rmdir` rather than `rm -r` on purpose: it refuses a
+  // non-empty directory, so a future parallel capture cannot have its frames deleted from under
+  // it by another item finishing first.
+  await rmdir(path.dirname(scratch)).catch(() => undefined);
+  return {
+    plan,
+    frames,
+    errors,
+    ...(Object.keys(clips).length ? { clips } : {}),
+    ...(item.markFieldId ? { markMotion: markMotionSummary(frames) } : {}),
+  };
+}
+
+// ── Encoding the strips ────────────────────────────────────────────────────────────────
+//
+// ffmpeg is looked up ONCE and its absence is a warning, not a failure: this is a presentation
+// dependency on a rig whose expensive artifact is the generation, and a paid round that dies
+// because a laptop has no encoder would be an unforgivable way to lose $0.30 of tokens.
+const FFMPEG = (process.env.FFMPEG_PATH ?? 'ffmpeg').trim() || 'ffmpeg';
+const runFfmpeg = promisify(execFile);
+/** null until probed; then true/false. */
+let ffmpegAvailable = null;
+
+async function haveFfmpeg() {
+  if (ffmpegAvailable === null) {
+    ffmpegAvailable = await runFfmpeg(FFMPEG, ['-version']).then(() => true).catch(() => false);
+    if (!ffmpegAvailable) {
+      console.log(`  ! ${FFMPEG} not found - the gallery will show stills only.`
+        + ' Set FFMPEG_PATH to encode the motion strips.');
+    }
+  }
+  return ffmpegAvailable;
+}
+
+/**
+ * One webm per strip, played in place in the gallery.
+ *
+ * VP9 over the frame sequence at CLIP_FPS, which is the rate the frames were sampled at, so the
+ * clip runs at the graphic's real speed. `format=rgb24` before the yuv conversion is deliberate:
+ * a body screenshot can carry alpha, and dropping it late composites transparent pixels as
+ * black - which is exactly what the gallery already paints behind the stills.
+ *
+ * A strip of fewer than two frames is not a clip (a phase shorter than a millisecond collapses
+ * to one sample), and a failed encode drops that strip rather than the round.
+ */
+async function encodeClips(slug, scratch, clipCounts) {
+  if (!await haveFfmpeg()) return {};
+  const clips = {};
+  for (const [strip, count] of clipCounts) {
+    if (count < 2) continue;
+    const out = `${slug}.${strip}.webm`;
+    try {
+      await runFfmpeg(FFMPEG, [
+        '-hide_banner', '-v', 'error', '-y',
+        '-framerate', String(CLIP_FPS),
+        '-i', path.join(scratch, `${strip}.%04d.png`),
+        '-vf', `scale=${CLIP_WIDTH}:-2,format=rgb24`,
+        '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuv420p', '-b:v', '0', '-crf', '34', '-row-mt', '1',
+        '-an', path.join(OUT, out),
+      ]);
+      clips[strip] = out;
+    } catch (error) {
+      console.log(`  ! could not encode ${out}: ${error.message.split('\n')[0]}`);
+    }
+  }
+  return clips;
 }
 
 /** Whether the mark MOVED across the entrance and exit strips - a mark that pops in with the
@@ -506,6 +723,13 @@ function markMotionSummary(frames) {
   return { entranceAnimated: changedWithin('entrance'), exitAnimated: changedWithin('exit') };
 }
 
+/** Which strips got a playable clip, said out loud per item - a round that silently encoded
+ *  nothing would otherwise look identical in the console to one that encoded everything. */
+function clipsCell(record) {
+  const strips = Object.keys(record.clips ?? {});
+  return strips.length ? `clips ${strips.join('+')}` : 'NO CLIPS';
+}
+
 /** Everything a human looks at, for one item - plus the measurements taken while it is up. */
 async function captureSet(item) {
   const { file: hold, measured, playError } = await captureHold(item, true);
@@ -516,6 +740,8 @@ async function captureSet(item) {
     stressHold,
     ...(playError ? { playError } : {}),
     ...(measured?.axis ? { axisReport: summarizeAxis(measured.axis) } : {}),
+    ...(measured?.spacing ? { spacingReport: measured.spacing } : {}),
+    ...(measured?.proportion ? { proportionReport: measured.proportion } : {}),
     ...(measured?.mark ? { markReport: measured.mark } : {}),
     ...motion,
   };
@@ -571,7 +797,12 @@ const freeItems = await page.evaluate(async (markBrand) => {
   // The mark-fill control: the same fillBrandMark + rendered gate every candidate gets, on a
   // hand-authored slot - if ITS mark is broken, the wiring is broken, not the model.
   const markControl = markBrand ? spikeAnchors.markControlAnchor(markBrand) : null;
-  return [control, ...(markControl ? [markControl] : []), ...anchors].map((a) => ({
+  // And the SEATED control: the same fill with the platform's PLACEMENT on, which the
+  // catalog-slot control above deliberately skips. Until it existed the placement path had no
+  // zero-token coverage and a paid round found the hole instead (docs/AI_ATTEMPTS.md).
+  const seatedControl = markBrand ? spikeAnchors.seatedMarkControlAnchor(markBrand) : null;
+  return [control, ...(markControl ? [markControl] : []), ...(seatedControl ? [seatedControl] : []),
+    ...anchors].map((a) => ({
     id: a.id,
     kind: a.kind,
     provenance: a.provenance,
@@ -601,7 +832,7 @@ for (const item of freeItems) {
   results.push(record);
   const flat = record.plan.measured.hasBuilders ? '' : ' · NO TIMELINE BUILDERS';
   console.log(`  ${slug} · in ${record.plan.measured.inMs} ms · out ${record.plan.measured.outMs} ms`
-    + ` · ${record.frames.length} motion frames${flat}`
+    + ` · ${record.frames.length} motion frames · ${clipsCell(record)}${flat}`
     + `${record.errors.length ? ` · ${record.errors.length} runtime error(s)` : ''}`);
   for (const error of record.errors) console.log(`    ✗ ${error}`);
   if (record.markReport) {
@@ -636,10 +867,27 @@ if (paid) {
       }
     }
   }
+  // The drift-check cells, added last so they read as what they are: a few repeats of an arm a
+  // previous round already holds, under that arm's own assigned brand so the stored result is
+  // the thing they are comparable with. A brief already planned on that arm gains nothing and
+  // is skipped rather than generated twice.
+  if (driftCheck) {
+    for (const briefId of driftCheck.briefs) {
+      const entry = briefs.find((e) => e.id === briefId);
+      if (!entry) {
+        console.error(`--drift-check names a brief this run has no fixture for: ${briefId}`);
+        process.exit(1);
+      }
+      if (ARMS.includes(driftCheck.arm)) continue;
+      const assigned = brandsFixture ? brandById.get(brandsFixture.assignment[entry.id]) : null;
+      plan.push({ entry, arm: driftCheck.arm, brand: assigned, divergence: false, drift: true });
+    }
+  }
   console.log(`\nPlan: ${plan.length} generation(s)`
-    + `${brandsFixture ? ` (${plan.filter((p) => p.divergence).length} of them the divergence cell)` : ''}.`);
+    + `${brandsFixture ? ` (${plan.filter((p) => p.divergence).length} of them the divergence cell)` : ''}`
+    + `${driftCheck ? ` (${plan.filter((p) => p.drift).length} of them the ${driftCheck.arm} drift check)` : ''}.`);
 
-  for (const { entry, arm, brand, divergence } of plan) {
+  for (const { entry, arm, brand, divergence, drift } of plan) {
       const started = Date.now();
       const slug = brand ? `${entry.id}.${brand.id}.${arm}` : `${entry.id}.${arm}`;
       console.log(`\n── ${slug} ──`);
@@ -779,10 +1027,25 @@ if (paid) {
       // The code axis (docs/NOACG_PRO_PLAN.md §14 item 0a): measured at capture time so the
       // ledger carries it; scripts/spike-code-audit.mjs re-derives the same numbers from the
       // saved files for free after the fact.
+      //
+      // The timeline verdict comes from the REAL parser, evaluated in the page - the audit
+      // script cannot load TypeScript, and its regex stand-in read a NOACG_ANIM-shaped block
+      // the parser rejects as a converted timeline. That is the same class of error as a gate
+      // measuring a smaller question than the round: it counted 10 read-only results as
+      // editable, on the exact axis the exemplar ablation is meant to decide.
+      const regionParses = await page.evaluate(async (js) => {
+        const { parseAnimData } = await import('/src/blocks/animData.ts?t=' + Date.now());
+        try {
+          return Boolean(parseAnimData(js));
+        } catch {
+          return false;
+        }
+      }, outcome.template.js);
       const codeAudit = auditTemplateCode({
         html: outcome.template.html,
         css: outcome.template.css,
         js: outcome.template.js,
+        regionParses,
       });
 
       // A capture failure is a RESULT, never a round-ender: the generation is already paid for
@@ -818,7 +1081,9 @@ if (paid) {
         divergence,
         route,
         model: outcome.model,
-        provenance: `${route} · ${arm} arm${brand ? ` · brand ${brand.id}${divergence ? ' (divergence cell)' : ''}` : ''}`
+        drift: Boolean(drift),
+        provenance: `${route} · ${arm} arm${drift ? ' (drift check)' : ''}`
+          + `${brand ? ` · brand ${brand.id}${divergence ? ' (divergence cell)' : ''}` : ''}`
           + ` · exemplars [${outcome.exemplarIds.join(', ') || 'none'}]`,
         exemplarIds: outcome.exemplarIds,
         exemplarReason: outcome.exemplarReason,
@@ -836,7 +1101,7 @@ if (paid) {
       console.log(`  ${contract.scaffoldOk ? 'CONTRACT OK' : 'CONTRACT FAIL'} · fields ${textFields}`
         + `${contract.editabilityDemoted ? ' · read-only timeline' : ''}`
         + ` · repairs ${record.repairRounds} · $${(record.costUsd ?? 0).toFixed(4)}`
-        + ` · ${record.frames.length} motion frames · ${record.ms} ms`);
+        + ` · ${record.frames.length} motion frames · ${clipsCell(record)} · ${record.ms} ms`);
       for (const error of contract.blockingErrors) console.log(`    ✗ ${error}`);
       if (contract.editabilityDemoted) {
         console.log('    · editability demoted to a warning (fresh build) - it plays and exports,'
@@ -847,6 +1112,12 @@ if (paid) {
           : record.markReport.findings.length ? record.markReport.findings.join(', ') : 'CLEAN'}`
           + `${outcome.fill?.hadOwnSrc ? ' · MODEL WROTE ITS OWN src (repaired)' : ''}`
           + `${record.markMotion ? ` · entrance ${record.markMotion.entranceAnimated ? 'animated' : 'STATIC'}` : ''}`);
+        // Whether the design's OWN panel carries this mark's ink, decided deterministically
+        // from the mark's probe and the design's declared --panel-bg. It is the question the
+        // surface argument turns on, and until this round nothing measured it.
+        if (outcome.fill?.surface) {
+          console.log(`    surface: ${outcome.fill.surface.surface} - ${outcome.fill.surface.reason}`);
+        }
         console.log(`    code: ${auditSummaryLine(codeAudit)}`);
         if (record.axisReport && (record.axisReport.nearMisses.length || record.axisReport.skewStraddles.length)) {
           console.log(`    axis: ${record.axisReport.nearMisses.length} near-miss(es),`
@@ -941,6 +1212,16 @@ async function blindTheFrames(all) {
     for (const frame of record.frames ?? []) {
       frame.blindFile = await copy(frame.file, `${frame.strip}-${frame.index}`);
     }
+    // The clips leak the arm through their filename exactly as the stills did, and a <video src>
+    // is if anything more visible than an <img src> - the browser puts it in the context menu.
+    if (record.clips) {
+      record.blindClips = {};
+      for (const [strip, file] of Object.entries(record.clips)) {
+        const blindName = `${record.blindId}.${strip}.webm`;
+        await copyFile(path.join(OUT, file), path.join(dir, blindName)).catch(() => undefined);
+        record.blindClips[strip] = `blind/${blindName}`;
+      }
+    }
   }
 }
 
@@ -975,7 +1256,21 @@ function reviewHtml(all) {
     const strips = ['entrance', 'update', 'exit'].map((strip) => {
       const frames = (r.frames ?? []).filter((f) => f.strip === strip);
       if (!frames.length) return '';
-      return `<h3>${strip}</h3><div class="strip">${frames
+      // The CLIP comes first and the stills sit beside it: the clip is what answers "does the
+      // motion support the composition", and the stills are what you freeze on to argue about a
+      // specific instant. Autoplaying, looping and muted, because a reviewer reading thirty
+      // items should not have to press thirty play buttons.
+      //
+      // NO `controls`. Every graphic here is a LOWER THIRD, so the native control bar lands
+      // exactly on top of the thing being judged the moment anyone pauses - the review surface
+      // would be hiding the design. Click the clip to freeze it instead.
+      const clip = (r.blindClips ?? r.clips)?.[strip];
+      const player = clip
+        ? `<figure class="clip"><video src="${clip}" autoplay loop muted playsinline></video>`
+          + `<figcaption>real speed (${CLIP_FPS} fps)${strip === 'update'
+            ? ` · leads in ${UPDATE_LEAD_MS} ms before the swap` : ''} · click to freeze</figcaption></figure>`
+        : '';
+      return `<h3>${strip}</h3><div class="strip">${player}${frames
         .map((f) => `<figure><img src="${f.blindFile ?? f.file}"><figcaption>${Math.round(f.atMs)} ms</figcaption></figure>`)
         .join('')}</div>`;
     }).join('');
@@ -1004,7 +1299,9 @@ body{background:#101216;color:#e8e9ec;font:14px/1.5 system-ui;padding:24px;max-w
 h1{font-size:20px} h2{font-size:16px;border-top:1px solid #2a2d34;padding-top:18px;margin-top:32px}
 h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#9aa0ab;margin:14px 0 6px}
 img{border:1px solid #2a2d34;background:#000;display:block}
-.holds img{width:640px} .strip{display:flex;gap:8px;overflow-x:auto} .strip img{width:300px}
+.holds img{width:640px} .strip{display:flex;gap:8px;overflow-x:auto;align-items:flex-start} .strip img{width:300px}
+.strip video{width:480px;border:1px solid #f6a623;background:#000;display:block;cursor:pointer}
+.clip figcaption{color:#f6a623}
 figure{margin:0} figcaption{color:#9aa0ab;font-size:11px;margin-top:2px}
 .note{color:#f6a623} .lead{color:#9aa0ab;max-width:70ch}
 </style>
@@ -1017,6 +1314,18 @@ candidates. Write your notes in <code>notes.md</code> first, then run
 whether it looks like a real broadcast graphic rather than a tutorial component; whether the
 motion supports the composition; and whether local CSS/SVG polish would finish it or a
 designer would have to start over.</p>
+<p class="lead">Each strip LEADS WITH A CLIP that plays the phase at real speed, looping - judge
+the motion from that, not from the stills. The stills beside it are the same virtual-clock
+instants, kept so a specific frame can be argued about. Click a clip to freeze or restart it;
+the update clip starts ${UPDATE_LEAD_MS} ms before the operator's text swap so the change itself
+is visible.</p>
+<script>
+// Click to freeze. The native control bar would cover the lower third, which is the design.
+addEventListener('click', function (event) {
+  var video = event.target.closest && event.target.closest('.clip video');
+  if (video) { if (video.paused) video.play(); else video.pause(); }
+});
+</script>
 ${sections}`;
 }
 
@@ -1084,7 +1393,41 @@ function markCell(r) {
     ? `<br><small>entrance ${r.markMotion.entranceAnimated ? 'animated' : 'STATIC'}, exit ${
       r.markMotion.exitAnimated ? 'animated' : 'STATIC'}</small>` : '';
   const src = r.fill?.hadOwnSrc ? '<br><small>model wrote its own src (repaired)</small>' : '';
-  return `${gate}${motion}${src}`;
+  // The platform's read of whether the design's own panel carries this mark's ink.
+  const surface = r.fill?.surface
+    ? `<br><small>panel: ${r.fill.surface.surface === 'none' ? 'carries the mark' : `needs a ${r.fill.surface.surface}`}</small>`
+    : '';
+  return `${gate}${motion}${src}${surface}`;
+}
+
+/** Size RELATIONSHIPS - type step, mark scale, panel fill, frame footprint. Every number is
+ *  reported whether or not it produced a finding: three of the four have never fired on this
+ *  catalog OR on a flagged generation, so their value today is the number beside the frame,
+ *  not the verdict (docs/DESIGN_PRINCIPLES.md §4). */
+function proportionCell(r) {
+  const p = r.proportionReport;
+  if (!p) return '-';
+  const nums = `<small>type ${p.typeRatio ?? '-'} · mark ${p.markScale ?? '-'}`
+    + `<br>fill ${p.panelFill ?? '-'} · frame ${p.footprint ?? '-'}</small>`;
+  const found = p.findings.length
+    ? `<br>${p.findings.map((f) => `<small>${f.code}</small>`).join('<br>')}`
+    : '<br><small>clean</small>';
+  return `${nums}${found}`;
+}
+
+/** Padding and gap findings, with the ratios that produced them (docs/DESIGN_PRINCIPLES.md). */
+function spacingCell(r) {
+  const s = r.spacingReport;
+  if (!s) return '-';
+  const pad = s.padding
+    ? `<small>pad ${s.padding.top}/${s.padding.right}/${s.padding.bottom}/${s.padding.left}</small>`
+    : '<small>no panel</small>';
+  const gaps = s.lineGaps?.length ? `<br><small>gaps ${s.lineGaps.join(', ')}</small>` : '';
+  const mark = typeof s.markGap === 'number' ? `<br><small>mark ${s.markGap}</small>` : '';
+  const found = s.findings.length
+    ? `<br>${s.findings.map((f) => `<small>${f.code}</small>`).join('<br>')}`
+    : '<br><small>clean</small>';
+  return `${pad}${gaps}${mark}${found}`;
 }
 
 function axisCell(r) {
@@ -1102,7 +1445,7 @@ function axisCell(r) {
 function keyHtml(ledger) {
   const rows = ledger.results.map((r) => `<tr>
   <td>${r.blindId}</td>
-  <td>${r.kind}${r.arm ? ` · ${r.arm}` : ''}${r.brand ? `<br><small>${r.brand}${r.divergence ? ' · divergence' : ''}</small>` : ''}</td>
+  <td>${r.kind}${r.arm ? ` · ${r.arm}` : ''}${r.drift ? '<br><small>drift check</small>' : ''}${r.brand ? `<br><small>${r.brand}${r.divergence ? ' · divergence' : ''}</small>` : ''}</td>
   <td>${r.provenance ?? r.slug}</td>
   <td>${r.skipped ? `skipped (${r.skipped})` : r.error ? 'ERROR'
     : r.contract ? `${r.contract.scaffoldOk ? 'contract OK' : 'contract FAIL'}${
@@ -1111,6 +1454,8 @@ function keyHtml(ledger) {
     : r.validation ? (r.validation.ok ? 'valid' : r.validation.errors.join('<br>')) : '-'}</td>
   <td>${markCell(r)}</td>
   <td>${axisCell(r)}</td>
+  <td>${spacingCell(r)}</td>
+  <td>${proportionCell(r)}</td>
   <td>${r.codeAudit ? `<small>${auditSummaryLine(r.codeAudit)}</small>` : '-'}</td>
   <td>${r.repairRounds ?? '-'}</td>
   <td>${typeof r.costUsd === 'number' ? `$${r.costUsd.toFixed(4)}` : '-'}</td>
@@ -1124,7 +1469,7 @@ th{color:#9aa0ab;font-weight:600} small{color:#9aa0ab}</style>
 <p>Spent $${(ledger.spentUsd ?? 0).toFixed(4)}${ledger.maxCost ? ` of a $${ledger.maxCost.toFixed(2)} ceiling` : ''}.
 Decoding: temperature ${ledger.decoding.temperature}, seed ${ledger.decoding.seed}.</p>
 <table>
-<tr><th>id</th><th>kind</th><th>provenance</th><th>contract</th><th>validation</th><th>mark</th><th>axes</th><th>code</th><th>repairs</th><th>cost</th></tr>
+<tr><th>id</th><th>kind</th><th>provenance</th><th>contract</th><th>validation</th><th>mark</th><th>axes</th><th>spacing</th><th>proportion</th><th>code</th><th>repairs</th><th>cost</th></tr>
 ${rows}
 </table>`;
 }
