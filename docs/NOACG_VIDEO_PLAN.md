@@ -375,6 +375,33 @@ four of every five added nothing, because the marks were all used the same way -
 pages showed the same animation with a different picture in it. Per-mark variants earn their
 place only when the design does something different with each mark.
 
+### 2.5 What is verified, and what is still assumed
+
+The honest state of the first goal, so the next session does not re-verify what is done or
+trust what is not.
+
+**Verified, on real rendered pixels:**
+
+- seven hand-authored stingers pass the three §2.2 gates at 25, 50 and 60 fps - empty head and
+  tail frame, every frame of the declared cut window opaque with zero interior gaps, timeline
+  ending before the last rendered frame (`scripts/stinger-gate.mjs`, mutation-tested);
+- alpha survives a PNG sequence and a ProRes 4444 encode exactly;
+- the transition hides a real programme cut taken at the reported Trigger Point (the on-air
+  MP4s each cut between two visibly different sources under the graphic).
+
+**Not verified, and each is somebody's next item:**
+
+- **the production render path.** Every frame so far is a browser capture - one screenshot per
+  frame off the composition's paused timeline, the same seek-per-frame model the render worker
+  uses, but not the render service itself. Whether `kind: 'hyperframes'` through the real worker
+  produces the same pixels is untested.
+- **WebM alpha**, for the tooling reason above.
+- **ATEM ingest**: whether the media pool's clip side takes our PNG sequence at all, and
+  whether our straight alpha needs premultiplying against black.
+- **the corpus is not reachable from the product.** These are files under `src/ai/video/corpus`;
+  nothing imports them, no retrieval reads them, and no user can open one. That wiring is the
+  Phase C/P work, not something the corpus proves by existing.
+
 ---
 
 ## 3. Exemplars - the corpus must be built first

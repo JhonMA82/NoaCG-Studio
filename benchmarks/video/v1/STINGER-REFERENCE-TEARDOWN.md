@@ -182,3 +182,48 @@ pairs the first video frame with a dozen background frames and `tile` collects a
 it. The first version produced sheets of flat grey, which reads as "the clip is empty" - the
 most expensive wrong answer available here. The script now extracts real PNGs, tiles them, and
 flattens the finished sheet once.
+
+---
+
+## 6. What this whole round taught, beyond the numbers
+
+Kept here because every one of these was paid for once and would be paid for again.
+
+**About measuring.**
+
+- **A geometry check and a pixel check are not the same instrument.** Hit-testing boxes in the
+  page passed compositions whose marks were rendering at a tenth of their intended size. Only
+  capturing a frame and looking at it found that.
+- **Verify that a check can FAIL.** Two checks in this round returned clean because they were
+  measuring nothing: `getBoxQuads` does not exist in this browser, and a pane with no layout
+  reports a zero-sized viewport, so every loop completed without testing a pixel. Both looked
+  exactly like a pass. Every gate here now has a mutation test behind it.
+- **The tool can be the thing that is broken.** ffmpeg writes WebM alpha and refuses to decode
+  it back, so our own gate reads a good transparent WebM as opaque. Recording that as a defect
+  in the graphic would have been the expensive mistake.
+- **`| tail` hides an exit code.** The gate's failure was invisible until it was run without a
+  pipe.
+
+**About authoring.**
+
+- **`max-width` only shrinks.** Every brand mark rendered at its own SVG size - about 120 px in
+  a 300 px slot - and seven compositions read as empty for it. Size the box, then
+  `width: 100%; height: 100%; object-fit: contain`.
+- **Never put a GSAP transform on an element that already declares one in CSS.** The skew, the
+  rotation or the scale silently disappears mid-render. Mover outside, transform inside.
+- **A shape behind a mark is a plate whatever it is called** - and when the brand's ink is its
+  accent colour, the mark vanishes outright rather than merely weakening.
+- **A tone step has to survive both a light and a dark palette.** A white wash disappears on
+  cream; a grey one at the same opacity reads on both.
+
+**About ffmpeg, which cost the most wall-clock.**
+
+- Compositing a transparent clip onto a `color` source in one graph tiles a dozen copies of the
+  first frame, because `color` runs at its own frame rate. Extract PNGs, tile, flatten once.
+- Delaying an overlay with `setpts` makes it buffer the entire base stream uncompressed. Use
+  `tpad` to prepend real transparent frames instead.
+- `concat` will not pull from its second segment until the first is exhausted, so a graph that
+  concatenates two sources AND overlays onto the result deadlocks. Two passes.
+- A PNG sequence changes pixel format when some frames are fully transparent, and the filter
+  graph refuses to reinitialise - silently, after 8 of 100 frames. `format=rgba` first.
+- `mandelbrot` at 1080p50 is not a cheap source. `testsrc2` and `gradients` are.
