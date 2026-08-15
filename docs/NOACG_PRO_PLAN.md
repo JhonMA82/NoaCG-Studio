@@ -1365,6 +1365,48 @@ composing, so this measures that the composer works rather than that the model i
 four different accents, four different typefaces, and different accent forms and densities - not
 one look with the colours swapped, which is the named failure (src/ai/AGENTS.md).
 
+**THE OWNER'S BLIND READ: 26 of 30 acceptable** (`pro-lang-round/notes.md`, verbatim). Four named
+failures and one legibility note, and **every one of them is the PLATFORM's, not the language's** -
+no palette, no typeface, no motion and no composition was called wrong. Ranked by what they buy:
+
+- **The accent BLOCK form failed on both graphics that used it** (2 of 2 - one of them the
+  hand-written control): *"black text on an orange background is not so good… the text is very
+  small… the orange background should scale with the text length"*. Three faults in one form, all
+  fixed by construction: the block now takes `width: fit-content` (the `align-self` it relied on
+  is INERT once the shared logo slot gathers the lines into a plain block container, which is why
+  a two-letter role sat in a full-width bar); its ink is MEASURED (`readableInkOn` - white or
+  black, whichever reads on that accent) instead of being the panel colour, which is a design
+  answer to a legibility question; and it carries its own size and weight floors, because a line
+  set on a solid slab of the accent is a badge rather than a caption.
+- **A thin supporting line is illegible even at full contrast**: *"the title is too thin and small
+  for it to be legible"* - 26px regular that measured 4.6:1 and passed every colour check, because
+  contrast was never the defect. The supporting weight now has a floor that is a FUNCTION OF ITS
+  SIZE (medium below 30px): small text is read by its stem.
+- **An invisible mark reads as an unfinished graphic**: *"has a place for a logo, so it is nice if
+  there is a logo. Without one it looks unfinished."* The mark was there; its dark ink had nothing
+  to read against on the dark panel the language chose. **This one needs an owner decision - see
+  below.**
+- **A banner wider than its shortest line** (the mildest note, on a graphic called fine):
+  *"a little too much of a banner to the right… should wrap closer around the text"*. The panel is
+  sized by its LONGEST line, so a short supporting line leaves a void under it. Measurable as a
+  void ratio (panel area no line covers) rather than by the padding, which was 0.46 and healthy.
+  Recorded, not fixed.
+- **Not a defect, by the owner's own ruling**: the mark shrinking under stress text. *"If it is
+  actually so long then that is what we live with."*
+
+**THE MARK DECISION, for the owner.** The standing rule is *a mark carries NO PLATE* (2026-08-14),
+and its reasoning was explicit: on Lite the platform does not own the composition, so a well is a
+repair scar pasted over someone else's design. **Phase A changes that premise** - the platform now
+draws the whole composition and knows the mark's ink BEFORE the panel colour is chosen, so a
+reading field can be a designed band rather than a patch. Three options, in order of how much they
+cost: (1) leave it - the mark is reported unreadable and the graphic ships with a hole; (2) the
+platform gives the mark's own column a measured neutral field when its ink cannot read on the
+chosen panel (this is `decideMarkSurface`, already written and already measured); (3) the platform
+constrains the PANEL instead, refusing a surface the customer's mark cannot survive. Telling the
+model about the ink is already done and did not bind - the prompt says "its ink is dark, it needs a
+light surface" and the model chose the brand's navy anyway, which is §15.3's ranking arriving on
+schedule.
+
 **Two classes for the next round, both platform-side:**
 
 - **A dark-ink mark on a dark panel disappears** (3 of 18). The model took each brand's own

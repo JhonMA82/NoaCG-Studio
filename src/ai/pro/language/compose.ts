@@ -21,6 +21,7 @@
 // colour, weight, case, tracking, corner, accent form and motion. There is no code path from a
 // model answer to a geometry value.
 
+import { contrastRatio, parseCssColor } from '../../../blocks/cssVars';
 import { clampLitePalette } from '../../liteContract';
 import { defineVariant, lineMasks } from '../../../templates/lowerThirds/shared';
 import type { AssetFile, Resolution, SpxTemplate } from '../../../model/types';
@@ -49,6 +50,25 @@ export interface ComposedGraphic {
   /** The furniture repairs the palette needed, in Lite's own adjustment vocabulary. Empty is
    *  the normal case; a round that never reports one is not measuring legibility. */
   adjustments: string[];
+}
+
+/**
+ * The ink that READS on a surface - white or black, whichever measures better.
+ *
+ * The block accent form used to print the supporting line in `var(--panel-bg)`, on the reasoning
+ * that the panel's own colour would look deliberate against the accent. It does not measure:
+ * the owner's blind read named it twice on the two graphics that used the form (*"black text on
+ * an orange background is not so good"*), and a dark plum on a bright orange is exactly the pair
+ * that argument produces. The panel colour is a DESIGN answer to a LEGIBILITY question, which is
+ * the class of decision the platform exists to take off the model.
+ */
+function readableInkOn(surface: string): string {
+  const bg = parseCssColor(surface);
+  if (!bg) return '#000000';
+  const white = parseCssColor('#ffffff');
+  const black = parseCssColor('#000000');
+  if (!white || !black) return '#000000';
+  return contrastRatio(white, bg) >= contrastRatio(black, bg) ? '#ffffff' : '#000000';
 }
 
 /** #rrggbb plus an alpha, as an rgba() a decade-old CasparCG build still parses. No color-mix:
@@ -181,6 +201,14 @@ ${language.accent.form === 'top-rule'
    nothing for it to back. */
 .lower-third-mask + .lower-third-mask {
   background: var(--accent);        /* the block the supporting line reads on */
+  /* THE BLOCK HUGS ITS OWN WORDS, and it takes a WIDTH to do it rather than an alignment.
+     "align-self: flex-start" was the first attempt and it is inert here: when the design carries
+     a mark, the shared logo slot gathers the lines into a plain block container, where a
+     cross-axis alignment means nothing - so the block stretched to the NAME's width and a
+     two-letter role sat in a full-width bar. The owner's blind read named it: "the orange
+     background should scale with the text length". */
+  width: fit-content;
+  max-width: 100%;                  /* …but never wider than the panel it sits in */
   border-radius: ${px(Math.min(s.cornerPx, 8))};  /* the package's corner language, kept tight */
   /* NO INSET ON THE LEADING EDGE, so the block's edge, its words and the primary line above
      all sit on ONE axis. An inset there has to be paid for somewhere: the first attempt padded
@@ -189,8 +217,9 @@ ${language.accent.form === 'top-rule'
      times, by the alignment instrument on the free control run). The trailing edge aligns with
      nothing, so that is where the words get their air. */
   padding: ${px(Math.round(s.lineGapPx / 2))} ${px(s.lineGapPx)} ${px(Math.round(s.lineGapPx / 2))} 0;
-  align-self: flex-start;           /* the block is as wide as its words, never the panel */
-}`
+}
+/* The block's INK is measured, not designed: white or black, whichever reads on this accent. */
+.lower-third-mask + .lower-third-mask > span { color: ${readableInkOn(language.palette.accent)}; }`
         : '/* This language carries no accent SHAPE — the accent colour lives in the type alone. */';
 
   // ONE TYPEFACE, and no second @font-face. The heading face the language chose sets both lines,
@@ -230,7 +259,7 @@ ${language.accent.form === 'top-rule'
   line-height: 1.3;                 /* a touch of air if it wraps */
   letter-spacing: ${s.supportingTracking};        /* tracked wider than the heading — the label voice */
   text-transform: ${upper(heading.supportingCase)};
-  color: ${language.accent.form === 'block' ? 'var(--panel-bg)' : 'var(--text-dim)'};  /* ${language.accent.form === 'block' ? 'reads on the accent block' : 'present, and subordinate'} */
+  color: var(--text-dim);           /* present, and subordinate${language.accent.form === 'block' ? ' - overridden on the accent block below, where the ink is measured' : ''} */
   margin-top: ${px(s.lineGapPx)};  /* the platform's line gap — the two lines read as one unit */${surface.value === 'transparent' && language.accent.form !== 'block' ? '\n  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.75);  /* a super with no panel still has to read */' : ''}
 }`;
 

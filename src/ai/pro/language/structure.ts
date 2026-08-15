@@ -90,6 +90,35 @@ const WEIGHT: Record<TypeWeight, number> = {
   regular: 400, medium: 500, semibold: 600, bold: 700, black: 900,
 };
 
+/**
+ * THE SUPPORTING LINE'S WEIGHT FLOOR, AND WHY IT IS A FUNCTION OF ITS SIZE.
+ *
+ * The owner's blind read of the first Phase A round (2026-08-15): *"the title is too thin and
+ * small for it to be legible"*. That graphic's supporting line was 26px `regular` in the brand's
+ * own grey - and it CLEARED the contrast floor at 4.6:1, so no colour repair fired. Contrast was
+ * never the defect; a hairline stroke at broadcast distance was.
+ *
+ * Small text is read by its STEM, not by its colour, so the floor is size-dependent: at the
+ * catalog's own median supporting size a regular weight is not enough, and above this size the
+ * model's choice stands untouched. It is a boundary rather than a repair - the language still
+ * decides the voice, it just cannot ask for a stroke nobody can resolve.
+ */
+export const SUPPORTING_WEIGHT_FLOOR_BELOW_PX = 30;
+export const SUPPORTING_WEIGHT_FLOOR = WEIGHT.medium;
+
+/**
+ * A LABEL ON A SOLID SLAB IS A LABEL. The block accent form puts the supporting line ON the
+ * accent, where it stops being subordinate text and becomes a badge - so it carries its own,
+ * higher floor. Both cells that used this form failed the same blind read (*"black text on an
+ * orange background is not so good, and the text is very small"*), and this is the half of that
+ * fault that is about weight; `readableInkOn` in compose.ts is the half about colour.
+ */
+export const BLOCK_LABEL_WEIGHT_FLOOR = WEIGHT.semibold;
+/** …and its SIZE floor, for the other half of the same note ("the text is very small"). A line
+ *  set on a solid slab of the accent colour is the loudest thing in the composition after the
+ *  name; at the bottom of the step range it reads as a caption someone forgot to finish. */
+export const BLOCK_LABEL_MIN_PX = 30;
+
 /** The mark's height and its clear space, against the type it stands beside - never against the
  *  frame, which is what "the logo takes half the screen" gets wrong. */
 export const MARK_HEIGHT_RATIO = 1.2;
@@ -132,8 +161,17 @@ export interface ResolvedSpacing {
 export function resolveSpacing(language: DesignLanguage): ResolvedSpacing {
   const space = DENSITY_SPACE[language.density];
   const heading = HEADING_PX;
-  const supporting = Math.round(heading * STEP_RATIO[language.typography.step]);
+  const supporting = Math.max(
+    Math.round(heading * STEP_RATIO[language.typography.step]),
+    language.accent.form === 'block' ? BLOCK_LABEL_MIN_PX : 0,
+  );
   const tracking = TRACKING_EM[language.typography.tracking];
+  // The two floors above, applied. Recorded by the caller as an adjustment when either bites.
+  const supportingWeight = Math.max(
+    WEIGHT[language.typography.supportingWeight],
+    supporting < SUPPORTING_WEIGHT_FLOOR_BELOW_PX ? SUPPORTING_WEIGHT_FLOOR : 0,
+    language.accent.form === 'block' ? BLOCK_LABEL_WEIGHT_FLOOR : 0,
+  );
   return {
     headingPx: heading,
     supportingPx: supporting,
@@ -146,7 +184,7 @@ export function resolveSpacing(language: DesignLanguage): ResolvedSpacing {
     markHeightPx: Math.round(heading * MARK_HEIGHT_RATIO),
     markGapPx: Math.round(heading * MARK_HEIGHT_RATIO * MARK_GAP_RATIO),
     headingWeight: WEIGHT[language.typography.headingWeight],
-    supportingWeight: WEIGHT[language.typography.supportingWeight],
+    supportingWeight,
     headingTracking: tracking.heading,
     supportingTracking: tracking.supporting,
     preset: MOTION_PRESET[language.motion.character],
