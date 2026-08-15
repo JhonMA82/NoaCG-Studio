@@ -14,6 +14,12 @@
 //   node scripts/pro-spike.mjs --generate --route=vercel:alibaba/qwen3-coder --max-cost=0.40 \
 //     --arms=grammar --drift-check=exemplar:news-public,sports-live,minimalist
 //
+//   # PHASE A (plan §15.5): the model returns a design LANGUAGE and the platform composes the
+//   # graphic. One text call per brief, no image, no repair loop - the cheapest arm here by an
+//   # order of magnitude, which is why its divergence cell is affordable.
+//   node scripts/pro-spike.mjs --generate --route=vercel:google/gemini-2.5-flash \
+//     --arms=language --divergence-arm=language --max-cost=0.40
+//
 // THE BRAND ROUND (the default since Phase 1): every brief is conditioned on a SYNTHETIC
 // brand from benchmarks/pro/v1/spike/brands.json - an invented organisation's name, palette,
 // typeface and REAL mark file, the mark's shape/backing/ink measured in the page by probeMark
@@ -124,7 +130,15 @@ if (control && paid) {
   process.exit(1);
 }
 
-const KNOWN_ARMS = ['exemplar', 'none', 'grammar'];
+/**
+ * `language` is PHASE A (docs/NOACG_PRO_PLAN.md §15.5) and it is a different pipeline, not
+ * another prompt: the model returns a design LANGUAGE - enums, four colours, a bundled font id -
+ * and the PLATFORM composes the graphic through the catalog's own assembler. One text call, no
+ * image, no repair loop, no exemplar block. Everything downstream of the call (the field
+ * contract, the code save, the captures, the instruments, the gallery) is shared, which is the
+ * point: the two premises are then judged by the same measurements.
+ */
+const KNOWN_ARMS = ['exemplar', 'none', 'grammar', 'language'];
 const ARMS = (value('arms') ?? 'exemplar,none').split(',').filter(Boolean);
 for (const arm of ARMS) {
   if (!KNOWN_ARMS.includes(arm)) {
@@ -890,13 +904,23 @@ if (paid) {
     const assigned = brandsFixture ? brandById.get(brandsFixture.assignment[entry.id]) : null;
     for (const arm of ARMS) plan.push({ entry, arm, brand: assigned, divergence: false });
   }
-  if (brandsFixture?.divergence && ARMS.includes(brandsFixture.divergence.arm)) {
+  // WHICH ARM THE DIVERGENCE CELL RUNS ON is the fixture's answer, overridable for an arm the
+  // fixture predates (`--divergence-arm=language`). The cell is the same brief under every
+  // brand, so on a design-language round it is the one measurement that says whether a brand
+  // actually moves the answer or whether four brands get one look with different colours - the
+  // named sameness failure (src/ai/AGENTS.md).
+  const divergenceArm = value('divergence-arm') ?? brandsFixture?.divergence?.arm;
+  if (divergenceArm && !KNOWN_ARMS.includes(divergenceArm)) {
+    console.error(`--divergence-arm names an unknown arm "${divergenceArm}".`);
+    process.exit(1);
+  }
+  if (brandsFixture?.divergence && ARMS.includes(divergenceArm)) {
     for (const briefId of brandsFixture.divergence.briefs) {
       const entry = briefs.find((e) => e.id === briefId);
       if (!entry) continue; // a subset run that excludes the divergence brief skips its cell
       for (const brand of brands) {
         if (brand.id === brandsFixture.assignment[briefId]) continue;
-        plan.push({ entry, arm: brandsFixture.divergence.arm, brand, divergence: true });
+        plan.push({ entry, arm: divergenceArm, brand, divergence: true });
       }
     }
   }
@@ -942,7 +966,98 @@ if (paid) {
 
       let outcome;
       try {
-        outcome = await page.evaluate(async (input) => {
+        outcome = arm === 'language' ? await page.evaluate(async (input) => {
+          // ── PHASE A: one call for the LANGUAGE, then the platform composes ──────────────
+          const bust = '?t=' + Date.now();
+          const { generateDesignLanguage } = await import('/src/ai/pro/language/generate.ts' + bust);
+          const { composeFromLanguage } = await import('/src/ai/pro/language/compose.ts' + bust);
+          const { brandBlock } = await import('/src/ai/spike/brand.ts' + bust);
+          const spikeAnchors = await import('/src/ai/spike/anchors.ts' + bust);
+          const { productionSpxValidator } = await import('/src/ai/litePipeline.ts' + bust);
+          const [provider, ...model] = input.route.split(':');
+
+          const generated = await generateDesignLanguage(
+            {
+              brief: input.brief.brief,
+              // The brand is rendered by the side that OWNS that vocabulary and passed as text
+              // (src/ai/pro/language/prompt.ts) - `pro/` may not import the bench-only spike.
+              ...(input.brand ? { brandSection: brandBlock(input.brand) } : {}),
+            },
+            { provider, model: model.join(':') },
+            {
+              // A bench round is not a product call: `spike` carries Pro's own zero-data-retention
+              // posture and reaches no user's hosted allowance.
+              surface: 'spike',
+              temperature: input.decoding.temperature,
+              seed: input.decoding.seed,
+            },
+          );
+
+          const { template, spacing, notes, adjustments } = composeFromLanguage(generated.language, {
+            lines: [
+              { title: 'Name', sample: input.brief.name },
+              { title: 'Role', sample: input.brief.title },
+            ],
+            ...(input.brand
+              ? {
+                logo: {
+                  assetPath: input.brand.mark.path,
+                  images: [{ path: input.brand.mark.path, data: input.brand.mark.dataUrl }],
+                },
+              }
+              : {}),
+          });
+
+          // The slot the shared logo band minted - the platform placed it, so the mark gate and
+          // the spacing instrument point at the field a real upload would land in.
+          const slotFieldId = input.brand
+            ? (template.fields.find((f) => f.ftype === 'filelist')?.field ?? null)
+            : null;
+
+          // There is NO repair loop here and that is deliberate: nothing the model returns can
+          // make the code invalid, so a failing validation would be a PLATFORM bug worth
+          // surfacing rather than something to spend a second call on (the grounded-assembly
+          // rule, src/ai/AGENTS.md).
+          const validation = await productionSpxValidator(
+            null, input.brand ? [input.brand.mark.path] : [],
+          )(template);
+
+          const data = spikeAnchors.dataFor(input.brief);
+          const stressData = spikeAnchors.stressFor(input.brief);
+          if (slotFieldId) {
+            data[slotFieldId] = input.brand.mark.path;
+            stressData[slotFieldId] = input.brand.mark.path;
+          }
+          return {
+            template,
+            validation: {
+              ok: validation.ok,
+              errors: validation.errors.map((e) => `${e.rule}: ${e.message.slice(0, 200)}`),
+              warnings: validation.warnings.map((e) => `${e.rule}: ${e.message.slice(0, 200)}`),
+            },
+            repairRounds: 0,
+            exemplarIds: [],
+            exemplarReason: 'language arm - the platform composes, so no design is retrieved',
+            fill: slotFieldId
+              ? { slotFieldId, path: input.brand.mark.path, hadOwnSrc: false, placed: true }
+              : null,
+            costUsd: generated.costUsd,
+            usage: generated.usage,
+            model: generated.model,
+            emitted: {
+              name: generated.language.name,
+              type: 'lower-third',
+              summary: generated.language.rationale,
+            },
+            language: generated.language,
+            languageFallbacks: generated.fallbacks,
+            languageAdjustments: adjustments,
+            languageNotes: notes,
+            spacingPlan: spacing,
+            data,
+            stressData,
+          };
+        }, { brief: entry.brief, route, decoding, brand }) : await page.evaluate(async (input) => {
           const bust = '?t=' + Date.now();
           const spikeRun = await import('/src/ai/spike/run.ts' + bust);
           const spikeAnchors = await import('/src/ai/spike/anchors.ts' + bust);
@@ -1056,6 +1171,17 @@ if (paid) {
           type: outcome.emitted?.type,
           summary: outcome.emitted?.summary,
         }, null, 2)}\n`),
+        // THE LANGUAGE IS THE PAID ARTEFACT on the Phase A arm - the code beside it is
+        // deterministic and can be rebuilt from it for free, which the emitted HTML never could.
+        // Saved with what the platform did with it, so a later read does not have to re-derive
+        // the geometry from a screenshot.
+        ...(outcome.language ? [writeFile(path.join(codeDir, 'language.json'), `${JSON.stringify({
+          language: outcome.language,
+          fallbacks: outcome.languageFallbacks,
+          adjustments: outcome.languageAdjustments,
+          notes: outcome.languageNotes,
+          spacing: outcome.spacingPlan,
+        }, null, 2)}\n`)] : []),
       ]);
       // The code axis (docs/NOACG_PRO_PLAN.md §14 item 0a): measured at capture time so the
       // ledger carries it; scripts/spike-code-audit.mjs re-derives the same numbers from the
@@ -1120,6 +1246,15 @@ if (paid) {
           + ` · exemplars [${outcome.exemplarIds.join(', ') || 'none'}]`,
         exemplarIds: outcome.exemplarIds,
         exemplarReason: outcome.exemplarReason,
+        ...(outcome.language
+          ? {
+            language: outcome.language,
+            languageFallbacks: outcome.languageFallbacks,
+            languageAdjustments: outcome.languageAdjustments,
+            languageNotes: outcome.languageNotes,
+            spacingPlan: outcome.spacingPlan,
+          }
+          : {}),
         fill: outcome.fill,
         validation: outcome.validation,
         repairRounds: outcome.repairRounds,
@@ -1136,6 +1271,21 @@ if (paid) {
         + ` · repairs ${record.repairRounds} · $${(record.costUsd ?? 0).toFixed(4)}`
         + ` · ${record.frames.length} motion frames · ${clipsCell(record)} · ${record.ms} ms`);
       for (const error of contract.blockingErrors) console.log(`    ✗ ${error}`);
+      if (outcome.language) {
+        const l = outcome.language;
+        console.log(`    language "${l.name}": ${l.palette.accent} on ${l.palette.panel}`
+          + ` · ${l.typography.fontId} ${l.typography.headingWeight}/${l.typography.supportingWeight}`
+          + ` step ${l.typography.step} · ${l.shape.panel} panel, ${l.shape.corner} corners`
+          + ` · ${l.accent.form} accent (${l.accent.weight}) · ${l.density} · ${l.motion.character}/${l.motion.pace}`);
+        // A field the model did not answer legibly fell back to the HOUSE value, and a round
+        // that does not say so is measuring our own defaults and calling them the model's.
+        console.log(`    fell back to the house on: ${outcome.languageFallbacks.length
+          ? outcome.languageFallbacks.join(', ') : 'nothing'}`);
+        // Identity is the model's and is never touched; furniture is the platform's. A round
+        // that never reports a repair here is not measuring legibility.
+        console.log(`    palette furniture repaired: ${outcome.languageAdjustments.length
+          ? outcome.languageAdjustments.join(', ') : 'nothing'}`);
+      }
       if (contract.editabilityDemoted) {
         console.log('    · editability demoted to a warning (fresh build) - it plays and exports,'
           + ' its timeline is read-only');

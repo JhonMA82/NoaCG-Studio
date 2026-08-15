@@ -60,6 +60,8 @@ pro-machine-out*/
 # virtual-clock motion strips, the blind gallery and its key.
 pro-spike-out*/
 pro-brand-*/
+# …and the same runner's Phase A rounds, wherever --out= puts them.
+pro-lang-*/
 # The stinger corpus brand-swap review rig (scripts/stinger-review.mjs): one page per stinger
 # with the fonts and GSAP inlined. Regenerated on demand in one second.
 stinger-review-out/

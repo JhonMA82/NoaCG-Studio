@@ -21,6 +21,7 @@
 // colour, weight, case, tracking, corner, accent form and motion. There is no code path from a
 // model answer to a geometry value.
 
+import { clampLitePalette } from '../../liteContract';
 import { defineVariant, lineMasks } from '../../../templates/lowerThirds/shared';
 import type { AssetFile, Resolution, SpxTemplate } from '../../../model/types';
 import type { L3Design } from '../../../templates/lowerThirds/shared';
@@ -45,6 +46,9 @@ export interface ComposedGraphic {
   spacing: ResolvedSpacing;
   /** Anything the platform decided FOR the language, said out loud. */
   notes: string[];
+  /** The furniture repairs the palette needed, in Lite's own adjustment vocabulary. Empty is
+   *  the normal case; a round that never reports one is not measuring legibility. */
+  adjustments: string[];
 }
 
 /** #rrggbb plus an alpha, as an rgba() a decade-old CasparCG build still parses. No color-mix:
@@ -70,17 +74,41 @@ function panelSurface(language: DesignLanguage): { value: string; blur: boolean;
   }
 }
 
-/** The palette the `:root` contract is written from. The language's four roles ARE the wizard's
- *  four roles, so nothing is translated - only the panel carries its treatment's alpha. */
-function paletteFor(language: DesignLanguage, surface: string): Palette {
-  return {
-    id: 'pro-language',
-    name: language.name,
-    styleTags: ['noacg'],
+/**
+ * The palette the `:root` contract is written from - IDENTITY verbatim, FURNITURE legible.
+ *
+ * The split is Lite's, ratified there and imported rather than re-implemented (a second copy of
+ * a legibility ladder is how two answers come to disagree): **accent and panel are the model's
+ * and are never touched**, while **text and textDim are the platform's** and are brought up to
+ * the contrast floor against the panel by `clampLitePalette`'s three rungs.
+ *
+ * THE FIRST PAID CELL IS WHY THIS IS HERE. The model took the Aldervale Institute's own palette
+ * faithfully - navy panel, parchment text, and the brand's "Slate" for the supporting line. Slate
+ * is specified as supporting text ON PARCHMENT; on the navy it reads at about 1.9:1, and the role
+ * line was barely there. That is not a taste failure to teach away, it is a measurable boundary
+ * the platform can simply own - which is the whole of §15.3's ranking.
+ *
+ * Only the panel's TREATMENT alpha is applied afterwards, so the repair reasons about the colour
+ * the words actually sit on.
+ */
+function paletteFor(language: DesignLanguage, surface: string): { palette: Palette; adjustments: string[] } {
+  const repaired = clampLitePalette({
     accent: language.palette.accent,
+    panel: language.palette.panel,
     text: language.palette.text,
     textDim: language.palette.textDim,
-    panel: surface,
+  });
+  return {
+    palette: {
+      id: 'pro-language',
+      name: language.name,
+      styleTags: ['noacg'],
+      accent: repaired.palette.accent,
+      text: repaired.palette.text,
+      textDim: repaired.palette.textDim,
+      panel: surface,
+    },
+    adjustments: repaired.adjustments,
   };
 }
 
@@ -236,7 +264,7 @@ export function variantForLanguage(language: DesignLanguage): TemplateVariant {
       ],
       logo: 'optional',
       animationPresets: [s.preset, 'line-reveal', 'slide-up', 'mask-wipe', 'fade'],
-      defaultPalette: paletteFor(language, panelSurface(language).value),
+      defaultPalette: paletteFor(language, panelSurface(language).value).palette,
       defaultFontId: language.typography.fontId,
       defaultZone: 'bottom-left',
     },
@@ -257,6 +285,9 @@ export function variantForLanguage(language: DesignLanguage): TemplateVariant {
 export function composeFromLanguage(language: DesignLanguage, options: ComposeOptions): ComposedGraphic {
   const s = resolveSpacing(language);
   const variant = variantForLanguage(language);
+  // Every divergence from what the model asked for, said out loud. A repair the ledger cannot
+  // count is a promise nobody can check (the Lite brand rule, `docs/AI_LITE_BRAND_PLAN.md` §3.2).
+  const adjustments = paletteFor(language, panelSurface(language).value).adjustments;
   const notes = [
     `structure and spacing: platform-owned (${language.density} density -`
     + ` ${s.padVPx}/${s.padHPx}px padding, ${s.lineGapPx}px line gap, at scale 1)`,
@@ -268,6 +299,7 @@ export function composeFromLanguage(language: DesignLanguage, options: ComposeOp
     notes.push('the accent is drawn without a .lower-third-accent element, so the entrance'
       + ' animates the panel and its lines rather than a separate shape');
   }
+  if (adjustments.length) notes.push(`palette furniture repaired: ${adjustments.join(', ')}`);
   const template = variant.create({
     lines: options.lines,
     ...(options.resolution ? { resolution: options.resolution } : {}),
@@ -277,5 +309,5 @@ export function composeFromLanguage(language: DesignLanguage, options: ComposeOp
       ? { logoEnabled: true, logoAssetPath: options.logo.assetPath, importedImages: options.logo.images }
       : {}),
   });
-  return { template, variant, spacing: s, notes };
+  return { template, variant, spacing: s, notes, adjustments };
 }

@@ -10,7 +10,7 @@
 // their own key or running the offline stub is never booked against the hosted allowance.
 
 import { callModelDetailed } from '../../modelGateway';
-import { outputBudget, type ModelRoute } from '../../modelTypes';
+import { outputBudget, type AiGatewaySurface, type ModelRoute } from '../../modelTypes';
 import { startAiRun } from '../../telemetry';
 import type { ProSession } from '../session';
 import {
@@ -37,7 +37,18 @@ export interface GeneratedLanguage {
 export async function generateDesignLanguage(
   brief: LanguageBrief,
   route: ModelRoute,
-  options: { session?: ProSession | null; temperature?: number; seed?: number } = {},
+  options: {
+    session?: ProSession | null;
+    temperature?: number;
+    seed?: number;
+    /**
+     * The gateway surface. `pro` is the PRODUCT's - policied, and metered against the hosted
+     * allowance through `session`. A bench round passes `spike`, which carries the same
+     * zero-data-retention posture and reaches no user's allowance: a measurement run must not
+     * book a classroom's capacity, and the round is not a product call pretending to be one.
+     */
+    surface?: AiGatewaySurface;
+  } = {},
 ): Promise<GeneratedLanguage> {
   const run = startAiRun('pro-generate');
   const t0 = Date.now();
@@ -47,7 +58,7 @@ export async function generateDesignLanguage(
       messages: [{ role: 'user', content: designLanguageUserMessage(brief) }],
       tool: DESIGN_LANGUAGE_TOOL,
       route,
-      surface: 'pro',
+      surface: options.surface ?? 'pro',
       cacheSystem: true,
       maxTokens: outputBudget(EXPECTED_OUTPUT_TOKENS),
       ...(options.temperature === undefined ? {} : { temperature: options.temperature }),
