@@ -738,6 +738,15 @@ Four rules bind anyone editing it:
   pass (`languageAnchors`, `node scripts/pro-spike.mjs --control`), measured by the same
   instruments a paid round is scored by. A control that does not execute the path is not a control,
   and this repo has paid for that finding three times.
+- **AN INSTRUMENT MEASURES THE BOX ITS QUESTION IS ABOUT, and the two mark boxes are the
+  precedent.** `spacingCheck` reported the mark's clear space off the `<img>`'s BORDER box, so a
+  design expressing that clear space as image padding had it counted as zero: `mark-crowded` fired
+  on lt07, lt41 and ls10, three of the designs that carry a crest BEST. An instrument whose false
+  positives are the good designs is one authors learn to ignore, which is worse than no instrument.
+  It now measures the INK (`markContentRect`, inset by padding and border) - and `proportionCheck`
+  deliberately does NOT follow, because `mark-oversized` asks how much ROOM the mark takes and a
+  padded well takes all of it. Two questions, two boxes, each stated where it is read.
+  `node scripts/spike-mark-clearance-sweep.mjs` measures both columns off one render.
 
 ## Phase-C creative pilot (`creative/`)
 
@@ -781,6 +790,20 @@ Two rules reach outside the pilot and bind here:
   (`docs/AI_PROVIDER_GATEWAY.md`). `modelCatalog.ts` reads only the normalized server discovery endpoint.
   Structured output, usage, costs, errors, retries and explicit fallbacks normalize here. `cacheSystem`
   remains an Anthropic hint.
+- **A ROUTE IS REACHABLE IN DEVELOPMENT BECAUSE THE TREE SAYS SO, never because a list does.**
+  `scripts/aiDevPlugin.mjs` mounts the real `api/ai` handlers, and it used to decide which paths
+  existed from a hand-kept allowlist. That list hid a whole surface three times: the
+  imported-graphic-analysis task shipped with no entries, hosted Pro was a dev 404 in every dev
+  server and the entire e2e suite while production served it (so `loadProStatus` read "this
+  deployment has no Pro" and the door never appeared locally), and `/api/ai/consent` had never been
+  routed at all. It is gone. `scripts/apiRouteTable.mjs` derives the function table from the api/
+  tree and applies the deployment's own measured rule - a `[...path].ts` routes exactly ONE segment
+  - so an unknown NAME is answered by the real dispatcher in its own error vocabulary and an
+  unroutable DEPTH is refused exactly as the platform refuses it. `npm run check:api-route-depth`
+  certifies every `/api/` path our client names through that SAME resolver, so the gate and the dev
+  server cannot hold different opinions. **Every other AI spec mocks these routes at the network
+  level, which is why none of the three defects was ever caught** - `e2e/ai-dev-routes.spec.ts`
+  deliberately does not mock, and is the only thing here that proves a route is reachable.
 - `stubProvider.ts` - the offline provider: keyword -> DesignSpec -> the SAME `specToTemplate` pipeline, so
   offline results are catalog-grade. It honors the structured setup through the same `applySpecLocks`/
   post-passes, which keeps the whole More-control flow e2e-testable without tokens.
