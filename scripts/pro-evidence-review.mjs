@@ -223,8 +223,13 @@ figure{margin:0}
 figcaption{color:var(--dim);font-size:11px;margin-top:3px}
 /* The plate IS the backdrop: the frame is a transparent PNG laid over it, so switching the
    backdrop switches what every graphic on the page is being judged against. */
-.plate{width:760px;aspect-ratio:16/9;background:#000;border:1px solid var(--line);overflow:hidden}
-.plate img{width:100%;height:100%;display:block}
+.plate{width:520px;aspect-ratio:16/9;background:#000;border:1px solid var(--line);overflow:hidden}
+.plate img{width:100%;height:100%;display:block;transform-origin:12% 88%}
+/* ZOOM keeps the same frame and the same backdrop and simply magnifies the corner the graphic
+   sits in, so a detail read and a full-frame read are the same picture rather than two captures
+   that could disagree. */
+body[data-zoom="2"] .plate img{transform:scale(2)}
+body[data-zoom="3"] .plate img{transform:scale(3)}
 .plate.empty{display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:12px}
 .cols{display:flex;gap:26px;flex-wrap:wrap;margin-top:10px}
 .col{min-width:280px} .col.wide{max-width:1100px}
@@ -264,8 +269,15 @@ body[data-only="1"] .design:not(.headline):not(.pro){display:none}
       <option value="white">white</option>
     </select>
   </label>
+  <label>zoom
+    <select id="zoom">
+      <option value="">whole 1920x1080 frame</option>
+      <option value="2">2x on the graphic</option>
+      <option value="3">3x on the graphic</option>
+    </select>
+  </label>
   <label><input type="checkbox" id="only"> only the six designs that changed</label>
-  <label>frame width <input type="range" id="w" min="380" max="1200" step="20" value="760"></label>
+  <label>frame width <input type="range" id="w" min="380" max="1200" step="20" value="520"></label>
 </header>
 
 <p class="lead">Every frame here was captured at <strong>1920x1080 with its alpha intact</strong> and
@@ -283,6 +295,7 @@ ${proSection ? `<h3>NoaCG Pro - Phase A generations</h3>\n${proLead}\n${proSecti
 <script>
 var body = document.body;
 document.getElementById('bd').onchange = function (e) { body.dataset.bd = e.target.value; };
+document.getElementById('zoom').onchange = function (e) { body.dataset.zoom = e.target.value; };
 document.getElementById('only').onchange = function (e) { body.dataset.only = e.target.checked ? '1' : ''; };
 document.getElementById('w').oninput = function (e) {
   document.querySelectorAll('.plate').forEach(function (p) { p.style.width = e.target.value + 'px'; });
