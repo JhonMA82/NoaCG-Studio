@@ -59,7 +59,9 @@ export const RULE_GAP_FLOOR_RATIO = 0.12;
 export const RULE_CONTACT_RATIO = 0.02;
 /** The mark's gap to the nearest text, as a ratio of the MARK's height: below is crowded,
  *  above is adrift. The brand manual's clear space is a quarter of the mark's height, so the
- *  floor sits at that and the ceiling is where a lockup stops reading as a lockup. */
+ *  floor sits at that and the ceiling is where a lockup stops reading as a lockup.
+ *
+ *  Both numbers are read off the mark's INK rather than its box - see `markContentRect`. */
 export const MARK_GAP_FLOOR_RATIO = 0.25;
 export const MARK_GAP_CEILING_RATIO = 1.6;
 /** An element spanning nearly the whole frame is a backdrop, not a composition member. */
@@ -97,7 +99,8 @@ export interface SpacingReport {
   escapes: SpacingEscape[];
   /** Gaps between consecutive stacked text lines, in type sizes. */
   lineGaps: number[];
-  /** The mark's gap to the nearest text, in mark heights, when a mark is present. */
+  /** The mark's gap to the nearest text, in mark heights, when a mark is present. Measured off
+   *  the mark's INK - see `markContentRect` for why the border box answered the wrong question. */
   markGap: number | null;
   findings: SpacingFinding[];
 }
@@ -267,6 +270,53 @@ function paddingRatios(
     bottom: round2((panel.rect.bottom - union.bottom) / typeSize),
     left: round2((union.left - panel.rect.left) / typeSize),
   };
+}
+
+/**
+ * THE MARK'S INK, not the well it sits in - the visual rect inset by the element's own padding
+ * and border.
+ *
+ * THE FALSE POSITIVES THIS EXISTS TO CLOSE, and they were the good designs. `mark-crowded` fired
+ * on lt07 (0.22), lt41 (0.24) and ls10 (0.20) against a 0.25 floor, and all three are among the
+ * designs that carry a crest BEST: each draws the mark inside a well and expresses the brand
+ * manual's clear space as the image's OWN PADDING. `getBoundingClientRect` reports the border
+ * box, so that clear space was inside the thing being measured - the instrument counted the gap
+ * from the outside of the space to the text, which is by definition nearly zero, and then called
+ * the design cramped for it. Measured over the 24 mark-capable lower thirds
+ * (`scripts/spike-mark-clearance-sweep.mjs`), the ink box moves those three to 0.36, 0.39 and
+ * 0.42 and leaves every other reading alone.
+ *
+ * AN INSTRUMENT WHOSE FALSE POSITIVES ARE THE GOOD DESIGNS IS ONE AUTHORS LEARN TO IGNORE, which
+ * is worse than no instrument - the same argument this file already makes for the deliberate
+ * bleed and for `LINE_GAP_FLOOR_RATIO` sitting at zero.
+ *
+ * BOTH HALVES OF THE RATIO MOVE, and they must move together: the gap is measured FROM the ink
+ * and the unit IS the ink's height. Insetting one and not the other would answer a third
+ * question that is neither the box's nor the mark's.
+ *
+ * DELIBERATELY NOT SHARED WITH `proportionCheck`. Its `mark-oversized` finding asks how much ROOM
+ * a mark takes in the composition, and a padded well takes all of it - the border box is the right
+ * answer there, and `MARK_SCALE_CEILING` is calibrated on it. Two questions, two boxes.
+ *
+ * `getComputedStyle` is read while the document is still attached, which is the only time it
+ * answers: a live `CSSStyleDeclaration` EMPTIES the moment its iframe leaves the DOM, and every
+ * length silently parses as 0 - an inset of nothing, reported as a measurement.
+ */
+function markContentRect(mark: Painted, win: Window): Painted['rect'] {
+  const style = win.getComputedStyle(mark.el);
+  const inset = (side: 'left' | 'right' | 'top' | 'bottom'): number =>
+    (parseFloat(style.getPropertyValue(`padding-${side}`)) || 0)
+    + (parseFloat(style.getPropertyValue(`border-${side}-width`)) || 0);
+  const ink = {
+    left: mark.rect.left + inset('left'),
+    right: mark.rect.right - inset('right'),
+    top: mark.rect.top + inset('top'),
+    bottom: mark.rect.bottom - inset('bottom'),
+  };
+  // A padding wider than whatever a clip left of the box would INVERT the rect and make every
+  // gap below meaningless. Fall back to what paints rather than report an impossible mark.
+  if (ink.right - ink.left < 1 || ink.bottom - ink.top < 1) return mark.rect;
+  return ink;
 }
 
 export interface SpacingOptions {
@@ -460,29 +510,39 @@ export function measureSpacing(doc: Document, options: SpacingOptions = {}): Spa
 
   // ── The mark's gap to the text it stands beside ─────────────────────────────────────
   if (options.markFieldId) {
+    const win = doc.defaultView;
     const mark = items.find((p) => p.el.id === options.markFieldId);
     const text = items.filter((p) => p.isText);
-    if (mark && text.length) {
-      const markH = mark.rect.bottom - mark.rect.top;
+    if (win && mark && text.length) {
+      const ink = markContentRect(mark, win);
+      const markH = ink.bottom - ink.top;
       const gaps = text.map((t) => {
-        const dx = Math.max(mark.rect.left - t.rect.right, t.rect.left - mark.rect.right, 0);
-        const dy = Math.max(mark.rect.top - t.rect.bottom, t.rect.top - mark.rect.bottom, 0);
+        const dx = Math.max(ink.left - t.rect.right, t.rect.left - ink.right, 0);
+        const dy = Math.max(ink.top - t.rect.bottom, t.rect.top - ink.bottom, 0);
         return Math.max(dx, dy) || Math.min(dx, dy);
       });
       const nearest = Math.min(...gaps);
       const ratio = round2(nearest / Math.max(1, markH));
       report.markGap = ratio;
+      // BOTH RAW NUMBERS RIDE ALONG, because the ratio alone cannot say which of two opposite
+      // things happened - a tight gap, or a tall mark. The unit is the mark's OWN height, so a
+      // design that gives its mark room divides by its own generosity: swept over the 24
+      // mark-capable lower thirds, ls18 is flagged at 22px of clear space while lt08 passes at
+      // exactly 22px, and ls25 is flagged at 30px while lt15 passes at 26px. In both pairs the
+      // flagged design has the BIGGER mark and the same or larger gap. A reader given only
+      // `0.17` cannot see that; given `22px from a 135px mark` they can.
+      const px = `${Math.round(nearest)}px from a ${Math.round(markH)}px mark`;
       if (ratio < markFloor) {
         report.findings.push({
           code: 'mark-crowded',
           detail: `the mark sits ${ratio} of its own height from the nearest text `
-            + `(clear space floor ${markFloor})`,
+            + `(${px}; clear space floor ${markFloor})`,
         });
       } else if (ratio > markCeiling) {
         report.findings.push({
           code: 'mark-adrift',
           detail: `the mark sits ${ratio} of its own height from the nearest text `
-            + `(ceiling ${markCeiling}) - it has stopped belonging to the lockup`,
+            + `(${px}; ceiling ${markCeiling}) - it has stopped belonging to the lockup`,
         });
       }
     }
