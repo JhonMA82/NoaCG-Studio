@@ -4,9 +4,9 @@
 // the user authors one brief and this file translates it; nothing here calls a model.
 // Dependency-light like contract.ts.
 //
-// The concept-and-reconstruct engine's own mapper (`standardProBrief` -> `ProBrief`) went with it
-// on 2026-08-15: it had no caller left, not even the bench, which builds its briefs from the
-// fixture bank. See `src/ai/pro/reconstruct/AGENTS.md`.
+// The concept-and-reconstruct engine's own mapper (`standardProBrief` -> `ProBrief`) went with
+// that engine on 2026-08-15, along with the engine itself: it had no caller left, not even the
+// bench, which built its briefs from the fixture bank (docs/NOACG_PRO_PLAN.md §16).
 
 import type { GenerationSpec } from '../../model/generationSpec';
 import type { LineSpec } from '../../model/wizard';

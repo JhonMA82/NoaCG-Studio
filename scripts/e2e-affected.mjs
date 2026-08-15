@@ -62,10 +62,11 @@ const MAP = [
   // The pilot brief bank is read by the anchor re-verification (the decay rule) - a bank edit
   // needs that spec and nothing else.
   [/^benchmarks\/creative\//, ['creative-routing.spec.ts']],
-  // The Pro brief bank + fixtures feed scripts/pro-bench.mjs; the offline product flow they
-  // relate to is pinned by pro.spec.ts.
-  [/^benchmarks\/pro\//, ['pro.spec.ts']],
-  [/^scripts\/pro-bench\.mjs$/, ['pro.spec.ts']],
+  // The Pro brief bank feeds the spike runner and scripts/lite-on-pro-bank.mjs; the offline
+  // product flow it relates to is Phase A's composer, pinned by pro-language.spec.ts. (Until
+  // 2026-08-15 this pointed at pro.spec.ts and the fixture bank beside it - both belonged to the
+  // retired concept-and-reconstruct engine.)
+  [/^benchmarks\/pro\//, ['pro-language.spec.ts']],
   [/^src\/video\//, ['video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts', 'video-player-host.spec.ts', 'video-hyperframes.spec.ts', 'video-readability.spec.ts']],
   [/^src\/components\/video\//, ['video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts', 'video-player-host.spec.ts', 'video-hyperframes.spec.ts', 'video-readability.spec.ts']],
   [/^player-host\//, ['video-player-host.spec.ts', 'video-project.spec.ts', 'video-readability.spec.ts']],
@@ -172,15 +173,13 @@ const MAP = [
   [/^src\/landing\//, ['landing.spec.ts']],
   [/^index\.html$/, ['landing.spec.ts']],
   [/^src\/teach\//, ['lazy-editor.spec.ts']],
-  // pro + import-graphic ride along because assets/eraseRegion.ts is not only an assets
-  // helper: it is the deterministic flat-fill erase behind the Import Graphic Prepare step
-  // AND, since the erase slice, the Pro compiler's baked-text removal and ring matte. Those
-  // two behaviours are pinned ONLY by pro.spec.ts (the checked-in Pro fixtures exercise
-  // neither path - their text is panel-covered and their backdrops non-flat, so the spec
-  // builds flat and gradient concepts by hand). Without this edge, editing the file the
-  // behaviour lives in runs the assets specs and never the one that would catch a break,
-  // leaving it to the nightly.
-  [/^src\/assets\//, ['assets.spec.ts', 'images.spec.ts', 'bench.spec.ts', 'asset-workflow.spec.ts', 'pro.spec.ts', 'import-graphic.spec.ts']],
+  // import-graphic rides along because assets/eraseRegion.ts is not only an assets helper: it is
+  // the deterministic flat-fill erase behind the Import Graphic Prepare step. Without this edge,
+  // editing the file the behaviour lives in runs the assets specs and never the one that would
+  // catch a break, leaving it to the nightly. (`pro.spec.ts` was here too while the Pro
+  // compiler's baked-text removal and ring matte used the same helper; that engine was deleted
+  // on 2026-08-15 and the Import Graphic step is the only caller left.)
+  [/^src\/assets\//, ['assets.spec.ts', 'images.spec.ts', 'bench.spec.ts', 'asset-workflow.spec.ts', 'import-graphic.spec.ts']],
   [/^src\/admin\//, ['admin.spec.ts']],
   [/^admin\.html$/, ['admin.spec.ts']],
   [/^api\/admin\//, ['admin.spec.ts']],

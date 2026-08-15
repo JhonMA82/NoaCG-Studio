@@ -1611,26 +1611,26 @@ every ERROR unfiltered (an error is why a row says `failed`) and only `pro-` WAR
 runtime bench is chatty by design and the wire caps the list at 30, so bench noise would evict
 the Pro-owned codes). A row can now tell a clean generation from a rescued one.
 
-**Why the retired engine still exists**, per the requirement to say so explicitly. It moved to
+**Why the retired engine existed for one more day, and then did not.** It moved to
 `src/ai/pro/reconstruct/` behind a build-time import boundary
-(`retiredProEngineRestriction`, `eslint.config.js`) that refuses it from every region of `src/`
+(`retiredProEngineRestriction`, `eslint.config.js`) that refused it from every region of `src/`
 a user can reach - mutation-checked from the UI and from `pro/language/`, and a per-file version
 of the same rule was measured to be VACUOUS first, because the patterns match the import string
-and missed the sibling form. Three reasons it was not deleted outright:
+and missed the sibling form. It was carried rather than deleted because deleting reached into
+`api/`, `scripts/` and `package.json` that the rewiring change did not own, and a live worktree
+was editing two of those.
 
-- **The fixture bank is the evidence for §16.** `scripts/pro-bench.mjs` replays it free and
-  reproduces the defect that argued for Phase A. Deleting the engine deletes that check.
-- **Deleting reaches outside this change.** `api/_lib/aiProProfile.ts` funds the image route,
-  `api/_lib/admin/models.ts` and two api tests read `PRO_STANDARD_ROUTES`, and four `scripts/`
-  entries plus a `package.json` script drive the engine - none of it owned here, and a live
-  worktree is editing `scripts/` and `package.json` right now.
-- **The precedent is the repo's own.** `creative/` is carried the same way, and that file says
-  it: removing it is a separate, deliberate change. The order to do it in is
-  `src/ai/pro/reconstruct/AGENTS.md`.
-
-The one consequence worth naming: the server still funds `PRO_STANDARD_ROUTES.concept`, an image
-route the product no longer calls. Funding is not spending, so it costs nothing - but it should
-come off the funded list when the engine goes.
+**DELETED 2026-08-15**, in the deliberate pass its own `AGENTS.md` specified, in that order:
+the four `scripts/pro-*` runners and the `bench:pro` package script, the nine reconstruction
+tests in `e2e/pro.spec.ts` (leaving the two that pin the tier DOOR), `concept` and `interpret`
+from `PRO_STANDARD_ROUTES` and from the server's funded list, the interpretation half of
+`src/ai/pro/contract.ts` with `api/_lib/proGeometry.test.ts` and the rewritten
+`proCostCeiling.test.ts`, then the directory and the eslint block in the same commit as the last
+import. The fixture bank was archived outside the repo first and the copy proven by sha256; the
+paid rounds that produced it stay in `benchmarks/pro/round-2026-08-0{8,9,10}/`, and what those
+rounds MEASURED is carried forward in `src/ai/AGENTS.md` rather than in the code that produced
+it. The boundary went with the directory: a rule guarding a path that does not exist is a rule
+nothing can violate and nobody can check.
 
 **Owed, and deliberately not done here:**
 
@@ -1686,12 +1686,21 @@ BINDING number. The configured spec's fixture now sets the two counters DIFFEREN
 fixture where they agree cannot tell a panel reading the right one from a panel reading either -
 mutation-checked by flipping `min` to `max`.
 
-**Defect 2: hosted Pro is still gated on the RETIRED image route.** Availability requires every
-route in the funded list to be priced, catalog-approved and not disabled from `/admin`
-(`resolveProGate`), and that list is still `[concept, interpret]`. Funding an unused route costs
-nothing, but **de-listing or disabling the image model would now take the whole tier down for a
-pipeline that never calls it.** Dropping `concept` from `api/_lib/aiProProfile.ts` belongs with the
-deletion pass in `src/ai/pro/reconstruct/AGENTS.md`.
+**Defect 2: hosted Pro was gated on the RETIRED image route. FIXED 2026-08-15.** Availability
+requires every route in the funded list to be priced, catalog-approved and not disabled from
+`/admin` (`resolveProGate`), and that list was `[concept, interpret]`. Funding an unused route
+costs nothing, but **de-listing or disabling the image model would have taken the whole tier down
+for a pipeline that never calls it** - a foot-gun aimed at a classroom, on the one switch an
+operator reaches for to stop spend on a model that has gone wrong.
+
+The funded list is now `[language]`, read from `AI_PRO_LANGUAGE_PROVIDER`/`_MODEL`. `proTaskProfile`
+declares no `imageRoutes` (no task does), `/api/admin/models` marks no image row in use and the
+image tab says so outright, and the audited catalog entry stays as an AUDIT RECORD - deleting it
+would delete a verified ZDR result. Pinned two ways in `api/_lib/pro/managedCall.test.ts`: the
+retired route is refused at the spend seam before it is billed, and `routeDisabled` over
+`profile.routes` - `resolveProGate`'s own expression - answers false with the image route
+disabled and true with the language route disabled, so the gate is narrower rather than switched
+off. Re-funding the image route fails both.
 
 **Turning hosted Pro on locally needs three env vars `.env.example` does not group together:**
 `AI_PRO_ENABLED`, `IP_HASH_SALT` (>= 16 chars, or the ledger reads unconfigured) and

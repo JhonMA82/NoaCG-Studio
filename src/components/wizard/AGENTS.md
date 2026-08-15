@@ -311,10 +311,10 @@ used to write an empty `validation_rule_codes` beside a `usable` status. Categor
 clamp to lower-third/auto, spec-field findings demote to warnings (`demoteSpecFields`: fixed
 contract, no repair loop), and refine/fix stand down because regenerate is the honest move.
 The step no longer carries a stub branch of its own - the tier is absent where a real
-generation cannot run - so `e2e/pro.spec.ts` stays token-free by driving the RETIRED engine's
-`pro/reconstruct/stub.ts` directly; the LIVE walk is `e2e/configured/pro-wizard.spec.ts`, which
-pins the engine by what it spends (one call, forcing `emit_design_language`, and an image request
-fails the spec). The step MEASURES the first "use it as it is" upload with `probeMark` before
+generation cannot run - so `e2e/pro.spec.ts` is now only the DOOR (whether the tier is offered),
+what a Pro graphic IS is pinned offline by `e2e/pro-language.spec.ts` against the composer the
+product runs, and the LIVE walk is `e2e/configured/pro-wizard.spec.ts`, which pins the engine by
+what it spends (one call, forcing `emit_design_language`, and an image request fails the spec). The step MEASURES the first "use it as it is" upload with `probeMark` before
 generating: its shape and ink go into the brief in content-free words, and the same probe is what
 lets the composer give the mark's column a field when its ink cannot read on the panel the
 language chose.

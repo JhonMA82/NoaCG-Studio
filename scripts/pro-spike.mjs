@@ -433,7 +433,7 @@ async function captureStressHold(item) {
 // (docs/ARCHITECTURE.md §3, enforced by .dependency-cruiser.cjs), and a bench rig is a bad
 // reason to widen a layering rule permanently - this script is outside the module graph and is
 // the composition root that is allowed to reach any domain, which is the same way
-// pro-bench.mjs reaches pro/, litePipeline and preview/ in one evaluate.
+// the retired pro-bench.mjs reached pro/, litePipeline and preview/ in one evaluate.
 //
 // FOUR THINGS IT HAS TO GET RIGHT, all load-bearing:
 //   1. SEEKS ARE MONOTONIC - the runtime throws on a backward seek, so sample times are
@@ -1156,7 +1156,7 @@ if (paid) {
       // loses its visual timeline, so the product path treats it as a warning. Counting it as
       // a scaffold failure would fail §0.3's "preserve the scaffold and live-field contract"
       // on a criterion that condition never meant - a gate scoring stricter than the pipeline
-      // it measures, which is the same shape of bug as pro-bench discarding the compiler's own
+      // it measures, which is the same shape of bug as the retired pro-bench discarding the compiler's own
       // warnings (docs/AI_ATTEMPTS.md). It is reported, never silently dropped.
       const EDITABILITY_RULE = 'bench-editability';
       const blockingErrors = outcome.validation.errors.filter((e) => !e.startsWith(`${EDITABILITY_RULE}:`));
