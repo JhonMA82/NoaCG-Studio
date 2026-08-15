@@ -180,6 +180,18 @@ tile-wall presentation, which no longer ships):
     contributes its own height to the flex line even under a `max-height`, and a stretched item's
     hypothetical cross size still counts, so stretch alone re-grows the strap through the back
     door. Marks got BIGGER, not smaller - ls17's crest 112 -> 146px on the four lines it draws for.
+  - **A SQUARE crest and a PORTRAIT one fail differently, and the sweep only ever rendered the
+    square.** `e2e/catalog/mark-height.spec.ts` - the gate this rule now has, in the catalog suite,
+    so `test:e2e:catalog` runs it - measures every mark-capable lower third against BOTH shapes,
+    and found two more designs on its first run: lt07 153 -> 188px and ls10 124 -> 212px (+71%),
+    both clean with a square crest. Cause in both: an in-flow `<img>` at `width: 100%` +
+    `height: 100%` inside a badge sized by `min-height`, so the percentage resolves against an
+    INDEFINITE height and the artwork's own aspect at the badge's width becomes the badge's height
+    (107 - 26px padding = 81, x2 = 162, + 26 = 188 - the arithmetic lands exactly). Both badges are
+    drawn accent squares whose own source promises "roughly square", so a 1:1.75 badge is a defect
+    rather than a composition: the image is absolute in both now. **The pattern to grep for is a
+    definite-height well, not this list** - lt41, lt49, lt53, ls18 and ls25 carry the same in-flow
+    `height: 100%` and do NOT grow, because their wells state a height.
   - **lt49 and lt53 are RECORDED EXCEPTIONS, argued in their own source.** Their wells are drawn,
     tinted squares - real furniture - and at the four lines each board is built for the words are
     157px and the well costs zero height (207 -> 207px on both). The growth appears only below
@@ -188,7 +200,10 @@ tile-wall presentation, which no longer ships):
   The sweep now reports the cause (it measures the box's two children against each other, since a
   line count misses a sibling row reflowing) and probes BOTH content shapes - the calibrated two
   lines and the design's own - because a well sized against four lines is not a defect for costing
-  height at two, and reporting only one number reads a design's proportions as a fault.
+  height at two, and reporting only one number reads a design's proportions as a fault. The GATE is
+  `e2e/catalog/mark-height.spec.ts` (both mark shapes, mutation-tested, exceptions checked from
+  both sides so a stale entry fails rather than excusing a design it no longer describes); the
+  sweep stays the diagnostic that says WHY.
   **THE MARK'S SIZE IS THREE MEASURED NUMBERS, and the third is the strap's own wrap cap**
   (2026-08-14, the value-gate ballot's other finding - the logo was called too small on four of
   eight briefs). The WIDTH cap used to bind before the height cap, so a 4:1 wordmark painted 33px

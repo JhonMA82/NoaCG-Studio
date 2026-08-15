@@ -300,6 +300,12 @@ const CATALOG_TRIGGERS = [
   // instead, and under sprint focus a `full` escalation deliberately drops the catalog
   // coupling: the change to the catalog gate would be the one change that never runs it.
   /^playwright\.catalog\.config\.ts$/,
+  // The gate's own SPECS, for the same reason one line up and with the same failure if omitted:
+  // they live outside the default suite, so no other rule here mentions them, and an unmapped
+  // change escalates to `full` - which under sprint focus drops the catalog coupling, making a
+  // change to a catalog spec the one change that never runs that spec. Editing the rule and never
+  // executing it is how a gate quietly stops measuring what it claims to.
+  /^e2e\/catalog\//,
   /^src\/templates\//,
   /^src\/blocks\//,
   /^src\/assets\//,
