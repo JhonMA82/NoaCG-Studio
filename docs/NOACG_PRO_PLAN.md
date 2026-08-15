@@ -1698,3 +1698,54 @@ deletion pass in `src/ai/pro/reconstruct/AGENTS.md`.
 `AI_LITE_GATEWAY_PROVIDERS` (the audited gateway allowlist Pro shares). With the last unset,
 `taskConfigured` is false for every route and the status endpoint answers `not-configured` - which
 names the deployment rather than the missing variable.
+
+### The evidence round - 2026-08-16: the frames nobody could look at
+
+§16's whole lesson is that a graphic can pass every gate and be unusable, so the human read is
+the one step that cannot be skipped - and the first Phase A generation lost its picture to a bad
+locator in a throwaway spec. Separately, the four lower thirds whose mark handling changed
+(ls29, ls17, lt07, ls10) and the two the sweep found growing taller (lt49, lt53) were verified
+NUMERICALLY and never displayed. Both are the same missing thing: a viewable frame.
+
+**Everything below except the generations is free and repeatable.**
+
+**The capture.** `scripts/spike-mark-clearance-sweep.mjs --capture` writes each render the sweep
+already makes to a 1920x1080 PNG **with its alpha intact**. The shot is taken on a second page
+rather than off the mounted iframe, because an element screenshot inside `/app` carries whatever
+the app painted behind it: the composed document is self-contained by contract, so it is
+`setContent` into a page parked on the dev origin, where relative `fonts/<file>` still resolves
+and everything the design does not paint stays transparent. The measurements are unchanged - the
+square-crest run reproduces the committed ledger exactly (ls18 and ls25 flagged, lt49 and lt53 the
+two that grow), which is what makes the capture path safe to add to a rig a reading depends on.
+
+**A square mark and a portrait mark were then swept separately, and that is the finding.** The
+sweep had only ever run `badge-square`. Running it again with `shield-tall` produces **the same
+box numbers on almost every design** - the well's rect does not depend on the artwork - and
+visibly different frames. lt07 and ls10 read clean for so long for exactly that reason: the
+number a portrait crest changes is not the number the sweep prints.
+
+**The review page** (`scripts/pro-evidence-review.mjs` -> `benchmarks/pro/evidence/review.html`)
+holds every frame at 1920x1080 over a backdrop it draws itself, with the words each render carried
+and the raw measurement beside it. Four backdrops (dark studio, blown-out daylight, busy mid-tone,
+checkerboard) plus black and white, and a zoom that magnifies the corner the graphic sits in rather
+than capturing a second croppable picture that could disagree with the first. **The backdrops are
+CSS and the page says so** - they stand in for footage, so a legibility call made against them is a
+call about contrast. **The page carries no verdict, no pass/fail and no ranking**, deliberately:
+a machine verdict printed next to a picture is how §16 happened.
+
+**Hosted Pro now stands up locally.** The three variables above are in this checkout's `.env`, and
+`/api/ai/pro-status` answers `enabled: true` with `reason: sign-in` - the refusal naming the
+CALLER rather than the deployment, which is the difference the note above is about. The three
+configured Pro specs then pass against it (`e2e/configured/pro-wizard.spec.ts`): the route is
+reached and speaks the wire contract unstubbed, the door appears with the allowance read back off
+the binding counter, one reservation pays for exactly one `emit_design_language` call, and a
+configured backend alone is still not a door. **The walk was proved with a stub before a cent was
+spent**, which is what the generations below then did not have to re-prove.
+
+**Nine other configured specs failed in that same run, none of them Pro and none of them this
+branch's** (this branch touches `scripts/`, `benchmarks/` and `.env` only): four in `feedback`,
+plus `audience-live`, `moderator`, `production-links`, `quiz-output` and `scorebug-output`. The
+shape is a locator that never appears - `[data-testid="beta-feedback-open"][data-area="wizard"]`,
+`production-publish` - so they are worth a look on a branch that owns those surfaces. Recorded
+here rather than fixed here, because a session capturing evidence should not also be editing the
+surfaces it is measuring.
