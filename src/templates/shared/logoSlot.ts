@@ -9,8 +9,39 @@ import type { ResolvedOptions } from '../../model/wizard';
 import { computeMaxTextWidth, maxTextWidthCss } from './base';
 import type { StandardDesign } from './standard';
 
-/** Whether the design already carries its own logo slot (a filelist field or a
- *  .{prefix}-logo element) — the shared slot must never double-inject. */
+/**
+ * Whether the design already carries its own logo slot (a filelist field or a `.{prefix}-logo`
+ * element) — the shared slot must never double-inject.
+ *
+ * ── IT MISSES NOTHING, AND THAT WAS WORTH MEASURING ──────────────────────────────────
+ *
+ * This file and `src/templates/AGENTS.md` both used to record that five designs (lt07, lt08,
+ * lt41, lt49, lt53) style `.{prefix}-logo` in their CSS "without declaring a slot", so that the
+ * detection missed them and the shared markup landed on top of their own. Swept 2026-08-15 over
+ * all 24 mark-capable lower thirds, rendered with a real mark: **none of the 24 is missed.**
+ * Eighteen hand-author a slot (the five above, plus lt23, lt29, lt30, lt36, lt37, lt47, lt54,
+ * ls10, ls12, ls17, ls18, ls25, ls29) and every one of them is detected; six take the shared
+ * slot (lt02, lt05, lt11, lt15, lt25, lt32) and only those six emit `.{prefix}-lockup`.
+ *
+ * The reason is structural rather than lucky, and it is why a `design.css` clause was proposed
+ * and REFUSED. A design's slot is conditional on the same `o.logoEnabled` this check is guarded
+ * by, so whenever the check runs, a design that has a slot has already emitted BOTH halves of
+ * it — the `<img class="{prefix}-logo">` and the filelist `extraField`. Adding
+ * `design.css.includes(prefix + '-logo')` changes 0 of the 24 answers today, and tomorrow it
+ * would be actively wrong: a design may style `.{prefix}-logo` UNCONDITIONALLY (lt07 does,
+ * because its badge is an accent square with or without a mark), so a css clause would read
+ * that as "has its own slot" and silently deliver a design with no logo field at all — the one
+ * failure this helper exists to avoid, inverted.
+ *
+ * What the sweep DID find has nothing to do with detection, and both are by design: a design
+ * whose slot sits in a WELL reserves that well's width while the slot is empty (lt08 97px,
+ * lt41 107px, lt53 124px, lt49 133px — and lt30, ls12, ls17, ls18, ls29 up to 188px), which
+ * every one of them states in its own source; and three of them read as `mark-crowded` only
+ * because the instrument measures the `<img>`'s BORDER box, which swallows the padding those
+ * designs express the clear space as. By the content box lt07 is 0.36 rather than 0.22, lt41
+ * 0.39 rather than 0.24 and ls10 0.42 rather than 0.20, against a 0.25 floor — so the reading
+ * belongs to `ai/spike/spacingCheck.ts`, not to any design here.
+ */
 export function designHasLogoSlot(design: StandardDesign, prefix: string): boolean {
   return (
     (design.extraFields ?? []).some((f) => f.ftype === 'filelist') ||
