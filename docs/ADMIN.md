@@ -832,15 +832,24 @@ does not exist.
 
 ### The image tab carries no verdict, on purpose
 
-`GET /api/admin/models?output=image` lists what the provider serves for image output - the call
-NoaCG Pro makes to draw a concept. It has **no eligibility verdict, no blocks and no
+`GET /api/admin/models?output=image` lists what the provider serves for image output. **NoaCG Pro
+no longer makes an image call at all** (2026-08-15) - the menu stays because the funded route list
+still carries the retired concept route and because an image ceiling remains undecided either way.
+It has **no eligibility verdict, no blocks and no
 eligibility language at all**: `FUNDED_ROUTE_PRICE_CEILING` was set against text generation and
 no ceiling for image work has been decided, so applying it here would mark usable models
 ineligible against a rule nobody has written. Until such a ceiling is set deliberately, this is
 a menu and not a judgement.
 
-**What one Pro generation actually costs, measured** (`pro-baseline-2026-08-09` in the eval
-archive; 4 briefs, 4/4 pass, gateway routes `google/gemini-3.1-flash-image` +
+**READ THE DATE ON THIS SECTION.** Since 2026-08-15 a Pro generation is ONE text call for a design
+language and no image at all (`docs/NOACG_PRO_PLAN.md` §15-16), measured at **~$0.0055** on the
+2026-08-15 round. The account below describes the RETIRED concept-and-reconstruct engine
+(`src/ai/pro/reconstruct/`) and is kept because the ceiling, the funded routes and the image-route
+menu above were all sized against it - and because 86% of that bill being one flat image charge is
+the number that argued for replacing it.
+
+**What one Pro generation cost on the retired engine, measured** (`pro-baseline-2026-08-09` in the
+eval archive; 4 briefs, 4/4 pass, gateway routes `google/gemini-3.1-flash-image` +
 `google/gemini-2.5-flash`):
 
 | | per generation |
@@ -854,14 +863,20 @@ ceiling is a meaningful control and a per-run one only bounds volume.
 
 **The ceiling is $0.15 per generation** (owner, 2026-08-09), a shade under twice the measurement -
 room for one dear interpretation or a routine price rise, not for a runaway. It lives in
-`PRO_MAX_GENERATION_COST_USD` (`src/ai/pro/contract.ts`) and counts BOTH calls; `compileProConcept`
-refuses before the interpretation when the concept alone already spent it, and again on the total
-once both costs are known. A breach at the concept stage does NOT throw: the image is already
-billed, so it comes back with its cost attached and only the next call is stopped.
+`PRO_MAX_GENERATION_COST_USD` (`src/ai/pro/contract.ts`) and counts every call in a generation.
 
-Two limits worth stating rather than discovering. It is enforced in the BROWSER, because Pro rides
-the general model surface and has no entry in `api/_lib/aiTaskRegistry.ts` - so it bounds what the
-product does with a caller's own key, and is not a server-side booking of the Lite shape. And an
+**On the live path there is no browser half of it left, and that is the shape rather than an
+omission.** The browser ceiling existed to refuse the SECOND call once the first had spent the
+budget; with one call the money is already spent by the time a browser could refuse it, and
+throwing then would destroy a finished graphic for no saving. The server's `pro-generate` booking
+enforces the same constant and is the half a browser was never trusted with. On the retired engine
+`compileProConcept` refused before the interpretation when the concept alone had spent it, and
+again on the total - and a breach at the concept stage deliberately did NOT throw, because the
+image was already billed.
+
+Two limits worth stating rather than discovering. The browser half was enforced in the BROWSER,
+from before `pro-generate` existed in `api/_lib/aiTaskRegistry.ts` - so it bounded what the
+product did with a caller's own key, and was not a server-side booking of the Lite shape. And an
 unreported cost counts as zero, the same reading Lite takes of an actual spend, which makes a route
 that publishes no price unbounded here - one more reason every Pro route stays in the audited
 catalog. Pinned by `api/_lib/proCostCeiling.test.ts` in the build gate. The route the tier actually draws with IS marked, from
