@@ -56,6 +56,20 @@ Two rules the repo paid to learn, binding everywhere here:
 
 **LIVE.** One door, and behind it three tiers - two of which a user can reach today.
 
+**Each managed tier has ONE stated promise** (also in `docs/GOALS.md`'s tier table - change both
+or neither): **Lite** promises *a proven catalog design, carrying your brand and your words -
+reliably, every time*; **Pro** promises *an on-air look designed for your channel - a palette,
+type voice, accent form and motion character no shipped design carries - rendered by the
+platform, so the layout is always sound*. Pro's promise deliberately names the LOOK and not the
+composition: "a composition no catalog design uses" is the §15.4 premise three rounds measured
+to fail, and the platform owns layout now. The wizard's example briefs
+(`examplePrompts.ts` `LITE_EXAMPLE_PROMPTS` / `PRO_EXAMPLE_PROMPTS`) are written to these
+promises and were verified by GENERATING them (2026-08-15): a Lite brief names no colours and
+no zone (a model-invented palette is dropped by design, placement follows the chassis) and
+states its two lines as an explicit stack; a Pro brief describes the look in the language
+contract's own dimensions. A brief that reads well and renders as something else is the defect
+those rules exist to stop - measured, not assumed.
+
 | Tier | Stored id | Label | Price target per finished graphic |
 |---|---|---|---|
 | Lite | `lite` | NoaCG Lite | **100 graphics per €1** (~€0.01); measured **$0.00032** |
