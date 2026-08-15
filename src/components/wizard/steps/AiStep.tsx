@@ -32,7 +32,14 @@ import {
   type ProMark,
   type ProStage,
 } from '../../../ai/pro/language/pipeline';
-import { proRuleCodes } from '../../../ai/pro/language/gate';
+import { proRuleCodes, validateProLanguage } from '../../../ai/pro/language/gate';
+import {
+  composeGraphic,
+  packageLines,
+  PRO_GRAPHICS,
+  PRO_GRAPHIC_LIST,
+  type ProGraphicId,
+} from '../../../ai/pro/language/graphics';
 import { loadProStatus, openProSession, reportProOutcome } from '../../../ai/pro/session';
 import { isBackendConfigured } from '../../../backend/config';
 import type { ProStatusResponse } from '../../../ai/proTypes';
@@ -104,6 +111,13 @@ interface Props {
     spec?: GenerationSpec | null,
     generationId?: string,
     path?: AiPath | null,
+    /**
+     * The whole PACKAGE this result belongs to, LEADING with `template` (§15.9) - a Pro
+     * generation renders one design language as every graphic type the user asked for, from the
+     * one paid call. Null on every other path and on a package of one, so "is this a set?" is
+     * answered by the presence of a second member rather than by the tier.
+     */
+    pack?: SpxTemplate[] | null,
   ) => void;
   /** The conversation as it stands (talk turns only), reported on every change so the created
    *  project can carry the reasoning that produced it (persisted as GraphicDoc.aiThread). Fires
@@ -192,8 +206,15 @@ const PRO_STAGE_LABELS: Record<ProStage, string> = {
 const TIER_OPTIONS: { id: AiTier; name: string; hint: string }[] = [
   { id: 'lite', name: 'NoaCG Lite', hint: 'Included free — one excellent editable graphic per request, nothing to configure.' },
   // Pro's hint says nothing about whose key pays because the answer is never the user's: a
-  // NoaCG tier runs on NoaCG's own service or it is not offered at all.
-  { id: 'pro', name: 'NoaCG Pro', hint: 'A richer, art-directed graphic from the same brief. Our harness designs it; nothing to configure.' },
+  // NoaCG tier runs on NoaCG's own service or it is not offered at all. It names the PACKAGE
+  // (§15.9) because that is the tier's stated promise and the thing Lite structurally cannot
+  // do - and it names an OUTCOME, never a mechanism, so replacing the engine costs no copy.
+  {
+    id: 'pro',
+    name: 'NoaCG Pro',
+    hint: 'An on-air look designed for your channel — and every graphic below built in it, '
+      + 'so they belong together. Nothing to configure.',
+  },
   {
     id: 'custom',
     name: 'Bring your own key',
@@ -293,6 +314,17 @@ export default function AiStep({
   }, [needsSignIn]);
   // undefined = still resolving; null = no hosted Pro on this server.
   const [proStatus, setProStatus] = useState<ProStatusResponse | null | undefined>(undefined);
+  /**
+   * WHICH GRAPHICS THIS PRO GENERATION MAKES (§15.9). Persisted like every other AI preference,
+   * normalized by `loadAiSettings` so it is always in package order and never empty.
+   *
+   * The FIRST member is the primary: the graphic the live preview shows, the one a refinement
+   * would act on, and the one the wizard treats as the project when the package is a set of one.
+   */
+  const [proPackage, setProPackage] = useState<ProGraphicId[]>(() => loadAiSettings().proPackage);
+  const primaryGraphic = proPackage[0] ?? 'lower-third';
+  /** Members the platform's own gate refused, named so a short package is never a silent one. */
+  const [proDropped, setProDropped] = useState<string[]>([]);
   useEffect(() => {
     let alive = true;
     void loadProStatus()
@@ -423,6 +455,18 @@ export default function AiStep({
   // The Pro concept + editability report behind each pro-path template, keyed by the
   // template OBJECT so an archived then restored result still shows its own concept.
   const proDetails = useRef(new WeakMap<SpxTemplate, ProGenerateResult>());
+  /** One graphic of a Pro package, WITH the type it is - so a member can name itself without
+   *  the card guessing from its position in a list two unticked boxes have already shifted. */
+  interface ProPackageMember { id: ProGraphicId; template: SpxTemplate }
+  /**
+   * THE REST OF THE PACKAGE, keyed by the graphic the step previews (§15.9).
+   *
+   * A WeakMap for the same reason `proDetails` is one: `turns` keeps earlier generations whole
+   * and "↩ Bring back" restores them, so a package has to travel with ITS OWN result rather
+   * than in a piece of state the next generation overwrites. The entry always LEADS with the
+   * previewed graphic, so `pack[0] === result` and a consumer never has to merge two lists.
+   */
+  const proPack = useRef(new WeakMap<SpxTemplate, ProPackageMember[]>());
   // Harness mode: the generated directions (one, or the harness's three) + which one is
   // picked (the pick is staged as preference data and committed when the project is actually
   // created). The list SURVIVES a refinement — refining replaces only the picked entry, so
@@ -597,7 +641,16 @@ export default function AiStep({
     setValidation(v);
     setLastPath(change.path ?? null);
     setLastSpec(change.spec ?? null);
-    onResult(change.template, v.ok, activeSpec, change.generationId, change.path ?? null);
+    // The package rides the RESULT, read back out of the WeakMap the Pro run filled - so a
+    // restored past generation hands the wizard its own set rather than the newest one's.
+    onResult(
+      change.template,
+      v.ok,
+      activeSpec,
+      change.generationId,
+      change.path ?? null,
+      proPack.current.get(change.template)?.map((member) => member.template) ?? null,
+    );
     return v;
   };
 
@@ -833,7 +886,16 @@ export default function AiStep({
           designed = await generateProGraphic(
             {
               language: standardProLanguageBrief(brief, activeSpec, probe ? proMarkDescriptor(probe) : null),
-              lines: proLines(activeSpec),
+              // The PRIMARY graphic - the one previewed and refined. Every other member of the
+              // package is composed from the same language below, for no extra call.
+              graphic: primaryGraphic,
+              lines: primaryGraphic === 'lower-third'
+                ? proLines(activeSpec)
+                : packageLines(primaryGraphic, {
+                  name: proLines(activeSpec)[0]?.sample ?? '',
+                  title: proLines(activeSpec)[1]?.sample ?? '',
+                  channel: null,
+                }),
               mark,
               // The customer's stated colours are the PLATFORM's to apply, never the model's to
               // return - the rule Lite has carried since 2026-08-13 (src/ai/pro/brief.ts).
@@ -856,6 +918,64 @@ export default function AiStep({
           throw error;
         }
         proDetails.current.set(designed.template, designed);
+
+        // ── THE REST OF THE PACKAGE (docs/NOACG_PRO_PLAN.md §15.9) ──────────────────────────
+        //
+        // The model call above is the ONLY paid step. Every other graphic in the package is
+        // composed from the SAME design language, deterministically and for zero tokens, which
+        // is why the default is the whole set: a package costs what one graphic costs.
+        //
+        // Each member goes through the SAME gate the primary did (`validateProLanguage`, the one
+        // seam) rather than being trusted because the composer wrote it. Nothing the model
+        // returns can make the code invalid, so a member that fails IS a platform bug - and the
+        // honest answer is to drop that member and say so, never to fail the generation the user
+        // already paid for or to ship a graphic no gate passed.
+        const members: ProPackageMember[] = [{ id: primaryGraphic, template: designed.template }];
+        const dropped: string[] = [];
+        for (const spec of PRO_GRAPHIC_LIST) {
+          if (spec.id === primaryGraphic || !proPackage.includes(spec.id)) continue;
+          const lines = packageLines(spec.id, {
+            name: proLines(activeSpec)[0]?.sample ?? '',
+            title: proLines(activeSpec)[1]?.sample ?? '',
+            // The channel's name is not a fact this step holds - the brief is prose and parsing
+            // it is exactly the guessing this tier removed - so the bug keeps its own default
+            // caption, which is an ordinary operator field the user can type over.
+            channel: null,
+          });
+          const composed = composeGraphic(spec.id, designed.language, {
+            lines,
+            ...(spec.takesMark && mark ? { logo: mark } : {}),
+            ...(proBrandPalette(activeSpec) ? { brandPalette: proBrandPalette(activeSpec) } : {}),
+            resolution,
+            fps,
+          });
+          const memberVerdict = await validateProLanguage(composed, designed.fallbacks, proValidate);
+          if (memberVerdict && !memberVerdict.ok) {
+            dropped.push(spec.label);
+            continue;
+          }
+          members.push({ id: spec.id, template: composed.template });
+        }
+        // EVERY MEMBER IS NAMED FOR WHAT IT IS, once there is more than one of them.
+        //
+        // A composed graphic takes the DESIGN LANGUAGE's name, which is right for a single
+        // result and useless for a set: three thumbnails captioned "Harbour Nightly", three
+        // library rows called "Harbour Nightly", three folders of that name inside one export.
+        // The name is also the export slug and the folder an operator reads in the playout
+        // server, so this is not a caption fix - it is what makes the package usable on air.
+        //
+        // A package of ONE is left exactly as it was: there is nothing to tell apart, and the
+        // single-graphic ending's name placeholder is a shipped behaviour.
+        if (members.length > 1) {
+          for (const member of members) {
+            member.template = {
+              ...member.template,
+              name: `${designed.language.name} ${PRO_GRAPHICS[member.id].label.toLowerCase()}`,
+            };
+          }
+        }
+        proPack.current.set(designed.template, members);
+        setProDropped(dropped);
         // THE LEDGER GETS THE WARNINGS TOO (`proRuleCodes`, src/ai/pro/language/gate.ts). Sending
         // errors alone is the §16 hole from the other side: a graphic the platform quietly
         // repaired wrote an EMPTY `validation_rule_codes` beside a `usable` status, so no row
@@ -1565,6 +1685,59 @@ export default function AiStep({
                       )} this month.`
                       : ''}
                   </p>
+                  {/* ── THE PACKAGE (docs/NOACG_PRO_PLAN.md §15.9) ─────────────────────────
+                      This is the ONE thing a Pro user chooses, and it is here rather than
+                      beside the prompt because it is a property of the RUN, like the tier
+                      itself, not part of the brief. Every box is ticked by default: the whole
+                      package costs exactly one model call, so the only reason to untick one is
+                      that the show does not need that graphic.
+                      The LAST tick cannot be removed - a generation that makes nothing is not
+                      a choice anyone means to express - so the sole remaining box is disabled
+                      rather than silently re-added on the next load. */}
+                  <fieldset className="ai-pro-package" data-testid="pro-package">
+                    <legend className="dlg-caption">What this makes</legend>
+                    {PRO_GRAPHIC_LIST.map((spec) => {
+                      const on = proPackage.includes(spec.id);
+                      const onlyOne = on && proPackage.length === 1;
+                      return (
+                        <label
+                          key={spec.id}
+                          className="dlg-check"
+                          data-testid={`pro-package-${spec.id}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            disabled={!!busy || onlyOne}
+                            onChange={() => {
+                              // Rebuilt from the canonical ORDER rather than by pushing onto the
+                              // end: the first member is the graphic the step previews, and a
+                              // tick further down the list must not move it.
+                              const next = PRO_GRAPHIC_LIST
+                                .map((s) => s.id)
+                                .filter((id) => (id === spec.id ? !on : proPackage.includes(id)));
+                              setProPackage(next);
+                              saveAiSettings({ proPackage: next });
+                            }}
+                          />
+                          <span>
+                            <strong>{spec.label}</strong>
+                            <span className="hint">
+                              {spec.id === primaryGraphic
+                                ? 'Shown in the preview, and the one a refinement changes.'
+                                : 'Composed from the same design language — no extra generation.'}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                    <p className="hint">
+                      One generation, {proPackage.length === 1 ? 'one graphic' : `${proPackage.length} graphics`}
+                      {proPackage.length > 1
+                        ? ' that belong to each other. Only the design language is generated; the platform composes each graphic from it.'
+                        : '.'}
+                    </p>
+                  </fieldset>
                 </div>
               )}
               {tier === 'custom' && (
@@ -1717,6 +1890,40 @@ export default function AiStep({
                         <li key={index}>{note}</li>
                       ))}
                     </ul>
+                    {/* ── THE PACKAGE, as it actually looks (§15.9) ──────────────────────────
+                        A list of names cannot answer the only question a package raises - do
+                        these belong to each other - so the members are rendered, small, beside
+                        the primary the preview shows large. Same reasoning as the kit Finish
+                        step's thumbnail grid, one surface earlier: the claim is checkable here,
+                        before anything is created. */}
+                    {(() => {
+                      const pack = proPack.current.get(result) ?? [];
+                      if (pack.length < 2) return null;
+                      return (
+                        <div className="wz-kit-built-wrap" data-testid="pro-package-built">
+                          <p className="hint">
+                            The whole package, from this one design language:
+                          </p>
+                          <ul className="wz-kit-built">
+                            {pack.map((member, index) => (
+                              <li key={`${member.id}-${index}`} className="wz-kit-built-cell">
+                                <MiniPreview template={member.template} lazy />
+                                <span className="wz-kit-built-name">{PRO_GRAPHICS[member.id].label}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })()}
+                    {proDropped.length > 0 && (
+                      // A short package is never a SILENT one. The composer cannot emit invalid
+                      // code, so a member the gate refused is a platform defect worth naming
+                      // rather than a graphic to quietly leave out of the set.
+                      <p className="hint status-bad" data-testid="pro-package-dropped">
+                        ⚠ {proDropped.join(' and ')} did not pass the platform&apos;s own checks and
+                        {proDropped.length === 1 ? ' is' : ' are'} not in this set.
+                      </p>
+                    )}
                     {pro.fallbacks.length > 0 && (
                       <p className="hint" data-testid="pro-warning">
                         ⚠ {pro.fallbacks.length} design decision(s) came back unreadable and fell

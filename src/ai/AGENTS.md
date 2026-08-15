@@ -595,7 +595,11 @@ absence is mutation-pinned).
 ## NoaCG Pro - the design-language tier (`pro/`)
 
 **LIVE since 2026-08-15 (hosted deployments where `AI_PRO_ENABLED` is on).** Pressing Create on the
-Pro tier runs **ONE text call for a design LANGUAGE**, then the platform composes the graphic:
+Pro tier runs **ONE text call for a design LANGUAGE**, then the platform composes **every graphic
+the user asked for** in it - a lower third, a sponsor bug and a countdown by default
+(`pro/language/graphics.ts`, docs/NOACG_PRO_PLAN.md §15.9). The package is the tier's promise and
+it costs what one graphic costs, because only the language is generated; the wizard's own picker
+and the set-shaped Finish are src/components/wizard/AGENTS.md's. The composer:
 `pro/brief.ts` maps the shared wizard brief onto it, `pro/language/pipeline.ts` is the one route
 from the wizard to a Pro graphic, and `pro/language/gate.ts` is the one seam it is scored through.
 The Phase A section below holds the four rules that bind the composer.

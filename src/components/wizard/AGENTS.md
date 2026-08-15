@@ -289,6 +289,20 @@ and code repair are all hidden; an unsupported response shows the server's expla
 simplification. Creating or exporting records acceptance by generation id, which is transient
 and never enters the template or the saved graphic. Lite disabled = the BYO surface unchanged.
 
+**Pro makes a PACKAGE, and that is the one thing it asks the user** (docs/NOACG_PRO_PLAN.md
+§15.9). The ⚙ panel's checkbox list (`AiSettings.proPackage`, `pro-package`) picks which graphic
+types the design language is rendered as, **every box ticked by default** - the whole set costs
+one model call, so there is no cost argument for hiding it, and the LAST tick cannot be removed.
+The first member in package order is the PRIMARY: previewed, refined, and the one the
+single-graphic ending still handles. Members are composed the moment the result lands, each
+through the same gate the primary took; one the gate refuses is dropped and NAMED
+(`pro-package-dropped`), never shipped. The result card renders the set (`pro-package-built`),
+and a set of more than one FINISHES through `KitFinishStep` into a production - the branch is on
+the SIZE of the set, never the tier, because the single-graphic door's "open in the editor" would
+pick one member for the user and abandon the rest. Each member is renamed for its type ("<look>
+lower third"), since that name is the export slug and the playout folder an operator reads.
+The walk is pinned by `e2e/configured/pro-wizard.spec.ts` - offline the door does not exist.
+
 **Pro** spends ONE model call, for the design LANGUAGE the platform then composes the graphic in
 (`src/ai/pro/language/pipeline.ts`; §15-16 of docs/NOACG_PRO_PLAN.md, and src/ai/AGENTS.md for the
 engine's rules). The result card reports that language - its name, its rationale, its palette, and

@@ -10,6 +10,10 @@ import {
   type AiProviderId,
   type ModelRoute,
 } from './modelTypes';
+// The graphic-type ids alone, from the module that carries no catalog behind it. `graphics.ts`
+// pulls in three composers and their category assemblers, which is a large thing for a
+// preferences file every surface loads to import for a list of four strings.
+import { PRO_GRAPHIC_IDS, type ProGraphicId } from './pro/language/structure';
 
 const STORAGE_KEY = 'spx-gfx-ai';
 
@@ -194,6 +198,22 @@ export interface AiSettings {
   /** The NoaCG Pro concept-image model (a gateway image-output model id). Non-secret,
    *  like every route preference here; null = not chosen yet. */
   proImageModel: string | null;
+  /**
+   * WHICH GRAPHICS A PRO GENERATION MAKES (docs/NOACG_PRO_PLAN.md §15.9).
+   *
+   * Pro's promise is a package - a lower third, a sponsor bug and a countdown that visibly
+   * belong to each other - and the whole package costs ONE model call, because only the design
+   * LANGUAGE is paid for and composing each graphic is deterministic. So the default is the
+   * whole set rather than one graphic with the rest opt-in: a tier whose differentiator is
+   * buried behind a checkbox nobody ticks is a tier nobody buys.
+   *
+   * An empty list is read as "the whole package" rather than "nothing", so a stored value from
+   * before this existed - and a user who unticks everything - both get a graphic instead of a
+   * silent no-op. Order is always `PRO_GRAPHIC_IDS`, never the order they were ticked in: the
+   * first member is the one the step previews and refines, and that must not move under a
+   * click on a checkbox further down.
+   */
+  proPackage: ProGraphicId[];
 }
 
 export interface AiProviderStatus {
@@ -304,7 +324,22 @@ export function loadAiSettings(): AiSettings {
     proImageModel: typeof saved.proImageModel === 'string' && saved.proImageModel.trim()
       ? saved.proImageModel.trim().slice(0, 160)
       : null,
+    proPackage: proPackageFrom(saved.proPackage),
   };
+}
+
+/**
+ * The stored package, normalized: known ids only, always in `PRO_GRAPHIC_IDS` order, and an
+ * empty result read as the WHOLE package.
+ *
+ * The order is not cosmetic - the first member is the graphic the step previews and refines -
+ * and reading empty as everything is what keeps a stored value written before this field
+ * existed, or a user who unticks the last box, from producing a generation that makes nothing.
+ */
+function proPackageFrom(value: unknown): ProGraphicId[] {
+  const asked = Array.isArray(value) ? value : [];
+  const kept = PRO_GRAPHIC_IDS.filter((id) => asked.includes(id));
+  return kept.length ? kept : [...PRO_GRAPHIC_IDS];
 }
 
 export function saveAiSettings(patch: Partial<AiSettings>): void {
@@ -318,6 +353,10 @@ export function saveAiSettings(patch: Partial<AiSettings>): void {
     model: patch.model ?? (providerChanged ? defaultModelForProvider(provider) : current.model),
     fallbacks: validRoutes(patch.fallbacks ?? current.fallbacks),
     configuredProviders: validProviders(patch.configuredProviders ?? current.configuredProviders),
+    // Normalized on the way IN as well as on the way out, for the same reason the two lists
+    // above are: a caller unticking the last box would otherwise persist an empty array that
+    // only the reader repairs, so the stored value and the loaded one would disagree.
+    proPackage: proPackageFrom(patch.proPackage ?? current.proPackage),
   };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));

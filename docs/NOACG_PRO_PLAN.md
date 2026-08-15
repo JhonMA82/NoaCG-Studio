@@ -1664,11 +1664,48 @@ before anyone knows which brand or checkpoint produced them. Judge the ROW, not 
 every graphic in an incoherent package can be individually fine, which is exactly why no
 per-graphic gallery can ask this question.
 
-**What is deliberately NOT done.** `PRO_SUPPORTED_CATEGORIES` still lists only the lower third:
-that constant is the WIZARD's copy of what a user can reach, and the wizard has no way to ask for a
-package yet. The engine composes three (`ProGenerateRequest.graphic`, one argument), and widening
-the constant before the UI exists would leave the tier naming a graphic its own door cannot
-produce - the failure `src/ai/AGENTS.md` already records against Pro's shipped copy.
+#### The wizard surface - a Pro generation IS a package (2026-08-16)
+
+The engine composed three graphics and the wizard could ask for one, which is a tier whose
+differentiator no user could reach. What the surface adds, and the reasoning behind each part:
+
+- **A picker in the ⚙ Pro panel** (`AiSettings.proPackage`, persisted and normalized), with
+  **every graphic ticked by default**. The whole package costs exactly one model call, so there is
+  no cost argument for burying it behind an unticked box - and a differentiator nobody meets is
+  not a differentiator. The FIRST member is the primary: what the live preview shows and what a
+  refinement acts on, which is why the list is rebuilt in package order on every tick rather than
+  appended to. The last tick cannot be removed; a generation that makes nothing is not a choice
+  anyone means to express.
+- **The members are composed the moment the result lands**, from the same language, and each goes
+  through the SAME gate the primary did. A member the gate refuses is DROPPED and named
+  (`pro-package-dropped`) rather than shipped or allowed to fail the generation the user has
+  already paid for - the composer cannot emit invalid code, so a refusal there is a platform bug.
+- **The result card renders the package** beside the language that produced it. A list of names
+  cannot answer the only question a package raises, and this is the last surface before anything
+  is created.
+- **A package FINISHES INTO A PRODUCTION**, through the catalog kit's own `KitFinishStep` and its
+  save path (`saveTemplateSet`, generalised from `saveKit`). The single-graphic ending offers
+  "open in the editor", which for a set means picking one member for the user and abandoning the
+  rest. The branch is on the SIZE of the set, never on the tier, so a Pro user who unticks
+  everything but the strap gets exactly the ending they have always had. The step takes the
+  user's own noun (`package`, not `kit`).
+- **Every member is named for what it is** - `Harbour Nightly lower third`, `… sponsor bug`,
+  `… countdown`. A composed graphic takes the design LANGUAGE's name, which is right for one
+  result and useless for a set: three identical captions, three identical library rows, and three
+  same-named folders inside one export. **The name is the export slug and the folder an operator
+  reads in the playout server**, so this was found by looking at the Finish step rather than by
+  any check.
+
+**Verified on a configured deployment, for zero spend**
+(`e2e/configured/pro-wizard.spec.ts`, "one call makes the whole package"): the door is offered,
+every box is ticked, ONE stubbed model call produces THREE graphics, nothing is dropped, and the
+set finishes into a production with each member named for its type. The offline suite cannot cover
+it - hosted Pro is absent there by construction - which is the same reason the walk above lives
+here.
+
+**`PRO_SUPPORTED_CATEGORIES` still lists only the lower third**, and that is now the one honest
+gap: it is the AI CATEGORY the brief is pinned to, not the package, and widening it is a
+`spec/categories.ts` question rather than a Pro one.
 
 ---
 

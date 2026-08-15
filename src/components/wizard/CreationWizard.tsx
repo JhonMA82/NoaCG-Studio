@@ -153,6 +153,12 @@ export default function CreationWizard() {
     generationId?: string;
     /** Pipeline provenance — 'pro' marks a Pro-tier result for the activation event. */
     path?: string | null;
+    /**
+     * The whole PACKAGE this result belongs to, LEADING with `template` (§15.9): a Pro
+     * generation renders ONE design language as every graphic type the user asked for, and a
+     * set of several is finished into a PRODUCTION rather than opened as one project.
+     */
+    pack?: SpxTemplate[] | null;
   } | null>(null);
   // The Create-with-AI conversation as it stands (talk turns only), reported by AiStep on every
   // change — committed to the created project so the graphic carries the reasoning that made it.
@@ -580,6 +586,24 @@ export default function CreationWizard() {
       setKitError('Some graphics in this kit have not been built yet.');
       return null;
     }
+    return saveTemplateSet(templates, kit.pack.name, dest, 'kit');
+  };
+
+  /**
+   * The SET-shaped ending, shared by the catalog kit and a NoaCG Pro package (§15.9).
+   *
+   * Both are "several graphics that belong to each other", and both end the same way: every
+   * graphic in the library, all of them pooled into one production, nothing opened in the
+   * editor. Two copies of this would be two chances for one of them to forget the durable-write
+   * claim below - and the kit path is only correct today because it does not.
+   */
+  const saveTemplateSet = async (
+    templates: SpxTemplate[],
+    fallbackName: string,
+    dest: ProductionDest,
+    activation: 'kit' | 'pro',
+  ): Promise<Show | null> => {
+    if (!templates.length) return null;
     setKitBusy(true);
     setKitError(null);
     try {
@@ -600,7 +624,7 @@ export default function CreationWizard() {
       // work on the floor, exactly as the single-graphic door does.
       let show = dest.kind === 'existing' ? loadShows().find((s) => s.id === dest.id) : undefined;
       if (!show) {
-        const made = createShowNamedChecked(dest.kind === 'new' ? dest.name : kit.pack.name);
+        const made = createShowNamedChecked(dest.kind === 'new' ? dest.name : fallbackName);
         const showError = made.error ?? (await commitDurableWrites());
         if (showError) throw new Error(showError);
         show = made.show;
@@ -615,7 +639,7 @@ export default function CreationWizard() {
         const failure = error ?? (await commitDurableWrites());
         if (failure) throw new Error(failure);
       }
-      // The kit's curated look becomes the production's look, so a graphic later made FOR
+      // The set's look becomes the production's look, so a graphic later made FOR
       // this production inherits it - but never overwrite a look the production already has,
       // which is the rule the single-graphic door follows for the same reason.
       if (!target.look && docs[0]) {
@@ -624,7 +648,7 @@ export default function CreationWizard() {
         if (lookError) throw new Error(lookError);
       }
 
-      trackEvent('activation', 'kit');
+      trackEvent('activation', activation);
       return target;
     } catch (error) {
       setKitError(error instanceof Error ? error.message : String(error));
@@ -676,6 +700,43 @@ export default function CreationWizard() {
   // The AI graphic's name: the Finish field, else the generated design's own name — the same
   // rule catalog modes apply through draftName, just off the result instead of a variant.
   const aiName = (): string => draft.name.trim() || (aiResult?.template.name ?? '');
+
+  /**
+   * THE PRO PACKAGE, when there is one (docs/NOACG_PRO_PLAN.md §15.9).
+   *
+   * A set of ONE is not a package: a Pro user who unticked everything but the lower third gets
+   * exactly the single-graphic ending they have always had, with no production picker and no
+   * second door. So the branch is on the SIZE of the set, never on the tier.
+   */
+  const aiPack = (): SpxTemplate[] | null =>
+    aiResult?.pack && aiResult.pack.length > 1 ? aiResult.pack : null;
+
+  /** Door 1: save the whole package, land on the production page. */
+  const openAiPackage = (dest: ProductionDest) => {
+    const pack = aiPack();
+    if (!pack) return;
+    // The name the user typed on Finish names the PRODUCTION here rather than one graphic -
+    // there is no single graphic for it to name - and each member keeps the name its own
+    // composer gave it, which is the design language's name plus what the graphic is.
+    void saveTemplateSet(pack, aiName() || pack[0].name, dest, 'pro').then((show) => {
+      if (!show) return;
+      closeGallery();
+      useRouter.getState().navigate({ view: 'production', id: show.id });
+    });
+  };
+
+  /** Door 2: save the package, then export that production as ONE zip - the kit's own door,
+   *  reached the same way (the wizard never grows a second whole-show export screen). */
+  const exportAiPackage = (dest: ProductionDest) => {
+    const pack = aiPack();
+    if (!pack) return;
+    void saveTemplateSet(pack, aiName() || pack[0].name, dest, 'pro').then((show) => {
+      if (!show) return;
+      useTemplateStore.setState({ pendingProductionExport: show.id });
+      closeGallery();
+      useRouter.getState().navigate({ view: 'production', id: show.id });
+    });
+  };
 
   /**
    * Build the AI result as the working project. The AI create path DIFFERS from the catalog
@@ -1272,8 +1333,8 @@ export default function CreationWizard() {
                   onFormat={(selection) => patch(formatDraftPatch(selection))}
                   brandPalette={matchBrand && brand ? brand.palette : null}
                   result={aiResult?.template ?? null}
-                  onResult={(template, valid, spec, generationId, path) =>
-                    setAiResult(template ? { template, valid, spec, generationId, path } : null)}
+                  onResult={(template, valid, spec, generationId, path, pack) =>
+                    setAiResult(template ? { template, valid, spec, generationId, path, pack: pack ?? null } : null)}
                   onThread={setAiThread}
                   onOpenImported={(imported) => {
                     // The byte-faithful path (deliberately NOT applyGenerated/Prettier): the
@@ -1518,7 +1579,32 @@ export default function CreationWizard() {
             {/* Finish — Create with AI takes the SAME branch: the result is summarised off the
                 template itself (no catalog variant behind it), and both doors route through
                 applyAiProject so the editor and export endings stay byte-identical. */}
-            {step === finishStep && mode === 'ai' && aiResult && (
+            {/* A Pro PACKAGE finishes as a SET, through the kit's own ending (§15.9): several
+                graphics that belong to each other end in one production, not in the editor with
+                the other N-1 looking like they were never made. It is the same component the
+                catalog kit uses, on purpose - the promise being checked is identical, and the
+                thumbnail grid is where it is checkable. */}
+            {step === finishStep && mode === 'ai' && aiResult && aiPack() && (
+              <KitFinishStep
+                name={draft.name}
+                namePlaceholder={aiResult.template.name}
+                onName={(name) => patch({ name })}
+                built={aiPack()!}
+                productions={finishProductions}
+                defaultProductionId={contextProductionId}
+                // Always true here, and it is the whole claim: every graphic in a Pro package
+                // is composed from ONE design language rather than styled one at a time.
+                oneLook
+                // A Pro user never chose a "kit" - they asked for a channel's look and got the
+                // graphics built in it.
+                noun="package"
+                onOpenProduction={openAiPackage}
+                onExport={exportAiPackage}
+                busy={kitBusy || !aiResult.valid}
+                error={kitError}
+              />
+            )}
+            {step === finishStep && mode === 'ai' && aiResult && !aiPack() && (
               <FinishStep
                 name={draft.name}
                 namePlaceholder={aiResult.template.name}

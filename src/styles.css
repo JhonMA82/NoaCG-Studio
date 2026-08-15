@@ -2023,6 +2023,31 @@ kbd {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The Pro result card's own copy of that grid (docs/NOACG_PRO_PLAN.md §15.9): the package,
+   rendered small under the language it was composed from. It reuses `.wz-kit-built` because it
+   is the same question one surface earlier - do these belong to each other - and only needs the
+   room above it. */
+.wz-kit-built-wrap { margin-top: 8px; }
+
+/* WHICH GRAPHICS A PRO GENERATION MAKES. A fieldset rather than a bare stack of labels so the
+   group has one accessible name; the border is dropped because this sits INSIDE the settings
+   panel's own card and a second frame around three checkboxes reads as a nested dialog. */
+.ai-pro-package {
+  margin: 10px 0 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ai-pro-package legend {
+  padding: 0;
+  margin-bottom: 2px;
+}
+/* The shared `.dlg-check` grid already puts the box first and the label beside it; these two
+   only stack the strong name over its hint, which that rule does not assume. */
+.ai-pro-package .dlg-check > span { display: flex; flex-direction: column; gap: 1px; }
+.ai-pro-package .dlg-check .hint { margin: 0; }
 
 /* Step 1 (import mode): drop zone */
 .wz-drop {
