@@ -36,11 +36,13 @@ import type { StandardDesign } from './standard';
  * What the sweep DID find has nothing to do with detection, and both are by design: a design
  * whose slot sits in a WELL reserves that well's width while the slot is empty (lt08 97px,
  * lt41 107px, lt53 124px, lt49 133px — and lt30, ls12, ls17, ls18, ls29 up to 188px), which
- * every one of them states in its own source; and three of them read as `mark-crowded` only
- * because the instrument measures the `<img>`'s BORDER box, which swallows the padding those
- * designs express the clear space as. By the content box lt07 is 0.36 rather than 0.22, lt41
- * 0.39 rather than 0.24 and ls10 0.42 rather than 0.20, against a 0.25 floor — so the reading
- * belongs to `ai/spike/spacingCheck.ts`, not to any design here.
+ * every one of them states in its own source; and lt07 read as `mark-crowded` only because the
+ * instrument measured the `<img>`'s BORDER box, which swallows the padding a well-drawing design
+ * expresses the clear space as. **The reading belonged to `ai/spike/spacingCheck.ts`, not to any
+ * design here, and that is where it was fixed** (`markContentRect`, 2026-08-15). Re-measurable
+ * free with `node scripts/spike-mark-clearance-sweep.mjs`: of the 24, only lt07, lt41 and ls10
+ * move at all (0.22 → 0.36, 0.31 → 0.52, 0.25 → 0.56 against a 0.25 floor), because only those
+ * three pad the image itself; the remaining 21 are unchanged.
  */
 export function designHasLogoSlot(design: StandardDesign, prefix: string): boolean {
   return (

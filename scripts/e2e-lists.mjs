@@ -69,6 +69,7 @@ export const CONFIGURED_TRIGGERS = [
   /^api\/_lib\/pro\//,
   /^api\/ai\/\[\.\.\.path\]\.ts$/,
   /^scripts\/aiDevPlugin\.mjs$/,
+  /^scripts\/apiRouteTable\.mjs$/,
   // The step that decides which tiers are offered at all, and the one feature-detection point
   // the second half of that decision reads.
   /^src\/components\/wizard\/steps\/AiStep\.tsx$/,

@@ -144,13 +144,25 @@ tile-wall presentation, which no longer ships):
   reserves that well's width while EMPTY (lt08 97px, lt41 107px, lt53 124px, lt49 133px, and
   lt30/ls12/ls17/ls18/ls29 up to 188px); and the `mark-crowded` readings that prompted this look
   are an INSTRUMENT artifact, not a catalog defect - a mark that fills its well carries its clear
-  space as the `<img>`'s own padding, which `spacingCheck`'s border box swallows. Measured by the
-  mark's CONTENT box instead, lt07 goes 0.22 -> 0.36, lt41 0.24 -> 0.39 and ls10 0.20 -> 0.42
-  against the 0.25 floor, and only ls25 stays flagged (0.19, genuinely edge to edge:
-  `object-fit: cover`, no padding). **That fix belongs in `src/ai/spike/spacingCheck.ts` and is
-  NOT made here** - it was in flight on another branch the day this was measured. A sweep still
-  compares against a BARE render rather than an absolute, because `findPanel` resolves for only
-  10 of these 24.
+  space as the `<img>`'s own padding, which `spacingCheck`'s border box swallowed. **That fix is
+  made in `src/ai/spike/spacingCheck.ts` and never here, because no design is at fault.** It
+  landed 2026-08-15 (`markContentRect`) and `node scripts/spike-mark-clearance-sweep.mjs` is the
+  re-runnable measurement: over the same 24, exactly three readings move and all move up - lt07
+  0.22 -> 0.36, lt41 0.31 -> 0.52, ls10 0.25 -> 0.56 against a 0.25 floor - because only those
+  three pad the image itself; the other 21 do not shift at all. **ls18 and ls25 stay flagged and
+  neither is a defect**: their clear space is 22px and 30px, which lt08 and lt15 both PASS at
+  (22px and 26px), and they fail only because their marks are 135px and 130px tall where the
+  others are 75px and 84px - the unit is the mark's own height, so a design that gives its mark
+  room divides by its own generosity. ls25 is additionally a `picture` well showing square cover
+  art `object-fit: cover`, which is that design being right. A sweep still compares against a BARE
+  render rather than an absolute, because `findPanel` resolves for only 10 of these 24 - and the
+  ABSOLUTE ratios depend on which mark is rendered, while the set that moves does not.
+  **OPEN, found by that bare render and NOT fixed here: "a strap spends width, never height" is
+  enforced only on the six designs that take the SHARED slot.** Of the 18 that hand-author their
+  own, four grow taller when a mark arrives - ls29 139 -> 191px (+37.4%), ls17 130 -> 168 (+29.2%),
+  lt49 138 -> 155 (+12.3%), lt53 139 -> 146 (+5.0%) - each because its own well sizes the row. The
+  shared slot caps the mark at 84px for exactly this reason; a hand-authored well answers to
+  nothing.
   **THE MARK'S SIZE IS THREE MEASURED NUMBERS, and the third is the strap's own wrap cap**
   (2026-08-14, the value-gate ballot's other finding - the logo was called too small on four of
   eight briefs). The WIDTH cap used to bind before the height cap, so a 4:1 wordmark painted 33px

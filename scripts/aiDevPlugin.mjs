@@ -1,56 +1,65 @@
 // Vite dev middleware for the real server-side AI gateway. Browser code always calls the
 // same /api/ai routes in development and production; provider keys remain server-only.
 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { apiFunctionTable, resolveApiRoute } from './apiRouteTable.mjs';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
 /** @returns {import('vite').Plugin} */
 export function aiApiPlugin() {
+  // Read once at server start, like the tree it describes: adding a function under api/ is a
+  // file the dev server has to restart to load anyway.
+  const table = apiFunctionTable(repoRoot, 'api/ai');
   return {
     name: 'noacg-ai-api',
     configureServer(server) {
       server.middlewares.use('/api/ai', (req, res) => {
-        void handle(server, req, res);
+        void handle(server, table, req, res);
       });
     },
   };
 }
 
-// The allowlist is the dev server's whole route table: a handler that exists under api/
-// but is missing here is simply unreachable in development, however correct it is. The
-// imported-graphic-analysis task shipped without its entries, so it 404'd locally while
-// its e2e spec passed - that spec mocks at the network level and never touches a handler.
-// A new api/ai route adds its entry HERE in the same change.
+// ── THERE IS NO ROUTE LIST HERE ANY MORE ─────────────────────────────────────────────────
 //
-// It is also NOT a depth check: this dispatcher matches the whole path, so a route nested one
-// segment too deep for the real deployment works perfectly here. That is how hosted Pro and
-// this task both shipped paths production answered with a platform 404 while dev, the specs
-// and CI were all green. `npm run check:api-route-depth` is what catches that.
-const ROUTES = new Set([
-  'generate',
-  'models',
-  'config',
-  'credentials',
-  // Hosted NoaCG Pro. Missing here since the route shipped, so the whole tier was a dev 404:
-  // `loadProStatus` reads that as "this deployment has no Pro" and the door never appears,
-  // which made the one flow a class will run unreachable outside production. Single segments
-  // on purpose - api/_lib/pro/router.ts records why.
-  'pro-status',
-  'pro-generations',
-  'pro-outcome',
-  'lite/status',
-  'lite/generations',
-  'lite/outcome',
-  'lite/judge',
-  'tasks/import-analysis',
-  'tasks/import-analysis-status',
-  'tasks/import-analysis-outcome',
-]);
+// There was, and it hid a whole surface three times: the imported-graphic-analysis task shipped
+// without its entries; hosted Pro was a dev 404 in every dev server and the entire e2e suite
+// while production served it, so `loadProStatus` read "this deployment has no Pro" and the door
+// never appeared; and `/api/ai/consent` has never been routed in development at all. A list
+// somebody keeps in step is a second copy of the real table, and a second copy is how one of
+// them quietly stops being served - which is the reasoning `adminDevPlugin` and `meDevPlugin`
+// already record. They can forward everything blindly because each mounts ONE function; api/ai
+// mounts four, so the choice is DERIVED from the tree instead (scripts/apiRouteTable.mjs).
+//
+// An unknown NAME is therefore answered by the real dispatcher in its own vocabulary - Lite's
+// LiteError, Pro's ProErrorBody, the light routes' apiError - exactly as in production, instead
+// of by a bare shape the browser client has never seen. An unroutable DEPTH is refused here,
+// because the platform refuses it before any code runs and a dev server that served it would be
+// hiding the defect `npm run check:api-route-depth` exists to catch.
 
-async function handle(server, req, res) {
+/** What the platform returns for a path it never routes. Vercel's own NOT_FOUND is an HTML page
+ *  a dev server cannot reproduce; what matters is that it is a 404 and never a handler. */
+function unrouted(res, route) {
+  res.statusCode = 404;
+  res.setHeader('content-type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify({
+    error: {
+      code: 'not_found',
+      message: `no api/ai function routes ${route} - the deployment routes ONE segment past a `
+        + '[...path] function (npm run check:api-route-depth)',
+    },
+  }));
+}
+
+async function handle(server, table, req, res) {
   try {
     const [pathPart, query] = (req.url ?? '/').split('?');
     const route = pathPart.replace(/^\/+|\/+$/g, '');
-    if (!ROUTES.has(route)) {
-      res.statusCode = 404;
-      res.end(JSON.stringify({ error: { code: 'not_found', message: `no route ${route}` } }));
+    const target = resolveApiRoute(table, route);
+    if (!target) {
+      unrouted(res, route);
       return;
     }
 
@@ -69,15 +78,6 @@ async function handle(server, req, res) {
       body: ['GET', 'HEAD'].includes(req.method ?? 'GET') ? undefined : body,
     });
 
-    // Mirrors production's function split: generate is its own, lite/* and tasks/* have
-    // their own catch-alls, and the light routes share the /api/ai one.
-    const target = route === 'generate'
-      ? '/api/ai/generate.ts'
-      : route.startsWith('lite/')
-        ? '/api/ai/lite/[...path].ts'
-        : route.startsWith('tasks/')
-          ? '/api/ai/tasks/[...path].ts'
-          : '/api/ai/[...path].ts';
     const mod = await server.ssrLoadModule(target);
     const response = await mod.default.fetch(request);
     res.statusCode = response.status;

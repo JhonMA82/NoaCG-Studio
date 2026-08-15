@@ -780,6 +780,32 @@ Five rules bind anyone editing it:
   pass (`languageAnchors`, `node scripts/pro-spike.mjs --control`), measured by the same
   instruments a paid round is scored by. A control that does not execute the path is not a control,
   and this repo has paid for that finding three times.
+- **AN INSTRUMENT MEASURES THE BOX ITS QUESTION IS ABOUT, and the two mark boxes are the
+  precedent.** `spacingCheck` reported the mark's clear space off the `<img>`'s BORDER box, so a
+  design expressing that clear space as image padding had it counted as zero. An instrument whose
+  false positives are the good designs is one authors learn to ignore, which is worse than no
+  instrument. It now measures the INK (`markContentRect`, inset by padding and border), and
+  `proportionCheck` deliberately does NOT follow: `mark-oversized` asks how much ROOM the mark
+  takes and a padded well takes all of it, which is also what `MARK_SCALE_CEILING` is calibrated
+  on. Two questions, two boxes, each stated where it is read.
+  **Measured over all 24 mark-capable lower thirds with a square crest**
+  (`node scripts/spike-mark-clearance-sweep.mjs`, which reports the border-box control and the ink
+  reading off ONE render): exactly three designs move and all three move up - lt07 0.22 -> 0.36,
+  lt41 0.31 -> 0.52, ls10 0.25 -> 0.56 - and the other 21 are byte-identical, because only those
+  three pad the image itself. lt07 was the only reading the artifact was pushing under the 0.25
+  floor. **The absolute ratios depend on the MARK**, since a slot that sizes itself from the
+  artwork's aspect paints a different height for each one; the set that MOVES does not.
+- **THE MARK-GAP UNIT IS THE MARK'S OWN HEIGHT, so a design is divided by its own generosity -
+  and that, not the bleed, is what still flags ls18 and ls25.** Same sweep: ls18 is called crowded
+  at **22px** of clear space while lt08 passes at exactly 22px, and ls25 at **30px** while lt15
+  passes at 26px. In both pairs the flagged design has the same or a LARGER gap and a much taller
+  mark (135px and 130px against 75px and 84px). Neither is a spacing defect: ls25 is a `picture`
+  well holding square cover art `object-fit: cover` by design - the brand audit already excludes
+  picture wells from mark rules for exactly this reason - and ls18 stretches an institution's mark
+  to the height of the card. **Not repaired, and deliberately not recalibrated**: the 0.25 floor is
+  the brand manual's clear space for a free-standing mark, and moving the unit unmeasured would
+  trade a known artifact for an unknown one. What changed is that both findings now carry the RAW
+  px beside the ratio, so a tight gap can be told from a tall mark by reading the finding.
 
 ## Phase-C creative pilot (`creative/`)
 
@@ -823,6 +849,20 @@ Two rules reach outside the pilot and bind here:
   (`docs/AI_PROVIDER_GATEWAY.md`). `modelCatalog.ts` reads only the normalized server discovery endpoint.
   Structured output, usage, costs, errors, retries and explicit fallbacks normalize here. `cacheSystem`
   remains an Anthropic hint.
+- **A ROUTE IS REACHABLE IN DEVELOPMENT BECAUSE THE TREE SAYS SO, never because a list does.**
+  `scripts/aiDevPlugin.mjs` mounts the real `api/ai` handlers, and it used to decide which paths
+  existed from a hand-kept allowlist. That list hid a whole surface three times: the
+  imported-graphic-analysis task shipped with no entries, hosted Pro was a dev 404 in every dev
+  server and the entire e2e suite while production served it (so `loadProStatus` read "this
+  deployment has no Pro" and the door never appeared locally), and `/api/ai/consent` had never been
+  routed at all. It is gone. `scripts/apiRouteTable.mjs` derives the function table from the api/
+  tree and applies the deployment's own measured rule - a `[...path].ts` routes exactly ONE segment
+  - so an unknown NAME is answered by the real dispatcher in its own error vocabulary and an
+  unroutable DEPTH is refused exactly as the platform refuses it. `npm run check:api-route-depth`
+  certifies every `/api/` path our client names through that SAME resolver, so the gate and the dev
+  server cannot hold different opinions. **Every other AI spec mocks these routes at the network
+  level, which is why none of the three defects was ever caught** - `e2e/ai-dev-routes.spec.ts`
+  deliberately does not mock, and is the only thing here that proves a route is reachable.
 - `stubProvider.ts` - the offline provider: keyword -> DesignSpec -> the SAME `specToTemplate` pipeline, so
   offline results are catalog-grade. It honors the structured setup through the same `applySpecLocks`/
   post-passes, which keeps the whole More-control flow e2e-testable without tokens.
