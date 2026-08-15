@@ -21,6 +21,17 @@ import { TABULAR_FIGURES, hasLine, liveClockJs, slot } from './shared';
 
 const CLOCK_ELEMENT = 'lower-third-clock';
 
+// ── THE MARK'S COLUMN, AND WHY THESE THREE NUMBERS ARE DECLARED TOGETHER ──────────────────
+//
+// The bug's width, its clear space from the words, and the words' own measure. They are consts
+// because the third is computed from the first two: with the slot on, the panel's cap is WIDENED
+// by the mark's column instead of the mark's column being taken out of the words' measure. Written
+// as three literals in three rules, the arithmetic silently desyncs the first time one of them
+// moves - which is exactly how the bug below was measured into existence.
+const MARK_WIDTH_PX = 136;
+const MARK_CLEAR_PX = 34;
+const MEASURE_PX = 871;
+
 export const ls29: TemplateVariant = defineVariant(
   {
     id: 'ls29',
@@ -110,14 +121,20 @@ ${bug}    </div>`,
 .lower-third-box {
   display: flex;                    /* the report, then the channel mark that closes it */
   align-items: center;              /* the mark is centred against the whole report */
-  gap: calc(34px * var(--scale));   /* the mark's clear space from the words */
+  gap: calc(${MARK_CLEAR_PX}px * var(--scale));   /* the mark's clear space from the words */
   margin-left: calc(9px * var(--scale));    /* starts where the accent bar ends */
   padding: calc(21px * var(--scale)) calc(61px * var(--scale)) calc(28px * var(--scale)) calc(38px * var(--scale));
   background: var(--panel-bg);      /* void rgba(10,12,16,.86) by default */
   backdrop-filter: var(--panel-blur);  /* the family's backdrop treatment */
   -webkit-backdrop-filter: var(--panel-blur);  /* Safari spelling of the same effect */
   box-shadow: var(--panel-shadow);  /* the family's panel lift */
-  max-width: calc(871px * var(--scale));  /* a correspondent's beat runs long */
+  /* A correspondent's beat runs long - and with the mark on, the cap is WIDENED by the mark's
+     column (${MARK_WIDTH_PX}px + ${MARK_CLEAR_PX}px) rather than being taken out of it. Measured
+     2026-08-15 with a square crest and two lines: at the bare 871px the panel hit its cap, the
+     reporter's name broke across two rows, and the strap grew 139 -> 191px (+37.4%) - a strap
+     spending HEIGHT because a logo arrived, which is the one thing a strap cannot do. Widened,
+     the words keep their whole measure and the graphic grows sideways instead. */
+  max-width: calc(${o.logoEnabled ? MEASURE_PX + MARK_WIDTH_PX + MARK_CLEAR_PX : MEASURE_PX}px * var(--scale));
 }
 
 /* The report column — dateline rail, reporter, beat. */
@@ -128,14 +145,27 @@ ${
       o.logoEnabled
         ? `
 /* The channel mark — on the panel's own surface at the closing end of the strap, where a
-   rolling-news bug sits. Fixed box, so the artwork never sets the strap's height. */
+   rolling-news bug sits.
+
+   THE WORDS DECIDE HOW TALL THE STRAP IS, and the bug stretches to whatever they leave. It was a
+   fixed 96px box until 2026-08-15, described here as "fixed, so the artwork never sets the strap's
+   height" — which was true of the artwork and false of the box holding it: with two lines the
+   report column is 90px, so the 96px bug set the row itself. A fixed height is a height FLOOR on a
+   piece of furniture that draws nothing, which is the whole trap.
+
+   The mark is laid out INSIDE it absolutely for the same reason one step down: an in-flow image
+   contributes its own height to the row even under a max-height, so the artwork would re-grow
+   the strap through the back door. Out of flow it contributes nothing, and the crest is as big as
+   the words leave room for — 90px beside two lines, 129px beside three, where the old fixed box
+   painted 96px in both cases. */
 .lower-third-bug {
-  flex: none;                       /* fixed size; a long beat never squeezes the mark */
-  display: flex;                    /* centre whatever is inside it… */
+  flex: none;                       /* fixed width; a long beat never squeezes the mark */
+  align-self: stretch;              /* …and exactly the height of the words beside it */
+  position: relative;               /* the mark below positions against this box */
+  display: flex;                    /* centre the placeholder inside it… */
   align-items: center;              /* …vertically… */
   justify-content: center;          /* …and horizontally */
-  width: calc(136px * var(--scale));   /* wide enough that a lockup still reads at width */
-  height: calc(96px * var(--scale));   /* fixed — see above */
+  width: calc(${MARK_WIDTH_PX}px * var(--scale));   /* wide enough that a lockup still reads at width */
 }
 
 /* The placeholder — a quiet rule where the mark will be, so an unset slot reads as
@@ -150,11 +180,14 @@ ${
   display: none;                    /* a picked mark replaces the placeholder */
 }
 
-/* The mark itself (the ${logoField} image field — hidden while empty). */
+/* The mark itself (the ${logoField} image field — hidden while empty). Out of flow, so its own
+   proportions can never set the strap's height (see the bug above). */
 .lower-third-logo {
-  max-width: calc(136px * var(--scale));  /* the bug's width — a wide lockup stops here */
-  max-height: calc(96px * var(--scale));  /* …and a portrait mark here */
-  object-fit: contain;              /* show the whole mark, never crop or distort it */
+  position: absolute;               /* out of flow — the artwork sizes to the bug, not the reverse */
+  inset: 0;                         /* the whole bug is the mark's box… */
+  width: 100%;                      /* …its full width… */
+  height: 100%;                     /* …and its full height */
+  object-fit: contain;              /* show the whole mark, centred, never cropped or distorted */
 }
 `
         : ''

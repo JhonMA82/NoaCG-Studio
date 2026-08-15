@@ -157,12 +157,38 @@ tile-wall presentation, which no longer ships):
   art `object-fit: cover`, which is that design being right. A sweep still compares against a BARE
   render rather than an absolute, because `findPanel` resolves for only 10 of these 24 - and the
   ABSOLUTE ratios depend on which mark is rendered, while the set that moves does not.
-  **OPEN, found by that bare render and NOT fixed here: "a strap spends width, never height" is
-  enforced only on the six designs that take the SHARED slot.** Of the 18 that hand-author their
-  own, four grow taller when a mark arrives - ls29 139 -> 191px (+37.4%), ls17 130 -> 168 (+29.2%),
-  lt49 138 -> 155 (+12.3%), lt53 139 -> 146 (+5.0%) - each because its own well sizes the row. The
-  shared slot caps the mark at 84px for exactly this reason; a hand-authored well answers to
-  nothing.
+  **"A strap spends width, never height" now holds on the hand-authored slots too, and settling it
+  cost the sweep a new column - because a height figure cannot say WHY.** The four designs that
+  grew (ls29 139 -> 191px, ls17 130 -> 168, lt49 138 -> 155, lt53 139 -> 146) were all recorded as
+  "its own well sizes the row"; measured per design, that was true of TWO. Two rules came out of
+  the correction:
+  - **A mark makes a strap taller in two opposite ways, and the fix for one is the fix for
+    nothing else.** Either the mark's own furniture is taller than the words (bound the well), or
+    the mark's column came out of a CAPPED text measure and the words needed more height (widen the
+    cap - `sideBySideSizeCss`'s answer, and the owner's mark-size ruling: widen the strap's wrap
+    cap, never the mark's cap alone). ls29 and ls17 were the second kind: ls29's box hit its 871px
+    cap and the reporter's name broke across two rows, ls17's hit 894 and the name row broke in two
+    under its own `flex-wrap`. Both now widen their cap by the mark's column when the slot is on,
+    and both declare the width, the clear space and the measure as three consts, because the third
+    is computed from the first two. ls29 139 -> 139px, ls17 130 -> 130px, growing sideways only;
+    ls17's `mark-adrift` finding cleared with it (2.34 -> 0.48).
+  - **Invisible furniture must never carry a fixed height, and bounding it needs the image OUT OF
+    FLOW.** Both mark areas were fixed boxes (96px, 112px) drawing nothing but a placeholder
+    hairline, commented "fixed, so the artwork never sets the strap's height" - true of the artwork
+    and false of the box around it. They now `align-self: stretch` to the words' height with the
+    `<img>` absolutely positioned inside, and that second half is load-bearing: an in-flow image
+    contributes its own height to the flex line even under a `max-height`, and a stretched item's
+    hypothetical cross size still counts, so stretch alone re-grows the strap through the back
+    door. Marks got BIGGER, not smaller - ls17's crest 112 -> 146px on the four lines it draws for.
+  - **lt49 and lt53 are RECORDED EXCEPTIONS, argued in their own source.** Their wells are drawn,
+    tinted squares - real furniture - and at the four lines each board is built for the words are
+    157px and the well costs zero height (207 -> 207px on both). The growth appears only below
+    their own line count, and both ways to remove it are worse: capping the height alone makes the
+    square a rectangle, and shrinking the well shrinks the mark on the content it was drawn for.
+  The sweep now reports the cause (it measures the box's two children against each other, since a
+  line count misses a sibling row reflowing) and probes BOTH content shapes - the calibrated two
+  lines and the design's own - because a well sized against four lines is not a defect for costing
+  height at two, and reporting only one number reads a design's proportions as a fault.
   **THE MARK'S SIZE IS THREE MEASURED NUMBERS, and the third is the strap's own wrap cap**
   (2026-08-14, the value-gate ballot's other finding - the logo was called too small on four of
   eight briefs). The WIDTH cap used to bind before the height cap, so a 4:1 wordmark painted 33px

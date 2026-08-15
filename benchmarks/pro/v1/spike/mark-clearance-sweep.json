@@ -17,6 +17,12 @@
     "lt41",
     "ls10"
   ],
+  "tallerByWell": [
+    "lt53",
+    "lt49"
+  ],
+  "tallerBySqueezedWords": [],
+  "tallerAtOwnLines": [],
   "rows": [
     {
       "id": "lt11",
@@ -43,6 +49,13 @@
         "width": 723,
         "height": 147
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 84,
+        "words": 99
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -70,6 +83,37 @@
       "markedSize": {
         "width": 580,
         "height": 146
+      },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 96,
+        "words": 89
+      },
+      "own": {
+        "bare": {
+          "size": {
+            "width": 509,
+            "height": 207
+          },
+          "lines": 4,
+          "parts": {
+            "mark": 0,
+            "words": 157
+          }
+        },
+        "marked": {
+          "size": {
+            "width": 633,
+            "height": 207
+          },
+          "lines": 4,
+          "parts": {
+            "mark": 96,
+            "words": 157
+          }
+        },
+        "count": 4
       },
       "codes": [],
       "bareCodes": []
@@ -99,6 +143,13 @@
         "width": 679,
         "height": 120
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 59,
+        "words": 120
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -127,6 +178,13 @@
         "width": 505,
         "height": 113
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 84,
+        "words": 113
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -155,6 +213,13 @@
         "width": 441,
         "height": 82
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 64,
+        "words": 82
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -183,6 +248,13 @@
         "width": 605,
         "height": 113
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 84,
+        "words": 92
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -211,6 +283,13 @@
         "width": 638,
         "height": 95
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 66,
+        "words": 95
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -238,6 +317,37 @@
       "markedSize": {
         "width": 592,
         "height": 108
+      },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 104,
+        "words": 108
+      },
+      "own": {
+        "bare": {
+          "size": {
+            "width": 438,
+            "height": 207
+          },
+          "lines": 4,
+          "parts": {
+            "mark": 0,
+            "words": 207
+          }
+        },
+        "marked": {
+          "size": {
+            "width": 592,
+            "height": 207
+          },
+          "lines": 4,
+          "parts": {
+            "mark": 104,
+            "words": 207
+          }
+        },
+        "count": 4
       },
       "codes": [],
       "bareCodes": []
@@ -267,6 +377,13 @@
         "width": 923,
         "height": 234
       },
+      "bareLines": 3,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 84,
+        "words": 124
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -295,6 +412,13 @@
         "width": 806,
         "height": 246
       },
+      "bareLines": 3,
+      "markedLines": 3,
+      "markedParts": {
+        "mark": 73,
+        "words": 130
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -322,6 +446,37 @@
       "markedSize": {
         "width": 675,
         "height": 205
+      },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 97,
+        "words": 97
+      },
+      "own": {
+        "bare": {
+          "size": {
+            "width": 734,
+            "height": 281
+          },
+          "lines": 4,
+          "parts": {
+            "mark": 0,
+            "words": 173
+          }
+        },
+        "marked": {
+          "size": {
+            "width": 734,
+            "height": 281
+          },
+          "lines": 4,
+          "parts": {
+            "mark": 173,
+            "words": 173
+          }
+        },
+        "count": 4
       },
       "codes": [],
       "bareCodes": []
@@ -351,6 +506,13 @@
         "width": 580,
         "height": 134
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 84,
+        "words": 102
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -379,6 +541,13 @@
         "width": 599,
         "height": 153
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 153,
+        "words": 153
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -406,6 +575,37 @@
       "markedSize": {
         "width": 713,
         "height": 127
+      },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 127,
+        "words": 127
+      },
+      "own": {
+        "bare": {
+          "size": {
+            "width": 527,
+            "height": 161
+          },
+          "lines": 3,
+          "parts": {
+            "mark": 0,
+            "words": 161
+          }
+        },
+        "marked": {
+          "size": {
+            "width": 634,
+            "height": 161
+          },
+          "lines": 3,
+          "parts": {
+            "mark": 161,
+            "words": 161
+          }
+        },
+        "count": 3
       },
       "codes": [],
       "bareCodes": []
@@ -435,6 +635,13 @@
         "width": 542,
         "height": 153
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 75,
+        "words": 59
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -463,6 +670,13 @@
         "width": 497,
         "height": 125
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 84,
+        "words": 85
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -491,6 +705,13 @@
         "width": 460,
         "height": 109
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 52,
+        "words": 73
+      },
+      "own": null,
       "codes": [],
       "bareCodes": []
     },
@@ -518,6 +739,37 @@
       "markedSize": {
         "width": 578,
         "height": 155
+      },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 105,
+        "words": 89
+      },
+      "own": {
+        "bare": {
+          "size": {
+            "width": 450,
+            "height": 207
+          },
+          "lines": 4,
+          "parts": {
+            "mark": 0,
+            "words": 157
+          }
+        },
+        "marked": {
+          "size": {
+            "width": 583,
+            "height": 207
+          },
+          "lines": 4,
+          "parts": {
+            "mark": 105,
+            "words": 157
+          }
+        },
+        "count": 4
       },
       "codes": [],
       "bareCodes": []
@@ -547,6 +799,37 @@
         "width": 560,
         "height": 124
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 124,
+        "words": 124
+      },
+      "own": {
+        "bare": {
+          "size": {
+            "width": 438,
+            "height": 154
+          },
+          "lines": 3,
+          "parts": {
+            "mark": 0,
+            "words": 154
+          }
+        },
+        "marked": {
+          "size": {
+            "width": 438,
+            "height": 154
+          },
+          "lines": 3,
+          "parts": {
+            "mark": 154,
+            "words": 154
+          }
+        },
+        "count": 3
+      },
       "codes": [],
       "bareCodes": []
     },
@@ -575,6 +858,37 @@
         "width": 730,
         "height": 162
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 104,
+        "words": 109
+      },
+      "own": {
+        "bare": {
+          "size": {
+            "width": 545,
+            "height": 165
+          },
+          "lines": 4,
+          "parts": {
+            "mark": 0,
+            "words": 112
+          }
+        },
+        "marked": {
+          "size": {
+            "width": 707,
+            "height": 165
+          },
+          "lines": 4,
+          "parts": {
+            "mark": 104,
+            "words": 112
+          }
+        },
+        "count": 3
+      },
       "codes": [],
       "bareCodes": []
     },
@@ -588,11 +902,11 @@
         "bottom": 0
       },
       "markPx": {
-        "height": 112,
-        "gap": 262
+        "height": 80,
+        "gap": 38
       },
-      "borderRatio": 2.34,
-      "inkRatio": 2.34,
+      "borderRatio": 0.48,
+      "inkRatio": 0.48,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {
@@ -600,12 +914,41 @@
         "height": 130
       },
       "markedSize": {
-        "width": 894,
-        "height": 168
+        "width": 1020,
+        "height": 130
       },
-      "codes": [
-        "mark-adrift"
-      ],
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 80,
+        "words": 80
+      },
+      "own": {
+        "bare": {
+          "size": {
+            "width": 643,
+            "height": 196
+          },
+          "lines": 4,
+          "parts": {
+            "mark": 0,
+            "words": 146
+          }
+        },
+        "marked": {
+          "size": {
+            "width": 831,
+            "height": 196
+          },
+          "lines": 4,
+          "parts": {
+            "mark": 146,
+            "words": 146
+          }
+        },
+        "count": 4
+      },
+      "codes": [],
       "bareCodes": []
     },
     {
@@ -632,6 +975,37 @@
       "markedSize": {
         "width": 556,
         "height": 135
+      },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 135,
+        "words": 135
+      },
+      "own": {
+        "bare": {
+          "size": {
+            "width": 462,
+            "height": 170
+          },
+          "lines": 3,
+          "parts": {
+            "mark": 0,
+            "words": 170
+          }
+        },
+        "marked": {
+          "size": {
+            "width": 602,
+            "height": 170
+          },
+          "lines": 3,
+          "parts": {
+            "mark": 170,
+            "words": 170
+          }
+        },
+        "count": 3
       },
       "codes": [
         "mark-crowded"
@@ -663,6 +1037,37 @@
         "width": 705,
         "height": 130
       },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 130,
+        "words": 130
+      },
+      "own": {
+        "bare": {
+          "size": {
+            "width": 547,
+            "height": 161
+          },
+          "lines": 3,
+          "parts": {
+            "mark": 0,
+            "words": 161
+          }
+        },
+        "marked": {
+          "size": {
+            "width": 547,
+            "height": 161
+          },
+          "lines": 3,
+          "parts": {
+            "mark": 161,
+            "words": 161
+          }
+        },
+        "count": 3
+      },
       "codes": [
         "mark-crowded"
       ],
@@ -678,11 +1083,11 @@
         "bottom": 0
       },
       "markPx": {
-        "height": 96,
-        "gap": 54
+        "height": 90,
+        "gap": 34
       },
-      "borderRatio": 0.56,
-      "inkRatio": 0.56,
+      "borderRatio": 0.38,
+      "inkRatio": 0.38,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {
@@ -690,8 +1095,39 @@
         "height": 139
       },
       "markedSize": {
-        "width": 871,
-        "height": 191
+        "width": 950,
+        "height": 139
+      },
+      "bareLines": 2,
+      "markedLines": 2,
+      "markedParts": {
+        "mark": 90,
+        "words": 90
+      },
+      "own": {
+        "bare": {
+          "size": {
+            "width": 485,
+            "height": 178
+          },
+          "lines": 3,
+          "parts": {
+            "mark": 0,
+            "words": 129
+          }
+        },
+        "marked": {
+          "size": {
+            "width": 655,
+            "height": 178
+          },
+          "lines": 3,
+          "parts": {
+            "mark": 129,
+            "words": 129
+          }
+        },
+        "count": 3
       },
       "codes": [],
       "bareCodes": []

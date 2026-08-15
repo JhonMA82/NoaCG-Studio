@@ -19,6 +19,16 @@ import { paletteById, type TemplateVariant } from '../../../model/wizard';
 import { defineVariant } from '../shared';
 import { hasLine, slot } from './shared';
 
+// ── THE MARK'S COLUMN, AND WHY THESE THREE NUMBERS ARE DECLARED TOGETHER ──────────────────
+//
+// The mark area's width, its clear space from the words, and the credit's own measure. The third
+// is computed from the first two: with the slot on, the panel's cap is WIDENED by the mark's
+// column rather than the mark's column being taken out of the words' measure. Written as three
+// literals in three rules, that arithmetic desyncs the first time one of them moves.
+const MARK_WIDTH_PX = 150;
+const MARK_CLEAR_PX = 38;
+const MEASURE_PX = 894;
+
 export const ls17: TemplateVariant = defineVariant(
   {
     id: 'ls17',
@@ -101,12 +111,18 @@ ${mark}    </div>`,
 .lower-third-box {
   display: flex;                    /* the credit, then the institution's mark */
   align-items: center;              /* the mark is centred against the whole credit */
-  gap: calc(38px * var(--scale));   /* the mark's clear space from the words */
+  gap: calc(${MARK_CLEAR_PX}px * var(--scale));   /* the mark's clear space from the words */
   padding: calc(24px * var(--scale)) calc(52px * var(--scale)) calc(26px * var(--scale)) calc(33px * var(--scale));
   background: var(--panel-bg);      /* the minimal family's quiet panel */
   border-radius: var(--panel-radius);  /* the family's corner radius */
   box-shadow: var(--panel-shadow);  /* the family's panel lift */
-  max-width: calc(894px * var(--scale));  /* academic job titles are long — give them the room */
+  /* Academic job titles are long — and with the mark on, the cap is WIDENED by the mark's column
+     (${MARK_WIDTH_PX}px + ${MARK_CLEAR_PX}px) rather than being taken out of it. Measured 2026-08-15
+     with a crest and two lines: at the bare 894px the panel hit its cap, the name row broke in
+     two under its own flex-wrap, and the strap grew 130 -> 168px (+29.2%). The post-nominals field
+     exists to keep a long list from breaking the name across two rows; a mark that squeezes the
+     measure breaks it anyway. Widened, the credit keeps its whole measure. */
+  max-width: calc(${o.logoEnabled ? MEASURE_PX + MARK_WIDTH_PX + MARK_CLEAR_PX : MEASURE_PX}px * var(--scale));
 }
 
 /* The credit column — the words, which keep the panel's stated measure to themselves. */
@@ -117,14 +133,24 @@ ${
         o.logoEnabled
           ? `
 /* The mark area — on the panel's own surface, not in a filled block: a university crest is
-   usually multi-colour artwork with its own field, and a tinted block behind it fights that. */
+   usually multi-colour artwork with its own field, and a tinted block behind it fights that.
+
+   IT DRAWS NOTHING, SO IT MUST NOT SET THE ROW. It was a fixed 112px box until 2026-08-15,
+   commented "fixed, so the artwork never sets the panel's height" — true of the artwork, false of
+   the box around it: with two lines the credit column is 80px, so the mark area set the panel's
+   height itself. A fixed height on invisible furniture is a height floor and nothing else.
+   Stretched instead, it is exactly as tall as the credit beside it, and a crest gets MORE room
+   than the old box gave it on the four-line content this design is drawn for (146px, against 112).
+   The image is absolute for the same reason: an in-flow one contributes its own height to the row
+   even under a max-height, which grows the panel through the back door. */
 .lower-third-markbox {
-  flex: none;                       /* fixed size; a long title never squeezes the mark */
-  display: flex;                    /* centre whatever is inside it… */
+  flex: none;                       /* fixed width; a long title never squeezes the mark */
+  align-self: stretch;              /* …and exactly the height of the credit beside it */
+  position: relative;               /* the mark below positions against this box */
+  display: flex;                    /* centre the placeholder inside it… */
   align-items: center;              /* …vertically… */
   justify-content: center;          /* …and horizontally */
-  width: calc(150px * var(--scale));   /* wide enough that a lockup still reads at width */
-  height: calc(112px * var(--scale));  /* fixed, so the artwork never sets the panel's height */
+  width: calc(${MARK_WIDTH_PX}px * var(--scale));   /* wide enough that a lockup still reads at width */
 }
 
 /* The placeholder — a quiet rule where the mark will be, so an unset slot reads as
@@ -139,11 +165,14 @@ ${
   display: none;                    /* a picked mark replaces the placeholder */
 }
 
-/* The mark itself (the ${logoField} image field — hidden while empty). */
+/* The mark itself (the ${logoField} image field — hidden while empty). Out of flow, so its own
+   proportions can never set the panel's height (see the mark area above). */
 .lower-third-logo {
-  max-width: calc(150px * var(--scale));   /* the area's width — a wide lockup stops here */
-  max-height: calc(112px * var(--scale));  /* …and a portrait crest here */
-  object-fit: contain;              /* show the whole mark, never crop or distort it */
+  position: absolute;               /* out of flow — the artwork sizes to the area, not the reverse */
+  inset: 0;                         /* the whole mark area is the crest's box… */
+  width: 100%;                      /* …its full width… */
+  height: 100%;                     /* …and its full height */
+  object-fit: contain;              /* show the whole mark, centred, never cropped or distorted */
 }
 `
           : ''

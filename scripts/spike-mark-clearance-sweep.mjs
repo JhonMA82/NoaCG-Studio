@@ -25,8 +25,25 @@
 // catalog. Every design is therefore also rendered with the slot OFF, and what is reported is
 // what the mark CHANGED.
 //
+// ── A HEIGHT COLUMN CANNOT SAY WHY, AND THE FIRST READING GOT IT WRONG ────────────────────
+//
+// The 2026-08-15 run found four hand-authored designs growing taller with a mark, and the reason
+// recorded for all four was "its own well sizes the strap's row". Measured per design, that was
+// true of only two of them. On ls29 the well is SHORTER than the words: its box caps its own
+// width, the mark's column came out of that cap, the reporter's name broke across two rows, and
+// the strap grew by a line of 49px type. Opposite defect, opposite fix - and the two are
+// indistinguishable in a height column, so this sweep now measures the box's TWO CHILDREN against
+// each other (`boxParts`) and counts LINE BOXES beside it. A well that is the shorter of the two
+// did not spend the strap's height; the words did, because the mark took their measure.
+//
+// AND IT PROBES TWO CONTENT SHAPES, because the first one probed only its own. Two lines (name +
+// role) is the shape the spacing instrument is calibrated on, but eleven of these designs draw for
+// three or four, and a well sized to a four-line composition costs zero height there while setting
+// the row at two. Reporting only the two-line number reads a design's own proportions as a defect;
+// reporting only its own lines misses what a user gets after deleting a row. Both are printed.
+//
 // Requires the dev server on this checkout's port (node scripts/dev-port.mjs). Free - no model
-// call, no tokens. ~2 minutes for 24 designs.
+// call, no tokens. ~4 minutes for 24 designs.
 
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -94,6 +111,43 @@ if (!ids.length) {
 }
 console.log(`Sweeping ${ids.length} mark-capable ${CATEGORY}s with "${MARK_ID}"…\n`);
 
+// WHY the mark changed this strap's height - the reading the first run of this sweep got wrong for
+// half the designs it flagged. Two causes, and the fix for one is the fix for nothing else:
+//
+//   · the WELL set the row - the mark's own furniture is taller than the words beside it, so the
+//     fix is to bound the well (or to argue in the design's source that its composition can
+//     afford the height, which is where lt49 and lt53 landed);
+//   · the WORDS LOST THEIR MEASURE - the mark's column came out of a capped text measure and the
+//     words needed more height, so the fix is to widen that cap by the mark's column, which is
+//     what shared/logoSlot.ts does for the six designs on the shared slot.
+//
+// `boxParts` (inside the page) is what tells them apart; the line count says whether a squeezed
+// measure cost a whole wrapped line or only a reflowed row.
+
+/** True when the mark's own furniture is the taller of the box's two children. */
+const wellSetTheRow = (parts) => Boolean(parts) && parts.mark >= parts.words;
+
+const growthLine = (label, bare, marked, parts, bareLines, markedLines) => {
+  const d = marked.height - bare.height;
+  if (d <= 1) return `${label}: no growth`;
+  const cause = wellSetTheRow(parts)
+    ? `the WELL set the row (${parts.mark}px well vs ${parts.words}px of words)`
+    : `the WORDS LOST THEIR MEASURE (${parts ? `${parts.words}px of words beside a ${parts.mark}px well` : 'reflowed'}`
+      + `${markedLines > bareLines ? `, ${bareLines} -> ${markedLines} text lines` : ', same line count - a row reflowed'})`;
+  return `${label}: ${bare.height} -> ${marked.height}px +${(d / bare.height * 100).toFixed(1)}%, ${cause}`;
+};
+
+const heightVerdict = (row) => {
+  if (!row.bareSize || !row.markedSize) return 'height: NOT MEASURABLE (no -box found)';
+  const said = [growthLine('2 lines', row.bareSize, row.markedSize, row.markedParts,
+    row.bareLines, row.markedLines)];
+  if (row.own?.bare?.size && row.own?.marked?.size) {
+    said.push(growthLine(`${row.own.count} lines`, row.own.bare.size, row.own.marked.size,
+      row.own.marked.parts, row.own.bare.lines, row.own.marked.lines));
+  }
+  return `height  ${said.join('   |   ')}`;
+};
+
 const rows = [];
 for (const id of ids) {
   const row = await page.evaluate(async ({ variantId, markSpec }) => {
@@ -115,16 +169,60 @@ for (const id of ids) {
       return { width: Math.round(r.width), height: Math.round(r.height) };
     };
 
+    // THE TWO CHILDREN OF THE BOX, measured against each other: the one holding the mark, and the
+    // tallest of the rest. This is the discriminator between the two ways a mark makes a strap
+    // taller, and it needs no per-design knowledge - every one of these straps lays the mark's
+    // furniture beside the words as siblings, whether the slot is hand-authored or shared.
+    //
+    // The line count below is NOT sufficient for this, which is worth stating because it was the
+    // first attempt: ls17's growth is its NAME ROW breaking in two under `flex-wrap` when the
+    // mark's column took the credit's measure, and neither span drew a second line - so the count
+    // held steady at 2 and read as "the well set the row" while the well was the shorter of the
+    // two. What the words did is only visible by measuring the words.
+    const boxParts = (doc, prefix, img) => {
+      const box = doc.querySelector(`.${prefix}-box`);
+      if (!box) return null;
+      let mark = 0;
+      let words = 0;
+      for (const child of box.children) {
+        const h = Math.round(child.getBoundingClientRect().height);
+        if (img && child.contains(img)) mark = Math.max(mark, h);
+        else words = Math.max(words, h);
+      }
+      return { mark, words };
+    };
+
+    // HOW MANY LINE BOXES the words occupy, summed over every visible text field - the second
+    // half of the same reading: it says whether a squeezed measure cost a design a WRAPPED LINE
+    // (ls29's reporter name) or only a reflowed row. Derived from each span's own line-height
+    // rather than from `getClientRects().length`, which reports one rect for a block-level span
+    // however many rows it draws.
+    const textLines = (doc, win) => {
+      let total = 0;
+      for (const el of doc.querySelectorAll('[id^="f"]')) {
+        if (!/^f\d+$/.test(el.id) || el.tagName === 'IMG') continue;
+        const style = win.getComputedStyle(el);
+        if (style.display === 'none' || !el.textContent.trim()) continue;
+        const lh = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2;
+        const h = el.getBoundingClientRect().height;
+        if (lh > 0 && h > 0) total += Math.max(1, Math.round(h / lh));
+      }
+      return total;
+    };
+
     const variant = cat.variantById(variantId);
     if (!variant) return { error: 'gone' };
+    // The calibrated probe: the two lines every spacing reading in this catalog is measured on.
     const lines = [
       { title: 'Name', sample: 'Alexandra Riva' },
       { title: 'Role', sample: 'Chief Political Correspondent' },
     ];
+    // …and the design's OWN content, which is the shape its well was drawn against.
+    const ownLines = (variant.suggestedLines ?? []).map((l) => ({ title: l.title, sample: l.sample }));
 
-    const render = async (options) => {
+    const render = async (content, options) => {
       document.getElementById('mark-sweep-frame')?.remove();
-      const template = variant.create({ lines, ...options });
+      const template = variant.create({ lines: content, ...options });
       const frame = document.createElement('iframe');
       frame.id = 'mark-sweep-frame';
       frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;'
@@ -134,7 +232,12 @@ for (const id of ids) {
       await new Promise((resolve) => { frame.onload = resolve; });
       const win = frame.contentWindow;
       try {
-        win.update(JSON.stringify({ f0: 'Alexandra Riva', f1: 'Chief Political Correspondent' }));
+        // Through update(), because that is the path an operator's text takes - and it must be
+        // THIS content: a payload hard-coded to two fields leaves a four-line design showing its
+        // own samples for the rest, which is not the same graphic.
+        const payload = {};
+        content.forEach((line, i) => { payload[`f${i}`] = line.sample; });
+        win.update(JSON.stringify(payload));
         win.play();
       } catch { /* a broken lifecycle still paints something - measure what is there */ }
       await win.document.fonts.ready;
@@ -142,27 +245,51 @@ for (const id of ids) {
       return { frame, template };
     };
 
+    /** The mark's own `<img>`, found through the template's DEFINITION rather than through a
+     *  guess about how many fields a design carries: a design that hand-authors its slot numbers
+     *  it itself. Null on a bare render, which is what makes `boxParts` report words only. */
+    const markImg = (doc, win) => {
+      const definition = win.SPXGCTemplateDefinition?.DataFields ?? [];
+      const id = definition.find((f) => f.ftype === 'filelist')?.field ?? null;
+      return id ? doc.getElementById(id) : null;
+    };
+
+    /** Strap size, line-box count and the two children's heights off one render. */
+    const shape = async (content, options) => {
+      const r = await render(content, options);
+      const doc = r.frame.contentDocument;
+      const win = r.frame.contentWindow;
+      const prefix = detectPrefix(r.template.html);
+      const out = {
+        size: strapSize(doc, prefix),
+        lines: textLines(doc, win),
+        parts: boxParts(doc, prefix, markImg(doc, win)),
+      };
+      r.frame.remove();
+      return out;
+    };
+
     // ── The bare render: what this design measures with no mark at all ────────────────
-    const bare = await render({});
+    const bare = await render(lines, {});
     const barePrefix = detectPrefix(bare.template.html);
     const bareSpacing = measureSpacing(bare.frame.contentDocument);
     const bareSize = strapSize(bare.frame.contentDocument, barePrefix);
+    const bareLines = textLines(bare.frame.contentDocument, bare.frame.contentWindow);
     bare.frame.remove();
 
-    // ── …and the same design carrying a real mark ─────────────────────────────────────
-    const marked = await render({
+    const markOptions = {
       logoEnabled: true,
       logoAssetPath: markSpec.path,
       importedImages: [{ path: markSpec.path, data: markSpec.data }],
-    });
+    };
+
+    // ── …and the same design carrying a real mark ─────────────────────────────────────
+    const marked = await render(lines, markOptions);
     const doc = marked.frame.contentDocument;
     const win = marked.frame.contentWindow;
 
-    // The slot's field id comes from the template's own definition, never from a guess about
-    // how many fields a design carries: a design that hand-authors its slot numbers it itself.
-    const definition = win.SPXGCTemplateDefinition?.DataFields ?? [];
-    const markFieldId = definition.find((f) => f.ftype === 'filelist')?.field ?? null;
-    const img = markFieldId ? doc.getElementById(markFieldId) : null;
+    const img = markImg(doc, win);
+    const markFieldId = img?.id ?? null;
 
     // ── THE CONTROL: the OLD instrument, kept alive ───────────────────────────────────
     //
@@ -202,8 +329,19 @@ for (const id of ids) {
     }
 
     const spacing = measureSpacing(doc, { markFieldId });
-    const markedSize = strapSize(doc, detectPrefix(marked.template.html));
+    const markedPrefix = detectPrefix(marked.template.html);
+    const markedSize = strapSize(doc, markedPrefix);
+    const markedLines = textLines(doc, win);
+    const markedParts = boxParts(doc, markedPrefix, img);
     marked.frame.remove();
+
+    // ── The design's OWN content, bare and marked ──────────────────────────────────────
+    //
+    // Skipped when a design draws for exactly the two lines above: rendering the same graphic
+    // twice more to print the same numbers is 40 seconds of the sweep for nothing.
+    const own = ownLines.length && ownLines.length !== lines.length
+      ? { bare: await shape(ownLines, {}), marked: await shape(ownLines, markOptions), count: ownLines.length }
+      : null;
 
     return {
       markFieldId,
@@ -215,6 +353,10 @@ for (const id of ids) {
       barePanel: bareSpacing.panel,
       bareSize,
       markedSize,
+      bareLines,
+      markedLines,
+      markedParts,
+      own,
       codes: spacing.findings.map((f) => f.code),
       bareCodes: bareSpacing.findings.map((f) => f.code),
     };
@@ -238,6 +380,9 @@ for (const id of ids) {
     + ` inset ${pad.padEnd(16)} panel ${(row.panel ? 'yes' : 'no').padEnd(4)}`
     + ` ${(row.codes.join(',') || 'clean').padEnd(24)} ${verdict}`,
   );
+  // The height finding, printed only for a design that HAS one - and with the cause, which is
+  // what the two line counts are for.
+  console.log(`      ${heightVerdict(row)}`);
 }
 await browser.close();
 
@@ -259,6 +404,17 @@ console.log(`readings that MOVED at all:       ${moved.length ? moved.join(', ')
 // shown to be unharmed, and a denominator that shrinks silently reads as full coverage.
 console.log(`straps the mark made TALLER:      ${grew.length ? grew.map((r) => r.id).join(', ') : 'none'}`
   + ` (of ${compared.length} compared${unmeasurable.length ? `; no -box found on ${unmeasurable.join(', ')}` : ''})`);
+// …split by CAUSE, because the two want opposite fixes (see `heightVerdict`).
+const welled = grew.filter((r) => wellSetTheRow(r.markedParts)).map((r) => r.id);
+const squeezed = grew.filter((r) => !wellSetTheRow(r.markedParts)).map((r) => r.id);
+console.log(`  …because the WELL set the row:  ${welled.length ? welled.join(', ') : 'none'} (bound the well)`);
+console.log(`  …because the WORDS were squeezed: ${squeezed.length ? squeezed.join(', ') : 'none'} (widen the text cap)`);
+// The same question at the content each design was DRAWN for. A well sized against four lines
+// costs zero height there and can still set the row at two, and only one of those is a defect.
+const ownCompared = rows.filter((r) => r.own?.bare?.size && r.own?.marked?.size);
+const ownGrew = ownCompared.filter((r) => r.own.marked.size.height > r.own.bare.size.height + 1);
+console.log(`taller at the design's OWN lines: ${ownGrew.length ? ownGrew.map((r) => `${r.id} (${r.own.count})`).join(', ') : 'none'}`
+  + ` (of ${ownCompared.length} that draw for more than two)`);
 console.log('\nA design still flagged is one to LOOK at: the ink box removes the artifact, so what');
 console.log('survives is either a real crowding or a deliberate edge-to-edge composition.');
 
@@ -270,6 +426,9 @@ await writeFile(OUT, `${JSON.stringify({
   crowdedBefore: before,
   crowdedAfter: after,
   moved,
+  tallerByWell: welled,
+  tallerBySqueezedWords: squeezed,
+  tallerAtOwnLines: ownGrew.map((r) => r.id),
   rows,
 }, null, 2)}\n`);
 console.log(`\nWritten: ${OUT}`);

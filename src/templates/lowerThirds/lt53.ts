@@ -105,7 +105,22 @@ ${lineMasks(o, '        ')}
 ${
         o.logoEnabled
           ? `/* The logo well — a square lifted a shade off the void, so a dark mark still separates.
-   Zero radius: the house family puts no rounding on its surfaces. */
+   Zero radius: the house family puts no rounding on its surfaces.
+
+   ── A DELIBERATE EXCEPTION TO "A STRAP SPENDS WIDTH, NEVER HEIGHT" ──────────────────────
+   The well is a fixed 96px square, so on a panel carrying FEWER lines than this design draws for
+   it is the taller of the panel's two children and sets the row. Measured 2026-08-15 with a square
+   crest (node scripts/spike-mark-clearance-sweep.mjs): on the four lines this board is built for,
+   the words are 157px and the well costs ZERO height — the panel is 207px tall with the mark and
+   207px without it. Handed only a name and a role, the words drop to 89px and the panel grows
+   139 -> 146px (+5.0%), which is seven pixels on a graphic used for long-form interviews.
+
+   Both ways to remove those seven pixels are worse than keeping them: capping the well's HEIGHT
+   alone makes it a rectangle, and a square lifted off the void is what the house family draws;
+   shrinking it to the two-line words would shrink the mark on the four-line content it was drawn
+   against, where it costs nothing. Contrast ls17 and ls29, whose mark areas draw NOTHING and were
+   bound to the words instead: invisible furniture with a fixed height is a height floor and no
+   more. */
 .lower-third-well {
   flex: none;                       /* fixed size; long names never squeeze it */
   width: calc(96px * var(--scale));   /* well width */
