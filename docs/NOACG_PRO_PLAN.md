@@ -1749,3 +1749,59 @@ shape is a locator that never appears - `[data-testid="beta-feedback-open"][data
 `production-publish` - so they are worth a look on a branch that owns those surfaces. Recorded
 here rather than fixed here, because a session capturing evidence should not also be editing the
 surfaces it is measuring.
+
+#### The round: 18 real generations, $0.1070, and what a person then SAW
+
+`node scripts/pro-spike.mjs --generate --route=vercel:google/gemini-2.5-flash --arms=language
+--divergence-arm=language --max-cost=0.12`, after the free `--control` pass. The plan is the
+committed fixtures': the twelve-brief bank under its assigned brand, plus the divergence cell -
+`news-public` and `entertainment` re-run under every OTHER brand - so all four synthetic brands
+appear and two briefs appear under all four.
+
+| | |
+|---|---|
+| generations | 18, one text call each |
+| provider spend | **$0.1070** ($0.0038-$0.0097, mean $0.0059) |
+| wall clock | 31-57 s per item, most of it the capture, not the call |
+| validator | 0 errors, 0 failed field contracts, 0 repair rounds |
+| ceiling | $0.12 asked for, $0.15 authorised - the run stopped short of both on its own |
+
+Per-generation cost is **higher than §16's $0.0039** and lower than the $0.0777 the retired
+engine spent: the bench conditions each brief on a synthetic brand, which is prompt the product's
+own brief does not carry. Treat $0.004-$0.010 as the planning band rather than either single
+measurement.
+
+**What is on the frames** - description, not a verdict, because the verdict is the owner's read
+and this file has twice recorded a machine calling a broken graphic fine:
+
+- Every one of the 18 painted ONE strap in the lower-left carrying the brief's name and title.
+  **Nothing prints its words twice** - the §16 ghost is structurally impossible here, because
+  there is no artwork to erase.
+- **The mark sits BESIDE the words in every branded generation**, never above them; no strap
+  became a block. Marks render as marks (the KSTRL wordmark, the Aldervale crest, the Sunbeam
+  sun, the Ledger glyph).
+- **Under the stress values every panel GREW and kept its text inside it.** `long-name.kestrel`
+  wraps a 46-character name onto three lines and the panel takes the height; read at full
+  resolution, nothing is clipped. That is the `width: fit-content` box the composer inherits from
+  the catalog assembler doing exactly what §15.5 claims for it.
+- **Non-Latin renders**: `non-latin.aldervale` sets Greek and Japanese with no missing glyphs.
+- **Four brands produce four visibly different straps from the SAME brief** - navy serif panel,
+  black with a lime edge, plum with an orange sun, white with black slab - differing in palette,
+  type voice, accent form and mark, not one look recoloured. Both divergence cells behave that way.
+- **One platform intervention is visible in the frame**: `news-public.aldervale` paints a neutral
+  field behind the crest inside its navy panel, so the mark sits on a light chip. That is
+  `pro-mark-field` firing, and it is legible as an intervention rather than as a design choice -
+  worth the owner's eye specifically.
+- `minimalist.ledger` composed with **no panel at all**: mark and words sit directly on the
+  picture.
+
+**The frames are on the review page** (`benchmarks/pro/evidence/review.html`, served over HTTP -
+`file://` will not load them), transparent, over the backdrop switcher, each with its brief, the
+language the model named, its rationale, the palette, the platform's adjustments, the cost and the
+validator's own words. **No verdict is printed anywhere on it.**
+
+**Still owed after this**: a real HOSTED generation a person watched - these 18 ran through the
+bench's route, not through `/api/ai/pro-generations`. The hosted WALK is now covered end to end
+with a stub (above), and the entitlement gate is what stops the throwaway test account from
+running the real thing locally: `ai.pro` is owner + `@arcada.fi` only, and granting it to a test
+account to make a spec pass would be the gate telling itself what it wants to hear.
