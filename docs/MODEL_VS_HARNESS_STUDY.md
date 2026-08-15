@@ -92,33 +92,116 @@ air rates.
 
 ## 4. Cost and record
 
+**RAN 2026-08-15.** 24 of 24 generations captured, zero generation failures, one repair
+round total (`long-name.harness-frontier`). The gateway reports **no cost at all for
+anthropic routes** (a served call comes back $0.0000 - measured by `--probe`), so every
+frontier row's cost is ESTIMATED locally at $3/$15 per Mtok and labeled `costSource:
+"estimated"` in the ledger; open-route rows are gateway-reported.
+
 | item | estimate | actual |
 | --- | --- | --- |
-| probe (both routes, tiny) | ~$0.03 | _pending_ |
-| bare-open + harness-open (12 gens) | ~$0.25 | _pending_ |
-| bare-frontier (6 gens) | ~$0.6 | _pending_ |
-| harness-frontier (6 gens) | ~$1.5 | _pending_ |
-| reasoning capture (1 call) | ~$0.3 | _pending_ |
-| **total (ceiling $4)** | **~$2.7** | _pending_ |
+| probes (2 runs, both routes) | ~$0.03 | ~$0.05 |
+| bare-open (6 gens) | ~$0.05 | $0.010 |
+| harness-open (6 gens) | ~$0.2 | $0.105 |
+| bare-frontier (6 gens) | ~$0.6 | $0.256 (est) |
+| harness-frontier (6 gens) | ~$1.5 | $2.068 (est) |
+| reasoning capture (1 call, 13,558 out) | ~$0.3 | $0.206 (est) |
+| **total (ceiling $4)** | **~$2.7** | **~$2.70** |
 
-Actual spend is recorded here and in `docs/AI_ATTEMPTS.md` when the round completes.
+Archive: `C:\claude\noacg-lite-eval-archive\model-vs-harness-2026-08-15` (395 files,
+copy verified). The out-dir is gitignored and dies with the worktree; the archive does not.
 
 ## 5. Outcome
 
-_Pending the owner's ballot._ The gallery is built blind; the ballot comes back as
-`mvh-ballot.jsonl`; `--verdict` prints the readings; the outcome lands here and in
-`docs/AI_ATTEMPTS.md`, with the consequence for Lite and Pro spelled out against §7's four
-readings.
+_Pending the owner's ballot._ The blind sheet is `mvh-review.html` in the round's out-dir
+(and the archive); the ballot comes back as `mvh-ballot.jsonl`; `--verdict` prints the
+readings; the outcome lands here and in `docs/AI_ATTEMPTS.md`, with the consequence for
+Lite and Pro spelled out against §7's four readings.
+
+What the machine half already says (no visual claim in it): both harness arms came back
+6/6 validation-clean with 6/6 editable timelines - including the frontier model, where
+qwen's grammar-lesson rounds sat at 0-1/12, so the exemplar block converts the frontier
+checkpoint's regions too. Both bare arms are 0/6 against the house editability contracts,
+by construction: a bare emit follows no `:root` contract and no NOACG_ANIM region. That is
+the product trade the gallery prices: the bare arms are what the graphic LOOKS like
+unconstrained, the harness arms are what survives being editable, brandable and exportable.
+One bare-frontier item never settles (an idle pulse loop) - recorded, captured honestly.
 
 ## 6. The frontier reasoning transcript, decomposed into stages
 
-_Pending the capture._ The owner's separate ask: one frontier call narrates its complete
-design process for one creative brief (`--reasoning`, transcript in the round's out-dir and
-excerpted here), then the discrete decisions and their ORDER are listed, and each is judged
-against `docs/DESIGN_PRINCIPLES.md`'s ranking - remove the decision > measure > boundary >
-judgement. A decision becomes a proposed harness STAGE only where the platform can RUN it
-(level 1-3); a decision only expressible as prose taste stays a note, because prose has now
-twice been measured to move nothing.
+**CAPTURED 2026-08-15**: `claude-sonnet-5` on the `entertainment` brief, asked to narrate
+its complete design process before the code (`reasoning-entertainment.md` in the round's
+out-dir and the archive). It produced 14 numbered decisions in a stable order:
+
+1. Resolve the brief's tone CONFLICT by assigning each adjective a carrier channel
+   (playful → colour + shape; premium → motion + material) - and it states this split
+   "governs every later choice".
+2. Treat the two fields as UNEQUAL SHAPES, not two lines in one box - the role becomes a
+   pill kicker overlapping a large-radius bar. This is the DEVICE - the per-design idea
+   §6 of the corpus doc says our geometry instruments cannot see.
+3. Reject one shape option to make the geometry a SYSTEM (full pill "too soft"; radius
+   contrast rectangle-vs-pill "reads as intent").
+4. Palette anchored dark where text sits; ONE brightest element (name white, kicker warm
+   cream "so the two lines don't compete for brightest element").
+5. A single continuous-motion budget: exactly one element may move on the hold (the
+   accent pulse), "everything else is static once settled".
+6. Material language (glass chip) ties the playful shape to the premium half.
+7. A one-time entrance-only sheen - premium without ongoing clutter.
+8. Typography compensates for fallback fonts with weight and tracking.
+9. Long-text safety as a per-field auto-fit with explicit floors, run on every update().
+10. The panel hugs content with a hard cap.
+11. Broadcast-safe placement, right two-thirds deliberately left free.
+12. Motion mechanics: reveal by clip-path (never scale - "scaling would squash the text"),
+    staggered kicker, exit faster than entrance.
+13. Operator semantics: next() becomes a re-cue attention bump.
+14. Robustness: try/catch update, CSS-hidden initial state.
+
+**The order is the finding.** The device decision (2-3) is made SECOND, right after brief
+interpretation, and everything downstream - palette, motion budget, materials - serves it.
+Our harness teaches contracts and taste criteria but never requires a device decision to
+EXIST, and the safe answer to every contract is a correct plain panel - the §6 selection
+effect. Decisions 9, 10, 11, 14 are things our platform or house contracts already own or
+enforce: the frontier model spent tokens reinventing them, which is exactly the half a
+harness SHOULD carry so the model's budget goes to 1-8.
+
+Proposed stages, ranked by `docs/DESIGN_PRINCIPLES.md` (remove the decision > measure >
+boundary > judgement). A stage is something the platform RUNS, not a prompt line asking
+for the behaviour:
+
+- **Remove the decision (level 1):**
+  - The platform injects the proven AUTO-FIT (decision 9) into custom-path emits and the
+    prompt stops asking for one - the model's hand-rolled fitters are the buggiest part of
+    every bare emit, and the wizard already owns a correct one (`textFit`).
+  - The platform SEATS placement (decision 11) on the custom path the way `fillBrandMark`
+    seats a mark - zone and safe-area become platform writes, not model CSS.
+- **Measure (level 2):**
+  - DEVICE-EXISTS proxy (decisions 2-3): on the rendered frame, the two text containers'
+    geometry must be DISTINGUISHABLE (shape, radius, fill or axis - not only font size).
+    Reported per generation like the spacing instruments; a plain box scores 0 and that
+    becomes visible instead of silently passing every gate.
+  - ONE-BRIGHTEST-ELEMENT (decision 4): luminance ordering of painted text - the primary
+    field's ink is the brightest text in the graphic, once.
+  - IDLE-MOTION BUDGET (decision 5): the settle detector already finds idle loops; count
+    independently-animating elements on the hold and report >1.
+  - EXIT FASTER THAN ENTRANCE (decision 12): read both durations off the converted
+    timeline; report inversions.
+- **Boundary (level 3):**
+  - Text-bearing elements never reveal by scale - clip/mask/slide only (decision 12's
+    "squashed text", already half-present as the skew/rotation rule).
+- **Stage the SEQUENCE itself:** force the device decision to exist as structured output
+  BEFORE code (a `device` field naming the shape system and which container carries it),
+  then check the emit against the level-2 device proxy. This is the piece a cheap model
+  can be forced through: the point is not that qwen will invent sonnet's pill kicker, it
+  is that "no device" stops being a silent default and becomes a visible, rejectable
+  answer.
+- **Stays prose (level 4 - deliberately NOT proposed as stages):** the tone-conflict
+  channel split (1), material language (6), typography compensation (8). Prose taste has
+  twice been measured to move nothing; these wait until the ballot says whether the
+  harness suppresses what they produce.
+
+None of this ships from this study: it is the ablation menu for the `A >> D` reading. If
+the ballot reads `A ≈ B` instead, the checkpoint is not the bottleneck and the device
+stage is the first experiment for the OPEN model inside the harness.
 
 ## Appendix: the footage bed
 

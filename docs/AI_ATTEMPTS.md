@@ -12,6 +12,46 @@ Live contract: `src/ai/AGENTS.md`. Deadline plan: `docs/AI_LITE_PLAN.md`.
 
 ---
 
+### The model-vs-harness four-arm study
+**2026-08-15 · `alibaba/qwen3-coder` + `anthropic/claude-sonnet-5` · 24 of 24 captured,
+~$2.70 of a $4 authorization · BALLOT PENDING - no visual verdict exists yet.** The
+experiment `docs/LOWER_THIRDS_REFERENCE_CORPUS.md` §7 designed: the same six no-logo Pro
+briefs through a BARE arm (the product's own `RAW_SYSTEM` baseline plus the f0/f1 field
+contract - one call, no repair, no conversion, rendered verbatim) and the FULL HARNESS arm
+(the spike's exemplar configuration) on both checkpoints, pinned decoding, all 24 rendered
+identically over one real-footage bed and captured with the shared Lite lifecycle rig.
+Blind flat-shuffled gallery; predeclared readings and their operationalization are
+`docs/MODEL_VS_HARNESS_STUDY.md` §3 (written before the ballot); rig
+`scripts/model-vs-harness.mjs`; archive `noacg-lite-eval-archive/model-vs-harness-2026-08-15`.
+
+Machine facts that are safe to state before the ballot: both harness arms 6/6
+contract-clean with 6/6 EDITABLE timelines - the exemplar block converts the frontier
+checkpoint's regions too - and both bare arms 0/6 against the house editability contracts
+by construction, which is precisely the product trade the gallery prices. One repair round
+fired in 24 generations (`long-name` on the frontier harness arm, and its repair re-sends
+the whole exemplar prompt: $0.79 of the round's $2.44 is that one brief).
+
+Three traps paid for and kept: **the gateway reports $0.0000 for anthropic routes**, so a
+cost ceiling fed the reported number never trips - frontier rows are priced locally from
+usage tokens and labeled `estimated`; **a frontier bare emit writes an SPX-definition
+SHAPE the parser rightly rejects** (`dataFields`/`id`/`type` for `DataFields`/`field`/
+`ftype`), so the capture drive falls back to the pinned f0/f1 contract rather than
+un-driving one arm and breaking the §7 viewing-conditions control; and the corpus reel
+never leaves a clean multi-second window, so the shared footage bed is three delogo'd
+graphic-free frames with a slow push - a recorded compromise, identical across arms,
+which is the variable that matters.
+
+SEPARATELY, the owner's ask: the frontier checkpoint narrated its full design process for
+one creative brief before writing code (~$0.21, `reasoning-entertainment.md` in the
+archive) - 14 ordered decisions, decomposed in `docs/MODEL_VS_HARNESS_STUDY.md` §6 into
+proposed platform STAGES ranked by `docs/DESIGN_PRINCIPLES.md` (the device-exists proxy,
+the one-brightest-element and idle-motion-budget measurements, platform-injected auto-fit
+and seated placement). Nothing ships from it: it is the ablation menu for the `A >> D`
+reading.
+**RETRY WHEN** - not a retry; the round is complete and waiting on the owner's ballot
+(`mvh-ballot.jsonl` → `node scripts/model-vs-harness.mjs <dir> --verdict=<ballot>`).
+The verdict and its §7 consequence land here when the ballot does.
+
 ### The brand round - originality conditioned on a customer's own brand
 **2026-08-13 · NoaCG Pro Phase 1 · `alibaba/qwen3-coder` · 30 of 30 captured, $0.63 of a $1 cap ·
 OWNER READ: roughly half airable, and the new named defect is the MARK'S SURFACE, not its
