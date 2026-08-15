@@ -1274,6 +1274,41 @@ text outside its rebuilt panels must not be presented as usable. On the 2026-08-
 would have caught three of the four broken frames. It does not produce a good graphic; it stops
 the product asserting a broken one is fine.
 
+### DONE 2026-08-15 - the refusal is a blocking code
+
+`ProCompileReport` now records the refusal STRUCTURALLY (`bakedTextRefused`, the field labels;
+`ringRefused`), and one seam - `validateProCompile` in `pro/compile.ts` - folds the
+compiler's own findings into the injected gate's verdict. `pipeline.ts`, `stub.ts` and
+`pro-bench.mjs` all go through it, so no engine can deliver a compile whose refusals were
+never scored. Two codes, split by how badly the graphic is hurt:
+
+| Code | Severity | What it means |
+|---|---|---|
+| `pro-baked-text` | ERROR, one per refused region | the concept's own words are still in the artwork under the live field - the graphic prints them twice |
+| `pro-artwork-ring` | warning | a thin band of the concept's backdrop rides the edges over live video |
+
+Consequences, in the order a user meets them: the wizard's result card says
+`✗ N check(s) failing` instead of `✓ Passes SPX validation`, and the finding is shown as a
+blocking ✗ rather than the ⚠ every unrowed finding used to wear; `reportProOutcome` sends
+`failed` with `platform_validation` and the codes, so the ledger row carries
+`validation_rule_codes = {pro-baked-text,…}` instead of nothing; and `pro-bench` scores it,
+because `pass` reads `validation.ok`.
+
+**Reproduced and measured on the checked-in fixture bank, free.** Before: 9/12 pass, and
+`corporate` was one of them - two baked-text refusals in `report.warnings`,
+`validationErrors: []`, `pass: true`, the §16 defect exactly. After: 8/12, `corporate`
+failing on two `pro-baked-text` errors, `minimalist` and `multiline-title` (already failing
+as SOURCE-LIMITED) now also naming the ghost, and **every one of the nine clean fixtures
+unchanged**. Mutation-tested both ways in `e2e/pro.spec.ts`: dropping the error lets the
+gradient case pass, and emitting a spurious one fails the flat case and the clean offline
+pipeline.
+
+**What this does NOT do.** It blocks nothing at the wizard's Create button and repairs
+nothing - the compile is deterministic, so the honest advice stays "generate a new design".
+And it is a browser-side verdict: the server records what the browser reports, which is the
+same trust boundary every `pro-outcome` field already sits on (the SPEND is settled
+server-side and is not affected).
+
 ### What it says about §15
 
 **The panel the model designed was good.** Clean type, sensible hierarchy, restrained accent.
