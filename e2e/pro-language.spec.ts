@@ -242,4 +242,106 @@ test.describe('the platform owns the Phase A panel', () => {
     expect(floors.subtle.px).toBeGreaterThanOrEqual(30);
     expect(floors.subtle.weight, 'a big enough supporting line keeps the weight it asked for').toBe(400);
   });
+
+  /**
+   * THE MARK FIELD IS ON, AND THE TRIGGER IS WHAT WAS RULED ON (owner, 2026-08-15, §15.8).
+   *
+   * The three probes below are the three cases the ruling turns on, and the middle one is the
+   * whole reason the field can be trusted: an older MEAN-luminance signal flagged the coloured
+   * roundel, a rendered A/B showed the field made it worse, and the owner's blind read had
+   * passed it. `inkSpread` separates the two by two orders of magnitude, so a drift that widens
+   * the single-ink band fails HERE rather than quietly restoring the false positive.
+   */
+  test('the mark field fires on the ink that vanishes and leaves a coloured mark alone', async ({ page }) => {
+    const cases = await page.evaluate(async () => {
+      const { composeFromLanguage } = await import('/src/ai/pro/language/compose.ts');
+      const { HOUSE_LANGUAGE } = await import('/src/ai/pro/language/contract.ts');
+      // A dark panel, which is what every one of the flagged cells had.
+      const language = {
+        ...HOUSE_LANGUAGE,
+        palette: { ...HOUSE_LANGUAGE.palette, panel: '#101828' },
+        shape: { ...HOUSE_LANGUAGE.shape, panel: 'solid' as const },
+      };
+      const compose = (
+        probe: { inkLuminance: number; inkSpread?: number; backing?: 'transparent' | 'own-field' },
+        markField?: boolean,
+      ) => composeFromLanguage(language, {
+        lines: [{ title: 'Name', sample: 'Alexandra Riva' }, { title: 'Role', sample: 'Host' }],
+        logo: {
+          assetPath: 'images/mark.svg',
+          images: [{ path: 'images/mark.svg', data: 'data:image/svg+xml;base64,' }],
+          backing: 'transparent' as const,
+          ...probe,
+        },
+        ...(markField === undefined ? {} : { markField }),
+      });
+      const codes = (r: { adjustments: string[] }) => r.adjustments;
+      return {
+        // The institutional MONOGRAM: one dark ink on a dark panel, 1.00:1 - invisible.
+        monogram: codes(compose({ inkLuminance: 0.02, inkSpread: 0.0004 })),
+        // The consumer ROUNDEL: several inks, a mid-tone mean that measures badly and reads fine.
+        roundel: codes(compose({ inkLuminance: 0.491, inkSpread: 0.2053 })),
+        // A probe from before `inkSpread` existed: cannot tell, so do not touch it.
+        older: codes(compose({ inkLuminance: 0.02 })),
+        // …and the option is still an option, for an A/B or a re-ruling.
+        monogramOptedOut: codes(compose({ inkLuminance: 0.02, inkSpread: 0.0004 }, false)),
+        css: compose({ inkLuminance: 0.02, inkSpread: 0.0004 }).template.css,
+      };
+    });
+
+    expect(cases.monogram, 'a single dark ink on a dark panel takes its field').toContain('mark_field_painted');
+    expect(cases.roundel, 'a coloured mark is left alone').not.toContain('mark_field_painted');
+    expect(cases.older, 'no spread means cannot tell, and cannot tell means do not touch it')
+      .not.toContain('mark_field_painted');
+    expect(cases.monogramOptedOut, 'markField:false still composes the un-repaired graphic')
+      .not.toContain('mark_field_painted');
+    // A BAND, not a box: the field is the mark's own column stretched to the words beside it.
+    expect(cases.css).toContain('align-self: stretch');
+    expect(cases.css).toContain('object-fit: contain');
+  });
+
+  /**
+   * THE LEDGER ROW CAN TELL A CLEAN GENERATION FROM A RESCUED ONE (§16, `gate.ts`).
+   *
+   * The defect this closes: the outcome report sent ERRORS only, so a graphic the platform had
+   * repaired wrote an empty `validation_rule_codes` beside a `usable` status. The filter's two
+   * halves are asymmetric on purpose and both are pinned - every error survives, and only
+   * Pro's own warnings do.
+   */
+  test('the outcome carries every error and only the platform\'s own warnings', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { proRuleCodes, proLanguageFindings } = await import('/src/ai/pro/language/gate.ts');
+      const codes = proRuleCodes({
+        ok: false,
+        errors: [{ rule: 'spx-missing-field', message: 'x' }, { rule: 'bench-overlap', message: 'y' }],
+        warnings: [
+          { rule: 'pro-palette-repaired', message: 'a' },
+          { rule: 'bench-mark-unreadable', message: 'b' },
+          { rule: 'bench-line-wrap', message: 'c' },
+          { rule: 'pro-palette-repaired', message: 'a again' },
+        ],
+      });
+      const findings = proLanguageFindings(
+        {
+          adjustments: ['palette_text_dim_lightness_clamped', 'mark_field_painted'],
+          notes: ['mark field: the mark reads 1.01:1 on this panel'],
+        },
+        ['typography.fontId→space-grotesk'],
+      );
+      return { codes, findings: findings.map((f) => f.rule) };
+    });
+
+    // Errors: all of them, whoever raised them - an error is why the row says `failed`.
+    expect(result.codes).toContain('spx-missing-field');
+    expect(result.codes).toContain('bench-overlap');
+    // Warnings: Pro's own, deduped; the chatty bench ones stay off a 30-slot wire.
+    expect(result.codes).toContain('pro-palette-repaired');
+    expect(result.codes.filter((c) => c === 'pro-palette-repaired')).toHaveLength(1);
+    expect(result.codes).not.toContain('bench-mark-unreadable');
+    expect(result.codes).not.toContain('bench-line-wrap');
+    // …and every platform divergence the composer records becomes one of those codes.
+    expect(result.findings).toEqual(
+      expect.arrayContaining(['pro-palette-repaired', 'pro-mark-field', 'pro-language-fallback']),
+    );
+  });
 });

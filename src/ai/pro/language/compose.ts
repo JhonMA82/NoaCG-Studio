@@ -47,11 +47,22 @@ export interface ComposeOptions {
   /**
    * PAINT THE MARK'S COLUMN when its ink cannot read on the panel the language chose.
    *
-   * DEFAULT OFF, because it is not mine to turn on: the standing rule is that a mark carries no
-   * plate (owner, 2026-08-14), decided when the platform did NOT own the composition and a well
-   * could only ever be a patch over someone else's design. Phase A changes that premise and the
-   * blind read of the first round found the cost of leaving it - an invisible mark reads as an
-   * unfinished graphic - so the option exists to be SEEN before it is ruled on.
+   * **DEFAULT ON since 2026-08-15 (owner's ruling, docs/NOACG_PRO_PLAN.md §15.8).** What was
+   * ruled on is the TRIGGER, not the policy: `markFieldFor` fires only on a SINGLE-INK mark
+   * (`MarkProbe.inkSpread` under `MARK_SINGLE_INK_SPREAD`) that measures under the contrast
+   * floor on the chosen panel, which over the 18-cell round is once - on the institutional
+   * monogram the owner himself named as making the graphic look unfinished. The two coloured
+   * roundels the older mean-luminance signal flagged are left alone, because a rendered A/B
+   * showed the field made both WORSE and the blind read had passed them.
+   *
+   * The standing no-plate rule (2026-08-14) was written when the platform did NOT own the
+   * composition, where a well could only ever be a patch over someone else's design. Phase A
+   * changes that premise: the platform draws the whole composition and knows the mark's ink
+   * before the panel colour is chosen, so this is a designed band (`align-self: stretch`, a
+   * segment of the panel) rather than a rectangle pasted behind a logo.
+   *
+   * It stays an OPTION rather than becoming unconditional so a caller measuring the composition
+   * without a repair - an A/B, a future re-ruling - can still ask for that.
    */
   markField?: boolean;
 }
@@ -424,7 +435,9 @@ export function variantForLanguage(language: DesignLanguage, markField = ''): Te
  */
 export function composeFromLanguage(language: DesignLanguage, options: ComposeOptions): ComposedGraphic {
   const s = resolveSpacing(language);
-  const field = options.markField && options.logo ? markFieldFor(language, options.logo) : null;
+  // ON unless a caller explicitly asks for the un-repaired composition - see `ComposeOptions`.
+  const markField = options.markField ?? true;
+  const field = markField && options.logo ? markFieldFor(language, options.logo) : null;
   const variant = variantForLanguage(language, field ? markFieldCss(field.fill, s, field.reason) : '');
   // Every divergence from what the model asked for, said out loud. A repair the ledger cannot
   // count is a promise nobody can check (the Lite brand rule, `docs/AI_LITE_BRAND_PLAN.md` §3.2).

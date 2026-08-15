@@ -14,13 +14,19 @@ import { startNewProject } from '../_create';
 // WHAT IS REAL AND WHAT IS STUBBED, and why each is what it is:
 //
 //  - REAL: the backend half of the AND (`isBackendConfigured()`), the account and its access
-//    token, the wizard, the whole browser pipeline - interpretation normalization, the crop,
-//    the panel rebuild, the field placement, the production validator with its live bench.
+//    token, the wizard, the whole browser pipeline - language normalization, the composer, the
+//    catalog assembler it builds through, and the production validator with its live bench.
 //  - STUBBED: `/api/ai/pro-status` (except in the reachability test below), the reservation,
-//    the outcome, and the two model calls. Three reasons, all binding: a real generation SPENDS
-//    REAL MONEY (~$0.08 measured, `docs/ADMIN.md` §9), a real reservation writes a row into the
-//    operator's actual ledger, and hosted Pro is entitlement-gated to the owner and @arcada.fi
-//    accounts - so the throwaway test account could never see the door however the suite ran.
+//    the outcome, and the ONE model call. Three reasons, all binding: a real generation spends
+//    real money, a real reservation writes a row into the operator's actual ledger, and hosted
+//    Pro is entitlement-gated to the owner and @arcada.fi accounts - so the throwaway test
+//    account could never see the door however the suite ran.
+//
+// UPDATED 2026-08-15 with the engine it covers (docs/NOACG_PRO_PLAN.md §15, §16). Pressing
+// Create used to spend two calls - a concept IMAGE and an interpretation of it - and now spends
+// exactly one, for the design LANGUAGE the platform composes in. The walk is the same walk; what
+// changed is how many calls one reservation has to pay for, which is the thing this spec exists
+// to measure.
 //
 // So these specs assert THE WALK: the door appears, the allowance the panel shows came from
 // the server, every model call is metered against one reservation, and the generation reaches
@@ -28,49 +34,33 @@ import { startNewProject } from '../_create';
 // that verdict is being changed elsewhere, and a spec pinning today's answer would be a spec
 // that has to be edited to let an improvement land.
 
-/** A 1376x300 concept, drawn in the page. The image model returns tightly framed artwork
- *  (`proConceptPrompt`), and the compile's placement arithmetic reads its real pixels, so a
- *  1x1 placeholder would exercise a shape nothing in production produces. */
-async function drawConcept(page: Page): Promise<string> {
-  return page.evaluate(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1376;
-    canvas.height = 300;
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#16181d';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#f5a623';
-    ctx.fillRect(0, 0, 12, canvas.height);
-    return canvas.toDataURL('image/png').split(',')[1];
-  });
-}
-
-/** The interpretation the stubbed model returns for that artwork: one strap, two live lines. */
-const INTERPRETATION = {
-  version: 1,
-  graphicType: 'lower-third',
-  graphicTypeConfidence: 0.97,
-  canvasPlacement: { widthNorm: 0.6, xNorm: 0.0625, yNorm: 0.65 },
-  regions: [
-    {
-      kind: 'panel', bbox: { x: 0, y: 0, w: 1, h: 1 }, confidence: 0.99,
-      treatment: 'rebuild-shape',
-      panel: { shape: 'panel', fill: { kind: 'solid', color: '#16181d' }, opacity: 1 },
-    },
-    {
-      kind: 'text', bbox: { x: 0.08, y: 0.2, w: 0.5, h: 0.22 }, confidence: 0.95,
-      treatment: 'rebuild-text', role: 'person-name', suggestedTitle: 'Name', sampleText: 'Maya Chen',
-    },
-    {
-      kind: 'text', bbox: { x: 0.08, y: 0.58, w: 0.42, h: 0.15 }, confidence: 0.95,
-      treatment: 'rebuild-text', role: 'person-role', suggestedTitle: 'Title', sampleText: 'Anchor',
-    },
-  ],
-  animation: { presetId: 'design-fade', speed: 1 },
-  warnings: [],
+/**
+ * The design language the stubbed model returns - a complete, legible answer, so this walk
+ * measures the WALK rather than the normalizer's fallbacks. It is the shape `emit_design_language`
+ * forces (src/ai/pro/language/contract.ts): enums, four hex colours and a bundled font id, and
+ * not one number the model could get wrong.
+ */
+const LANGUAGE = {
+  name: 'Harbour Nightly',
+  rationale: 'A public-service election desk: deep navy, one gold accent, calm and authoritative.',
+  palette: { accent: '#c8a24a', panel: '#101b2e', text: '#ffffff', textDim: '#b9c2d0' },
+  typography: {
+    fontId: 'space-grotesk',
+    headingWeight: 'bold',
+    supportingWeight: 'medium',
+    step: 'clear',
+    headingCase: 'as-written',
+    supportingCase: 'caps',
+    tracking: 'normal',
+  },
+  shape: { corner: 'sharp', panel: 'solid' },
+  accent: { form: 'edge-bar', weight: 'medium' },
+  density: 'balanced',
+  motion: { character: 'reveal', pace: 'measured' },
 };
 
-const USAGE = { inputTokens: 900, outputTokens: 1400, totalTokens: 2300 };
+/** A language is a page of enum values, which is the whole economic argument for Phase A. */
+const USAGE = { inputTokens: 1800, outputTokens: 420, totalTokens: 2220 };
 
 const RESERVATION = {
   generationId: '5b9b6f2e-6c1f-4a3d-9f2a-2f7c1a4d8e01',
@@ -193,10 +183,11 @@ test.describe('hosted NoaCG Pro (configured)', () => {
     let allowance = { daily: 7, monthly: 41 };
     /** Every hosted call the browser made, in order - the metering contract as a timeline. */
     const calls: string[] = [];
-    const outcomes: { generationId: string; status: string }[] = [];
+    const outcomes: { generationId: string; status: string; ruleCodes?: string[] }[] = [];
     /** The reservation id each model call was charged to. */
     const chargedTo: (string | undefined)[] = [];
-    let conceptBase64 = '';
+    /** Which tool each model call forced - the engine, named by what it asks the model for. */
+    const toolsAsked: (string | undefined)[] = [];
 
     await withHostedPro(page, () => allowance);
     await page.route('**/api/ai/pro-generations', async (route: Route) => {
@@ -212,7 +203,9 @@ test.describe('hosted NoaCG Pro (configured)', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RESERVATION) });
     });
     await page.route('**/api/ai/pro-outcome', async (route: Route) => {
-      const body = route.request().postDataJSON() as { generationId: string; status: string };
+      const body = route.request().postDataJSON() as {
+        generationId: string; status: string; ruleCodes?: string[];
+      };
       calls.push('outcome');
       outcomes.push(body);
       // The server is the thing that knows what is left, so the panel must ASK it again rather
@@ -222,28 +215,30 @@ test.describe('hosted NoaCG Pro (configured)', () => {
     });
     await page.route('**/api/ai/generate', async (route: Route) => {
       const body = route.request().postDataJSON() as {
-        request: { expect?: string };
+        request: { expect?: string; tool?: { name?: string } };
         proGenerationId?: string;
       };
-      const image = body.request.expect === 'image';
-      calls.push(image ? 'concept' : 'interpret');
+      calls.push('design');
       chargedTo.push(body.proGenerationId);
+      toolsAsked.push(body.request.tool?.name);
+      // NO IMAGE IS EVER ASKED FOR. Failing loudly rather than fulfilling is deliberate: an
+      // image request reaching here means the retired concept engine is live again, and a stub
+      // that quietly answered it would let that ship (docs/NOACG_PRO_PLAN.md §16).
+      expect(body.request.expect ?? 'object', 'Pro asks for no image').not.toBe('image');
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          output: image ? null : INTERPRETATION,
+          output: LANGUAGE,
           usage: USAGE,
           provider: 'vercel',
-          model: image ? 'stub-image' : 'stub-text',
+          model: 'stub-text',
           attempts: [],
-          ...(image ? { images: [{ base64: conceptBase64, mediaType: 'image/png' }] } : {}),
         }),
       });
     });
 
     await openAiStep(page);
-    conceptBase64 = await drawConcept(page);
 
     // THE DOOR. This is the AND's true branch, and it exists on no other surface: offline the
     // second condition is false by construction, so the offline suite can only ever pin the
@@ -278,19 +273,34 @@ test.describe('hosted NoaCG Pro (configured)', () => {
     await expect(page.getByTestId('ai-readiness')).toBeVisible({ timeout: 120_000 });
     await expect(page.locator('.wz-step').getByText(/⏳/)).toHaveCount(0);
 
+    // …and the card tells its own story back: the language the model named, not a picture.
+    await expect(page.getByTestId('pro-report')).toContainText(LANGUAGE.name);
+
     // ONE RESERVATION PAYS FOR THE WHOLE GENERATION, and it is opened BEFORE any model call -
     // a call made outside a reservation is spend the server cannot admit, refuse or attribute.
     expect(calls[0]).toBe('reserve');
     expect(calls.filter((c) => c === 'reserve')).toHaveLength(1);
-    expect(calls).toContain('concept');
-    expect(calls).toContain('interpret');
-    expect(chargedTo).toEqual([RESERVATION.generationId, RESERVATION.generationId]);
+    // EXACTLY ONE MODEL CALL, and it asks for a design language. That is the engine, pinned by
+    // what it spends rather than by what it imports: the retired path made two calls, the first
+    // of which was a flat-rate image the compiler then failed to keep (§16).
+    expect(calls.filter((c) => c === 'design')).toHaveLength(1);
+    expect(toolsAsked).toEqual(['emit_design_language']);
+    expect(chargedTo).toEqual([RESERVATION.generationId]);
 
     // The outcome closes the reservation the calls were charged to. WHICH outcome is the
     // usability verdict again, so only the vocabulary is pinned.
     expect(outcomes).toHaveLength(1);
     expect(outcomes[0].generationId).toBe(RESERVATION.generationId);
     expect(['usable', 'failed', 'accepted']).toContain(outcomes[0].status);
+    // The row's codes are errors plus Pro's OWN warnings, never the runtime bench's chatty
+    // observations - those would evict the Pro codes off a 30-slot wire, which is the whole
+    // reason the filter is asymmetric (src/ai/pro/language/gate.ts). A passing generation
+    // therefore carries only `pro-` codes, or none.
+    const codes = outcomes[0].ruleCodes ?? [];
+    if (outcomes[0].status !== 'failed') {
+      expect(codes.filter((code) => !code.startsWith('pro-'))).toEqual([]);
+    }
+    expect(new Set(codes).size, 'the row never repeats a code').toBe(codes.length);
 
     // …and the panel now shows what the SERVER says is left, not a client-side decrement.
     await expect(note).toContainText('6 generation(s) left today');

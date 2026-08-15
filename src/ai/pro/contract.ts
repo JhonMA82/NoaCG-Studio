@@ -28,9 +28,26 @@ import type { ModelContentBlock, ModelRoute } from '../modelTypes';
  * first time these are re-benched, and the admin page would then confidently name the wrong
  * model. `pipeline.ts` re-exports it, so every existing import keeps working.
  */
-export const PRO_STANDARD_ROUTES: { concept: ModelRoute; interpret: ModelRoute } = {
+export const PRO_STANDARD_ROUTES: { concept: ModelRoute; interpret: ModelRoute; language: ModelRoute } = {
   concept: { provider: 'vercel', model: 'google/gemini-3.1-flash-image' },
   interpret: { provider: 'vercel', model: 'google/gemini-2.5-flash' },
+  /**
+   * THE ROUTE THE PRODUCT ACTUALLY RUNS since 2026-08-15 (docs/NOACG_PRO_PLAN.md §15, §16):
+   * Phase A's single design-language call.
+   *
+   * It is the SAME route as `interpret`, deliberately and not by accident of copying. Three
+   * reasons, in the order they bind: the §15.8 round that produced the 26/30 blind read ran on
+   * exactly this model, so naming another one would ship an engine nobody has read the output
+   * of; the server's funded route list is `[concept, interpret]` (api/_lib/aiProProfile.ts), so
+   * this call is admitted with no server change and no new approved-catalog entry; and a
+   * language answer is a page of enum values, which is the cheap end of the same text model
+   * the interpretation used to spend 2-3k output tokens on.
+   *
+   * It is a SEPARATE KEY rather than a reference to `interpret` because the product should name
+   * the stage it runs, not borrow the name of a retired one - the two diverge the day either is
+   * re-benched on its own merits.
+   */
+  language: { provider: 'vercel', model: 'google/gemini-2.5-flash' },
 };
 
 /**

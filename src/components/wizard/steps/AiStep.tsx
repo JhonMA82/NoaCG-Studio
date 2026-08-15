@@ -21,18 +21,24 @@ import { mergeSafety } from '../../../ai/safety';
 import { assembleGroundedTemplate, productionSpxValidator } from '../../../ai/litePipeline';
 import { benchStructuralIntent } from '../../../validation/structuralIntentCheck';
 import { demoteSpecFields, withSpecChecks } from '../../../ai/spec/specValidate';
+import { PRO_STANDARD_ROUTES } from '../../../ai/pro/contract';
 import {
-  compileProConcept,
-  generateProConcept,
-  PRO_STANDARD_ROUTES,
-  ProCostCeilingError,
-  type ProResult,
+  generateProGraphic,
+  type ProGenerateResult,
+  type ProMark,
   type ProStage,
-} from '../../../ai/pro/pipeline';
+} from '../../../ai/pro/language/pipeline';
+import { proRuleCodes } from '../../../ai/pro/language/gate';
 import { loadProStatus, openProSession, reportProOutcome } from '../../../ai/pro/session';
 import { isBackendConfigured } from '../../../backend/config';
 import type { ProStatusResponse } from '../../../ai/proTypes';
-import { PRO_SUPPORTED_CATEGORIES, standardProBrief } from '../../../ai/pro/brief';
+import {
+  PRO_SUPPORTED_CATEGORIES,
+  proLines,
+  proMarkDescriptor,
+  standardProLanguageBrief,
+} from '../../../ai/pro/brief';
+import { probeMark } from '../../../assets/assetInfo';
 import {
   emptyGenerationSpec,
   loadSpecDraft,
@@ -161,11 +167,10 @@ function shortlistOf(change: AiTemplateChange | undefined): TemplateVariant[] {
   return change.shortlist.map((id) => variantById(id)).filter((v): v is TemplateVariant => Boolean(v));
 }
 
-/** The Pro pipeline's stage names, in the busy line's voice (docs/NOACG_PRO_PLAN.md §7). */
+/** The Pro pipeline's stage names, in the busy line's voice (docs/NOACG_PRO_PLAN.md §15). */
 const PRO_STAGE_LABELS: Record<ProStage, string> = {
-  concept: 'Generating the visual concept…',
-  interpret: 'Interpreting the design…',
-  compile: 'Rebuilding it as editable layers…',
+  design: 'Designing the on-air look…',
+  compose: 'Building the graphic in it…',
   validate: 'Validating and testing playout…',
 };
 
@@ -403,7 +408,7 @@ export default function AiStep({
   const [lastSpec, setLastSpec] = useState<DesignSpec | null>(null);
   // The Pro concept + editability report behind each pro-path template, keyed by the
   // template OBJECT so an archived then restored result still shows its own concept.
-  const proDetails = useRef(new WeakMap<SpxTemplate, ProResult>());
+  const proDetails = useRef(new WeakMap<SpxTemplate, ProGenerateResult>());
   // Harness mode: the generated directions (one, or the harness's three) + which one is
   // picked (the pick is staged as preference data and committed when the project is actually
   // created). The list SURVIVES a refinement — refining replaces only the picked entry, so
@@ -777,65 +782,83 @@ export default function AiStep({
       return;
     }
     if (proMode) {
-      // THE PRO TIER: the same brief, mapped deterministically onto the image-guided
-      // pipeline (src/ai/pro/brief.ts) and run on the STANDARD routes - a normal Pro user
-      // never picks models (PRO_STANDARD_ROUTES documents the choice). Offline (no gateway
-      // credential) the deterministic stub runs the identical flow without tokens.
+      // THE PRO TIER: the same brief, mapped deterministically onto the DESIGN-LANGUAGE call
+      // (src/ai/pro/brief.ts) and run on the standard route - a normal Pro user never picks
+      // models. The model decides the look; the platform composes the graphic through the
+      // catalog's own assembler (docs/NOACG_PRO_PLAN.md §15, §16).
       // Spec-field findings demote to warnings: Pro is a fixed lower-third contract with no
       // repair loop, the grounded-assembly rule (src/ai/spec/specValidate.ts).
       const proValidate: SpxValidator = async (t) => demoteSpecFields(await validate(t));
       void run(async (options) => {
-        const proBrief = standardProBrief(brief, activeSpec, uploads);
+        // THE USER'S OWN MARK, measured before anything is sent. Two unrelated things read the
+        // probe and both need it before the model answers: the brief describes the ink in
+        // content-free words, and the composer decides afterwards whether that ink can read on
+        // the panel the language chose (`markFieldFor`). The pixels never leave the machine.
+        const asIs = uploads.find((upload) => upload.purpose === 'asset') ?? null;
+        const probe = asIs ? await probeMark(asIs.asset) : null;
+        const mark: ProMark | null = asIs
+          ? {
+            assetPath: asIs.asset.path,
+            images: [asIs.asset],
+            ...(probe
+              ? {
+                inkLuminance: probe.inkLuminance,
+                inkSpread: probe.inkSpread,
+                backing: probe.backing === 'own-field' ? 'own-field' as const : 'transparent' as const,
+              }
+              : {}),
+          }
+          : null;
         // HOSTED PRO opens a reservation first: one allowance slot, one cost ceiling, covering
         // every model call the generation makes. There is no second path any more - the tier is
         // only offered where this reservation can be made (see `proOffered`), which is what
         // makes "no key to supply" true rather than merely written.
         const session = await openProSession();
-        options.onProgress?.(PRO_STAGE_LABELS.concept);
-        const concept = await generateProConcept(proBrief, PRO_STANDARD_ROUTES.concept, session);
-        const compileOptions = {
-          session,
-          resolution,
-          fps,
-          validate: proValidate,
-          onStage: (stage: ProStage) => options.onProgress?.(PRO_STAGE_LABELS[stage]),
-          interpretRoute: PRO_STANDARD_ROUTES.interpret,
-          // The user's own mark goes INTO the slot the compile places - deterministically,
-          // inside the pipeline, because nothing about which file belongs there is a model
-          // decision (src/ai/pro/logoAsset.ts) AND the gate must see the filled template.
-          // Without it an as-is upload asked the concept for a logo area, got a slot, and
-          // left the file behind.
-          logoMark: uploads.find((upload) => upload.purpose === 'asset') ?? null,
-        };
-        let compiled: ProResult;
+        let designed: ProGenerateResult;
         try {
-          compiled = await compileProConcept(proBrief, concept, compileOptions);
+          designed = await generateProGraphic(
+            {
+              language: standardProLanguageBrief(brief, activeSpec, probe ? proMarkDescriptor(probe) : null),
+              lines: proLines(activeSpec),
+              mark,
+              resolution,
+              fps,
+            },
+            PRO_STANDARD_ROUTES.language,
+            {
+              session,
+              validate: proValidate,
+              onStage: (stage: ProStage) => options.onProgress?.(PRO_STAGE_LABELS[stage]),
+            },
+          );
         } catch (error) {
           // The spend is already recorded server-side; what the ledger cannot see from there
           // is that the generation produced nothing usable. Report it and re-throw so the
           // user still sees the failure.
-          await reportProOutcome(session, 'failed', {
-            reason: error instanceof ProCostCeilingError ? 'cost_ceiling' : 'generation_failed',
-          });
+          await reportProOutcome(session, 'failed', { reason: 'generation_failed' });
           throw error;
         }
-        proDetails.current.set(compiled.template, compiled);
+        proDetails.current.set(designed.template, designed);
+        // THE LEDGER GETS THE WARNINGS TOO (`proRuleCodes`, src/ai/pro/language/gate.ts). Sending
+        // errors alone is the §16 hole from the other side: a graphic the platform quietly
+        // repaired wrote an EMPTY `validation_rule_codes` beside a `usable` status, so no row
+        // could tell a clean generation from a rescued one.
         await reportProOutcome(
           session,
-          compiled.validation && !compiled.validation.ok ? 'failed' : 'usable',
+          designed.validation && !designed.validation.ok ? 'failed' : 'usable',
           {
-            ...(compiled.validation && !compiled.validation.ok ? { reason: 'platform_validation' } : {}),
-            ruleCodes: compiled.validation?.errors.map((finding) => finding.rule) ?? [],
+            ...(designed.validation && !designed.validation.ok ? { reason: 'platform_validation' } : {}),
+            ruleCodes: proRuleCodes(designed.validation),
           },
         );
         const change: AiTemplateChange = {
-          template: compiled.template,
-          summary: `Image-guided design: ${compiled.report.textFields} editable text field(s), ${compiled.report.panelsRebuilt} rebuilt shape(s).`,
+          template: designed.template,
+          summary: `${designed.language.name}: ${designed.language.rationale}`,
           path: 'pro',
-          ...(compiled.validation ? { validation: compiled.validation } : {}),
+          ...(designed.validation ? { validation: designed.validation } : {}),
         };
         return change;
-      }, PRO_STAGE_LABELS.concept).then(() => {
+      }, PRO_STAGE_LABELS.design).then(() => {
         if (proHosted) void loadProStatus().then(setProStatus).catch(() => undefined);
       });
       return;
@@ -1099,9 +1122,9 @@ export default function AiStep({
           ))}
           {proMode && (
             <p className="hint" data-testid="pro-upload-note">
-              Uploads do not steer the design yet — an as-is mark asks the design for a logo
-              slot and is bundled into it, and colours read from your image can be applied as
-              the exact brand accent below.
+              An as-is mark is seated in the design and its shape and ink are measured, so the
+              look is chosen around it. Style references do not steer the design yet — colours
+              read from your image can be applied as the exact brand accent below.
             </p>
           )}
           {images.length > 0 && (
@@ -1195,7 +1218,12 @@ export default function AiStep({
               They belong to the empty state — once there is a thread they are noise. */}
           {turns.length === 0 && (
           <div className="row wrap" style={{ marginTop: 12, marginBottom: 6, gap: 6 }}>
-            {/* Pro shares Lite's example briefs: both are lower-third-first releases. */}
+            {/* Pro shares Lite's example briefs: both are lower-third-first releases.
+                TODO(claude/b-pro-brief-bank): swap Pro onto its OWN bank when session B's
+                exports land in main - one line, `proMode ? PRO_EXAMPLE_PROMPTS : …`. It is
+                worth doing: Pro now decides a design LANGUAGE for a whole channel, and a
+                Lite brief that describes one strap asks the wrong question. Inventing briefs
+                here instead would fork the bank the round is measured against. */}
             {((liteMode || proMode) ? LITE_EXAMPLE_PROMPTS : EXAMPLE_PROMPTS).map((ex) => {
               // A brief the user wrote themselves is real work; replacing it takes two clicks.
               const examples = (liteMode || proMode) ? LITE_EXAMPLE_PROMPTS : EXAMPLE_PROMPTS;
@@ -1501,8 +1529,8 @@ export default function AiStep({
                       that is not true, so there is no second branch here asking for a key. */}
                   <p className="hint" data-testid="ai-pro-hosted-note">
                     NoaCG Pro runs on NoaCG&apos;s own service — there is nothing to configure and
-                    no key to supply. It picks its own models for every stage, and the real cost
-                    of each generation is shown on the result.
+                    no key to supply. It picks its own model, and the real cost of each
+                    generation is shown on the result.
                     {proStatus?.allowance
                       ? ` ${proStatus.allowance.dailyStartsRemaining} generation(s) left today,
                           ${proStatus.allowance.monthlyStartsRemaining} this month.`
@@ -1616,48 +1644,57 @@ export default function AiStep({
                 </div>
               )}
               {routeLabel(lastPath) && <p className="hint" style={{ marginTop: 4 }}>{routeLabel(lastPath)}</p>}
-              {/* The Pro result's own story: the concept it was rebuilt from (with its real
-                  cost) and the per-region editability report - what became a live field, a
-                  rebuilt shape, or stayed raster, and why. */}
+              {/* The Pro result's own story: the DESIGN LANGUAGE the model decided, and every
+                  place the platform decided something for it. There is no concept image to show
+                  any more - the graphic IS the answer, rendered live above this card, and the
+                  picture the old engine displayed was the one thing it could not keep (§16). */}
               {lastPath === 'pro' && (() => {
                 const pro = proDetails.current.get(result);
                 if (!pro) return null;
-                const scoredMessages = new Set(
-                  [...(validation?.errors ?? []), ...(validation?.warnings ?? [])].map((f) => f.message),
-                );
+                const swatches: [string, string][] = [
+                  ['accent', pro.language.palette.accent],
+                  ['panel', pro.language.palette.panel],
+                  ['text', pro.language.palette.text],
+                  ['supporting', pro.language.palette.textDim],
+                ];
                 return (
                   <div className="wz-pro-concept" style={{ marginTop: 8 }} data-testid="pro-report">
-                    <img
-                      src={pro.concept.dataUrl}
-                      alt="Generated concept"
-                      style={{ maxWidth: '100%', borderRadius: 6, display: 'block' }}
-                    />
                     <p className="hint">
-                      {pro.concept.model === 'stub'
-                        ? 'Offline concept — drawn locally, no cost.'
-                        : `Concept by ${pro.concept.model}${pro.concept.costUsd !== null ? ` · $${pro.concept.costUsd.toFixed(4)}` : ''}`}
+                      <strong>{pro.language.name}</strong> — {pro.language.rationale}
                     </p>
-                    <p className="hint">
-                      {pro.report.textFields} editable text field(s) · {pro.report.panelsRebuilt} rebuilt
-                      shape(s){pro.report.artDropped ? ' · fully reconstructed, no raster left' : ''}
-                      {pro.report.textErased > 0 ? ` · ${pro.report.textErased} baked text region(s) erased from the artwork` : ''}
-                      {pro.report.flattened > 0 ? ` · ${pro.report.flattened} region(s) left flattened` : ''}
-                    </p>
+                    <div className="row" style={{ gap: 6, marginTop: 4 }} data-testid="pro-palette">
+                      {swatches.map(([role, hex]) => (
+                        <span
+                          key={role}
+                          title={`${role} ${hex}`}
+                          style={{
+                            width: 18, height: 18, borderRadius: 4, background: hex,
+                            border: '1px solid rgba(255,255,255,0.2)', display: 'inline-block',
+                          }}
+                        />
+                      ))}
+                      <span className="hint">
+                        {pro.language.typography.fontId} · {pro.language.density} · {pro.language.motion.character}
+                      </span>
+                    </div>
+                    {/* WHAT THE PLATFORM DECIDED, said out loud. A repair the user cannot see is
+                        a promise nobody can check (the Lite brand rule), and these are the same
+                        divergences the ledger row now carries as `pro-` codes. */}
                     <ul className="hint" data-testid="pro-outcomes">
-                      {pro.report.outcomes.map((outcome, index) => (
-                        <li key={index}>
-                          <strong>{outcome.label}</strong> — {outcome.note}
-                        </li>
+                      {pro.notes.map((note, index) => (
+                        <li key={index}>{note}</li>
                       ))}
                     </ul>
-                    {/* A refusal the gate now scores is shown by the readiness rows, as the
-                        blocking ✗ it is - repeating it here as a ⚠ would soften the same
-                        sentence one line below itself. */}
-                    {pro.report.warnings
-                      .filter((warning) => !scoredMessages.has(warning))
-                      .map((warning, index) => (
-                        <p key={index} className="hint" data-testid="pro-warning">⚠ {warning}</p>
-                      ))}
+                    {pro.fallbacks.length > 0 && (
+                      <p className="hint" data-testid="pro-warning">
+                        ⚠ {pro.fallbacks.length} design decision(s) came back unreadable and fell
+                        back to the house look.
+                      </p>
+                    )}
+                    <p className="hint">
+                      Designed by {pro.model}
+                      {pro.costUsd > 0 ? ` · $${pro.costUsd.toFixed(4)}` : ''}
+                    </p>
                   </div>
                 );
               })()}
@@ -1747,8 +1784,8 @@ export default function AiStep({
               )}
               {validation && !validation.ok && proMode && (
                 <p className="hint" style={{ marginTop: 8 }}>
-                  The compile from a concept is deterministic, so a failing check here is a
-                  NoaCG platform defect — generate a new design rather than spending repair calls.
+                  NoaCG builds this graphic deterministically, so a failing check here is a NoaCG
+                  platform defect — generate a new design rather than spending repair calls.
                 </p>
               )}
               {spent && (
