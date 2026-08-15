@@ -1394,7 +1394,32 @@ no palette, no typeface, no motion and no composition was called wrong. Ranked b
 - **Not a defect, by the owner's own ruling**: the mark shrinking under stress text. *"If it is
   actually so long then that is what we live with."*
 
-**THE MARK DECISION, for the owner.** The standing rule is *a mark carries NO PLATE* (2026-08-14),
+**THE MARK DECISION - ANSWERED BY A FREE A/B, AND THE ANSWER IS "THE TRIGGER, NOT THE POLICY".**
+`markFieldFor` + `markFieldCss` are built and DEFAULT OFF, and the same three flagged cells were
+re-composed from their saved `language.json` with the field off and on, for zero tokens
+(`scripts/.mark-field-ab.mjs`, throwaway). What that showed:
+
+| cell | mark ink on its panel | with the field |
+| --- | --- | --- |
+| the institutional MONOGRAM on its own navy | **1.00:1** - invisible | reads, and looks deliberate |
+| the consumer ROUNDEL on a cream panel (×2) | 1.91:1 by the gate | **worse** - a black tile it does not need |
+
+**The roundel reads perfectly without any field**, because it is a full-colour mark whose
+mid-tone ink measures badly and looks fine - and the owner's own blind read agrees: both roundel
+cells are inside the B16-B26 block he called fine, and the only one he named as unfinished is the
+monogram. So a field wired to today's signal would have damaged two graphics he passed to repair
+one he failed.
+
+**This is the recorded Lite false-positive class arriving on the Pro side** (`src/ai/AGENTS.md`:
+luminance flagged crests that render perfectly, "a blue crest on a red tile separates by hue").
+`MarkProbe` carries aspect, backing and one alpha-weighted ink luminance - which cannot tell a
+single-ink knockout wordmark from a coloured logo, and that distinction is the whole question.
+**So the cheapest correct step is a measurement, not a policy change**: extend the probe with an
+ink SPREAD (chroma or luminance variance), fire the field only on a genuinely single-ink mark,
+and the rate goes from 3 of 18 to about 1. Until that exists the default stays report-only, which
+is where the code is.
+
+**The original framing, kept because the premise change stands.** The standing rule is *a mark carries NO PLATE* (2026-08-14),
 and its reasoning was explicit: on Lite the platform does not own the composition, so a well is a
 repair scar pasted over someone else's design. **Phase A changes that premise** - the platform now
 draws the whole composition and knows the mark's ink BEFORE the panel colour is chosen, so a

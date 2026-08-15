@@ -35,8 +35,24 @@ export interface ComposeOptions {
   lines: LineSpec[];
   resolution?: Resolution;
   fps?: number;
-  /** A brand mark to seat, as the shared slot expects it. */
-  logo?: { assetPath: string; images: AssetFile[] } | null;
+  /** A brand mark to seat, as the shared slot expects it. `inkLuminance` and `backing` are the
+   *  content-free facts `probeMark` measures; they are what the mark FIELD below decides on. */
+  logo?: {
+    assetPath: string;
+    images: AssetFile[];
+    inkLuminance?: number;
+    backing?: 'transparent' | 'own-field';
+  } | null;
+  /**
+   * PAINT THE MARK'S COLUMN when its ink cannot read on the panel the language chose.
+   *
+   * DEFAULT OFF, because it is not mine to turn on: the standing rule is that a mark carries no
+   * plate (owner, 2026-08-14), decided when the platform did NOT own the composition and a well
+   * could only ever be a patch over someone else's design. Phase A changes that premise and the
+   * blind read of the first round found the cost of leaving it - an invisible mark reads as an
+   * unfinished graphic - so the option exists to be SEEN before it is ruled on.
+   */
+  markField?: boolean;
 }
 
 export interface ComposedGraphic {
@@ -69,6 +85,61 @@ function readableInkOn(surface: string): string {
   const black = parseCssColor('#000000');
   if (!white || !black) return '#000000';
   return contrastRatio(white, bg) >= contrastRatio(black, bg) ? '#ffffff' : '#000000';
+}
+
+/** The audited pair from `benchmarks/lite/BRAND-AUDIT-2026-08-09.md` - a fixed neutral, never the
+ *  palette whose tone already failed. */
+const MARK_FIELD_LIGHT = '#f2f4f7';
+const MARK_FIELD_DARK = '#12161c';
+/** The same 3:1 the rendered mark gate and the Lite brand audit both measure against. */
+const MARK_INK_CONTRAST_FLOOR = 3;
+
+/** A colour's relative luminance, read back out of the one contrast function this repo has.
+ *  contrast(c, black) = (L + 0.05) / 0.05, so L falls straight out of it - which is cheaper and
+ *  safer than a second copy of the luminance formula. */
+function luminanceOf(color: string): number | null {
+  const parsed = parseCssColor(color);
+  const black = parseCssColor('#000000');
+  if (!parsed || !black) return null;
+  return contrastRatio(parsed, black) * 0.05 - 0.05;
+}
+
+function contrastFromLuminance(a: number, b: number): number {
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+/**
+ * The surface the mark needs, or null when it already reads.
+ *
+ * Deciding this needs nothing from the layout - only the mark's measured ink and the panel the
+ * language chose - so it is deterministic and it is here. A mark that brings its own field reads
+ * on anything and is left alone; a transparent one is judged against the panel, and when it falls
+ * under the floor the better of the two audited neutrals is chosen BY MEASUREMENT rather than by
+ * assuming a dark ink wants the light one (the sunbeam roundel is the counter-example: mid-tone
+ * ink that reads 9.4:1 on the dark neutral and 1.8:1 on the light).
+ */
+function markFieldFor(
+  language: DesignLanguage, logo: NonNullable<ComposeOptions['logo']>,
+): { fill: string; reason: string } | null {
+  if (logo.backing === 'own-field' || typeof logo.inkLuminance !== 'number') return null;
+  const panel = luminanceOf(panelSurface(language).value);
+  if (panel === null) return null;   // a panel-free super paints no surface to fail against
+  const onPanel = contrastFromLuminance(logo.inkLuminance, panel);
+  if (onPanel >= MARK_INK_CONTRAST_FLOOR) return null;
+  const light = luminanceOf(MARK_FIELD_LIGHT) ?? 1;
+  const dark = luminanceOf(MARK_FIELD_DARK) ?? 0;
+  const onLight = contrastFromLuminance(logo.inkLuminance, light);
+  const onDark = contrastFromLuminance(logo.inkLuminance, dark);
+  const better = onLight >= onDark
+    ? { fill: MARK_FIELD_LIGHT, ratio: onLight }
+    : { fill: MARK_FIELD_DARK, ratio: onDark };
+  return {
+    fill: better.fill,
+    // An honest failure beats a silent one: if neither neutral clears the floor the field still
+    // goes on, as the best surface available, and the reason says so.
+    reason: `the mark reads ${onPanel.toFixed(2)}:1 on this panel (floor ${MARK_INK_CONTRAST_FLOOR})`
+      + ` - its column carries ${better.fill}, where it reads ${better.ratio.toFixed(2)}:1`,
+  };
 }
 
 /** #rrggbb plus an alpha, as an rgba() a decade-old CasparCG build still parses. No color-mix:
@@ -132,8 +203,28 @@ function paletteFor(language: DesignLanguage, surface: string): { palette: Palet
   };
 }
 
+/**
+ * The mark's column as a BAND of the composition, not a plate around the artwork.
+ *
+ * `align-self: stretch` makes the img's own box the full height of the text stack, and
+ * `object-fit: contain` keeps the artwork undistorted inside it (never `cover` - the as-is screen
+ * refuses a cropped mark, and rightly). So the field reads as a segment of the panel rather than
+ * as a rectangle someone pasted behind a logo, which is the whole distinction the no-plate rule
+ * turns on - and it is only drawable at all because the platform owns this composition.
+ */
+function markFieldCss(fill: string, s: ResolvedSpacing, reason: string): string {
+  return `
+/* == PLATFORM: ${reason}. == */
+.lower-third-box > .lower-third-logo {
+  align-self: stretch;              /* the full height of the words beside it: a band, not a box */
+  background: ${fill};              /* a fixed neutral - never the palette whose tone already failed */
+  object-fit: contain;              /* the whole mark, never cropped or stretched */
+  padding: 0 calc(${Math.round(s.markGapPx / 2)}px * var(--scale));  /* its clear space, inside the field */
+}`;
+}
+
 /** The design body: platform structure, language paint. */
-function buildDesign(language: DesignLanguage, s: ResolvedSpacing, o: ResolvedOptions): L3Design {
+function buildDesign(language: DesignLanguage, s: ResolvedSpacing, o: ResolvedOptions, markField: string): L3Design {
   const plan = accentPlan(language.accent.form);
   const surface = panelSurface(language);
   const heading = language.typography;
@@ -263,7 +354,7 @@ ${language.accent.form === 'top-rule'
   margin-top: ${px(s.lineGapPx)};  /* the platform's line gap — the two lines read as one unit */${surface.value === 'transparent' && language.accent.form !== 'block' ? '\n  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.75);  /* a super with no panel still has to read */' : ''}
 }`;
 
-  return { html, css, hasAccent: plan.element };
+  return { html, css: css + markField, hasAccent: plan.element };
 }
 
 /** Whether the language's accent form emits a `.PREFIX-accent` element at all. */
@@ -276,7 +367,7 @@ function hasAccentElement(language: DesignLanguage): boolean {
  * one language renders across every graphic type, and a variant is the unit the wizard, the
  * timeline, the Style panel, the exporters and the control layer all already speak.
  */
-export function variantForLanguage(language: DesignLanguage): TemplateVariant {
+export function variantForLanguage(language: DesignLanguage, markField = ''): TemplateVariant {
   const s = resolveSpacing(language);
   return defineVariant(
     {
@@ -302,7 +393,7 @@ export function variantForLanguage(language: DesignLanguage): TemplateVariant {
       description: language.rationale,
       uicolor: '4',
     },
-    (o) => buildDesign(language, s, o),
+    (o) => buildDesign(language, s, o, markField),
   );
 }
 
@@ -313,10 +404,14 @@ export function variantForLanguage(language: DesignLanguage): TemplateVariant {
  */
 export function composeFromLanguage(language: DesignLanguage, options: ComposeOptions): ComposedGraphic {
   const s = resolveSpacing(language);
-  const variant = variantForLanguage(language);
+  const field = options.markField && options.logo ? markFieldFor(language, options.logo) : null;
+  const variant = variantForLanguage(language, field ? markFieldCss(field.fill, s, field.reason) : '');
   // Every divergence from what the model asked for, said out loud. A repair the ledger cannot
   // count is a promise nobody can check (the Lite brand rule, `docs/AI_LITE_BRAND_PLAN.md` §3.2).
-  const adjustments = paletteFor(language, panelSurface(language).value).adjustments;
+  const adjustments = [
+    ...paletteFor(language, panelSurface(language).value).adjustments,
+    ...(field ? ['mark_field_painted'] : []),
+  ];
   const notes = [
     `structure and spacing: platform-owned (${language.density} density -`
     + ` ${s.padVPx}/${s.padHPx}px padding, ${s.lineGapPx}px line gap, at scale 1)`,
@@ -329,6 +424,7 @@ export function composeFromLanguage(language: DesignLanguage, options: ComposeOp
       + ' animates the panel and its lines rather than a separate shape');
   }
   if (adjustments.length) notes.push(`palette furniture repaired: ${adjustments.join(', ')}`);
+  if (field) notes.push(`mark field: ${field.reason}`);
   const template = variant.create({
     lines: options.lines,
     ...(options.resolution ? { resolution: options.resolution } : {}),
