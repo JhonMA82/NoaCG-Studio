@@ -156,7 +156,7 @@ these are the commitments.
 
 | Tier | Who pays | Price target | What it is | State |
 |---|---|---|---|---|
-| **NoaCG Lite** | us, free to the user | **100 graphics per €1** (~€0.01 each); measured **$0.00032** | Grounded in **our catalog**: the model picks a proven design and adapts it. It does not invent a layout. | built and affordable; **quality is the open problem** |
+| **NoaCG Lite** | us, free to the user | **100 graphics per €1** (~€0.01 each); measured **$0.00032** | Grounded in **our catalog**: the model picks a proven design and adapts it. It does not invent a layout. | **its own value gate answered NO 2026-08-14; REVIVED by owner decision 2026-08-15, and the bar is a re-run of that same gate** |
 | **NoaCG Pro** | user, a little | **~€10 per 100 graphics** (~€0.10 each) | An open-weight specialist authors real HTML/CSS/SVG directly inside the platform scaffold; retrieval of proven catalog exemplars supplies the starting taste. | **direction replaced 2026-08-10 (`docs/NOACG_PRO_PLAN.md`); reconstruction retired; Phase 0 spike is the next slice.** Offered ONLY where the server says hosted Pro is available (`AI_PRO_ENABLED`) and the deployment has the backend to meter it; it never asks a user for a key |
 | **Bring your own key** | the user's own provider account | whatever that provider charges, shown per model | Any model OpenAI, Anthropic, Google or Hugging Face offers, on the user's key. No NoaCG money, no NoaCG allowance. | shipped |
 | **NoaCG Extreme** | subscription | not set - after there is income | The newest frontier models designing directly. Expensive, technically the simplest. | not started, needs income first |
@@ -166,16 +166,58 @@ target is a tier whose ROUTE changes, never one whose price rises: free stays fr
 number is what makes "a little" a promise rather than a feeling. Both are per finished graphic,
 counting every model call a generation makes.
 
-- [ ] **Lite: make it good. The price is already solved.** The target was 100 generations per
-      euro (~€0.01 each); the 2026-08-08 round measures **$0.00032 per generation** - thirty times
-      under that ceiling, and unmoved by the transport change
+### Owner decision 2026-08-15: Lite and Pro are revived, and the bar is the same gate
+
+**What was decided on 2026-08-14 and what stands today are different things, so both are written
+here.** Lite's own value gate (`docs/AI_LITE_BRAND_PLAN.md` §2) FAILED on the owner's blind ballot:
+Lite beat the template arm on brand fit while holding the DIY arm on quality on **0 of 8 briefs**,
+against a rule needing a clear majority, and the predeclared consequence retired custom AI
+generation from this roadmap. That verdict is not being rewritten, and §2 itself is deliberately
+left unedited - a plan revised after its own gate answers can no longer be read back against what
+it promised.
+
+**The owner reopened it on 2026-08-15.** What changed the answer is evidence, not appetite:
+
+- **Every failure the ballot named was the MARK, and it hit the hand-branded DIY arm too** (§2.2) -
+  white ink on a white package, a mark too small beside the name, a backing too big for the text
+  in it. A defect both branded arms share is the PLATFORM's, not the model's. Both fixes are now
+  built and merged: the mark-legibility gate (`src/validation/markLegibility.ts`, transparent ink
+  only) and the mark-SIZE rule (`src/templates/shared/logoSlot.ts`, the strap spends width).
+- **Pro's first real hosted generation says the same thing from the other side**
+  (`docs/NOACG_PRO_PLAN.md` §16, 2026-08-15). The generation was unusable - but *the panel the
+  model designed was good*, and what wrecked the frame was the platform's reconstruction of it.
+  Two independent rounds now put the failure in the platform.
+- **Students need this in about two weeks**, which is why the question is being answered again
+  rather than left closed.
+
+**The bar, owner-chosen: the SAME §2 gate, re-run unchanged.** Same three arms (template, DIY,
+Lite), same predeclared pass rule - the Lite arm clearly beats the template arm on brand fit AND is
+at least equal to the DIY arm on quality, on a clear majority of briefs, with zero brand-fidelity
+defects among accepted results - and the same operationalization already written down in §2.1
+("clearly beats" = strictly higher brand fit; "at least equal" = quality no lower; "clear majority"
+= more than half the fully judged briefs; "accepted" = would air as-is or after minor edits). The
+re-run happens **once the two 2026-08-15 slices running alongside this decision have landed**
+(sessions B and C of that day's orchestration), so the round films what the product actually does
+after them. **A second FAIL means the retirement stands** - the gate does not get a third reading.
+
+**Nobody should treat the re-run as expensive.** The rig exists: `scripts/ai-lite-value-gate.mjs`
+builds the arms, the blind sheet and the verdict, and `--verdict <ballot.jsonl>` applies the rule
+above and prints PASS or FAIL with the per-brief rows. The 2026-08-14 Lite arm cost **$0.0069 for
+8 cells**; the template and DIY arms are `variant.create()` and cost nothing. The expensive part is
+the owner's eyes, and that is the part that decides.
+
+- [ ] **Lite: make it good, then re-run its gate. The price is already solved.** The target was 100
+      generations per euro (~€0.01 each); the 2026-08-08 round measures **$0.00032 per generation**
+      - thirty times under that ceiling, and unmoved by the transport change
       (`benchmarks/lite/ROUND-2026-08-08-GATEWAY.md`). Route choice is a QUALITY decision, not a
-      budget one. What is actually open is the half that was never about money: 27 of 30 briefs
-      came back machine-usable, and machine-valid is not the same as good. Cheap models cannot
-      design a broadcast graphic unaided - a measured finding - so Lite never asks them to; the
-      catalog is the crutch AND the moat, through adapt-first (`docs/ADAPT_FIRST_PLAN.md`).
-      **This is the gate for every other AI goal** - one good graphic must be reliable before
-      anything multiplies it.
+      budget one. What is open is the half that was never about money: machine-valid is not the
+      same as good, and the 2026-08-14 ballot said so out loud. Cheap models cannot design a
+      broadcast graphic unaided - a measured finding - so Lite never asks them to; the catalog is
+      the crutch AND the moat, through adapt-first (`docs/ADAPT_FIRST_PLAN.md`). **This is the gate
+      for every other AI goal** - one good graphic must be reliable before anything multiplies it -
+      and "good" now has one definition: passing the §2 re-run described above. Two ballot notes
+      are still unfixed and belong in the build the re-run films: a rule/underline crossing the
+      name on two designs, and a title with no contrast on a light package.
 - [ ] **Pro: the open broadcast specialist** (`docs/NOACG_PRO_PLAN.md`). Reconstruction is
       retired (`benchmarks/pro/round-2026-08-08/` through `-10/` hold the evidence); the
       replacement is a strong open-weight model authoring HTML/CSS/SVG directly in the platform
@@ -208,7 +250,9 @@ get all of them in **one unified look**, landing together in one production.
 *Catalog kits from the wizard landed 2026-08-08 - one door, a user-editable set, and one look
 across it; the full entry is in the archive.*
 
-- [ ] **AI kits** - the same door, with Lite generating the set. Rides on Lite being good.
+- [ ] **AI kits** - the same door, with Lite generating the set. **Blocked until Lite passes the
+      §2 re-run** (above): it multiplies whatever one generation is worth, so it cannot start while
+      that is still the open question.
 
 ---
 
