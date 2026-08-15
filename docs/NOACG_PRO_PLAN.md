@@ -1645,3 +1645,56 @@ come off the funded list when the engine goes.
   identity colours are copied verbatim by the platform and never left to the model. Phase A passes
   them in the brief, which is what the 26/30 round measured; making them verbatim is a real
   improvement and a behaviour change no round has read yet.
+
+### The first REAL generation on the new engine - 2026-08-15, and two defects it found
+
+Owner-authorised, run through the wizard on a configured deployment with nothing stubbed: a real
+reservation, a real managed call, a real outcome, real ledger rows.
+
+| generation | calls | provider cost | runtime |
+|---|---|---|---|
+| `8e9a35eb` - §16's unusable one | 2 | $0.0855649 | 62.0 s |
+| `9ebc84f0` | 2 | $0.0898749 | 73.5 s |
+| **`f21d6e23`** | **1** | **$0.0043211** | **12.3 s** |
+| **`0740a885`** | **1** | **$0.0034336** | **9.9 s** |
+
+**One call, ~$0.0039 a graphic - 22x cheaper and 6x faster**, `status: usable`, and the composed
+document carries `.lower-third-box` / `.lower-third-accent` / `#f0`: the composer's own structure,
+not a reconstruction. The estimate in §15.7 was ~$0.001-0.003; the measurement is $0.0039, close
+enough that the estimate stands as a planning number.
+
+`validation_rule_codes` and `adjustments` came back EMPTY, and here that is the honest answer
+rather than §16's silence: no palette repair fired, no mark was uploaded, no field fell back. The
+codes have a rendered test of their own (`e2e/pro-language.spec.ts`).
+
+**TWO GENERATIONS WERE SPENT, NOT ONE.** The harness spec asserted a locator that does not exist
+AFTER the product had finished, and Playwright's retry bought a second graphic. Worth recording
+because it is the cheap version of an expensive lesson this file already carries twice: the run
+that spends the money must take its evidence FIRST and assert afterwards.
+
+**NO VISUAL READ YET.** The picture was lost to that same locator and the trace was overwritten by
+the next run; a third attempt was refused by the allowance and charged nothing. §16's whole lesson
+is that a graphic can pass every gate and still be unusable, so the human read is still owed.
+
+**Defect 1: the allowance read-back promised a generation the gate refused.** The panel said
+*"1 generation(s) left today"* while Create was disabled under
+*"Your current NoaCG Pro allowance has been used."* An allowance is TWO counters - starts and
+successes - and the note read the starts one while successes were spent. This is exactly the drift
+`api/_lib/lite/status.ts` warns about ("the panel promises an allowance the reservation will not
+honour"), arriving on the read-back side rather than the gate side. Fixed: the note reports the
+BINDING number. The configured spec's fixture now sets the two counters DIFFERENTLY, because a
+fixture where they agree cannot tell a panel reading the right one from a panel reading either -
+mutation-checked by flipping `min` to `max`.
+
+**Defect 2: hosted Pro is still gated on the RETIRED image route.** Availability requires every
+route in the funded list to be priced, catalog-approved and not disabled from `/admin`
+(`resolveProGate`), and that list is still `[concept, interpret]`. Funding an unused route costs
+nothing, but **de-listing or disabling the image model would now take the whole tier down for a
+pipeline that never calls it.** Dropping `concept` from `api/_lib/aiProProfile.ts` belongs with the
+deletion pass in `src/ai/pro/reconstruct/AGENTS.md`.
+
+**Turning hosted Pro on locally needs three env vars `.env.example` does not group together:**
+`AI_PRO_ENABLED`, `IP_HASH_SALT` (>= 16 chars, or the ledger reads unconfigured) and
+`AI_LITE_GATEWAY_PROVIDERS` (the audited gateway allowlist Pro shares). With the last unset,
+`taskConfigured` is false for every route and the status endpoint answers `not-configured` - which
+names the deployment rather than the missing variable.

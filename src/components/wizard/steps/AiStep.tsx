@@ -1532,8 +1532,20 @@ export default function AiStep({
                     no key to supply. It picks its own model, and the real cost of each
                     generation is shown on the result.
                     {proStatus?.allowance
-                      ? ` ${proStatus.allowance.dailyStartsRemaining} generation(s) left today,
-                          ${proStatus.allowance.monthlyStartsRemaining} this month.`
+                      // THE SMALLER OF THE TWO, because the allowance is two counters and a user
+                      // meets whichever runs out first. Measured 2026-08-15: the panel read
+                      // "1 generation(s) left today" from the STARTS counter while the SUCCESSES
+                      // counter was already spent, so Create came back disabled under a sentence
+                      // promising another go - the exact drift api/_lib/lite/status.ts warns
+                      // about, arriving on the read-back side instead of the gate side.
+                      ? ` ${Math.min(
+                        proStatus.allowance.dailyStartsRemaining,
+                        proStatus.allowance.dailySuccessesRemaining,
+                      )} generation(s) left today,
+                          ${Math.min(
+                        proStatus.allowance.monthlyStartsRemaining,
+                        proStatus.allowance.monthlySuccessesRemaining,
+                      )} this month.`
                       : ''}
                   </p>
                 </div>

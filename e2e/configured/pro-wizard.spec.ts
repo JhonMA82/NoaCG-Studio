@@ -87,11 +87,17 @@ async function withHostedPro(
         available: true,
         requiresSignIn: false,
         maxGenerationCostUsd: 0.15,
+        // THE TWO COUNTERS ARE DELIBERATELY DIFFERENT. An allowance is starts AND successes,
+        // and a user meets whichever runs out first - so a fixture where they agree cannot
+        // tell a panel reading the right one from a panel reading either. Measured
+        // 2026-08-15 on a real deployment: the note said "1 generation(s) left today" off
+        // the STARTS counter while successes were spent, and Create came back disabled under
+        // that sentence.
         allowance: {
           dailyStartsRemaining: daily,
           monthlyStartsRemaining: monthly,
-          dailySuccessesRemaining: daily,
-          monthlySuccessesRemaining: monthly,
+          dailySuccessesRemaining: Math.max(0, daily - 5),
+          monthlySuccessesRemaining: Math.max(0, monthly - 9),
         },
       }),
     });
@@ -256,8 +262,9 @@ test.describe('hosted NoaCG Pro (configured)', () => {
     // on NoaCG's own service has nothing else to show and nothing to configure, so the panel
     // asks for no key and offers no model.
     const note = page.getByTestId('ai-pro-hosted-note');
-    await expect(note).toContainText('7 generation(s) left today');
-    await expect(note).toContainText(/41\s+this month/);
+    // The BINDING number, which is the successes counter here - not the starts counter's 7/41.
+    await expect(note).toContainText('2 generation(s) left today');
+    await expect(note).toContainText(/32\s+this month/);
     // No provider picker, no model box, and no credential field: a NoaCG tier runs on NoaCG's
     // own service or it is not offered. (The COPY says "no key to supply", so the assertion is
     // about the controls, not about the word.)
@@ -305,8 +312,8 @@ test.describe('hosted NoaCG Pro (configured)', () => {
     expect(new Set(codes).size, 'the row never repeats a code').toBe(codes.length);
 
     // …and the panel now shows what the SERVER says is left, not a client-side decrement.
-    await expect(note).toContainText('6 generation(s) left today');
-    await expect(note).toContainText(/40\s+this month/);
+    await expect(note).toContainText('1 generation(s) left today');
+    await expect(note).toContainText(/31\s+this month/);
   });
 
   test('a configured backend alone is not a door - the server still decides', async ({ page }) => {
