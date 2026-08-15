@@ -209,6 +209,47 @@ test('a wide lockup is sized by the words, and the strap pays in width', async (
   expect(measured.markHeight).toBeLessThanOrEqual(measured.wordsHeight + 1);
 });
 
+test('a design that draws its own slot is left alone by the shared one', async ({ page }) => {
+  // `designHasLogoSlot` is what keeps the shared slot away from a design that hand-authors one,
+  // and until 2026-08-15 both this file's neighbour docs and src/templates/AGENTS.md recorded
+  // that five designs slipped past it. Swept over all 24 mark-capable lower thirds, none does:
+  // a design's slot is conditional on the same `logoEnabled` the check is guarded by, so by the
+  // time the check runs the design has already emitted BOTH halves - the <img> and the filelist
+  // field. lt07 "Number Badge" is the sharpest case, because its `.lower-third-logo` CSS is
+  // emitted UNCONDITIONALLY (the badge is an accent square with or without a mark), which is
+  // exactly why the proposed `design.css` clause would have been wrong: it would read that as
+  // "has its own slot" on a design that had emitted none.
+  await toFieldsStep(page, 'Lower thirds', 'Number Badge');
+
+  const logoSection = page.locator('.panel-section', { hasText: 'Include a logo slot' });
+  await logoSection.getByRole('checkbox').check();
+  await logoSection.locator('input[type="file"]').setInputFiles({
+    name: 'club-crest.png',
+    mimeType: 'image/png',
+    buffer: PNG,
+  });
+  await expect(logoSection.locator('img[alt="Logo preview"]')).toBeVisible();
+  await awaitPreviewRebuild(page, async () => {
+    await finishIntoEditor(page);
+    await expect(page.locator('.wz-modal')).toBeHidden();
+  });
+
+  const t = await createdTemplate(page);
+  // The design's OWN slot is there - one field, one <img>, no duplicate.
+  const logoFields = t.fields.filter((f: { ftype: string }) => f.ftype === 'filelist');
+  expect(logoFields).toHaveLength(1);
+  expect(t.html.match(/class="lower-third-logo"/g) ?? []).toHaveLength(1);
+  // …and NOTHING of the shared slot landed. The lockup wrapper is the tell: it is emitted only
+  // by `applyLogoSlot`, so its absence is the injection not having run - which is the assertion
+  // that fails if `designHasLogoSlot` ever stops recognising a hand-authored slot.
+  expect(t.html).not.toContain('lower-third-lockup');
+
+  // Rendered: the mark is inside the design's own badge, not a column of the box's grid.
+  const frame = page.frameLocator('iframe.preview-frame');
+  await expect(frame.locator('.lower-third-accent > .lower-third-logo')).toBeVisible();
+  await expect(frame.locator('.lower-third-lockup')).toHaveCount(0);
+});
+
 test('logo toggle off: nothing is injected', async ({ page }) => {
   await toFieldsStep(page, 'Topic', 'Hairline Card');
   // Offered but left off (the default when no image was imported).

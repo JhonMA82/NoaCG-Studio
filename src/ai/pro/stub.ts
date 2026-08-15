@@ -9,7 +9,7 @@ import type { PurposedImage } from '../../model/imagePurpose';
 import { uuid } from '../../model/id';
 import type { ProBrief, ProInterpretationV1 } from './contract';
 import { normalizeProInterpretation } from './normalize';
-import { compileProPlan } from './compile';
+import { compileProPlan, validateProCompile } from './compile';
 import { fillProLogoSlot } from './logoAsset';
 import type { ProConcept, ProResult } from './pipeline';
 
@@ -165,7 +165,9 @@ export async function stubCompilePro(
     }),
     options.logoMark ?? null,
   );
-  const validation = options.validate ? await options.validate(compiled.template) : null;
+  // The same one seam the remote pipeline uses, so an offline run is scored identically -
+  // gate findings plus the reconstruction's own refusals (compile.ts `validateProCompile`).
+  const validation = await validateProCompile(compiled, options.validate);
   // Zero, not null: the offline stub reaches no provider, so nothing was spent - which is a
   // measured cost of nothing, not an unknown one.
   return { ...compiled, validation, concept, interpretCostUsd: 0 };
