@@ -13,18 +13,16 @@
 // SPENDS REAL TOKENS. Hard stops: 40 calls or USD 1.50 of provider-reported cost.
 
 import { chromium } from '@playwright/test';
-import { spawn } from 'node:child_process';
 import {
   mkdir,
   readFile,
   readdir,
-  rename,
-  unlink,
   writeFile,
 } from 'node:fs/promises';
 import path from 'node:path';
 import { devPort } from './dev-port.mjs';
 import { outDir } from './out-dir.mjs';
+import { UPDATE_COPY, captureLifecycle } from './ai-lite-capture.mjs';
 import {
   LITE_LOWER_THIRD_FIXTURES,
   LITE_LOWER_THIRD_FIXTURE_VERSION,
@@ -150,69 +148,6 @@ await mkdir(OUT, { recursive: true });
 await mkdir(RAW_VIDEO_DIR, { recursive: true });
 const browser = await chromium.launch();
 
-function run(command, args) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: 'ignore', windowsHide: true });
-    child.once('error', reject);
-    child.once('exit', (code) => code === 0 ? resolve() : reject(new Error(`${command} exited ${code}`)));
-  });
-}
-
-async function trimMotionVideo(rawPath, finalPath, startSeconds) {
-  try {
-    await run(FFMPEG, [
-      '-y',
-      // Cut 1.0s before play, inside the stage's guaranteed 1.5s CLEAR HOLD (the wait
-      // after the initial data update): the wall-clock -> video-clock mapping drifts by
-      // the recorder's startup latency, so a tight cut clipped into the entrance (first
-      // frame showed a half-drawn graphic) and a naive wide one reached back past the
-      // stage swap (first frame showed the app UI). The recording ends after the exit
-      // settles and there is no duration cap, so the last frame stays clear too.
-      '-ss', Math.max(0, startSeconds - 1.0).toFixed(3),
-      '-i', rawPath,
-      '-an',
-      '-c:v', 'libvpx-vp9',
-      '-crf', '22',
-      '-b:v', '0',
-      finalPath,
-    ]);
-    await unlink(rawPath).catch(() => {});
-  } catch {
-    await unlink(finalPath).catch(() => {});
-    await rename(rawPath, finalPath);
-  }
-}
-
-/** True when motion settled; false after the 5s budget. Never throws: a skin with an
- *  idle loop (a blinking cursor, a pulse) NEVER settles, and discarding a paid,
- *  machine-usable result over that is worse than capturing the animation mid-flight -
- *  the still is honest either way, and the row records motionSettled for the reviewer. */
-async function waitForMotionToSettle(page) {
-  let previous = '';
-  let stableSamples = 0;
-  for (let sample = 0; sample < 50; sample += 1) {
-    const signature = await page.evaluate(() => {
-      const frame = document.querySelector('#lite-eval-frame');
-      const root = frame?.contentDocument?.body.firstElementChild;
-      if (!root) return '';
-      return [root, ...root.querySelectorAll('*')].map((element) => {
-        const rect = element.getBoundingClientRect();
-        const style = frame.contentWindow.getComputedStyle(element);
-        return [
-          rect.x, rect.y, rect.width, rect.height,
-          style.transform, style.opacity, style.clipPath,
-        ].join('|');
-      }).join('\n');
-    });
-    if (signature && signature === previous) stableSamples += 1;
-    else stableSamples = 0;
-    if (stableSamples >= 4) return true;
-    previous = signature;
-    await page.waitForTimeout(100);
-  }
-  return false;
-}
-
 /**
  * Measure each brand mark through the REAL browser probe the product uses, rather than reading
  * the descriptor off the fixture record.
@@ -253,20 +188,19 @@ async function probeBrandMarks() {
 }
 
 async function measureAndCapture(spec, fixtureId, skin = null, brandContext = null) {
-  const context = await browser.newContext({
-    viewport: { width: 1920, height: 1080 },
-    deviceScaleFactor: 1,
-    recordVideo: {
-      dir: RAW_VIDEO_DIR,
-      size: { width: 1920, height: 1080 },
-    },
-  });
-  const page = await context.newPage();
-  const video = page.video();
-  const recordingStarted = Date.now();
-  try {
-    await page.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
-    const measured = await page.evaluate(async ({ spec: designSpec, skin: skinPatch, brand }) => {
+  // The lifecycle rig is shared (scripts/ai-lite-capture.mjs) so that a Lite result and the
+  // plain wizard assemblies the value gate compares it against are filmed identically. Only
+  // the in-page BUILD below is this runner's own.
+  return captureLifecycle({
+    browser,
+    base: BASE,
+    out: OUT,
+    rawVideoDir: RAW_VIDEO_DIR,
+    label: LABEL,
+    itemId: fixtureId,
+    ffmpeg: FFMPEG,
+    buildArg: { spec, skin, brand: brandContext, updateCopy: UPDATE_COPY },
+    buildFn: async ({ spec: designSpec, skin: skinPatch, brand, updateCopy }) => {
       // The ONE shared compile pipeline (src/ai/litePipeline.ts) - identical to what
       // production runs after the same server decision. Never re-inline the steps here:
       // a benchmark-only compile path is exactly the drift the module exists to prevent.
@@ -351,99 +285,12 @@ async function measureAndCapture(spec, fixtureId, skin = null, brandContext = nu
         entranceDurationMs,
         exitDurationMs,
         initialData: Object.fromEntries(designSpec.lines.map((line, index) => [`f${index}`, line.sample])),
-        updateData: Object.fromEntries(designSpec.lines.map((line, index) => {
-          const replacements = {
-            'person-name': 'Alexandra Chen-Williams',
-            'person-role': 'Senior Correspondent, International Desk',
-            organization: 'Coastal Resilience Research Institute',
-            'team-name': 'Northbridge United',
-            'story-headline': 'Regional rail services return to normal',
-            'event-name': 'Closing Plenary and Awards',
-            location: 'Central Convention Hall',
-            'social-handle': '@updated_handle',
-            'call-to-action': 'Watch the full briefing',
-            'supporting-context': 'Live update',
-          };
-          return [`f${index}`, replacements[line.role] ?? line.sample];
-        })),
+        updateData: Object.fromEntries(designSpec.lines.map((line, index) => (
+          [`f${index}`, updateCopy[line.role] ?? line.sample]
+        ))),
       };
-    }, { spec, skin, brand: brandContext });
-    await page.evaluate((initialData) => {
-      document.querySelector('#lite-eval-frame')?.contentWindow?.update(JSON.stringify(initialData));
-    }, measured.initialData);
-    // The CLEAR HOLD the clip trim anchors into: the stage is built, the initial data is
-    // in, and the graphic is CSS-hidden - these frames are the honest clear-before-cue
-    // state the trim's 1.0s lead-in must land inside (see trimMotionVideo).
-    await page.waitForTimeout(1500);
-    const motionStarted = Date.now();
-    await page.evaluate(() => document.querySelector('#lite-eval-frame')?.contentWindow?.play());
-    await page.waitForTimeout(220);
-    const entranceFile = `${LABEL}-${fixtureId}-entrance.png`;
-    await page.screenshot({ path: path.join(OUT, entranceFile) });
-    await page.waitForTimeout(Math.max(0, measured.entranceDurationMs + 250 - (Date.now() - motionStarted)));
-    const motionSettled = await waitForMotionToSettle(page);
-    await page.waitForTimeout(80);
-    const holdFile = `${LABEL}-${fixtureId}-hold.png`;
-    await page.screenshot({ path: path.join(OUT, holdFile) });
-    // THE TEXT SWAP A GALLERY READER SEES MID-CLIP. Deliberate: a second update() with longer
-    // copy, fired only after the entrance wait AND waitForMotionToSettle, so it always lands
-    // inside the hold. stop() is 600 ms further on (180 + 420 below), so this can never overlap
-    // the exit tween - and the wait is a measurement, not a sleep, so a slow entrance moves it
-    // rather than clipping it. Nothing in the graphic re-fires it: update() writes textContent
-    // and next()/timer transitions are operator-driven (docs/AI_LITE_PLAN.md section 4).
-    await page.evaluate((updateData) => {
-      document.querySelector('#lite-eval-frame')?.contentWindow?.update(JSON.stringify(updateData));
-    }, measured.updateData);
-    await page.waitForTimeout(180);
-    const updateFile = `${LABEL}-${fixtureId}-update.png`;
-    await page.screenshot({ path: path.join(OUT, updateFile) });
-    await page.waitForTimeout(420);
-    const exitStarted = Date.now();
-    await page.evaluate(() => document.querySelector('#lite-eval-frame')?.contentWindow?.stop());
-    await page.waitForTimeout(220);
-    const exitFile = `${LABEL}-${fixtureId}-exit.png`;
-    await page.screenshot({ path: path.join(OUT, exitFile) });
-    await page.waitForTimeout(Math.max(0, measured.exitDurationMs + 250 - (Date.now() - exitStarted)));
-    await waitForMotionToSettle(page);
-    await page.close();
-    await context.close();
-    const motionFile = `${LABEL}-${fixtureId}.webm`;
-    if (video) {
-      await trimMotionVideo(
-        await video.path(),
-        path.join(OUT, motionFile),
-        (motionStarted - recordingStarted) / 1000,
-      );
-    }
-    return {
-      ok: measured.ok,
-      ruleCodes: measured.ruleCodes,
-      warningCodes: measured.warningCodes ?? [],
-      category: measured.category,
-      variantId: measured.variantId,
-      motionSettled,
-      skinApplied: measured.skinApplied,
-      skinOutcome: measured.skinOutcome,
-      skinRejectionRules: measured.skinRejectionRules,
-      fieldCount: measured.fieldCount,
-      zone: measured.zone,
-      animationPreset: measured.animationPreset,
-      paletteId: measured.paletteId,
-      palette: measured.palette,
-      density: measured.density,
-      alignment: measured.alignment,
-      sizeScale: measured.sizeScale,
-      typography: measured.typography,
-      shape: measured.shape,
-      entranceDurationMs: measured.entranceDurationMs,
-      exitDurationMs: measured.exitDurationMs,
-      phaseFiles: { entrance: entranceFile, hold: holdFile, update: updateFile, exit: exitFile },
-      ...(video ? { motionFile } : {}),
-    };
-  } finally {
-    if (!page.isClosed()) await page.close().catch(() => {});
-    await context.close().catch(() => {});
-  }
+    },
+  });
 }
 
 /** Downscale the hold frame in-browser (no native image dependency) - vision tokens are

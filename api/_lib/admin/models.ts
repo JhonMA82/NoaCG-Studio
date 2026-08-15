@@ -38,6 +38,7 @@ import type {
 const TASK_LABEL: Record<AiTaskId, string> = {
   'lite-design-spec': 'NoaCG Lite',
   'imported-graphic-analysis': 'Import analysis',
+  'pro-generate': 'NoaCG Pro (hosted)',
 };
 
 /**

@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { normalizedHuggingFace, normalizedVercelGateway } from './aiModelDiscovery.js';
+import {
+  directModel,
+  modelPriceKey,
+  normalizedHuggingFace,
+  normalizedVercelGateway,
+  pricedDirectModels,
+  type CatalogFacts,
+} from './aiModelDiscovery.js';
 
 test('normalizes gateway capabilities, per-token pricing, and free routes', () => {
   // A real listing entry's shape (GET https://ai-gateway.vercel.sh/v1/models), not a
@@ -106,6 +113,64 @@ test('an image route reports the gateway price PER IMAGE, in the gateway unit it
   });
   assert.ok(model);
   assert.equal(model.imagePriceUsd, 0.03);
+});
+
+test('the price key spans the two ways one model is named', () => {
+  // Verified against the live gateway listing on 2026-08-14: 72 language models for the three
+  // direct vendors, no two normalizing alike, and the dated/dotted direct ids landing on their
+  // catalog twin. A direct API answers with `claude-sonnet-4-5-20250929`; the price book calls
+  // the same model `anthropic/claude-sonnet-4.5`.
+  assert.equal(modelPriceKey('claude-sonnet-4-5-20250929'), modelPriceKey('anthropic/claude-sonnet-4.5'));
+  assert.equal(modelPriceKey('gpt-4o-2024-08-06'), modelPriceKey('openai/gpt-4o'));
+  assert.equal(modelPriceKey('gemini-2.5-flash'), modelPriceKey('google/gemini-2.5-flash'));
+  assert.equal(modelPriceKey('gemini-2.5-flash-latest'), modelPriceKey('google/gemini-2.5-flash'));
+  // Two genuinely different models must NOT collapse - a wrong price is worse than none.
+  assert.notEqual(modelPriceKey('claude-opus-4.8'), modelPriceKey('claude-opus-4.8-fast'));
+  assert.notEqual(modelPriceKey('gpt-5.6-luna'), modelPriceKey('gpt-5.6-sol'));
+});
+
+test('a direct-provider row is priced from the catalog and filtered to schema-capable models', () => {
+  const facts = new Map<string, CatalogFacts>([
+    [modelPriceKey('anthropic/claude-sonnet-4.5'), {
+      inputPerMillion: 3,
+      outputPerMillion: 15,
+      contextLength: 200_000,
+      maxOutputTokens: 64_000,
+      supportsStructuredOutput: true,
+    }],
+    [modelPriceKey('anthropic/claude-legacy'), {
+      inputPerMillion: 1,
+      outputPerMillion: 2,
+      contextLength: 100_000,
+      maxOutputTokens: 4_096,
+      supportsStructuredOutput: false,
+    }],
+  ]);
+  const rows = pricedDirectModels(
+    [
+      directModel('anthropic', 'anthropic-api', 'claude-sonnet-4-5-20250929', 'Claude Sonnet 4.5'),
+      directModel('anthropic', 'anthropic-api', 'claude-legacy', 'Claude Legacy'),
+      directModel('anthropic', 'anthropic-api', 'claude-unlisted', 'Claude Unlisted'),
+    ],
+    facts,
+  );
+  // Priced, and only the model the harness's forced schema can actually run on. The unlisted
+  // id is not refused anywhere - the model box takes free text - it is simply not suggested.
+  assert.deepEqual(rows.map((row) => row.id), ['claude-sonnet-4-5-20250929']);
+  assert.equal(rows[0].inputPerMillion, 3);
+  assert.equal(rows[0].outputPerMillion, 15);
+  assert.equal(rows[0].contextLength, 200_000);
+});
+
+test('an unreachable price book costs prices, never the listing', () => {
+  // The mutation twin: filtering against an EMPTY book would drop every model and read as
+  // "your key offers nothing", which is a lie about the account rather than about a price.
+  const rows = pricedDirectModels(
+    [directModel('google', 'google-generative-ai', 'gemini-2.5-flash', 'gemini-2.5-flash')],
+    new Map<string, CatalogFacts>(),
+  );
+  assert.deepEqual(rows.map((row) => row.id), ['gemini-2.5-flash']);
+  assert.equal(rows[0].inputPerMillion, null);
 });
 
 test('a model that publishes no per-image price reports null, never zero', () => {

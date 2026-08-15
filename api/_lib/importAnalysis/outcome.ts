@@ -1,4 +1,4 @@
-// POST /api/ai/tasks/import-analysis/outcome - content-free acceptance telemetry for an
+// POST /api/ai/tasks/import-analysis-outcome - content-free acceptance telemetry for an
 // analysis (the Lite outcome pattern): applied at least one suggestion, or dismissed the
 // proposal (with an enumerated reason). Never the suggestions themselves.
 

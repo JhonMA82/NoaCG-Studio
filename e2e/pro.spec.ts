@@ -1,80 +1,95 @@
 import { test, expect, type Page } from '@playwright/test';
-import { enableAdvancedMode } from './_create';
 
-// NoaCG Pro - the image-guided pipeline as an execution TIER of the ONE Create-with-AI
-// step (docs/NOACG_PRO_PLAN.md §7): no separate wizard card, the tier is chosen under
+// NoaCG Pro - the pipeline as an execution TIER of the ONE Create-with-AI step
+// (docs/NOACG_PRO_PLAN.md §7): no separate wizard card, the tier is chosen under
 // ⚙ AI settings, and the brief/fields/uploads workflow is the shared one.
 //
-// The offline suite runs the STUB pipeline (no OpenRouter key configured): a deterministic
-// locally-drawn concept compiled through the real normalizer, compiler and production
-// validator - so what is pinned here is the product flow and the honesty of the report,
-// with zero tokens. The remote path differs only in where the concept and interpretation
-// come from.
+// **THE TIER IS OFFERED ONLY WHERE IT CAN ACTUALLY RUN** (owner, 2026-08-14): the server says
+// hosted Pro is available AND the deployment carries the backend that route is metered
+// through. A NoaCG tier runs on NoaCG's own service or it is not offered - it never asks a
+// customer for a key to reach our own models. The offline suite is by definition the second
+// half of that condition being false, so these specs pin the ABSENCE of the door, including
+// the case that matters most: a status endpoint answering "available" is NOT enough on its
+// own, or the AND would be an OR that nothing noticed.
+//
+// That absence is also why nothing here walks the wizard into Pro any more. The pipeline
+// itself is still covered, and still token-free, by driving `pro/stub.ts` directly - the same
+// route `scripts/pro-bench.mjs` takes. What is NOT covered offline, and is stated rather than
+// quietly lost: the wizard walk through a hosted Pro generation and the allowance read-back,
+// both of which need a backend-configured deployment (e2e/configured/ territory).
 
-async function toProTier(page: Page) {
-  // Pro creates end in the EDITOR (wz-finish-editor) - an Advanced door now (step 6).
-  await enableAdvancedMode(page);
+/** Answer /api/ai/pro-status as a deployment that offers hosted Pro. */
+async function withHostedPro(page: Page, allowance = { daily: 3, monthly: 10 }) {
+  await page.route('**/api/ai/pro-status', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      profile: 'pro',
+      enabled: true,
+      available: true,
+      requiresSignIn: false,
+      maxGenerationCostUsd: 0.15,
+      allowance: {
+        dailyStartsRemaining: allowance.daily,
+        monthlyStartsRemaining: allowance.monthly,
+        dailySuccessesRemaining: 2,
+        monthlySuccessesRemaining: 8,
+      },
+    }),
+  }));
+}
+
+async function openAiTier(page: Page) {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   // There is no separate Pro entry card - Create with AI is the one AI door.
   await expect(page.locator('[data-entry="pro"]')).toHaveCount(0);
   await page.locator('[data-entry="ai"]').click();
-  // Offline, with nothing configured, the settings open themselves; the tier lives there.
   await expect(page.getByTestId('ai-tier')).toBeVisible();
-  await page.getByTestId('ai-tier-pro').click();
-  await expect(page.getByRole('heading', { name: 'NoaCG Pro' })).toBeVisible();
 }
 
-test('pro: a tier of Create with AI - offline says so, no model pickers, Next waits for a result', async ({ page }) => {
-  await toProTier(page);
-
-  // Offline builds run the stub and say so - nothing pretends a model was involved.
-  await expect(page.getByTestId('pro-offline-note')).toBeVisible();
-  // A normal Pro user picks NO models: the tier's settings carry the key surface only.
-  await expect(page.getByTestId('ai-pro-settings')).toBeVisible();
-  await expect(page.getByTestId('ai-pro-settings').getByText('Model', { exact: true })).toHaveCount(0);
-  await expect(page.getByTestId('ai-pro-settings').getByText('Vercel AI Gateway key', { exact: true })).toBeVisible();
-  // Nothing to finish yet.
-  await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();
+test('pro: a status endpoint saying "available" is not enough on a build that cannot run it', async ({ page }) => {
+  // The AND rule, from the side that is easy to get wrong: hosted Pro reserves and settles per
+  // account, so a deployment with no backend cannot run it however the status answers. If this
+  // ever passes as a visible tier, the two conditions have quietly become one.
+  await withHostedPro(page);
+  await openAiTier(page);
+  await expect(page.getByTestId('ai-tier-pro')).toHaveCount(0);
+  await expect(page.getByTestId('ai-tier')).not.toContainText('NoaCG Pro');
 });
 
-test('pro: brief + fields -> concept -> honest report -> editor, as an ordinary editable graphic', async ({ page }) => {
-  await toProTier(page);
+test('pro: with no hosted route at all, the tier is absent and nothing asks for a key', async ({ page }) => {
+  await openAiTier(page);
+  await expect(page.getByTestId('ai-tier-pro')).toHaveCount(0);
+  // ABSENT, not greyed: a tier listed as unavailable still advertises itself. And the panel
+  // that remains never asks for a key to reach NoaCG's own models - the only key surface here
+  // belongs to the bring-your-own-key tier, for the user's own provider.
+  await expect(page.getByTestId('ai-settings')).not.toContainText(/gateway/i);
+  await expect(page.getByTestId('ai-pro-settings')).toHaveCount(0);
+});
 
-  // The SHARED workflow authors the brief: category + data fields from More control.
-  await page.getByTestId('more-control-toggle').click();
-  await page.getByRole('button', { name: /^Lower third/ }).click();
-  await page.getByRole('button', { name: /Data fields/ }).click();
-  await page.getByLabel('Example value').first().fill('Maya Chen');
-  await page.getByLabel('Example value').nth(1).fill('Anchor · Evening News');
-
-  await page.locator('.wz-step textarea').first().fill('Calm election-night strap, deep blue.');
-  // One press runs concept -> interpret -> compile -> the REAL production gate (static +
-  // live runtime bench), so give it room.
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await expect(page.getByTestId('pro-report')).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByTestId('pro-report')).toContainText('Offline concept');
-  await expect(page.getByTestId('pro-report')).toContainText('fully reconstructed, no raster left');
-  // The report is per-region and names what became editable.
-  await expect(page.getByTestId('pro-outcomes')).toContainText('Name');
-  await expect(page.getByTestId('pro-outcomes')).toContainText('operator-editable text field');
-  await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation');
-
-  // Finish: name it and take the editor door.
-  await page.getByRole('button', { name: 'Next →' }).click();
-  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
-  await page.getByTestId('wz-finish-name').fill('Election Night Strap');
-  await page.getByTestId('wz-finish-editor').click();
-  await expect(page.getByTestId('creation-wizard')).toBeHidden();
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Election Night Strap');
-
-  // The compiled graphic is an ORDINARY template: live fields with the brief's values,
-  // reconstructed panels as registry parts, and a timeline-editable NOACG_ANIM block.
+test('pro: the compiled concept is an ordinary editable template', async ({ page }) => {
+  // The shape the wizard walk used to assert, driven straight at the pipeline: live fields
+  // carrying the brief's values, reconstructed panels as registry parts, an editable
+  // NOACG_ANIM block, and no raster left over.
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
   const shape = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { getTemplateParts } = await import('/src/model/structure.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const t = useTemplateStore.getState().template;
+    const bust = `?t=${Date.now()}`;
+    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/stub.ts${bust}`);
+    const { getTemplateParts } = await import(`/src/model/structure.ts${bust}`);
+    const { parseAnimData } = await import(`/src/blocks/animData.ts${bust}`);
+    const brief = {
+      brief: 'Calm election-night strap, deep blue.',
+      name: 'Maya Chen',
+      title: 'Anchor · Evening News',
+      includeLogo: false,
+    };
+    const concept = await stubProConcept(brief);
+    const compiled = await stubCompilePro(brief, concept, {
+      validate: async () => ({ ok: true, errors: [], warnings: [] }),
+    });
+    const t = compiled.template;
     return {
       fields: t.fields.map((f) => ({ id: f.field, title: f.title, value: f.value })),
       parts: getTemplateParts(t.html, t.fields).map((p) => p.selector),
@@ -82,8 +97,6 @@ test('pro: brief + fields -> concept -> honest report -> editor, as an ordinary 
       assetCount: t.assets.length,
     };
   });
-  // The stub strap's every edge is a rebuilt opaque panel, so the tightened crop makes the
-  // reconstruction cover the whole unit and the raster is dropped: pure editable code.
   expect(shape.assetCount).toBe(0);
   expect(shape.fields).toEqual(expect.arrayContaining([
     expect.objectContaining({ id: 'f0', title: 'Name', value: 'Maya Chen' }),
@@ -99,60 +112,44 @@ test('pro: brief + fields -> concept -> honest report -> editor, as an ordinary 
 });
 
 test('pro: an as-is upload is bundled into the logo slot it asked the concept for', async ({ page }) => {
-  await toProTier(page);
-
-  // A small opaque PNG - guessPurpose reads a mark-sized picture as "use it as it is", which
-  // is what makes the brief ask the concept for a logo area in the first place.
-  const encoded = await page.evaluate(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#0b6cf0';
-    ctx.fillRect(0, 0, 128, 128);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(32, 32, 64, 64);
-    return canvas.toDataURL('image/png').split(',')[1];
-  });
-  await page.setInputFiles('.wz-drop input[type=file]', {
-    name: 'mark.png',
-    mimeType: 'image/png',
-    buffer: Buffer.from(encoded, 'base64'),
-  });
-  await expect(page.getByTestId('ai-upload')).toHaveAttribute('data-purpose', 'asset');
-
-  await page.locator('.wz-step textarea').first().fill('A calm news strap with the channel mark.');
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await expect(page.getByTestId('pro-report')).toBeVisible({ timeout: 60_000 });
-  // The report says what happened to the mark - not that a slot exists somewhere.
-  await expect(page.getByTestId('pro-outcomes')).toContainText(
-    "Your uploaded mark was bundled as images/mark.png and set as the Logo slot's value.",
-  );
-
-  await page.getByRole('button', { name: 'Next →' }).click();
-  await page.getByTestId('wz-finish-name').fill('Marked Strap');
-  await page.getByTestId('wz-finish-editor').click();
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Marked Strap');
-
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
   const placed = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const state = useTemplateStore.getState();
-    const t = state.template;
+    const bust = `?t=${Date.now()}`;
+    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/stub.ts${bust}`);
+    const brief = {
+      brief: 'A calm news strap with the channel mark.',
+      name: 'Maya Chen',
+      title: 'Anchor',
+      includeLogo: true,
+    };
+    const concept = await stubProConcept(brief);
+    const compiled = await stubCompilePro(brief, concept, {
+      validate: async () => ({ ok: true, errors: [], warnings: [] }),
+      logoMark: {
+        asset: { path: 'images/mark.png', data: 'data:image/png;base64,iVBORw0KGgo=' },
+        purpose: 'asset',
+        binding: 'swappable',
+      },
+    });
+    const t = compiled.template;
     const slot = t.fields.find((f) => f.ftype === 'filelist');
     return {
       slotValue: slot?.value ?? null,
-      sample: slot ? state.sampleData[slot.field] ?? null : null,
       bundled: t.assets.some((a) => a.path === 'images/mark.png'),
       srcInMarkup: slot ? new RegExp(`<img[^>]*id="${slot.field}"[^>]*src="images/mark.png"`).test(t.html) : false,
+      // The per-region report's own words about what became of the mark - `note`, which is
+      // where fillProLogoSlot writes it (src/ai/pro/logoAsset.ts).
+      outcomes: compiled.report.outcomes.map((o) => o.note ?? '').join(' | '),
     };
   });
-  // The field carries the path, the project's sample data follows from that default, and the
-  // file really rides the template - a value pointing at nothing is the dangling-reference
-  // defect this slice exists to avoid.
+  // The field carries the path and the file really rides the template - a value pointing at
+  // nothing is the dangling-reference defect this slice exists to avoid - and the report says
+  // what happened to the mark rather than that a slot exists somewhere.
   expect(placed.slotValue).toBe('images/mark.png');
-  expect(placed.sample).toBe('images/mark.png');
   expect(placed.bundled).toBe(true);
   expect(placed.srcInMarkup).toBe(true);
+  expect(placed.outcomes).toContain('bundled as images/mark.png');
 });
 
 test('pro: filling the slot retires the empty-slot warning, keeps the as-is screen clean, and ignores a reference', async ({ page }) => {

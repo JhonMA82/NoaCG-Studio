@@ -64,6 +64,15 @@ a primary long-term differentiator, not a nice-to-have.
 
 ## Milestones
 
+### AI tiers
+- [x] **Bring your own key, always** (2026-08-14) - the paid surface buys convenience, never
+      capability. The Create-with-AI door offers it as its own tier: OpenAI, Anthropic, Google or
+      Hugging Face, any model that provider offers, each row carrying its price per million
+      tokens and which key pays for it. **The managed transport is never named or offered to a
+      user** - how NoaCG reaches a model on its own money is plumbing, not a product decision
+      (owner). NoaCG Pro went back behind a flag in the same change: a tier with no hosted route
+      is a door that only misleads.
+
 ### The choose-first creation flow (current push)
 - [x] **Phase 0** — GOALS.md + DESIGN_LANGUAGE.md committed
 - [x] **Phase 1** — Foundations: bundled open fonts, GSAP animation-preset library (marked

@@ -1,9 +1,14 @@
 # NoaCG Lite brand graphics - custom graphics that beat free templates, or nothing
 
-**Status: ACTIVE - ratified by the owner 2026-08-12 (§9).** This is the forward master plan for
-the Lite value pivot; the built-and-measured record it stands on is `docs/AI_LITE_PLAN.md` §7 and
-`benchmarks/lite/BRAND-AUDIT-2026-08-09.md`. Doctrine and code contract stay `src/ai/AGENTS.md`;
-dead ends stay `docs/AI_ATTEMPTS.md`. Nothing here widens any product surface until its gate says so.
+**Status: ITS OWN GATE ANSWERED NO - 2026-08-14.** The §2 value gate FAILED on the owner's blind
+ballot (§2.2), so the predeclared consequence is in force: **custom AI generation is retired from
+the roadmap for now**, free templates plus manual wizard branding stand, and the rest of this plan
+is a record rather than a queue of work. Read §2.2 first; the plan is otherwise unedited, because
+a plan rewritten after its own verdict cannot be checked against what it promised. **The platform
+work §2.2 names - a mark-legibility gate and a mark-SIZE rule - is free, is not AI work, and is
+what any revival needs first.** Ratified 2026-08-12 (§9); the built-and-measured record it stands
+on is `docs/AI_LITE_PLAN.md` §7 and `benchmarks/lite/BRAND-AUDIT-2026-08-09.md`. Doctrine and code
+contract stay `src/ai/AGENTS.md`; dead ends stay `docs/AI_ATTEMPTS.md`.
 
 ## 0. The thesis, restated as a falsifiable claim
 
@@ -70,6 +75,110 @@ now; free templates + manual wizard branding stand, and "make it yourself with C
 documented advanced path. The banks, audit and ledger stay - they gate any future revival.
 
 First read at 8 briefs x 3 arms; a pass is confirmed at 20+ joined items before any public claim.
+
+### 2.1 The round as built - 2026-08-14, AWAITING THE OWNER'S BALLOT
+
+Rig: `scripts/ai-lite-value-gate.mjs` (arms + blind sheet + the verdict), filming through the
+shared lifecycle rig `scripts/ai-lite-capture.mjs` that `ai-lite-eval.mjs` now also uses - two
+capture loops would have made the arms differ by their rig rather than by their content.
+
+**Spend: approved up to ~$0.04 for the Lite arm, actual $0.0069** for 8 cells, 8 of 8
+machine-usable, route `google/gemini-2.5-flash-lite` via the gateway, `--env=.env.bench.local`
+preflight green first. The other two arms cost nothing - they are `variant.create()`, the wizard's
+own assembler. Bench rows went to the in-memory ledger, which `scripts/bench-env.mjs` now writes
+for every lite profile rather than leaving to memory (§4.4's `ledger_update` wipeout).
+
+**The eight briefs are matrix cells**, not new fixtures: five are a diagonal of the grid (five
+jobs x five marks x five palettes, each exactly once) and three add the pairings worth a human's
+eye, including a knockout-only mark on a light package. The Lite arm was REGENERATED rather than
+taken from the 2026-08-13 archive, because §3.7 (a strap spends width; the painted well is gone)
+landed after that round and the gate must judge what the product does today.
+
+Two deliberate departures from the wording above, both recorded because they change what the
+round measures:
+
+- **The template arm carries the brief's words, not the design's shipped sample names.** With
+  "Jane Doe" on screen the reviewer identifies that arm instantly and the round stops being
+  blind. It also makes the template arm stronger, never weaker.
+- **The free arms find their design by STYLE FAMILY, not by a text query.** Measured while
+  building this: every lower third declares itself relevant to every programme, so a family or
+  format chip returns all 82 with an identical score, and the text index is token-AND ("news
+  anchor lower third" matches nothing). Browse's order is then the catalog's, so the honest model
+  of a user is the one choice the storefront really offers - the style that suits the show,
+  taking its first mark-capable design; a second brief on the same job takes the next one.
+
+**The predeclared rule, operationalized before the ballot was taken:** "clearly beats" = a
+strictly higher brand-fit score on that brief; "at least equal" = a quality score no lower than
+the DIY arm's; "a clear majority" = more than half the fully judged briefs; "accepted" = an item
+the reviewer would air as-is or after minor edits. `--verdict <ballot.jsonl>` applies exactly
+that and prints PASS or FAIL with the per-brief rows.
+
+The ballot asks four things per item: on air for this brand (yes / minor edits / no), brand fit
+1-5, quality 1-5, and a brand-fidelity defect tick. Nothing in the sheet, the filenames, the
+ordering or the position says which arm an item is; the mapping lives only in
+`value-gate-key.json` beside it, which must not be opened before the ballot is in.
+
+### 2.2 THE VERDICT - FAIL (owner's blind ballot, 2026-08-14)
+
+**The §2 gate FAILED. Lite beat the template arm on brand fit and held the DIY arm on quality on
+0 of 8 briefs, against a rule needing a clear majority.** Predeclared consequence, therefore in
+force: **custom AI generation is retired from the roadmap for now; free templates plus manual
+wizard branding stand, and "make it yourself with Claude Code" is the documented advanced path.**
+The banks, the audit and the ledger stay - they gate any future revival. Ballot, key and frames:
+`C:\claude\noacg-lite-eval-archive\value-gate-2026-08-14`.
+
+All 24 items were voted. What the owner would air:
+
+| arm | would air | brand fit | quality | defect ticks |
+| --- | --- | --- | --- | --- |
+| template | **0 of 8** | not scored | not scored | 8 |
+| DIY (wizard-branded) | **3 of 8** | 2.67 (n=3) | 3.50 (n=4) | 3 |
+| Lite | **2 of 8** | 3.00 (n=5) | 3.00 (n=5) | 0 |
+
+Two things the arithmetic alone would misreport, both stated so nobody re-reads this table as
+worse or better than it is:
+
+- **The 1-5 scores are partly unfilled** (Lite 3 of 8 unscored, DIY 5, template 8); the owner
+  voted the decision and wrote a note instead. The FAIL does not rest on them: Lite was airable
+  on 2 of 8 briefs, and no filling-in of missing scores reaches a majority from there.
+- **The template arm's 8 defect ticks are all "no logo"**, which is that arm's DEFINITION rather
+  than a fidelity defect - a free catalog design carries no customer mark. Read them as the
+  owner confirming the arm is what it claims to be, not as eight template bugs.
+
+**The finding that outlives the verdict: every failure named was the MARK, and it hit both
+branded arms.** In the owner's own words - a white mark on a white package ("white on white will
+never work... we should have all these obvious rules already"), a mark too small against the name
+on four separate items, and where the mark did get a backing the backing was too big for the text
+inside it. The DIY arm failed the identical white-on-white pairing, which places the defect in the
+PLATFORM, not the model: §3.7 removed the painted well and deliberately chose to record
+`logo_ink_unreadable_on_surface` rather than repair it, and this ballot is the owner refusing that
+trade. **A mark-legibility gate and a mark-SIZE rule are the platform work any revival needs
+first** - and both are free, model or no model. Two more, from the same notes: a rule/underline
+crossing the name on two designs, and a title with no contrast on a light package.
+
+**The legibility half is BUILT (2026-08-14, `src/validation/markLegibility.ts`).** The mark's ink
+is probed on the rendered frame and measured against every surface it could be composited over;
+below 3:1 it is reported as the always-on `bench-mark-unreadable` bench warning and, for the path
+the ballot actually failed on, live in the wizard's Style step next to the palette that broke it.
+It reports and never repairs - §3.7's two repairs are still worse than the defect - and it judges
+TRANSPARENT ink only: swept over all 23 mark-capable lower thirds, luminance flagged two own-field
+crests that render perfectly, because a blue crest on a red tile separates by hue. Pinned by
+`e2e/mark-legibility.spec.ts`, mutation-tested.
+
+**The SIZE half is built too (2026-08-14, `src/templates/shared/logoSlot.ts`).** The slot's WIDTH
+cap bound before its height cap, so a 4:1 wordmark painted 33px beside a 54px name and a 13:1 rail
+painted ten pixels at 1080p - which is what "the logo is too small" was, on four of the eight
+briefs. Raising that cap alone is measurably wrong: over all 23 mark-capable lower thirds it
+wrapped 1-3 designs and grew those straps up to 73% TALLER, i.e. §3.7's own failure arriving
+through the width. The strap's own wrap cap is widened by the mark's column instead, so the words
+keep their measure and the graphic spends WIDTH. Measured: wordmark 33 -> 65px, rail 10 -> 20px,
+crest 68 -> 84px, zero newly wrapped lines (two designs stopped wrapping), zero height growth,
+nothing outside the title-safe area; 84px is the ceiling because 96 starts setting the strap's
+height. All five catalog gates and the lower-third L3 sweep pass; pinned by
+`e2e/wizard-logo.spec.ts`, mutation-tested.
+
+**What remains from the ballot** are the two non-mark notes: a rule/underline crossing the name on
+two designs, and a title with no contrast on a light package.
 
 ## 3. Close the brand-fidelity gaps first - platform work, all free
 

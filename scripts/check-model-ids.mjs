@@ -24,6 +24,13 @@
 // the run, because the weekly workflow is keyless by design and a permanent red there would just
 // train everyone to ignore it (docs/STACK_FRESHNESS.md).
 //
+// KNOWN BLIND SPOT, measured on Google 2026-08-14: a listing can advertise a model the calling
+// key cannot use. `gemini-2.5-flash` and `gemini-2.5-flash-lite` appear in BOTH of Google's
+// listings, with no field separating them from live models, and answer 404 "no longer available
+// to new users" on a key created after their retirement. A presence check therefore reports OK
+// for an id that cannot be called - only a real request can tell, and this script deliberately
+// makes none. The product's answer is the error message in api/_lib/aiGateway.ts, not a filter.
+//
 // Every endpoint used here is a LISTING. No completion is requested, so this spends nothing.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve, dirname, join, relative } from 'node:path';
@@ -49,7 +56,7 @@ const ROUTE_LITERAL = /\b(?:model|id):\s*'([a-z0-9](?:[a-z0-9-]*[a-z0-9])?\/[A-Z
  * explicitly. Read separately from the route scan because THIS is where a non-gateway id can
  * live — a bare `gpt-5.6` has no slash and never matches ROUTE_LITERAL at all.
  */
-const CATALOG_ENTRY = /provider:\s*'(anthropic|openai|vercel|huggingface)',[\s\S]{0,400}?\bid:\s*'([^']+)'/g;
+const CATALOG_ENTRY = /provider:\s*'(anthropic|openai|google|vercel|huggingface)',[\s\S]{0,400}?\bid:\s*'([^']+)'/g;
 
 const walk = (dir) => {
   const out = [];
@@ -132,6 +139,22 @@ const PROVIDERS = {
       return new Set((await res.json()).data.map((m) => m.id));
     },
   },
+  google: {
+    label: 'Google AI',
+    // Google's own docs and SDKs use GEMINI_API_KEY, so a machine set up for Gemini carries it
+    // under that name - the same fallback api/_lib/aiCredentials.ts reads.
+    keyName: 'GOOGLE_API_KEY',
+    keyFallbacks: ['GEMINI_API_KEY'],
+    async list(key) {
+      // The OpenAI-compatible listing, which is the surface the google adapter posts to - so
+      // this checks the ids that route actually accepts. It answers them prefixed `models/`.
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models', {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      if (!res.ok) throw new Error(`google listing answered ${res.status}`);
+      return new Set((await res.json()).data.map((m) => String(m.id).replace(/^models\//, '')));
+    },
+  },
   huggingface: {
     label: 'Hugging Face',
     keyName: null,
@@ -166,9 +189,10 @@ for (const [provider, entries] of [...byProvider.entries()].sort()) {
     unchecked.push({ provider, reason: 'no listing configured for this provider', count: entries.length });
     continue;
   }
-  const key = spec.keyName ? env[spec.keyName] : null;
+  const keyNames = spec.keyName ? [spec.keyName, ...(spec.keyFallbacks ?? [])] : [];
+  const key = keyNames.map((name) => env[name]).find(Boolean) ?? null;
   if (spec.keyName && !key) {
-    unchecked.push({ provider, reason: `${spec.keyName} not set`, count: entries.length });
+    unchecked.push({ provider, reason: `${keyNames.join(' / ')} not set`, count: entries.length });
     continue;
   }
   try {

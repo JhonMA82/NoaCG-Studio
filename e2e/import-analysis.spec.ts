@@ -80,11 +80,11 @@ async function openTextStep(page: Page) {
 test('analysis proposes fields; the user reviews, applies, and the outcome is recorded', async ({ page }) => {
   test.setTimeout(60_000);
   const outcomes: Array<Record<string, unknown>> = [];
-  await page.route('/api/ai/tasks/import-analysis/status', (route) =>
+  await page.route('/api/ai/tasks/import-analysis-status', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(STATUS) }));
   await page.route('/api/ai/tasks/import-analysis', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ANALYSIS) }));
-  await page.route('/api/ai/tasks/import-analysis/outcome', async (route: Route) => {
+  await page.route('/api/ai/tasks/import-analysis-outcome', async (route: Route) => {
     outcomes.push(route.request().postDataJSON() as Record<string, unknown>);
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{"recorded":true}' });
   });
@@ -122,7 +122,7 @@ test('analysis proposes fields; the user reviews, applies, and the outcome is re
 });
 
 test('with the server task off, the assistant does not exist and the manual flow is untouched', async ({ page }) => {
-  await page.route('/api/ai/tasks/import-analysis/status', (route) =>
+  await page.route('/api/ai/tasks/import-analysis-status', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',

@@ -48,7 +48,7 @@ async function checkedJson<T>(response: Response): Promise<T> {
 
 export async function loadImportAnalysisStatus(): Promise<ImportAnalysisStatusResponse> {
   const token = await getAccessToken();
-  const response = await fetch('/api/ai/tasks/import-analysis/status', {
+  const response = await fetch('/api/ai/tasks/import-analysis-status', {
     headers: token ? { authorization: `Bearer ${token}` } : {},
   });
   return checkedJson<ImportAnalysisStatusResponse>(response);
@@ -122,7 +122,7 @@ export async function requestImportAnalysis(
 }
 
 export async function recordImportAnalysisOutcome(request: ImportAnalysisOutcomeRequest): Promise<void> {
-  const response = await fetch('/api/ai/tasks/import-analysis/outcome', {
+  const response = await fetch('/api/ai/tasks/import-analysis-outcome', {
     method: 'POST',
     headers: await authHeaders(),
     body: JSON.stringify(request),

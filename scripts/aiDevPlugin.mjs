@@ -18,6 +18,11 @@ export function aiApiPlugin() {
 // imported-graphic-analysis task shipped without its entries, so it 404'd locally while
 // its e2e spec passed - that spec mocks at the network level and never touches a handler.
 // A new api/ai route adds its entry HERE in the same change.
+//
+// It is also NOT a depth check: this dispatcher matches the whole path, so a route nested one
+// segment too deep for the real deployment works perfectly here. That is how hosted Pro and
+// this task both shipped paths production answered with a platform 404 while dev, the specs
+// and CI were all green. `npm run check:api-route-depth` is what catches that.
 const ROUTES = new Set([
   'generate',
   'models',
@@ -28,8 +33,8 @@ const ROUTES = new Set([
   'lite/outcome',
   'lite/judge',
   'tasks/import-analysis',
-  'tasks/import-analysis/status',
-  'tasks/import-analysis/outcome',
+  'tasks/import-analysis-status',
+  'tasks/import-analysis-outcome',
 ]);
 
 async function handle(server, req, res) {

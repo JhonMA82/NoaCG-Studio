@@ -1,4 +1,4 @@
-// GET /api/ai/tasks/import-analysis/status - availability + public limits + remaining
+// GET /api/ai/tasks/import-analysis-status - availability + public limits + remaining
 // allowance for the imported-graphic-analysis task. Mirrors /api/ai/lite/status: never
 // routes, providers, models, prices, or endpoint slugs.
 

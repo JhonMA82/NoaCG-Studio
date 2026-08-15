@@ -77,7 +77,7 @@ const smokeSource = String.raw`
       available: provider.available,
       requiresSignIn: provider.requiresSignIn,
     })),
-    ['anthropic', 'openai', 'vercel', 'huggingface'].map((id) => ({
+    ['anthropic', 'openai', 'google', 'vercel', 'huggingface'].map((id) => ({
       id,
       userKey: false,
       managedKey: true,
@@ -206,8 +206,9 @@ test('Vercel-style JavaScript artifacts load and execute every Creative AI funct
         AI_KEY_ENCRYPTION_SECRET: 'test-encryption-secret-with-at-least-32-characters',
         ANTHROPIC_API_KEY: 'provider-key-placeholder-anthropic',
         OPENAI_API_KEY: 'provider-key-placeholder-openai',
+        GOOGLE_API_KEY: 'provider-key-placeholder-google',
         AI_GATEWAY_API_KEY: 'provider-key-placeholder-gateway',
-        HUGGINGFACE_API_KEY: 'provider-key-placeholder-huggingface',
+        HF_TOKEN: 'provider-key-placeholder-huggingface',
       }),
     },
   );

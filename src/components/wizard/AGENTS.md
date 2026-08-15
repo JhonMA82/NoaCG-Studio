@@ -225,6 +225,15 @@ values from a latest-template ref, and gates the auto-entrance on `document.font
 (capped) so a font choice shows on the entrance itself. Pinned by e2e/wizard-preview.spec.ts,
 wizard-logo.spec.ts, and wizard-filters.spec.ts.
 
+**THE STYLE STEP WARNS WHEN THE PALETTE JUST ERASED THE LOGO** (`useMarkLegibility` ->
+`validation/markLegibility.ts`, owner's value-gate ballot 2026-08-14). It measures its OWN
+offscreen frame rather than the live preview, because WizardPreview's iframe deliberately carries
+no `allow-same-origin` and its pixels cannot be read from the app at all. Debounced past the
+preview's own 220ms and skipped entirely unless the draft carries a logo - a graphic with no mark
+cannot fail it and must not pay for the render. It reports; it never repairs (the two available
+repairs are dropping the customer's mark or pasting a plate over the design, both refused in
+`templates/shared/logoSlot.ts`). Pinned by e2e/mark-legibility.spec.ts.
+
 **Create with AI** (Entry card -> steps/AiStep, mode 'ai') is the MERGED describe/import step.
 One drop zone accepts images AND an existing .html/.zip template. A dropped template parses
 deterministically (model/importTemplate.ts) into a card with two actions: **"Open as code (no
@@ -260,10 +269,15 @@ values; the spec persists as a cross-session draft and, on Create, lands on the 
 nothing (pinned by e2e/ai-more-control.spec.ts).
 
 **The step has THREE execution tiers** (`AiSettings.tier`, picked under ⚙ AI settings - the
-one panel every tier can reach): **NoaCG Lite**, **NoaCG Pro**, and **Custom provider**. The
-default resolves to Lite when the server offers it, else Custom - exactly the pre-tier
-behaviour. Lite and Pro are managed experiences of the SAME workflow (no model picking);
-Custom is the deliberate advanced surface carrying the full `AiProviderSettings`.
+one panel every tier can reach): **NoaCG Lite**, **NoaCG Pro** and **Bring your own key**
+(stored id `custom` - the label changed, the id never can). The default resolves to Lite when
+the server offers it, else BYO key. Lite and Pro are managed experiences of the SAME workflow -
+no model picking and NO mechanism named in their copy; BYO key is the deliberate advanced
+surface carrying `AiProviderSettings` with `allowManaged={false}`, since the managed route is
+not a thing a user chooses. A tier this build does not offer is ABSENT rather than greyed:
+**Pro renders only where it can run** - the server offers hosted Pro AND the deployment has the
+backend to meter it (see below). The tier contract, the price targets and the price-book rule
+behind each model row are src/ai/AGENTS.md's.
 
 The PIPELINES behind Lite and Pro are src/ai/AGENTS.md's contract (and docs/NOACG_PRO_PLAN.md
 §7); what belongs here is what each tier does to this STEP.
@@ -277,13 +291,23 @@ and never enters the template or the saved graphic. Lite disabled = the BYO surf
 
 **Pro** shows the concept image with its provider-reported cost plus the per-region editability
 report (`data-testid="pro-report"`, keyed to the template by WeakMap so a restored past result
-shows its own concept). Its settings carry the AI Gateway key surface only
-(`AiProviderSettings fixedProvider/showModel`) - a normal Pro user picks no models. Categories
+shows its own concept). **The tier is OFFERED only where it can actually run** - the server says
+hosted Pro is available to this visitor (`/api/ai/pro-status`) AND the deployment carries the
+backend that route is metered through (`proOffered = proHosted && isBackendConfigured()`). Where
+that is false the tier is ABSENT, never a greyed row and never a key request: a NoaCG tier runs
+on NoaCG's own service or it is not offered (owner, 2026-08-14). Its settings are therefore one
+read-back with the remaining allowance (`ai-pro-hosted-note`) and no chooser of any kind - no
+provider, no model, no key. **A hosted deployment is never reachable from the browser** - no
+flag, no query parameter, no localStorage key - which is the property `e2e/pro.spec.ts` pins by
+answering the status endpoint and nothing else. A generation opens ONE reservation before the
+first model call and reports its outcome after the last (`src/ai/pro/session.ts`); the spend is
+recorded server-side and is never a number this step sends. Categories
 clamp to lower-third/auto, spec-field findings demote to warnings (`demoteSpecFields`: fixed
 contract, no repair loop), and refine/fix stand down because regenerate is the honest move.
-With no gateway credential the tier says so and runs the offline stub, which is what keeps
-e2e/pro.spec.ts token-free. The step passes the FIRST "use it as it is" upload in as
-`logoMark`; the ordering that makes that safe is src/ai/AGENTS.md's.
+The step no longer carries a stub branch of its own - the tier is absent where a real
+generation cannot run - so `e2e/pro.spec.ts` stays token-free by driving `pro/stub.ts` directly,
+the way `scripts/pro-bench.mjs` already does. The step passes the FIRST "use it as it is" upload
+in as `logoMark`; the ordering that makes that safe is src/ai/AGENTS.md's.
 
 The harness is ON BY DEFAULT, with the **"Use NoaCG harness (3 options)"** checkbox
 (`AiSettings.useHarness`, default true — the benchmark showed it a clean win) still able to

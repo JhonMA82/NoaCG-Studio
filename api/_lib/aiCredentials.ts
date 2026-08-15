@@ -92,14 +92,24 @@ export function managedAiKey(provider: AiProviderId): string {
   const names: Record<AiProviderId, string> = {
     anthropic: 'ANTHROPIC_API_KEY',
     openai: 'OPENAI_API_KEY',
+    google: 'GOOGLE_API_KEY',
     vercel: 'AI_GATEWAY_API_KEY',
-    huggingface: 'HUGGINGFACE_API_KEY',
+    // Hugging Face issues USER ACCESS TOKENS, not API keys - so the variable is named for what
+    // the provider actually hands out, and `HF_TOKEN` is the name their own tooling reads.
+    huggingface: 'HF_TOKEN',
   };
   const conventionalFallback = provider === 'huggingface'
-    ? process.env.HF_TOKEN
+    // HUGGINGFACE_TOKEN is the spelled-out twin; HUGGINGFACE_API_KEY is the name this repo
+    // used before 2026-08-14 and is still read, because a deployment's secret cannot be
+    // renamed by a commit here.
+    ? process.env.HUGGINGFACE_TOKEN || process.env.HUGGINGFACE_API_KEY
     : provider === 'vercel'
       ? process.env.VERCEL_OIDC_TOKEN
-      : '';
+      // Google's own SDKs and the Gemini docs both use GEMINI_API_KEY, so a machine set up
+      // for Gemini already carries it under that name.
+      : provider === 'google'
+        ? process.env.GEMINI_API_KEY
+        : '';
   return (process.env[names[provider]] || conventionalFallback || '').trim();
 }
 

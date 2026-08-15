@@ -670,9 +670,57 @@ export const huggingFaceAdapter: ProviderAdapter = {
   },
 };
 
+/** Google's Gemini models on the user's own key.
+ *
+ *  Modelled on the Hugging Face adapter above rather than on Gemini's native
+ *  `generateContent` API: Google publishes an OpenAI-compatible surface at
+ *  `/v1beta/openai`, which speaks the same chat-completions request and response shape the
+ *  gateway adapter already parses. One request shape means one place to fix a parsing bug,
+ *  and no second structured-output dialect to keep in step with the harness.
+ *
+ *  `seed` is deliberately not forwarded: the compatibility layer rejects parameters it does
+ *  not implement, and a benchmark preference must never be able to fail a user's generation. */
+export const googleAdapter: ProviderAdapter = {
+  id: 'google',
+  endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+  createRequest(request, route, key) {
+    refuseImageOutput(request, 'google');
+    return {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: route.model,
+        messages: [{ role: 'system', content: request.system }, ...chatContent(request.messages)],
+        max_tokens: request.maxTokens ?? 16000,
+        ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
+        ...(request.structuredOutput
+          ? {
+              response_format: {
+                type: 'json_schema',
+                json_schema: {
+                  name: request.structuredOutput.name,
+                  description: request.structuredOutput.description,
+                  strict: false,
+                  schema: request.structuredOutput.schema,
+                },
+              },
+            }
+          : {}),
+      }),
+    };
+  },
+  parseResponse(value, request, route) {
+    return vercelGatewayAdapter.parseResponse(value, request, route);
+  },
+};
+
 export const AI_ADAPTERS: Record<AiProviderId, ProviderAdapter> = {
   anthropic: anthropicAdapter,
   openai: openAiAdapter,
+  google: googleAdapter,
   vercel: vercelGatewayAdapter,
   huggingface: huggingFaceAdapter,
 };
@@ -761,11 +809,21 @@ export function validateGatewayBody(value: unknown): AiGatewayRequestBody {
     && body.surface !== 'spike') {
     throw new GatewayError('invalid_request', 'The AI request surface is invalid.', 400, false);
   }
+  // A hosted Pro reservation id. Shape-checked here and MEANING-checked by the ledger, which
+  // is the only place that can answer whether it is live, owned and still inside its ceiling.
+  if (
+    body.proGenerationId !== undefined
+    && (typeof body.proGenerationId !== 'string'
+      || !/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(body.proGenerationId))
+  ) {
+    throw new GatewayError('invalid_request', 'The AI request reservation is invalid.', 400, false);
+  }
   return {
     request: request as unknown as ModelRequest,
     route: validateRoute(body.route),
     ...(fallbacks.length ? { fallbacks } : {}),
     ...(body.surface ? { surface: body.surface } : {}),
+    ...(body.proGenerationId ? { proGenerationId: body.proGenerationId as string } : {}),
   };
 }
 
@@ -805,8 +863,34 @@ function allowlistExcludesModel(body: string): boolean {
   return /No available providers match the '?only'? filter/i.test(body);
 }
 
+/**
+ * The model does not exist FOR THIS CREDENTIAL - which is not the same as not existing.
+ *
+ * Measured against Google AI on 2026-08-14: `gemini-2.5-flash` and `gemini-2.5-flash-lite` are
+ * listed by BOTH of Google's own model listings, with no field of any kind marking them apart,
+ * and then answer 404 "no longer available to new users" for a key created after they were
+ * retired. So a picker cannot filter them out - the listing is what it has to trust - and the
+ * only honest place left to help is the error. A bare "the provider rejected the request"
+ * sends someone hunting a fault in their key or in NoaCG; naming the cause costs one regex.
+ */
+function modelUnavailableForKey(body: string): boolean {
+  return /no longer available|not found for api version|is not supported for|models\/[^"']+ is not found/i.test(body);
+}
+
 function providerFailure(status: number, body = ''): GatewayError {
   if (status === 408) return new GatewayError('timeout', 'The AI provider timed out.', 504, true);
+  if (status === 404 || (status === 400 && modelUnavailableForKey(body))) {
+    if (modelUnavailableForKey(body)) {
+      return new GatewayError(
+        'provider_rejected',
+        'That model is not available on this account - the provider lists it but will not serve it. '
+          + 'Pick a newer model from the list.',
+        502,
+        false,
+      );
+    }
+    return new GatewayError('provider_rejected', 'The AI provider does not know that model id.', 502, false);
+  }
   if (status === 429) return new GatewayError('rate_limited', 'The AI provider is busy. Try again shortly.', 429, true);
   if (status === 400 && allowlistExcludesModel(body)) {
     return new GatewayError(

@@ -52,6 +52,66 @@ Two rules the repo paid to learn, binding everywhere here:
   first failure. A prohibition suppresses the behaviour it constrains. When a teaching change moves a
   rate, suspect the FRAMING before the rule.
 
+## The tiers a user is offered (`settings.ts`, the ⚙ panel in AiStep)
+
+**LIVE.** One door, and behind it three tiers - two of which a user can reach today.
+
+| Tier | Stored id | Label | Price target per finished graphic |
+|---|---|---|---|
+| Lite | `lite` | NoaCG Lite | **100 graphics per €1** (~€0.01); measured **$0.00032** |
+| Pro | `pro` | NoaCG Pro | **~€10 per 100** (~€0.10 each) |
+| Bring your own key | `custom` | Bring your own key | whatever the user's provider charges |
+
+Four rules, all of them things the shipped build got wrong before 2026-08-14:
+
+- **The stored id is not the label.** `custom` is persisted per browser (`spx-gfx-ai`); renaming
+  it silently resets everyone who chose it. Change copy freely, ids never.
+- **A price target is a commitment about the ROUTE.** Missing it changes which model a tier
+  calls, never what a user is charged. Lite has ~30x of headroom, so its route choice is a
+  QUALITY decision (`docs/GOALS.md` NEXT).
+- **The managed transport is never user-facing.** `AI_PROVIDER_IDS` (modelTypes.ts) is the
+  transport set; `AI_PROVIDERS` (settings.ts) is the BRING-YOUR-OWN-KEY subset a user picks
+  from - openai, anthropic, google, huggingface. They are deliberately two lists: collapsing
+  them either sells our plumbing as a product or breaks every managed route. The BYO-key tier
+  additionally MOVES a stored managed route onto a real user-key provider
+  (`DEFAULT_BYOK_PROVIDER`), because a tier promising "your key" must not spend ours.
+- **A managed tier names an OUTCOME, never a mechanism.** Lite and Pro name no vendor, model or
+  transport, so replacing the engine behind one costs no copy - and cannot leave the door
+  describing a pipeline that was retired, which is exactly how Pro shipped describing image
+  reconstruction two months after it was dropped.
+- **A NoaCG TIER RUNS ON NOACG'S OWN SERVICE OR IT IS NOT OFFERED** (owner, 2026-08-14). It
+  never asks a customer for a key to reach our own models or harness. Pro is therefore offered
+  on exactly two conditions, ANDed: the server says hosted Pro is available to this visitor
+  (`GET /api/ai/pro-status`, `AI_PRO_ENABLED`) **and** the deployment carries the backend that
+  route is metered through (`proOffered = proHosted && isBackendConfigured()`). Where either is
+  false the tier is ABSENT - not greyed, and never degraded into a key request. **One door
+  takes one switch:** there is no client flag for Pro and there must not be one, or a
+  deployment meters it while showing no door, or shows one it will refuse. The key row in
+  `AiProviderSettings` stands down on the managed route for the same reason.
+
+**Every model row carries a price per 1M tokens and says which key pays it.** None of the three
+direct provider APIs publishes a price with its listing (measured), so `aiModelDiscovery.ts`
+reads the managed catalog as a PRICE BOOK, matched by `modelPriceKey` - which normalizes away
+the vendor prefix, the dot-vs-dash separator and the dated snapshot suffix, and nothing else. An
+ambiguous or unmatched model is left unpriced and unsuggested rather than guessed at; the model
+box takes free text, so nothing is ever blocked by the book being wrong.
+
+**A LISTING IS NOT AN ENTITLEMENT, and no filter can fix that** (measured on Google,
+2026-08-14). `gemini-2.5-flash` and `gemini-2.5-flash-lite` appear in both of Google's own
+listings, indistinguishable from live models in every published field, and answer 404 "no longer
+available to new users" on a key created after their retirement. Discovery has nothing to filter
+on, so the honest place to help is the ERROR: `providerFailure` maps that shape to "not available
+on this account - the provider lists it but will not serve it". Two consequences worth keeping:
+a curated fallback id in `settings.ts` must be one VERIFIED by a real call, not merely listed
+(`gemini-3.1-flash-lite` is, as of that date), and `scripts/check-model-ids.mjs` cannot catch
+this class at all - it checks presence, and presence is exactly what lies here.
+
+**Verified end to end on real customer credentials 2026-08-14:** Hugging Face
+(`Qwen/Qwen2.5-Coder-3B-Instruct`, 74 schema-capable routes listed for the token) and Google
+(`gemini-3.1-flash-lite`), both returning schema-valid objects through the real adapters. HF
+issues USER ACCESS TOKENS needing the **Inference Providers** permission, never API keys - hence
+`credentialNoun` and the `HF_TOKEN` variable name.
+
 ## Retrieval - the shortlist of proven designs (`retrieval.ts`)
 
 **LIVE, on the ADAPT route only.** The design stage used to be handed `catalogDigest()` - **430
@@ -263,6 +323,19 @@ can fix that, and the two remaining moves - dropping the customer's mark or past
 over the design - are both worse than the defect. The mark ships where the design puts it and the
 pairing is recorded (`logo_ink_unreadable_on_surface`). `ls12`'s fixed dark tile is the one
 ratified exception, because it is a designed part of that composition rather than a repair.
+
+**RECORDING IT WAS NOT ENOUGH, and the value gate is what proved it** (owner's blind ballot,
+2026-08-14 - `docs/AI_LITE_BRAND_PLAN.md` §2.2). A ledger column is not a place anyone looks: a
+knockout mark on a light package shipped invisible on the generated arm AND on the arm a person
+branded by hand, where nothing was recorded at all. `validation/markLegibility.ts` now MEASURES it
+on the rendered frame - the mark's ink probed with the same `probeMarkElement` a real upload goes
+through, against every surface it could be composited over - and says so twice: as the always-on
+`bench-mark-unreadable` warning in the runtime bench, and live in the wizard's Style step, beside
+the palette that broke it. Still no repair, for the reasons above; the change is that the person
+who can fix it is told. **Judged for TRANSPARENT ink only**: swept over all 23 mark-capable lower
+thirds, luminance flagged 2 own-field crests that render perfectly (a blue crest on a red tile
+separates by hue), and a gate whose false positives are the designs that carry a crest best would
+teach authors to ignore it. Pinned by `e2e/mark-legibility.spec.ts`, including the wizard path.
 
 **A BRAND MARK is under the same rule, and `LiteCatalogEntry.logoSlot` is the measurement.**
 `node scripts/ai-lite-brand-audit.mjs --lite --check` renders a real mark into a real slot and
@@ -579,8 +652,39 @@ is no parallel brief vocabulary. That is a UI and contract economy, not a shared
 §9). `compileProConcept` refuses before the interpretation when the concept alone spent it, and
 again on the total. `generateProConcept` deliberately does NOT throw on a breach: the image is
 already billed, so it returns with its cost and only the next call is stopped - the 2026-08-08
-lesson about early returns destroying paid concepts. Browser-side, so it is a cost control and not
-a server booking; an unreported cost counts as zero.
+lesson about early returns destroying paid concepts. An unreported cost counts as zero.
+
+**HOSTED Pro is now a server BOOKING as well, against the same number** (`AI_PRO_ENABLED`, default
+off; `docs/AI_TASK_REGISTRY.md`). The browser ceiling was for a long time "the only thing standing
+between a route change and an open tap", because Pro rode the general model surface with no
+registered task; `pro-generate` is that task. `src/ai/pro/session.ts` opens ONE reservation per
+generation (`POST /api/ai/pro-generations`) and the pipeline forwards `proGenerationId` on every
+model call; `/api/ai/generate` admits each call against it and settles the provider's real cost
+into `ai_generations` (migration 0044). So the two enforcement points are deliberately the same
+constant: the browser's is a cost control, the ledger's is the bound. **A `session` of null is the
+bring-your-own-key and offline-stub path, unchanged** - a caller spending their own key is never
+metered, and neither `e2e/pro.spec.ts` nor the bench changes.
+
+**Nothing in the hosted route knows what the pipeline DOES**, and that is deliberate: §15 of the
+plan replaces the concept-and-reconstruct engine, and an allowance that encoded its stages would
+have to be rewritten with it. The route's only shape-assumption is `AI_PRO_MAX_CALLS`, a bound
+rather than a description.
+
+**A FLEET SLOT FOLLOWS THE WORK, NOT THE CLOCK, and that is what makes Pro usable by a class.**
+Thirty students press Create within seconds of each other. Two things were wrong together: the
+reservation answered `shared_capacity` on its first observation, and it booked the slot for the
+profile's whole 15-minute expiry - so most of the room got an error, waiting on slots that did
+not turn over. Now the admission RETRIES the shared slot with jitter (`reserveProCapacity`,
+Lite's shape), and the reservation is taken on a lease covering ONE call which every settled
+call renews (`proCapacityRetryPlan`, migration 0046). A live generation keeps its seat; an
+abandoned tab frees it within a lease instead of a quarter of an hour. **Only the fleet slot is
+retried** - a quota, the user's own overlap, the spend ceiling and a duplicate are durable
+answers, and re-asking them would just spend the classroom's request budget.
+
+**The retry SPACING is not measured, and says so.** Lite's 17.8 s came from 18 timed
+generations; Pro has produced none through this route and the telemetry ring is browser-local.
+`AI_PRO_RETRY_SPACING_MS` is a starting value, and `/api/ai/pro-outcome` now records
+`runtime_ms` so it can be replaced by a real turnover the way Lite's was.
 
 `PRO_STANDARD_ROUTES` (`pro/pipeline.ts`) is pinned so a normal Pro user never picks models; **do not
 change it without re-running `npm run bench:pro` paid stages** - and pass `--save-fixtures`, because the
@@ -620,8 +724,10 @@ Two rules reach outside the pilot and bind here:
 
 - `modelTypes.ts` + `modelGateway.ts` - the provider-neutral model-call contract and browser client. The
   server adapters in `api/_lib/aiGateway.ts` implement Vercel AI Gateway (the MANAGED transport, and the
-  only one NoaCG funds), plus Anthropic, OpenAI Responses and compatible Hugging Face Inference Providers
-  as bring-your-own-key routes - without branching the harness. Retention is TWO filters, ANDed by the
+  only one NoaCG funds), plus Anthropic, OpenAI Responses, Google's OpenAI-compatible surface and
+  compatible Hugging Face Inference Providers as bring-your-own-key routes - without branching the
+  harness. A new BYO-key adapter is modelled on the Hugging Face one: same chat-completions shape, same
+  parser, no second structured-output dialect. Retention is TWO filters, ANDed by the
   gateway: `disallowPromptTraining` is free on every plan and pinned on for every managed call, and
   `zeroDataRetention` is the Pro/Enterprise superset - so a task requiring ZDR fails closed with
   `zdr_unavailable` rather than degrading quietly. The per-request price cap OpenRouter enforced has no

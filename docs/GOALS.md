@@ -154,11 +154,17 @@ Three execution tiers behind the one "Create with AI" door. They differ by **cap
 funding model follows the capability - never the other way round. Detail lives in the plan docs;
 these are the commitments.
 
-| Tier | Who pays | What it is | State |
-|---|---|---|---|
-| **NoaCG Lite** | us, free to the user | Grounded in **our catalog**: the model picks a proven design and adapts it. It does not invent a layout. | built and affordable; **quality is the open problem** |
-| **NoaCG Pro** | user, a little | An open-weight specialist authors real HTML/CSS/SVG directly inside the platform scaffold; retrieval of proven catalog exemplars supplies the starting taste. | **direction replaced 2026-08-10 (`docs/NOACG_PRO_PLAN.md`); reconstruction retired; Phase 0 spike is the next slice** |
-| **NoaCG Extreme** | subscription | The newest OpenAI and Anthropic frontier models designing directly. Expensive, technically the simplest. | not started, needs income first |
+| Tier | Who pays | Price target | What it is | State |
+|---|---|---|---|---|
+| **NoaCG Lite** | us, free to the user | **100 graphics per €1** (~€0.01 each); measured **$0.00032** | Grounded in **our catalog**: the model picks a proven design and adapts it. It does not invent a layout. | built and affordable; **quality is the open problem** |
+| **NoaCG Pro** | user, a little | **~€10 per 100 graphics** (~€0.10 each) | An open-weight specialist authors real HTML/CSS/SVG directly inside the platform scaffold; retrieval of proven catalog exemplars supplies the starting taste. | **direction replaced 2026-08-10 (`docs/NOACG_PRO_PLAN.md`); reconstruction retired; Phase 0 spike is the next slice.** Offered ONLY where the server says hosted Pro is available (`AI_PRO_ENABLED`) and the deployment has the backend to meter it; it never asks a user for a key |
+| **Bring your own key** | the user's own provider account | whatever that provider charges, shown per model | Any model OpenAI, Anthropic, Google or Hugging Face offers, on the user's key. No NoaCG money, no NoaCG allowance. | shipped |
+| **NoaCG Extreme** | subscription | not set - after there is income | The newest frontier models designing directly. Expensive, technically the simplest. | not started, needs income first |
+
+**The price targets are commitments, not observations.** A tier that cannot be served inside its
+target is a tier whose ROUTE changes, never one whose price rises: free stays free, and Pro's
+number is what makes "a little" a promise rather than a feeling. Both are per finished graphic,
+counting every model call a generation makes.
 
 - [ ] **Lite: make it good. The price is already solved.** The target was 100 generations per
       euro (~€0.01 each); the 2026-08-08 round measures **$0.00032 per generation** - thirty times
@@ -188,10 +194,8 @@ these are the commitments.
 - [ ] **Extreme: frontier models + the subscription that funds them.** After there are users.
       Standing rule until there is income: a NoaCG-funded route must be a CHEAP model on the
       managed transport - Vercel AI Gateway since 2026-08-07, not OpenRouter. The constraint is
-      cost, not brand: a frontier model served through the gateway is an ordinary fundable route
-      once it is affordable; only the DIRECT OpenAI and Anthropic APIs need the user's own key.
-- [ ] **Bring your own key, always, for every tier.** The paid surface buys convenience, never
-      capability.
+      cost, not brand: a frontier model served through that transport is an ordinary fundable
+      route once it is affordable; the four DIRECT provider APIs need the user's own key.
 - [ ] **A school account earns more AI.** A verified address on a configured school domain
       (`@arcada.fi` first) raises the allowance. No new concept needed: a domain match issues a
       **grant**, which already outranks the plan and carries its own reason and expiry

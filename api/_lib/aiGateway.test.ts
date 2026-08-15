@@ -128,6 +128,54 @@ test('selects Hugging Face through its OpenAI-compatible inference router', asyn
   assert.deepEqual(result.usage, { inputTokens: 7, outputTokens: 2, totalTokens: 9 });
 });
 
+test('selects Google through its OpenAI-compatible surface, and never forwards a seed', async () => {
+  const routed = body('google', 'gemini-2.5-flash');
+  routed.request.temperature = 0.3;
+  // A bench preference must not be able to fail a user's generation: Google's compatibility
+  // layer rejects parameters it does not implement.
+  routed.request.seed = 41723;
+  let calledUrl = '';
+  let sent: Record<string, unknown> = {};
+  const result = await executeGatewayRequest(routed, {
+    keyFor,
+    fetchImpl: async (input, init) => {
+      calledUrl = String(input);
+      sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: 'ok' } }],
+        usage: { prompt_tokens: 5, completion_tokens: 3 },
+      }));
+    },
+  });
+
+  assert.equal(calledUrl, 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
+  assert.equal(sent.model, 'gemini-2.5-flash');
+  assert.equal(sent.temperature, 0.3);
+  assert.equal(sent.seed, undefined);
+  assert.equal(result.provider, 'google');
+  assert.deepEqual(result.usage, { inputTokens: 5, outputTokens: 3, totalTokens: 8 });
+});
+
+test('a model the account cannot call is reported as that, not as a bare rejection', async () => {
+  // Google's own listings advertise retired models to keys that cannot call them (measured
+  // 2026-08-14 on gemini-2.5-flash-lite), so the picker cannot filter them out and the error is
+  // the only place left to be honest. Without this, the answer is "the provider rejected the
+  // request" and the user goes looking for a fault in their key.
+  const failed = await executeGatewayRequest(body('google', 'gemini-2.5-flash-lite'), {
+    keyFor,
+    fetchImpl: async () => new Response(
+      JSON.stringify({ error: { code: 404, message: 'This model models/gemini-2.5-flash-lite is no longer available to new users.', status: 'NOT_FOUND' } }),
+      { status: 404 },
+    ),
+  }).then(() => null, (error: unknown) => error as { code: string; message: string; retryable: boolean });
+
+  assert.ok(failed);
+  assert.equal(failed.code, 'provider_rejected');
+  assert.match(failed.message, /not available on this account/);
+  // Not retryable: a second attempt on the same id fails identically and only spends time.
+  assert.equal(failed.retryable, false);
+});
+
 test('sends the managed gateway routing policy and normalizes the answer', async () => {
   let sent: Record<string, unknown> = {};
   const result = await executeGatewayRequest(body('vercel', 'vendor/model'), {
