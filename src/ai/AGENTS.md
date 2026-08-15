@@ -693,6 +693,39 @@ change it without re-running `npm run bench:pro` paid stages** - and pass `--sav
 an as-is upload into the slot it asked for, deterministically and writing no CSS, and runs BETWEEN the
 compile and the injected validator - that order is load-bearing (see the as-is screen above).
 
+## NoaCG Pro PHASE A - the design language (`pro/language/`)
+
+**EXPERIMENT - bench-only, no user reaches it, no model call wired yet.** The premise change in
+`docs/NOACG_PRO_PLAN.md` §15: **the platform owns each graphic type's structure and spacing, and
+the model's entire contribution is the design LANGUAGE** - palette, type scale and weight, shape
+and corner language, accent form and weight, density, motion character. Three paid rounds moved
+the owner's verdict 6 → 7 of 12 while every machine measure improved, and all five remaining
+failures were panel layout; §15.3 ranks what has ever moved a rate (asking for judgement moved
+nothing, a boundary moved a lot, **removing the decision** moved most and stayed removed).
+
+Four rules bind anyone editing it:
+
+- **THERE IS NO NUMBER IN THE MODEL'S ANSWER.** `contract.ts` is enums, four hex colours and a
+  bundled font id. A geometry field would be a panel decision wearing a different name, and the
+  five failure classes would come straight back through it. `normalizeDesignLanguage` never fails
+  and never invents: every field is one of the values the schema offered or the house value, so
+  the composer downstream has no defensive branches.
+- **THE PLATFORM COMPOSES IN THE UNITS THE INSTRUMENTS MEASURE IN.** Every size in `structure.ts`
+  is a ratio of the primary type size - the same unit `spacingCheck` and `proportionCheck` report
+  in - so each threshold is cleared BY CONSTRUCTION and the file states its margin. `padding-tight`
+  cannot fire on padding defined as 1.2x the floor, and opposite sides are equal by definition, so
+  `padding-lopsided` has nothing to find.
+- **IT COMPOSES THROUGH THE CATALOG'S OWN ASSEMBLER.** `compose.ts` builds a real `TemplateVariant`
+  through `defineVariant`, so a Phase A graphic inherits the `:root` contract, the auto-fit
+  `width: fit-content` box (**which is why text can never escape its panel**), the mask idiom, the
+  NOACG_ANIM region, the SPX definition, the shared logo slot and export readiness. §16 is the
+  argument: Pro's own document-building lost a GOOD panel in reconstruction.
+- **THE CONTROL RUNS THE CODE UNDER TEST.** `stub.ts`'s four hand-written languages go through
+  `composeFromLanguage` - the identical function a model answer will - and ride the spike's free
+  pass (`languageAnchors`, `node scripts/pro-spike.mjs --control`), measured by the same
+  instruments a paid round is scored by. A control that does not execute the path is not a control,
+  and this repo has paid for that finding three times.
+
 ## Phase-C creative pilot (`creative/`)
 
 **RETIRED 2026-08-09 (owner decision): Creative Mode is superseded by NoaCG Pro and is no longer carried

@@ -1213,6 +1213,34 @@ corner language, accent form and weight, density, motion character). This is `ap
 remaining failure modes by construction rather than by inspection. The measurable claim: layout
 failures go to zero and the round's verdict becomes a judgement about the LOOK.
 
+**BUILT 2026-08-15, bench-only, no model call wired to a user** (`src/ai/pro/language/`, and
+src/ai/AGENTS.md for the four rules that bind it). What the shape of it buys:
+
+- **`contract.ts` carries no number the model can get wrong**, because it asks for none: enums,
+  four hex colours and a bundled font id (read from the font registry, never transcribed). A
+  geometry field here would be a panel decision under a different name. `normalizeDesignLanguage`
+  never fails and never invents - every field is a value the schema offered or the house value -
+  and `languageFallbacks` records which fields fell back, so a round can see a language that was
+  mostly ours.
+- **`structure.ts` composes in the units the instruments measure in.** Every size is a ratio of
+  the primary type size, so each calibrated threshold is cleared by construction and the file
+  states its margin: tightest padding 0.34 against a 0.28 floor, opposite sides equal (1.0x
+  against a 2.6x limit), widest line gap 0.83 against a 1.4 ceiling, nearest rule 0.45 against a
+  0.02-0.12 crowding band, footprint ~0.071 against a 0.10 ceiling, mark 1.2 type sizes against a
+  3.2 ceiling.
+- **`compose.ts` builds through the catalog's own assembler.** A Phase A graphic is an ordinary
+  `TemplateVariant`, so it inherits the `:root` contract, the NOACG_ANIM region, the SPX
+  definition, the shared logo slot, exports - and the auto-fit `width: fit-content` box, **which
+  is why text cannot escape its panel: the panel is sized by its text.** §16 is the argument for
+  routing through the assembler rather than authoring a document: Pro's own reconstruction lost a
+  panel that was good.
+- **`stub.ts` + `languageAnchors` are the zero-token control**, four deliberately far-apart
+  languages through the identical function a model answer takes, measured on the free pass of
+  `node scripts/pro-spike.mjs --control`.
+
+Still owed before a paid round: the `--language` arm in the runner, and the calibration re-sweep
+§15.6 names.
+
 **Phase B - broaden the repertoire.** New brief banks per graphic type, starting with the ones a
 show cannot go on air without. The type registry supplies the structure, so each new type costs a
 brief bank and a calibration sweep rather than a new pipeline.

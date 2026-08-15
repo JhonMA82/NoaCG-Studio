@@ -24,12 +24,16 @@ import { variantById } from '../../templates/catalog';
 import { assembleGroundedTemplate } from '../litePipeline';
 import { VETTED_EXEMPLAR_IDS } from './exemplars';
 import { fillBrandMark, type SpikeBrand } from './brand';
+import { composeFromLanguage } from '../pro/language/compose';
+import { STUB_LANGUAGES } from '../pro/language/stub';
 import type { DesignSpec } from '../designSpec';
 import type { SpxTemplate } from '../../model/types';
 import type { SpikeBrief } from './run';
 
-/** What every anchor and the control is, for the key file the human reads AFTER judging. */
-export type AnchorKind = 'control' | 'catalog' | 'adapt-first';
+/** What every anchor and the control is, for the key file the human reads AFTER judging.
+ *  `design-language` is Phase A (docs/NOACG_PRO_PLAN.md §15.5): the platform composes the
+ *  graphic and a design LANGUAGE paints it. Free while the language is hand-written. */
+export type AnchorKind = 'control' | 'catalog' | 'adapt-first' | 'design-language';
 
 export interface SpikeAnchor {
   id: string;
@@ -387,6 +391,51 @@ function anchorFrom(id: string, kind: AnchorKind, provenance: string, template: 
     data: driveData(template, [ANCHOR_NAME, ANCHOR_ROLE]),
     stressData: driveData(template, [ANCHOR_STRESS_NAME, ANCHOR_STRESS_ROLE]),
   };
+}
+
+/**
+ * PHASE A's ZERO-TOKEN SET (docs/NOACG_PRO_PLAN.md §15.5).
+ *
+ * Four hand-written design LANGUAGES through the real composer - the identical function a model
+ * answer goes through, with only the call that would have written the language missing. They are
+ * deliberately far apart (a solid navy edge-bar package, a carbon block strap, a panel-free serif
+ * super, a rounded blurred daytime package), so the control run exercises every branch of the
+ * composer rather than the one the house happens to take.
+ *
+ * A mark is seated on the first one when a brand is supplied, because Phase A's claim is that the
+ * platform owns the WHOLE composition - and the mark is the part of it that already works, so it
+ * has to keep working through the new path rather than beside it. The catalog's own shared slot
+ * does the seating (`logoEnabled`), which is why this passes `place: false` reasoning by simply
+ * not calling the spike's own placer: two placement systems on one box is not a stricter
+ * contract, it is a broken one (the `control-mark` collision, 2026-08-13).
+ */
+export function languageAnchors(brand?: SpikeBrand | null): SpikeAnchor[] {
+  return STUB_LANGUAGES.map((language, i) => {
+    const logo = i === 0 && brand
+      ? { assetPath: brand.mark.path, images: [{ path: brand.mark.path, data: brand.mark.dataUrl }] }
+      : null;
+    const { template, spacing, notes } = composeFromLanguage(language, {
+      lines: [
+        { title: 'Name', sample: ANCHOR_NAME },
+        { title: 'Role', sample: ANCHOR_ROLE },
+      ],
+      logo,
+    });
+    // The slot the shared logo band minted, so the rendered mark gate and the spacing
+    // instrument point at the same field a real upload would land in.
+    const markField = logo
+      ? template.fields.find((f) => f.ftype === 'filelist')?.field
+      : undefined;
+    const anchor = anchorFrom(
+      `language-${language.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      'design-language',
+      `Phase A: platform-composed lower third in the hand-written "${language.name}" design language`
+      + ` (${notes.join('; ')}); padding ${spacing.padVPx}/${spacing.padHPx}px, line gap`
+      + ` ${spacing.lineGapPx}px, type ${spacing.headingPx}/${spacing.supportingPx}px`,
+      template,
+    );
+    return markField ? { ...anchor, markFieldId: markField } : anchor;
+  });
 }
 
 export async function galleryAnchors(): Promise<SpikeAnchor[]> {

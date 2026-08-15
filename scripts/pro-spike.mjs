@@ -829,8 +829,12 @@ const freeItems = await page.evaluate(async (markBrand) => {
   // catalog-slot control above deliberately skips. Until it existed the placement path had no
   // zero-token coverage and a paid round found the hole instead (docs/AI_ATTEMPTS.md).
   const seatedControl = markBrand ? spikeAnchors.seatedMarkControlAnchor(markBrand) : null;
+  // PHASE A (docs/NOACG_PRO_PLAN.md §15.5): four hand-written design LANGUAGES through the real
+  // composer. Free, and the whole point of running them here is that the composer is measured by
+  // the same instruments a paid round is scored by, before a paid round exists.
+  const languages = spikeAnchors.languageAnchors(markBrand);
   return [control, ...(markControl ? [markControl] : []), ...(seatedControl ? [seatedControl] : []),
-    ...anchors].map((a) => ({
+    ...languages, ...anchors].map((a) => ({
     id: a.id,
     kind: a.kind,
     provenance: a.provenance,
