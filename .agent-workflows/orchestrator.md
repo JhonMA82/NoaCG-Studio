@@ -139,6 +139,7 @@ after D. F and G held."*
 ```
 SESSION A - <three-word name>
 BRANCH <tool>/a-<name>
+MODEL  opus high - <what KIND of thinking this task rewards>
 START  now
 WAIT   nothing - start immediately
 TOUCHES <files>   MINTS <slot, or ->
@@ -162,6 +163,30 @@ GATE   npm run build, then push and read the CI run. Commit each verified step. 
   other one is further along" and "in parallel but a bit later" are not conditions. If the real
   dependency is a shared file rather than a merge, say which file and say who owns it today.
 - **`<tool>` is whichever tool will run it** - `claude/…` or `codex/…`. Never hardcode one.
+- **`MODEL` is two facts in one line: the tier, and the KIND of reasoning the task rewards.**
+  The tier decides what the user launches the session on; the second half is the more useful
+  one, because it tells the receiving session what shape of thinking earns its keep here -
+  *reproduce then measure, never infer* / *adversarial verification, default to refuted* /
+  *mechanical transformation, the design is settled* / *design judgement, taste is the output* /
+  *blind-read discipline, no machine verdict near the ballot*. A tier with no reasoning note is
+  half a line.
+- **The ladder, cheapest first. `opus high` is the DEFAULT and most prompts should carry it:**
+
+  | tier | when |
+  | --- | --- |
+  | `sonnet` | really basic mechanical work - a rename, a doc edit, a list to transcribe |
+  | `opus low` / `opus medium` | settled work where the reasoning is bookkeeping, not judgement |
+  | **`opus high`** | **the default. Assume this unless there is a reason written on the line** |
+  | `opus xhigh` / `opus max` | one wrong judgement is expensive AND the evidence is already gathered - deciding, not exploring |
+  | `fable high` | HIGH-VALUE, IMPORTANT tasks only - the ones the day's direction turns on. Never for volume, never because a task looks big. `high` is its default effort too |
+  | `ultracode` | only when GENUINELY beneficial: a real fan-out over many independent items, or a verdict worth adversarial verification. Name what the fan-out is on the line, or it is not one |
+
+- **Justify every rung off the default, in the same line.** `opus high` needs no defence; anything
+  above or below it says why in a clause. That is what stops the ladder drifting upward on
+  reflex - a bigger tier is not a proxy for a task mattering.
+- **A tier is a floor the receiving session may RAISE, not a ceiling it may quietly lower.**
+  Say so where it matters: a measurement round judged on a cheap tier to save time is how a
+  paid experiment comes back with an answer nobody can use.
 - **WHY says what breaks if this is not done**, where GOAL says what will be true. It exists so
   the receiving session can TEST the assignment instead of obeying it. Same rule and same reason
   as the handoff workflow's, pinned there.
