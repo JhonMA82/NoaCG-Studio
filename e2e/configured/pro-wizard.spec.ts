@@ -271,6 +271,17 @@ test.describe('hosted NoaCG Pro (configured)', () => {
     await expect(page.locator('#ai-provider')).toHaveCount(0);
     await expect(page.getByTestId('ai-settings').getByRole('button', { name: /Store (key|token)/ })).toHaveCount(0);
 
+    // THE TIER'S OWN EXAMPLE BRIEFS (`PRO_EXAMPLE_PROMPTS`). Pro is the only tier whose bank no
+    // offline spec can see - the door does not exist there - so a wrong bank would ship unseen.
+    // It is worth pinning rather than trusting: the banks were rewritten to each tier's stated
+    // promise and verified by GENERATING them (src/ai/AGENTS.md), and Lite's improved set still
+    // reached nobody for a while because this step read a stale local copy instead.
+    const examples = page.locator('.wz-example');
+    await expect(examples.filter({ hasText: 'Late-night arts' })).toHaveCount(1);
+    await expect(examples.filter({ hasText: 'Markets desk' })).toHaveCount(1);
+    // …and not Lite's, which describe one strap where Pro has to describe a channel's look.
+    await expect(examples.filter({ hasText: 'University lecture' })).toHaveCount(0);
+
     await page.locator('.wz-step textarea').fill(
       'A calm public-broadcast election-night strap: deep blue, a thin gold rule, authoritative.',
     );

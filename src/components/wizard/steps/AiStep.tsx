@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getAiProvider } from '../../../ai';
 import { brainstorm, type ChatMessage } from '../../../ai/brainstorm';
-import { EXAMPLE_PROMPTS } from '../../../ai/examplePrompts';
+import {
+  EXAMPLE_PROMPTS,
+  LITE_EXAMPLE_PROMPTS,
+  PRO_EXAMPLE_PROMPTS,
+} from '../../../ai/examplePrompts';
 import {
   AI_PROVIDERS,
   DEFAULT_BYOK_PROVIDER,
@@ -217,12 +221,21 @@ type Turn = TalkTurn | PastTurn;
  */
 const CONVERSATION_TURNS = 10;
 
-const LITE_EXAMPLE_PROMPTS = [
-  { label: 'News lower third', prompt: 'A restrained public-news lower third for a reporter name and role. Dark editorial palette, clear hierarchy, calm entrance.' },
-  { label: 'University speaker', prompt: 'A university lecture lower third for a speaker name and academic role. Modern, credible, calm, and accessible.' },
-  { label: 'Esports player', prompt: 'An energetic esports lower third for a player nickname and team. Sharp hierarchy, fast controlled entrance, excellent legibility.' },
-  { label: 'Documentary guest', prompt: 'A quiet cinematic lower third for a documentary interview subject and location. Integrated with the shot, restrained, and highly readable.' },
-] as const;
+/**
+ * The example briefs this step offers, by tier.
+ *
+ * ALL THREE BANKS LIVE IN `src/ai/examplePrompts.ts`, and this step only chooses between them.
+ * A local copy of Lite's used to live here and it is exactly what that arrangement costs: the
+ * banks were rewritten to each tier's stated promise and VERIFIED BY GENERATING THEM
+ * (src/ai/AGENTS.md, 2026-08-15), and Lite's improved set reached nobody, because the step was
+ * still reading its own stale array. A brief that reads well and renders as something else is
+ * the defect those rules exist to stop; a brief nothing renders at all is worse.
+ */
+function briefsForTier(lite: boolean, pro: boolean) {
+  if (pro) return PRO_EXAMPLE_PROMPTS;
+  if (lite) return LITE_EXAMPLE_PROMPTS;
+  return EXAMPLE_PROMPTS;
+}
 
 /**
  * The design decisions behind one direction, in the user's words. The whole point of the
@@ -1218,15 +1231,15 @@ export default function AiStep({
               They belong to the empty state — once there is a thread they are noise. */}
           {turns.length === 0 && (
           <div className="row wrap" style={{ marginTop: 12, marginBottom: 6, gap: 6 }}>
-            {/* Pro shares Lite's example briefs: both are lower-third-first releases.
-                TODO(claude/b-pro-brief-bank): swap Pro onto its OWN bank when session B's
-                exports land in main - one line, `proMode ? PRO_EXAMPLE_PROMPTS : …`. It is
-                worth doing: Pro now decides a design LANGUAGE for a whole channel, and a
-                Lite brief that describes one strap asks the wrong question. Inventing briefs
-                here instead would fork the bank the round is measured against. */}
-            {((liteMode || proMode) ? LITE_EXAMPLE_PROMPTS : EXAMPLE_PROMPTS).map((ex) => {
+            {/* EACH TIER GETS THE BRIEFS ITS ENGINE CAN ANSWER (src/ai/examplePrompts.ts).
+                Pro shared Lite's while both were lower-third-first, and that stopped being
+                true when Pro started deciding a design LANGUAGE: a Lite brief describes one
+                strap, where a Pro brief has to describe a look a whole channel is built in.
+                The banks live together in one file so a tier's examples cannot drift from
+                what its engine is measured against. */}
+            {briefsForTier(liteMode, proMode).map((ex) => {
               // A brief the user wrote themselves is real work; replacing it takes two clicks.
-              const examples = (liteMode || proMode) ? LITE_EXAMPLE_PROMPTS : EXAMPLE_PROMPTS;
+              const examples = briefsForTier(liteMode, proMode);
               const dirty = Boolean(prompt.trim()) && !examples.some((e) => e.prompt === prompt);
               const armed = armedExample === ex.label;
               return (
