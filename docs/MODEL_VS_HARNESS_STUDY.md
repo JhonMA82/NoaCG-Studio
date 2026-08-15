@@ -111,12 +111,57 @@ frontier row's cost is ESTIMATED locally at $3/$15 per Mtok and labeled `costSou
 Archive: `C:\claude\noacg-lite-eval-archive\model-vs-harness-2026-08-15` (395 files,
 copy verified). The out-dir is gitignored and dies with the worktree; the archive does not.
 
-## 5. Outcome
+## 5. Outcome (owner's blind ballot, 2026-08-15)
 
-_Pending the owner's ballot._ The blind sheet is `mvh-review.html` in the round's out-dir
-(and the archive); the ballot comes back as `mvh-ballot.jsonl`; `--verdict` prints the
-readings; the outcome lands here and in `docs/AI_ATTEMPTS.md`, with the consequence for
-Lite and Pro spelled out against §7's four readings.
+**A ≈ B and D >> A. It is not the checkpoint, and the harness is not suppressing the
+model - it is carrying it.** Final ballot `mvh-ballot-final.jsonl`; the first ballot's six
+`bare-open` votes were voided by a rig fault (§5.1) and re-judged after a zero-token
+re-film under the same blind codes.
+
+| arm | mean quality | air rate (yes or minor) |
+| --- | --- | --- |
+| A `bare-frontier` | 3.20 | 3/5 |
+| B `bare-open` | 3.17 | 5/6 |
+| C `harness-open` | **4.17** | **6/6** |
+| D `harness-frontier` | **4.17** | **6/6** |
+
+Predeclared readings: **A ≈ B** (1-2 of 5 - the checkpoints tie unharnessed), **D >> A**
+(4-1 of 5 - the harness beats the bare frontier model), **C >> B** (4-1 of 6 - it beats
+the bare open model too), **D ≈ C** (1-2 of 6 - the checkpoints tie inside the harness as
+well).
+
+Consequences, against §7's stated readings:
+
+- **"It is not the checkpoint, and no model swap fixes anything."** Frontier and open tie
+  in both conditions, while the frontier harness arm cost ~20x the open one ($2.07 vs
+  $0.11 for the same six briefs). Pro has no quality reason to route to a frontier model;
+  the ratified cheap checkpoint stands.
+- **The §6 selection-for-plainness hypothesis is refuted as the cause of the quality
+  gap.** Constrained output scored a full point HIGHER than unconstrained on both
+  checkpoints. The harness's engineering contracts carry visible quality, not only
+  editability: the owner's most-repeated note on the bare arms - four of six items - was
+  the fixed-width banner that "should scale with the text", which is precisely the house
+  `fit-content` contract the harness enforces. One bare emit shipped its own killing bug
+  (text set to `scaleX(0)` and never restored); no harness arm shipped any.
+- **What remains open is neither model nor harness: it is variety and brand.** The
+  owner's closing read, verbatim in spirit: these are good, and this is how our templates
+  should look - keep the ability to produce unbroken, prompt-following graphics; "we
+  still need more variety. The real test is how to modify it to a color scheme and logo
+  or a theme so it fits the customer's brand." That is the Pro §15 design-language
+  premise and the Lite brand work, unchanged - and the device question (§6 of the corpus
+  doc) stays open as a VARIETY question, no longer as a harness-suppression question.
+
+### 5.1 The voided first ballot, for the record
+
+Six `bare-open` items first ballotted as "just a banner, no text" - all six the same
+fault, which is the tell that it was the rig: those emits declare `DataFields` entries as
+`name:` rather than `field:`, the ids parse to empty strings, the capture drive keyed the
+copy by that empty id, and each template's own `update()` then wrote `''` over its baked
+sample text. The drive now requires truthy field ids before keying (falling back to the
+pinned f0/f1 contract), the six items were re-filmed from their saved code for zero
+tokens, the seeded shuffle kept their blind codes, and only those six were re-judged.
+One item (`minimalist.bare-open`) stayed a genuine failure after the re-film - its own
+timeline squashes the text, not the rig.
 
 What the machine half already says (no visual claim in it): both harness arms came back
 6/6 validation-clean with 6/6 editable timelines - including the frontier model, where

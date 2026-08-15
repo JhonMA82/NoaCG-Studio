@@ -14,7 +14,19 @@ Live contract: `src/ai/AGENTS.md`. Deadline plan: `docs/AI_LITE_PLAN.md`.
 
 ### The model-vs-harness four-arm study
 **2026-08-15 · `alibaba/qwen3-coder` + `anthropic/claude-sonnet-5` · 24 of 24 captured,
-~$2.70 of a $4 authorization · BALLOT PENDING - no visual verdict exists yet.** The
+~$2.70 of a $4 authorization · OWNER'S BLIND VERDICT: A ≈ B and D >> A - NOT the
+checkpoint, and the harness CARRIES quality rather than suppressing it.** Both harness
+arms 4.17 mean quality and 6/6 would-air against the bare arms' ~3.2 and 3-5/6; the
+checkpoints TIE both bare and harnessed, while frontier-harnessed cost ~20x open-harnessed
+($2.07 vs $0.11 for the same six briefs). So no model swap fixes anything, the §6
+selection-for-plainness hypothesis is refuted as the cause of the gap (constrained output
+scored a full point HIGHER), and the owner's most-repeated bare-arm defect - a fixed-width
+banner that "should scale with the text", four of six items - is exactly the house
+fit-content contract the harness enforces. Owner's closing read: this is how our templates
+should look; what is missing is VARIETY and brand adaptation ("the real test is how to
+modify it to a color scheme and logo or a theme"), which is the Pro §15 design-language
+premise and Lite's brand work, unchanged. Full outcome + the voided-and-re-judged first
+ballot: `docs/MODEL_VS_HARNESS_STUDY.md` §5. The
 experiment `docs/LOWER_THIRDS_REFERENCE_CORPUS.md` §7 designed: the same six no-logo Pro
 briefs through a BARE arm (the product's own `RAW_SYSTEM` baseline plus the f0/f1 field
 contract - one call, no repair, no conversion, rendered verbatim) and the FULL HARNESS arm
@@ -31,12 +43,17 @@ by construction, which is precisely the product trade the gallery prices. One re
 fired in 24 generations (`long-name` on the frontier harness arm, and its repair re-sends
 the whole exemplar prompt: $0.79 of the round's $2.44 is that one brief).
 
-Three traps paid for and kept: **the gateway reports $0.0000 for anthropic routes**, so a
+Four traps paid for and kept: **the gateway reports $0.0000 for anthropic routes**, so a
 cost ceiling fed the reported number never trips - frontier rows are priced locally from
 usage tokens and labeled `estimated`; **a frontier bare emit writes an SPX-definition
 SHAPE the parser rightly rejects** (`dataFields`/`id`/`type` for `DataFields`/`field`/
 `ftype`), so the capture drive falls back to the pinned f0/f1 contract rather than
-un-driving one arm and breaking the §7 viewing-conditions control; and the corpus reel
+un-driving one arm and breaking the §7 viewing-conditions control; **the open checkpoint's
+bare emits declare fields as `name:` and parse to EMPTY ids**, which keyed the drive by
+`''` and let every template's own `update()` erase its baked text - the whole bare-open
+arm was voided in the first ballot, re-filmed for zero tokens from saved code (the seeded
+shuffle kept the blind codes, so only six items were re-judged), and the six systematic
+"no text" notes were the tell that it was the rig, not six designs; and the corpus reel
 never leaves a clean multi-second window, so the shared footage bed is three delogo'd
 graphic-free frames with a slow push - a recorded compromise, identical across arms,
 which is the variable that matters.
@@ -48,9 +65,11 @@ proposed platform STAGES ranked by `docs/DESIGN_PRINCIPLES.md` (the device-exist
 the one-brightest-element and idle-motion-budget measurements, platform-injected auto-fit
 and seated placement). Nothing ships from it: it is the ablation menu for the `A >> D`
 reading.
-**RETRY WHEN** - not a retry; the round is complete and waiting on the owner's ballot
-(`mvh-ballot.jsonl` → `node scripts/model-vs-harness.mjs <dir> --verdict=<ballot>`).
-The verdict and its §7 consequence land here when the ballot does.
+**RETRY WHEN** a materially different checkpoint CLASS exists to test (the two here tied
+twice, so a third similar model answers nothing), or the harness changes enough that the
+D-vs-A comparison could plausibly invert - and then re-run THIS rig with the same briefs
+rather than designing a new one. The variety and brand questions the verdict leaves open
+are not retries of this experiment; they are the Pro §15 and Lite brand programs.
 
 ### The brand round - originality conditioned on a customer's own brand
 **2026-08-13 · NoaCG Pro Phase 1 · `alibaba/qwen3-coder` · 30 of 30 captured, $0.63 of a $1 cap ·

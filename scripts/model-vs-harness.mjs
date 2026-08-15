@@ -116,8 +116,8 @@ const ARMS = [
 /** §7's cell letters, used only by the verdict readout. */
 const CELL = { 'bare-frontier': 'A', 'bare-open': 'B', 'harness-open': 'C', 'harness-frontier': 'D' };
 
-if (!DRY && !PROBE && !GENERATE && !SHEET_ONLY && !REASONING && !VERDICT_FILE) {
-  console.error('Pick a mode: --dry (free, run first), --probe, --generate (PAID), --sheet-only, --reasoning (PAID) or --verdict=<ballot.jsonl>.');
+if (!DRY && !PROBE && !GENERATE && !SHEET_ONLY && !REASONING && !VERDICT_FILE && !value('recapture')) {
+  console.error('Pick a mode: --dry (free, run first), --probe, --generate (PAID), --sheet-only, --recapture=<slugs>, --reasoning (PAID) or --verdict=<ballot.jsonl>.');
   process.exit(1);
 }
 
@@ -431,7 +431,11 @@ const captureBuildFn = async ({ template, bed, initialData, updateData }) => {
  *  shared longer copy (UPDATE_COPY) - the same real-name-length instrument every Lite and
  *  value-gate round uses. Extra fields keep their emitted defaults. */
 function dataFor(template, brief) {
-  const textFields = (template.fields ?? []).filter((f) => f.ftype === 'textfield' || f.ftype === 'textarea');
+  // `f.field` must be truthy: qwen's bare emits declare DataFields entries as `name:` rather
+  // than `field:`, which parses to two fields with EMPTY ids - and a drive keyed by '' made
+  // every template's own update() erase its baked sample text (the whole bare-open arm of the
+  // 2026-08-15 round was voided and recaptured over exactly this).
+  const textFields = (template.fields ?? []).filter((f) => (f.ftype === 'textfield' || f.ftype === 'textarea') && f.field);
   const lines = [brief.name, brief.title];
   const roles = ['person-name', 'person-role'];
   // A definition that parses to no fields still gets driven: the user message pins f0/f1,
@@ -641,6 +645,45 @@ paint();
 if (SHEET_ONLY) {
   await buildSheet();
   process.exit(0);
+}
+
+// ── RECAPTURE: re-film named slugs from their SAVED templates, zero tokens ──────────────
+//
+// For a capture-rig fault found after the round (the 2026-08-15 empty-field-id drive): the
+// paid emits are on disk, so the fix re-films them without a model call. The sheet's shuffle
+// is seeded from the slug set, which is unchanged - so the blind codes stay identical and
+// only the repaired items need re-judging.
+const RECAPTURE = value('recapture');
+if (RECAPTURE) {
+  await checkServer();
+  if (!bedDataUrl) {
+    const bytes = await readFile(path.join(OUT, 'footage-bed.webm'));
+    bedDataUrl = `data:video/webm;base64,${bytes.toString('base64')}`;
+  }
+  const slugs = RECAPTURE.split(',').filter(Boolean);
+  const ledger = JSON.parse(await readFile(ledgerPath(), 'utf8'));
+  const browser = await chromium.launch();
+  try {
+    await openApp(browser);
+    for (const slug of slugs) {
+      const row = ledger.results.find((candidate) => candidate.slug === slug);
+      if (!row) { console.error(`No ledger row for ${slug}.`); process.exitCode = 1; continue; }
+      const template = JSON.parse(await readFile(path.join(OUT, 'code', slug, 'template.json'), 'utf8'));
+      const entry = bank.briefs.find((b) => b.id === row.briefId);
+      process.stdout.write(`- recapture ${slug}: `);
+      const captured = await captureItem(browser, slug, template, entry.brief);
+      row.motionSettled = captured.motionSettled;
+      row.phaseFiles = captured.phaseFiles;
+      row.motionFile = captured.motionFile ?? null;
+      row.recaptured = new Date().toISOString();
+      await writeLedger(ledger);
+      console.log('done');
+    }
+  } finally {
+    await browser.close();
+  }
+  await buildSheet();
+  process.exit(process.exitCode ?? 0);
 }
 
 // ── PROBE: prove both model ids by a real call through the round's own glue ─────────────
