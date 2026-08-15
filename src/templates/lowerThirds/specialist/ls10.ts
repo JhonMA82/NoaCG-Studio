@@ -92,17 +92,27 @@ ${slot(o, 2, 'lower-third-extra', '        ')}
 .lower-third-accent {
   flex: 0 0 calc(124px * var(--scale));   /* fixed width; long names never squeeze the badge */
   min-height: calc(124px * var(--scale)); /* stays roughly square even with one short line */
-  display: flex;                    /* centre the crest inside the panel */
-  align-items: center;              /* …vertically */
-  justify-content: center;          /* …horizontally */
+  position: relative;               /* the crest below is placed against this panel */
+  display: flex;                    /* an in-flow child would be centred here… */
+  align-items: center;              /* …vertically… */
+  justify-content: center;          /* …and horizontally */
   background: var(--accent);        /* the accent used boldly, sport-style */
 }
 
-/* The crest itself (the ${logoField} image field — hidden while empty). */
+/* The crest itself (the ${logoField} image field — hidden while empty).
+   OUT OF FLOW, so a PORTRAIT crest cannot stretch the panel. In flow, "width: 100%" plus
+   "height: 100%" against a panel whose height is set by the flex line resolves to the artwork's
+   own intrinsic height at that width, so a 1:2 crest made this "square-ish" panel 124 -> 212px
+   and the strap with it (+71%, measured 2026-08-15 by e2e/catalog/mark-height.spec.ts, which a
+   square-crest sweep could never see). Absolute, the panel keeps the shape this design says it
+   has and object-fit still shows the whole crest — letterboxed inside a square, which is the
+   honest outcome for artwork that is twice as tall as it is wide. */
 .lower-third-logo {
-  width: 100%;                      /* fill the panel width… */
-  height: 100%;                     /* …and its height… */
-  object-fit: contain;              /* …without distorting the artwork */
+  position: absolute;               /* the artwork sizes to the panel, never the reverse */
+  inset: 0;                         /* the whole panel is the crest's box… */
+  width: 100%;                      /* …its full width… */
+  height: 100%;                     /* …and its full height */
+  object-fit: contain;              /* show the whole crest, centred, never cropped */
   padding: calc(18px * var(--scale));  /* breathing room, so a square crest isn't edge to edge */
 }
 

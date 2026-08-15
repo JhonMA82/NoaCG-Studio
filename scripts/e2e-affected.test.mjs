@@ -173,6 +173,19 @@ test('a change only a configured deployment can cover raises the configured flag
   assert.equal(planFor(['src/templates/competition/esp09.ts']).configured, false);
 });
 
+// THE RULE: a change to the catalog gate's own specs must RUN the catalog gate. Those specs sit
+// outside the default suite, so nothing in the spec mapping selects them; left unmapped the change
+// escalates to `full`, and a `full` escalation under sprint focus deliberately drops the catalog
+// coupling - so editing a catalog spec would be the one change that never executes it. The same
+// hole `playwright.catalog.config.ts` was added to close, one directory over.
+test('a change to the catalog gate\'s own specs raises the catalog flag', () => {
+  for (const file of ['e2e/catalog/catalog-bench.spec.ts', 'e2e/catalog/mark-height.spec.ts']) {
+    assert.equal(planFor([file]).catalog, true, `${file} must raise the catalog flag`);
+  }
+  // …and it stays off for a change that cannot touch catalog output, or the flag means nothing.
+  assert.equal(planFor(['src/landing/motion.ts']).catalog, false);
+});
+
 test('public legal pages select their clean-URL and responsive-layout spec', () => {
   for (const file of ['terms.html', 'privacy.html', 'src/legal.css']) {
     const { mode, specs } = planFor([file]);

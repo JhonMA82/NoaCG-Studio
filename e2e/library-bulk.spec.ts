@@ -15,11 +15,24 @@ async function seedLibrary(page: Page, names: string[]): Promise<void> {
     const tpl = variantsFor('lower-third')[0].create({});
     for (const name of list) createGraphic(tpl, { name });
   }, names);
-  // Accepted is not landed, and the goto below tears the page down (e2e/_durable.ts) — which
+  // Accepted is not landed, and the reload below tears the page down (e2e/_durable.ts) — which
   // is why this seed used to come back short by a graphic every other run.
   await settleDurableWrites(page);
-  await page.goto('/app#/home/graphics');
+  // RELOAD, never a second goto to the URL this page is already on. The seeds are written into a
+  // page that has already rendered its EMPTY library, so something has to make the list re-read
+  // the mirror - and /app is HASH-ROUTED (src/app/router.ts). A goto whose hash is unchanged is a
+  // same-document navigation that fires no `hashchange`, so the router never runs, nothing
+  // re-renders, and the section stays exactly as empty as it was. (The same helper shape in
+  // control-panel-types.spec.ts is safe for precisely that reason: its hash CHANGES, so the
+  // router does the work.) Measured 2026-08-15: three of six runs failed, on whichever test ran
+  // first, each waiting out its full timeout for a testid that only exists once a graphic is
+  // listed - `select-graphic`, `folder-cards`. With the reload, six of six pass. The UI
+  // assertions are then enough on their own, because the shell cannot render before hydration
+  // resolves; the count is asserted HERE so a short seed fails as a seed rather than as a
+  // mystery sixty seconds into the test body.
+  await page.reload();
   await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('select-graphic')).toHaveCount(names.length);
 }
 
 test('multi-select: checkbox + shift-click range, select all, and one-confirm bulk delete', async ({ page }) => {

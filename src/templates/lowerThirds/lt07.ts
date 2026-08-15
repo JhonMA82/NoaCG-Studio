@@ -72,17 +72,26 @@ ${lineMasks(o, '        ')}
 .lower-third-accent {
   flex: 0 0 calc(107px * var(--scale));    /* fixed badge width; long text never squeezes it */
   min-height: calc(107px * var(--scale));  /* stays roughly square even with one short line */
-  display: flex;                   /* center the logo inside the badge */
+  position: relative;              /* the logo below is placed against the badge */
+  display: flex;                   /* an in-flow child would be centered here */
   align-items: center;             /* …vertically */
   justify-content: center;         /* …horizontally */
   background: var(--accent);       /* the accent used boldly, sport-style */
 }
 
-/* The logo inside the badge (the ${logoField} image field — hidden while empty). */
+/* The logo inside the badge (the ${logoField} image field — hidden while empty).
+   OUT OF FLOW, so a PORTRAIT logo cannot stretch the badge. In flow, "width: 100%" plus
+   "height: 100%" against a badge whose height comes from the flex line resolves to the artwork's
+   own intrinsic height at that width, so a 1:2 mark made this "roughly square" badge 107 -> 188px
+   and the slab with it (+23%, measured 2026-08-15 by e2e/catalog/mark-height.spec.ts - a
+   square-crest sweep reads this design as clean). Absolute, the badge keeps its sticker-slab
+   shape and object-fit still shows the whole mark inside it. */
 .lower-third-logo {
-  width: 100%;                     /* fill the badge width… */
-  height: 100%;                    /* …and its height… */
-  object-fit: contain;             /* …without distorting the artwork */
+  position: absolute;              /* the artwork sizes to the badge, never the reverse */
+  inset: 0;                        /* the whole badge is the logo's box… */
+  width: 100%;                     /* …its full width… */
+  height: 100%;                    /* …and its full height */
+  object-fit: contain;             /* show the whole logo, centered, never cropped */
   padding: calc(13px * var(--scale));  /* breathing room around the logo */
 }
 

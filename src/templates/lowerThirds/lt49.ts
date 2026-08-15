@@ -91,7 +91,24 @@ ${lineMasks(o, '        ')}
 ${
         o.logoEnabled
           ? `/* The logo well — a rounded square tinted a shade lighter than the card, so a dark mark
-   still separates from the glass behind it. */
+   still separates from the glass behind it.
+
+   ── A DELIBERATE EXCEPTION TO "A STRAP SPENDS WIDTH, NEVER HEIGHT" ──────────────────────
+   The well is a fixed 105px square, so on a card carrying FEWER lines than this design draws for
+   it is the taller of the card's two children and sets the row. Measured 2026-08-15 with a square
+   crest (node scripts/spike-mark-clearance-sweep.mjs): on the four lines this board is built for,
+   the words are 157px and the well costs ZERO height — the card is 207px tall with the mark and
+   207px without it. Handed only a name and a role, the words drop to 89px and the card grows
+   138 -> 155px (+12.3%).
+
+   That growth is the composition, not a defect, and the two ways to remove it are both worse:
+   capping the well's HEIGHT alone turns the square into a rectangle, and the square is what this
+   design is — a rounded well inside the card's own radius (the sibling of lt08 Frosted Card);
+   shrinking the well to the two-line words would shrink the mark on the four-line content it was
+   drawn against, where it costs nothing, which is the mark-size direction pointing the other way.
+   A shorter board with the same well is still a board. Contrast ls17 and ls29, whose mark areas
+   draw NOTHING and were therefore bound to the words instead: invisible furniture with a fixed
+   height is a height floor and no more. */
 .lower-third-well {
   flex: none;                      /* fixed size; long names never squeeze it */
   width: calc(105px * var(--scale));   /* well width */
