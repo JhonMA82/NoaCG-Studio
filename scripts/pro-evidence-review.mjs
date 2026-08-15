@@ -94,10 +94,17 @@ function measurementList(row) {
     .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
 }
 
-function frameFigure(src, caption, note) {
+/**
+ * One frame on its plate. `flat` marks a capture that is NOT transparent - the spike runner
+ * screenshots its hold inside the app, so those frames carry the bench's own grey card baked in.
+ * Laying one over a backdrop would show a grey rectangle floating on a studio shot and read as a
+ * design that paints a box it does not paint, so they keep their own ground and say so.
+ */
+function frameFigure(src, caption, note, flat = false) {
   if (!src) return `<figure class="missing"><div class="plate empty">no frame</div>`
     + `<figcaption>${esc(caption)}</figcaption></figure>`;
-  return `<figure><div class="plate"><img src="${esc(src)}" alt="${esc(caption)}" loading="lazy"></div>`
+  return `<figure><div class="plate${flat ? ' flat' : ''}">`
+    + `<img src="${esc(src)}" alt="${esc(caption)}" loading="lazy"></div>`
     + `<figcaption>${esc(caption)}${note ? ` <span class="muted">${esc(note)}</span>` : ''}</figcaption></figure>`;
 }
 
@@ -156,16 +163,31 @@ if (PRO_DIR) {
     + `${spend ? ` · $${spend.toFixed(4)} of real provider spend` : ''}. Each one is the graphic the`
     + ` platform composed from the design language the model returned - one text call, no image.`
     + ` The <em>stress text</em> frame beside each hold is the same graphic driven with the long`
-    + ` values, which is where a composition that only fits its own sample breaks.</p>`;
+    + ` values, which is where a composition that only fits its own sample breaks.</p>`
+    + (results.some((r) => r.alphaHold)
+      ? `<p class="lead">These frames were RE-SHOT transparent from the round's own saved code`
+        + ` (<code>pro-spike.mjs --alpha</code>, free), because the runner's own hold is`
+        + ` screenshotted inside the app and carries the bench's grey card - a graphic composited`
+        + ` onto grey cannot be laid over anything afterwards. Same code, same field values, no`
+        + ` second generation.</p>`
+      : `<p class="lead"><strong>These frames are NOT transparent</strong>, unlike the strap frames`
+        + ` above: the runner screenshots its hold inside the app, so each carries the bench's own`
+        + ` grey card and keeps that ground whatever backdrop is selected.</p>`);
   proSection = results.map((r) => {
     const briefId = String(r.slug ?? '').split('.')[0];
     const entry = briefById.get(briefId);
     const brief = entry?.brief ?? {};
     const words = [brief.name, brief.title].filter(Boolean).join(' / ');
     const briefText = [brief.brief, words && `words: ${words}`].filter(Boolean).join('  —  ');
+    // The TRANSPARENT re-shoot when the round has one (`pro-spike.mjs --alpha`), because that is
+    // the frame the backdrop switch means something for; the runner's own hold carries the bench's
+    // grey card and keeps its own ground.
+    const hold = r.alphaHold ?? r.hold;
+    const stress = r.alphaStressHold ?? r.stressHold;
+    const flat = !r.alphaHold;
     const shots = [
-      r.hold ? frameFigure(`${dir}/${r.hold}`, 'settled hold', '') : '',
-      r.stressHold ? frameFigure(`${dir}/${r.stressHold}`, 'stress text', '') : '',
+      hold ? frameFigure(`${dir}/${hold}`, 'settled hold', flat ? 'on the bench card' : '', flat) : '',
+      stress ? frameFigure(`${dir}/${stress}`, 'stress text', flat ? 'on the bench card' : '', flat) : '',
     ].join('');
     const errors = r.validation?.errors ?? [];
     const warnings = r.validation?.warnings ?? [];
@@ -224,13 +246,15 @@ figcaption{color:var(--dim);font-size:11px;margin-top:3px}
 /* The plate IS the backdrop: the frame is a transparent PNG laid over it, so switching the
    backdrop switches what every graphic on the page is being judged against. */
 .plate{width:520px;aspect-ratio:16/9;background:#000;border:1px solid var(--line);overflow:hidden}
-.plate img{width:100%;height:100%;display:block;transform-origin:12% 88%}
+.plate img{width:100%;height:100%;display:block;transform-origin:4% 92%}
 /* ZOOM keeps the same frame and the same backdrop and simply magnifies the corner the graphic
    sits in, so a detail read and a full-frame read are the same picture rather than two captures
    that could disagree. */
 body[data-zoom="2"] .plate img{transform:scale(2)}
 body[data-zoom="3"] .plate img{transform:scale(3)}
 .plate.empty{display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:12px}
+/* An opaque capture keeps its own ground under every backdrop setting - see frameFigure. */
+body .plate.flat{background:#333}
 .cols{display:flex;gap:26px;flex-wrap:wrap;margin-top:10px}
 .col{min-width:280px} .col.wide{max-width:1100px}
 dl.measure{display:grid;grid-template-columns:auto 1fr;gap:1px 12px;margin:0;font-size:12px}

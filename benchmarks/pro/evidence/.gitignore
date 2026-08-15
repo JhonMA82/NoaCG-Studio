@@ -9,3 +9,4 @@ control-2026-08-16/
 *.update-*.png
 *.exit-*.png
 blind/
+.clip-frames/

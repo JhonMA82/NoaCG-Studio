@@ -8,6 +8,8 @@
 //                                                         # PAID. Spends real money.
 //   node scripts/pro-spike.mjs --generate --route=… --arms=exemplar
 //   node scripts/pro-spike.mjs --control news-public       # a subset by brief id
+//   node scripts/pro-spike.mjs --alpha --out=<round>      # FREE: re-shoot that round's holds
+//                                                         # transparent, from its own saved code
 //
 //   # THE EXEMPLAR ABLATION (plan §14 item 3): the grammar arm across the bank, plus a few
 //   # exemplar re-runs to check the stored exemplar arm still reproduces.
@@ -121,8 +123,9 @@ const reveal = flag('reveal');
 // the sample the reviewer prefers, which is a different experiment.
 const resume = flag('resume');
 
-if (!control && !paid && !reveal && !flag('rebuild')) {
-  console.error('Pick a mode: --control (free, run this first), --generate (PAID), --rebuild or --reveal.');
+if (!control && !paid && !reveal && !flag('rebuild') && !flag('alpha')) {
+  console.error('Pick a mode: --control (free, run this first), --generate (PAID),'
+    + ' --rebuild, --reveal or --alpha (free, re-shoots a finished round transparent).');
   process.exit(1);
 }
 if (control && paid) {
@@ -280,6 +283,85 @@ await page.locator('.topbar').waitFor();
 await page.locator('.wz-modal').waitFor({ state: 'visible', timeout: 20_000 }).catch(() => undefined);
 await page.keyboard.press('Escape');
 await page.locator('.wz-modal').waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => undefined);
+
+// ── --alpha: re-shoot a finished round's holds WITH THEIR ALPHA, free ───────────────────
+//
+// `captureHold` screenshots the hold from INSIDE the app, so every frame in a round carries the
+// capture frame's grey card baked in. That is fine for a gallery and wrong for the one question
+// a broadcast graphic is finally judged on - how it reads over a picture - because a graphic
+// composited onto grey cannot be laid over anything else afterwards.
+//
+// This re-renders from the round's OWN SAVED CODE (`code/<slug>/`), which is why it is free and
+// why it is honest: the paid artefact is the emitted HTML/CSS/JS, the document around it is
+// deterministic, and the field values are re-derived from the committed brief bank exactly as the
+// paid run derived them. The shot is taken on a page of its own parked on this origin - relative
+// `fonts/<file>` still resolves - with `omitBackground`, so everything the design does not paint
+// stays transparent.
+if (flag('alpha')) {
+  const file = path.join(OUT, 'results.json');
+  const ledger = JSON.parse(await readFile(file, 'utf8'));
+  const alphaDir = path.join(OUT, 'alpha');
+  await mkdir(alphaDir, { recursive: true });
+  const shotPage = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+  await shotPage.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
+  let shot = 0;
+  for (const record of ledger.results) {
+    if (!record.code || record.skipped || record.error) continue;
+    const dir = path.join(OUT, record.code);
+    const [html, css, js] = await Promise.all([
+      readFile(path.join(dir, 'index.html'), 'utf8'),
+      readFile(path.join(dir, 'template.css'), 'utf8'),
+      readFile(path.join(dir, 'template.js'), 'utf8'),
+    ]);
+    const brand = rawBrands.find((b) => b.id === record.brand) ?? null;
+    const entry = bank.briefs.find((b) => b.id === String(record.slug).split('.')[0]);
+    // The mark rides as a real asset AND as a field value, the two ways the paid capture had it:
+    // baked into the saved `src`, and resent through update() the way SPX resends every field.
+    const assets = brand && record.fill?.path
+      ? [{ path: record.fill.path, data: brand.markDataUrl, name: brand.markFileName }]
+      : [];
+    const composed = await page.evaluate(async (input) => {
+      const { composeDocument } = await import('/src/preview/composeDocument.ts?t=' + Date.now());
+      return composeDocument({
+        html: input.html,
+        css: input.css,
+        js: input.js,
+        assets: input.assets,
+        resolution: { width: 1920, height: 1080 },
+        fields: [],
+      });
+    }, { html, css, js, assets });
+
+    for (const [suffix, values] of [
+      ['hold', { f0: entry?.brief.name, f1: entry?.brief.title }],
+      ['stress', {
+        f0: `${entry?.brief.name} de la Cruz-Whittington`,
+        f1: `${entry?.brief.title}, Southern Bureau and Election Desk`,
+      }],
+    ]) {
+      const data = { ...values };
+      if (record.fill?.slotFieldId && record.fill.path) data[record.fill.slotFieldId] = record.fill.path;
+      await shotPage.setContent(composed, { waitUntil: 'load' });
+      await shotPage.evaluate(async (payload) => {
+        try {
+          window.update(JSON.stringify(payload));
+          window.play();
+        } catch { /* a broken lifecycle still paints something - shoot what is there */ }
+        await document.fonts.ready;
+        await new Promise((resolve) => setTimeout(resolve, 1800));
+      }, data);
+      const name = `${record.slug}.${suffix}.png`;
+      await shotPage.screenshot({ path: path.join(alphaDir, name), omitBackground: true });
+      record[suffix === 'hold' ? 'alphaHold' : 'alphaStressHold'] = `alpha/${name}`;
+      shot += 1;
+    }
+    console.log(`  ${record.slug} · alpha hold + stress`);
+  }
+  await writeFile(file, `${JSON.stringify(ledger, null, 2)}\n`);
+  await browser.close();
+  console.log(`\n${shot} transparent frame(s) written to ${alphaDir}. No tokens spent.`);
+  process.exit(0);
+}
 
 // ── Probe the marks IN THE PAGE, before anything else runs ──────────────────────────────
 // probeMark is the same content-free measurement Lite sends (shape/backing/ink); it is
