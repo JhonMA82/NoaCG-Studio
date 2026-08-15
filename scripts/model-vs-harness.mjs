@@ -80,6 +80,26 @@ const FFMPEG = (process.env.FFMPEG_PATH ?? 'ffmpeg').trim() || 'ffmpeg';
 const BANK = path.resolve('benchmarks/pro/v1/briefs.json');
 const DECODING = path.resolve('benchmarks/pro/v1/spike/decoding.json');
 
+/** The gateway reports NO estimatedCost for the anthropic routes (measured by --probe,
+ *  2026-08-15: a served claude-sonnet-5 call came back $0.0000), and a ceiling fed zeros
+ *  never trips. So frontier-arm costs fall back to a local price per million tokens,
+ *  --frontier-price=<in>,<out> USD, and every ledger row says which kind of number it
+ *  carries (`costSource: gateway | estimated`). */
+const FRONTIER_PRICE = (value('frontier-price') ?? '3,15').split(',').map(Number);
+
+function armCost(item, routeKey) {
+  const reported = item.costUsd ?? 0;
+  if (reported > 0) return { costUsd: reported, costSource: 'gateway' };
+  const u = item.usage ?? {};
+  const inTok = u.inputTokens ?? u.input ?? 0;
+  const outTok = u.outputTokens ?? u.output ?? 0;
+  if (routeKey !== 'frontier' || (!inTok && !outTok)) return { costUsd: reported, costSource: 'gateway' };
+  return {
+    costUsd: (inTok * FRONTIER_PRICE[0] + outTok * FRONTIER_PRICE[1]) / 1_000_000,
+    costSource: 'estimated',
+  };
+}
+
 /** The six briefs, from the Pro bank so results join every prior round. Logo briefs are left
  *  out on purpose: this round carries no brand, and a broken-image mark would dominate the
  *  read with a defect class the mark contract already owns. */
@@ -414,6 +434,17 @@ function dataFor(template, brief) {
   const textFields = (template.fields ?? []).filter((f) => f.ftype === 'textfield' || f.ftype === 'textarea');
   const lines = [brief.name, brief.title];
   const roles = ['person-name', 'person-role'];
+  // A definition that parses to no fields still gets driven: the user message pins f0/f1,
+  // templates write by getElementById, and un-driving one arm would break the §7 control
+  // (measured by --probe: claude-sonnet-5's bare emit wrote `dataFields`/`id`/`ftype`-less
+  // entries parseDefinition rightly rejects). The parse failure itself stays recorded on the
+  // row - the drive is equalized, the defect is not hidden.
+  if (!textFields.length) {
+    return {
+      initialData: { f0: lines[0], f1: lines[1] },
+      updateData: { f0: UPDATE_COPY[roles[0]], f1: UPDATE_COPY[roles[1]] },
+    };
+  }
   const initialData = {};
   const updateData = {};
   textFields.forEach((field, index) => {
@@ -633,8 +664,14 @@ if (PROBE) {
           decoding: { ...decoding, expectedOutputTokens: 2500 },
         });
         const shape = ['html', 'css', 'js'].every((k) => typeof result.emitted?.[k] === 'string' && result.emitted[k].length > 0);
+        // The emit is saved so a surprising probe (0 fields, an empty file) can be READ
+        // rather than guessed about - and the probe's few cents are never the only record.
+        await saveCode(`probe-${label}`, result);
+        const cost = armCost(result, label);
         console.log(`served by "${result.model}" · emit ${shape ? 'complete' : 'INCOMPLETE'}`
-          + ` · fields ${result.template.fields.length} · $${(result.costUsd ?? 0).toFixed(4)}`);
+          + ` · fields ${result.template.fields.length}`
+          + ` · ${result.usage?.inputTokens ?? '?'} in / ${result.usage?.outputTokens ?? '?'} out`
+          + ` · $${cost.costUsd.toFixed(4)} (${cost.costSource})`);
       } catch (error) {
         console.log(`FAILED: ${error.message.split('\n')[0]}`);
         process.exitCode = 1;
@@ -948,7 +985,10 @@ if (GENERATE) {
         // THE MODEL'S OUTPUT IS THE IRREPLACEABLE ARTIFACT - on disk before anything else
         // can fail (the 2026-08-12 lesson: 45 paid generations reduced to PNGs).
         await saveCode(slug, item);
-        ledger.spentUsd += item.costUsd ?? 0;
+        const { costUsd, costSource } = armCost(item, arm.routeKey);
+        item.costUsd = costUsd;
+        item.costSource = costSource;
+        ledger.spentUsd += costUsd;
 
         let captured = null;
         let captureError = null;
@@ -961,6 +1001,7 @@ if (GENERATE) {
           kind: 'candidate', slug, briefId: entry.id, arm: arm.id,
           model: item.model,
           costUsd: item.costUsd ?? 0,
+          costSource: item.costSource ?? 'gateway',
           usage: item.usage ?? null,
           repairRounds: item.repairRounds ?? 0,
           exemplarIds: item.exemplarIds ?? [],
