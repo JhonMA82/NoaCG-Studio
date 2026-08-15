@@ -23,12 +23,21 @@
  * Deliberately a NAMED list rather than "every script that imports chromium" - 36 of them do, and
  * most are one-off analysis tools nobody runs during normal work. Blocking those would train
  * people to route around the guard. This covers the catalog quality gates AGENTS.md documents,
- * the factory, the render smokes and the `*bench*` family. Anything missed is still absorbed by
- * the worker ladder (`scripts/e2e-workers.mjs`), which sizes a run off free memory whatever else
- * is resident.
+ * the factory, the render smokes, the `*bench*` family and the `*spike*` family. Anything missed
+ * is still absorbed by the worker ladder (`scripts/e2e-workers.mjs`), which sizes a run off free
+ * memory whatever else is resident.
+ *
+ * THE SPIKE FAMILY WAS ADDED 2026-08-15, AFTER FALLING INTO THE HOLE. `spike-mark-clearance-sweep`
+ * renders 24 designs at 1920x1080 through the app for about four minutes - the same workload a
+ * suite is, by the same measure - and it was started three times beside another worktree's live
+ * configured suite, because nothing in the alternation matched its name. The `spike-*` set plus
+ * `pro-spike` are one rig: the Pro spike runner and the calibration sweeps that read its
+ * thresholds off the catalog. `[\w-]*spike[\w-]*` is deliberately the same shape as the `*bench*`
+ * entry beside it, so a NEW spike script is covered by being named like its siblings rather than
+ * by somebody remembering this file.
  */
 export const SWEEP_SCRIPTS =
-  'l3-sweep|type-floor|overflow-sweep|field-coverage|numerals|factory|catalog-geometry|acceptance-shots|render-smoke[\\w-]*|[\\w-]*bench[\\w-]*';
+  'l3-sweep|type-floor|overflow-sweep|field-coverage|numerals|factory|catalog-geometry|acceptance-shots|render-smoke[\\w-]*|[\\w-]*bench[\\w-]*|[\\w-]*spike[\\w-]*';
 
 /**
  * Drop every HERE-DOCUMENT body from a command line, leaving the command that opened it.
