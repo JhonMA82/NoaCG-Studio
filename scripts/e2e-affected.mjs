@@ -16,7 +16,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FOCUS } from './e2e-lists.mjs';
+import { CONFIGURED_TRIGGERS, FOCUS } from './e2e-lists.mjs';
 
 /**
  * True only when this file was RUN, not imported. `planFor` below is exported for tests, and
@@ -311,9 +311,14 @@ export function planFor(changed, { sprintFocus = false } = {}) {
   const specs = new Set();
   let full = false;
   let catalog = false;
+  let configured = false;
   const unmapped = [];
 
   for (const file of changed) {
+    // Asked BEFORE the ignore list, deliberately: `e2e/configured/**` is ignored for the
+    // offline plan (those specs cannot run here), and that is precisely the file set whose
+    // change most needs the configured suite named.
+    if (CONFIGURED_TRIGGERS.some((r) => r.test(file))) configured = true;
     if (IGNORE.some((r) => r.test(file))) continue;
     if (CATALOG_TRIGGERS.some((r) => r.test(file))) catalog = true;
     if (/^e2e\/[^/]+\.spec\.ts$/.test(file)) {
@@ -348,8 +353,11 @@ export function planFor(changed, { sprintFocus = false } = {}) {
   if (full) catalog = true;
 
   const list = full ? [] : [...specs].sort();
+  // `configured` never changes `mode`: the configured suite is opt-in, needs secrets, and is
+  // reported rather than run (scripts/e2e-lists.mjs). A change that touches ONLY its territory
+  // still reports 'none' for this gate, and the printed line is what says otherwise.
   const mode = full ? 'full' : list.length === 0 && !catalog ? 'none' : 'subset';
-  return { mode, specs: list, catalog, unmapped, focusApplied };
+  return { mode, specs: list, catalog, configured, unmapped, focusApplied };
 }
 
 /**
@@ -525,8 +533,15 @@ function main() {
     return 0;
   }
 
-  const { mode, specs: plan, catalog: catalogAffected, unmapped, focusApplied } = planFor(changed, { sprintFocus });
+  const { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied } = planFor(changed, { sprintFocus });
   const full = mode === 'full';
+
+  // Printed BEFORE the 'none' early return below: a change confined to hosted Pro's wire
+  // contract or to e2e/configured/ leaves this gate with nothing to run, and that verdict on
+  // its own reads as "covered" when the covering suite is the one that never ran.
+  if (configured) {
+    log('e2e-affected: this change touches behaviour only a CONFIGURED deployment has - run `npm run test:e2e:live:queued` (needs .env + a throwaway test account; not runnable in CI).');
+  }
 
   if (unmapped.length > 0) {
     log(`e2e-affected: no mapping for these files (falling back to the ${focusApplied ? 'SPRINT FOCUS set' : 'full suite'}):`);

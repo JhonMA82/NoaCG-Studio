@@ -49,6 +49,15 @@ non-wizard specs with `createProject` (`e2e/_create.ts`).
 specs importing `CATALOG`, `TYPES`, `KITS` or `PACKS` and fails the build if the mapping misses
 one. Six were missing until 2026-08-08, which is how `competition-pack.spec.ts` sat stale.
 
+**Some behaviour has no offline spec at all, and the planner now SAYS so.** `e2e/configured/`
+runs against a real backend and a throwaway account (`npm run test:e2e:live:queued`), so it can
+neither run in CI nor be selected by the affected gate - which left hosted Pro's door, its
+metering and its allowance read-back covered only by offline specs that pin their ABSENCE.
+`CONFIGURED_TRIGGERS` (`scripts/e2e-lists.mjs`) names the files whose coverage lives there; a
+change touching one prints a line telling you to run that suite. It is reported, never run:
+starting it would bring up a dev server on the real `.env`, which is what the offline pin exists
+to prevent.
+
 ## A clean merge is not proof the integration worked
 
 `git merge` decides whether two diffs touch the same LINES. It has no opinion about whether the
