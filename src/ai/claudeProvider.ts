@@ -308,7 +308,7 @@ Return the design ONLY via the requested tool.`;
 // format basics so the result runs in playout — no taste teaching, no worked example, no
 // repair loop. The benchmark's raw arm showed these look strong; keeping this path pure is
 // what makes the harness's value measurable (and its checkbox honest).
-const RAW_SYSTEM = `You make broadcast graphics as SPX / CasparCG HTML templates. Return the complete
+export const RAW_SYSTEM = `You make broadcast graphics as SPX / CasparCG HTML templates. Return the complete
 template as three files via the emit_template tool.
 
 Format basics (so it runs in playout):
