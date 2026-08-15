@@ -1650,6 +1650,9 @@ behind the mark and says so. The gate cannot tell a platform-drawn field from a 
 its own, which is the §15.8 trigger working and the instrument describing it in the only vocabulary
 it has. It is on the lower-third path and predates Phase B.
 
+Archived at `noacg-lite-eval-archive/pro-phaseb-package-gemini25flash-2026-08-15` (1012 files,
+copy proven).
+
 **The human read is owed and nothing here is a substitute for it.** The machine measured that the
 composer works; whether four channels' worth of graphics look like four channels' packages is the
 question `set-gallery.html` exists to be asked.

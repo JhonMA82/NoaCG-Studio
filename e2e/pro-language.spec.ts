@@ -556,8 +556,10 @@ test.describe('one design language, the whole package', () => {
     for (const graphic of ['lower-third', 'sponsor-bug', 'countdown']) {
       const c = cases[graphic];
       // IDENTITY, verbatim, on every member of the package - the model's #22ff88 gets no vote.
+      // The language asks for a SOLID panel, so the surface is the brand's hex untouched; a
+      // translucent or blurred treatment would wrap the same channels in an rgba().
       expect(c.accent, `${graphic} accent`).toBe('#c8a24a');
-      expect(c.panel, `${graphic} surface`).toContain('11, 21, 34');   // #0b1522, as the rgba() surface
+      expect(c.panel, `${graphic} surface`).toBe('#0b1522');
       // FURNITURE, repaired: #2a3444 cannot read on #0b1522, so it moves - and says so.
       expect(c.textDim, `${graphic} supporting colour`).not.toBe('#2a3444');
       expect(c.adjustments, `${graphic} divergence recorded`)
