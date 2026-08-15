@@ -1298,11 +1298,14 @@ to be the fix mechanism, and this section exists because we ran it as one for th
   Pinned by `e2e/spike-instruments.spec.ts`, which asserts both the span and the symmetry.
   **The same CSS shipped on every seated generation of the 2026-08-13 round**, which is worth
   remembering when reading that round's verdict.
-- **A calibration re-sweep**, because the two changes above move numbers the thresholds were read
-  from: `scripts/spike-spacing-calibrate.mjs` and `scripts/spike-proportion-calibrate.mjs` over
-  the catalog, compared against the committed fixtures rather than against an absolute - and
-  remembering that `findPanel` resolves for only about half of it, so the sweep measures fewer
-  designs than it lists.
+- **The calibration re-sweep - DONE, and the change is INERT on the shipped catalog.** Both
+  sweeps over all 90 lower thirds, compared against the committed fixtures rather than against an
+  absolute (`findPanel` still resolves for 45 of the 90, so the sweep measures half of what it
+  lists - the same figure as before, which is itself part of the answer). Spacing: 1 design
+  flagged before, 1 after, the same design and the same code; exactly ONE row moved at all (lt51,
+  right padding 1.20 → 1.28); and **not one shipped design reports an escape**. Proportion: byte
+  identical, 0 rows moved, every percentile unchanged. The instrument change fires on the defect
+  it was built for and on nothing else.
 
 ### 15.7 What a Phase A round would cost
 

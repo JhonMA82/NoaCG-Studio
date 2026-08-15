@@ -17,7 +17,7 @@
       "p05": 0,
       "p25": 0,
       "p50": 0.51,
-      "p95": 1.22
+      "p95": 1.24
     },
     "lineGap": {
       "p05": 0.18,
@@ -36,6 +36,7 @@
         "bottom": 0.44,
         "left": 0.63
       },
+      "escapes": [],
       "lineGaps": [
         0.64
       ],
@@ -47,6 +48,7 @@
       "panel": null,
       "typeSizePx": 51,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0
       ],
@@ -63,6 +65,7 @@
         "bottom": 0.52,
         "left": 0.68
       },
+      "escapes": [],
       "lineGaps": [
         0.43
       ],
@@ -74,6 +77,7 @@
       "panel": null,
       "typeSizePx": 46,
       "padding": null,
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -84,10 +88,11 @@
       "typeSizePx": 46,
       "padding": {
         "top": 0.46,
-        "right": 1.2,
+        "right": 1.28,
         "bottom": 0.5,
         "left": 1.28
       },
+      "escapes": [],
       "lineGaps": [
         0.55
       ],
@@ -104,6 +109,7 @@
         "bottom": 0.48,
         "left": 1.22
       },
+      "escapes": [],
       "lineGaps": [
         0.5
       ],
@@ -120,6 +126,7 @@
         "bottom": 0.53,
         "left": 0.57
       },
+      "escapes": [],
       "lineGaps": [
         0.19
       ],
@@ -136,6 +143,7 @@
         "bottom": 0,
         "left": 0.66
       },
+      "escapes": [],
       "lineGaps": [
         0.4
       ],
@@ -152,6 +160,7 @@
         "bottom": 0.47,
         "left": 0.66
       },
+      "escapes": [],
       "lineGaps": [
         0.45
       ],
@@ -168,6 +177,7 @@
         "bottom": 1.13,
         "left": 0.63
       },
+      "escapes": [],
       "lineGaps": [
         0.67
       ],
@@ -179,6 +189,7 @@
       "panel": null,
       "typeSizePx": 54,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.25
       ],
@@ -190,6 +201,7 @@
       "panel": null,
       "typeSizePx": 56,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         1
       ],
@@ -201,6 +213,7 @@
       "panel": null,
       "typeSizePx": 51,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.24
       ],
@@ -217,6 +230,7 @@
         "bottom": 0.39,
         "left": 0.62
       },
+      "escapes": [],
       "lineGaps": [
         0.6
       ],
@@ -228,6 +242,7 @@
       "panel": null,
       "typeSizePx": 58,
       "padding": null,
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -237,6 +252,7 @@
       "panel": null,
       "typeSizePx": 52,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.33
       ],
@@ -248,6 +264,7 @@
       "panel": null,
       "typeSizePx": 54,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.25
       ],
@@ -259,6 +276,7 @@
       "panel": null,
       "typeSizePx": 59,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.25
       ],
@@ -270,6 +288,7 @@
       "panel": null,
       "typeSizePx": 46,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.18
       ],
@@ -281,6 +300,7 @@
       "panel": null,
       "typeSizePx": 58,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.21
       ],
@@ -292,6 +312,7 @@
       "panel": null,
       "typeSizePx": 38,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.3
       ],
@@ -303,6 +324,7 @@
       "panel": null,
       "typeSizePx": 57,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.3
       ],
@@ -314,6 +336,7 @@
       "panel": null,
       "typeSizePx": 56,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.26
       ],
@@ -325,6 +348,7 @@
       "panel": null,
       "typeSizePx": 58,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.65
       ],
@@ -341,6 +365,7 @@
         "bottom": 0.59,
         "left": 1.18
       },
+      "escapes": [],
       "lineGaps": [
         0.27
       ],
@@ -352,6 +377,7 @@
       "panel": null,
       "typeSizePx": 54,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.6
       ],
@@ -363,6 +389,7 @@
       "panel": null,
       "typeSizePx": 60,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.2
       ],
@@ -379,6 +406,7 @@
         "bottom": 0.36,
         "left": 0.52
       },
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -388,6 +416,7 @@
       "panel": null,
       "typeSizePx": 54,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.7
       ],
@@ -399,6 +428,7 @@
       "panel": null,
       "typeSizePx": 52,
       "padding": null,
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -408,6 +438,7 @@
       "panel": null,
       "typeSizePx": 58,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         1.85
       ],
@@ -424,6 +455,7 @@
       "panel": null,
       "typeSizePx": 55,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.31
       ],
@@ -435,6 +467,7 @@
       "panel": null,
       "typeSizePx": 53,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.65
       ],
@@ -446,6 +479,7 @@
       "panel": null,
       "typeSizePx": 50,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.24
       ],
@@ -457,6 +491,7 @@
       "panel": null,
       "typeSizePx": 50,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.65
       ],
@@ -468,6 +503,7 @@
       "panel": null,
       "typeSizePx": 58,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.15
       ],
@@ -479,6 +515,7 @@
       "panel": null,
       "typeSizePx": 54,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0
       ],
@@ -495,6 +532,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [
         0.23
       ],
@@ -511,6 +549,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -525,6 +564,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [
         0.33
       ],
@@ -541,6 +581,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [
         0.29
       ],
@@ -557,6 +598,7 @@
         "bottom": 0,
         "left": 0.8
       },
+      "escapes": [],
       "lineGaps": [
         0.33
       ],
@@ -573,6 +615,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [
         0.24
       ],
@@ -589,6 +632,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [
         0.2
       ],
@@ -605,6 +649,7 @@
         "bottom": 0.42,
         "left": 0.66
       },
+      "escapes": [],
       "lineGaps": [
         0.31
       ],
@@ -616,6 +661,7 @@
       "panel": null,
       "typeSizePx": 64,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.29
       ],
@@ -627,6 +673,7 @@
       "panel": null,
       "typeSizePx": 40,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.25
       ],
@@ -638,6 +685,7 @@
       "panel": null,
       "typeSizePx": 54,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.26
       ],
@@ -649,6 +697,7 @@
       "panel": null,
       "typeSizePx": 44,
       "padding": null,
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -658,6 +707,7 @@
       "panel": null,
       "typeSizePx": 49,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.29
       ],
@@ -669,6 +719,7 @@
       "panel": null,
       "typeSizePx": 46,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.26
       ],
@@ -680,6 +731,7 @@
       "panel": null,
       "typeSizePx": 40,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.2
       ],
@@ -691,6 +743,7 @@
       "panel": null,
       "typeSizePx": 55,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.21
       ],
@@ -702,6 +755,7 @@
       "panel": null,
       "typeSizePx": 40,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.2
       ],
@@ -713,6 +767,7 @@
       "panel": null,
       "typeSizePx": 26,
       "padding": null,
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -727,6 +782,7 @@
         "bottom": 0.52,
         "left": 0.52
       },
+      "escapes": [],
       "lineGaps": [
         0.21
       ],
@@ -738,6 +794,7 @@
       "panel": null,
       "typeSizePx": 35,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.3
       ],
@@ -749,6 +806,7 @@
       "panel": null,
       "typeSizePx": 34,
       "padding": null,
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -758,6 +816,7 @@
       "panel": null,
       "typeSizePx": 40,
       "padding": null,
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -767,6 +826,7 @@
       "panel": null,
       "typeSizePx": 38,
       "padding": null,
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -781,6 +841,7 @@
         "bottom": 0.69,
         "left": 0.9
       },
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -790,6 +851,7 @@
       "panel": null,
       "typeSizePx": 53,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.65
       ],
@@ -806,6 +868,7 @@
         "bottom": 0.5,
         "left": 0.72
       },
+      "escapes": [],
       "lineGaps": [
         0.39
       ],
@@ -822,6 +885,7 @@
         "bottom": 0.62,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [
         1.32
       ],
@@ -838,6 +902,7 @@
         "bottom": 0.51,
         "left": 0.86
       },
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -852,6 +917,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -866,6 +932,7 @@
         "bottom": 0.42,
         "left": 0.82
       },
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -880,6 +947,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [
         0.27
       ],
@@ -896,6 +964,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [
         0.54
       ],
@@ -912,6 +981,7 @@
         "bottom": 0.48,
         "left": 0.66
       },
+      "escapes": [],
       "lineGaps": [
         0.46
       ],
@@ -928,6 +998,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -942,6 +1013,7 @@
         "bottom": 0.6,
         "left": 0.74
       },
+      "escapes": [],
       "lineGaps": [
         0.45
       ],
@@ -958,6 +1030,7 @@
         "bottom": 0.57,
         "left": 0.72
       },
+      "escapes": [],
       "lineGaps": [
         0.75
       ],
@@ -969,6 +1042,7 @@
       "panel": null,
       "typeSizePx": 45,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.45
       ],
@@ -985,6 +1059,7 @@
         "bottom": 0.87,
         "left": 0.73
       },
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -999,6 +1074,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [
         0.24
       ],
@@ -1015,6 +1091,7 @@
         "bottom": 0.63,
         "left": 0.83
       },
+      "escapes": [],
       "lineGaps": [
         0.54
       ],
@@ -1031,6 +1108,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -1045,6 +1123,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [
         0.3
       ],
@@ -1061,6 +1140,7 @@
         "bottom": 0.55,
         "left": 0.73
       },
+      "escapes": [],
       "lineGaps": [
         0.48
       ],
@@ -1077,6 +1157,7 @@
         "bottom": 0,
         "left": 0
       },
+      "escapes": [],
       "lineGaps": [
         1.36
       ],
@@ -1088,6 +1169,7 @@
       "panel": null,
       "typeSizePx": 45,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.65
       ],
@@ -1099,6 +1181,7 @@
       "panel": null,
       "typeSizePx": 43,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.38
       ],
@@ -1115,6 +1198,7 @@
         "bottom": 0.44,
         "left": 0.59
       },
+      "escapes": [],
       "lineGaps": [
         0.5
       ],
@@ -1131,6 +1215,7 @@
         "bottom": 0.46,
         "left": 0.74
       },
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -1145,6 +1230,7 @@
         "bottom": 0.75,
         "left": 0.57
       },
+      "escapes": [],
       "lineGaps": [],
       "markGap": null,
       "findings": []
@@ -1159,6 +1245,7 @@
         "bottom": 0.57,
         "left": 0.78
       },
+      "escapes": [],
       "lineGaps": [
         0.6
       ],
@@ -1170,6 +1257,7 @@
       "panel": null,
       "typeSizePx": 65,
       "padding": null,
+      "escapes": [],
       "lineGaps": [
         0.3
       ],
@@ -1186,6 +1274,7 @@
         "bottom": 0.51,
         "left": 0.73
       },
+      "escapes": [],
       "lineGaps": [
         0.38
       ],
@@ -1202,6 +1291,7 @@
         "bottom": 0.48,
         "left": 0.7
       },
+      "escapes": [],
       "lineGaps": [
         0.24
       ],
