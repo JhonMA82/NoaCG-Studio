@@ -1304,6 +1304,33 @@ to be the fix mechanism, and this section exists because we ran it as one for th
   remembering that `findPanel` resolves for only about half of it, so the sweep measures fewer
   designs than it lists.
 
+### 15.7 What a Phase A round would cost
+
+DERIVED from measured per-call costs on the same transport, not measured for this pipeline -
+the runner arm does not exist yet, so treat this as the estimate a round is authorised against
+rather than as a result.
+
+A Phase A generation is **one forced structured text call and nothing else**: roughly 1.5-2k
+input tokens (the system prompt, the brief, and a brand block when there is one) for ~300-500
+output tokens of enum values. There is no image anywhere in it.
+
+| | 2026-08-10 Pro round | a 12-brief Phase A round |
+| --- | --- | --- |
+| calls per graphic | 2 (a concept IMAGE + an interpretation) | 1 (text) |
+| measured per graphic | $0.0777, of which $0.0671 is the flat-rate image | - |
+| estimated per graphic | - | ~$0.001-0.003 on `PRO_STANDARD_ROUTES.interpret`'s own model |
+| round total | $1.014569 (12 briefs) | **~$0.02-0.05**, or **~$0.16** on a frontier checkpoint |
+
+The low figure is the interesting one and it is not a rounding artefact: **86% of the old bill
+was one fixed charge for a picture the compiler then failed to keep** (§16), and Phase A does not
+draw one. That changes what a round IS - a language round is cheap enough to run per checkpoint,
+per brand and per brief bank rather than being rationed - and it is the first thing about Pro's
+economics that argues for the tier rather than against it.
+
+The estimate's honest limits: it assumes the standard interpret route's pricing, one call with no
+retry, and no divergence cell. A four-brand divergence block on two briefs adds six calls (~$0.02).
+Nothing here is spent until the `--language` arm exists AND the owner says yes.
+
 ---
 
 ## 16. The first REAL hosted generation - 2026-08-15, and what it settles
