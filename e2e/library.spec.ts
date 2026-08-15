@@ -649,10 +649,16 @@ test('the Graphics header is one row, and the type chips and sort narrow and reo
     createGraphic(strap, { name: 'Alpha Strap' });
     createGraphic(crawl, { name: 'Mike Ticker' });
   });
-  // Accepted is not landed, and the goto below tears the page down (e2e/_durable.ts).
+  // Accepted is not landed, and the reload below tears the page down (e2e/_durable.ts).
   await settleDurableWrites(page);
-  await page.goto('/app#/home/graphics');
+  // A RELOAD, not a second goto to the hash this page is already on: /app is hash-routed, so a
+  // navigation that does not change the hash fires no `hashchange`, the router never runs, and
+  // this already-rendered page keeps showing the empty library the seeds were written into. That
+  // shape failed three of six runs in library-bulk.spec.ts (measured 2026-08-15, its seed helper
+  // carries the full note); here it would read as the chips narrowing nothing.
+  await page.reload();
   await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('select-graphic')).toHaveCount(3);
 
   // ONE row: the title, the search, the sort and the view toggle share a line. Two bands of
   // chrome before the first graphic is most of a laptop's fold (re-design/handoff.md §5b).
