@@ -1334,6 +1334,47 @@ The estimate's honest limits: it assumes the standard interpret route's pricing,
 retry, and no divergence cell. A four-brand divergence block on two briefs adds six calls (~$0.02).
 Nothing here is spent until the `--language` arm exists AND the owner says yes.
 
+### 15.8 The first Phase A round - 2026-08-15
+
+`node scripts/pro-spike.mjs --generate --arms=language --divergence-arm=language
+--route=vercel:google/gemini-2.5-flash --max-cost=0.25`. **18 cells - the 12-brief bank under
+its assigned brands, plus the two-brief four-brand divergence block - for $0.0983, $0.0055 a
+graphic.** Archived at `noacg-lite-eval-archive/pro-language-round-gemini25flash-2026-08-15`
+(1281 files, copy proven). The gallery is `pro-lang-round/review.html`; **the human read is
+owed and nothing here is a substitute for it.**
+
+What the machine measured, over 18 of 18:
+
+| | result |
+| --- | --- |
+| contract (scaffold + fields + declared slot) | **18/18**, zero blocking errors |
+| runtime errors, repair rounds | **0**, **0** (there is no repair loop on this path) |
+| spacing findings | **none** |
+| alignment near-misses | **0** |
+| text escaping its panel | **0** |
+| proportion findings | 1 (`footprint-large`, 0.11 against a 0.10 ceiling, on the long-name brief) |
+| fields the model failed to answer legibly | **0** - every language came back complete |
+| palette furniture repaired for legibility | 3 (`palette_text_dim_lightness_clamped`) |
+| mark unreadable on the language's own panel | 3 (`ink-contrast` / `bench-mark-unreadable`) |
+
+**The layout failure classes §15.2 decomposed did not occur.** That is the phase's measurable
+claim and it held, though the honest reading is that it held BY CONSTRUCTION - the platform is
+composing, so this measures that the composer works rather than that the model improved.
+
+**The divergence cell answers the sameness question.** The same brief under four brands returned
+four different accents, four different typefaces, and different accent forms and densities - not
+one look with the colours swapped, which is the named failure (src/ai/AGENTS.md).
+
+**Two classes for the next round, both platform-side:**
+
+- **A dark-ink mark on a dark panel disappears** (3 of 18). The model took each brand's own
+  palette faithfully and the mark's ink then had nothing to read against. It is REPORTED and not
+  repaired, which is the owner's standing decision (no plate behind a mark, 2026-08-14) - but
+  Phase A changes the terms, because the platform now knows the mark's ink BEFORE the panel is
+  chosen. The cheap version is a boundary in the prompt rather than a repair in the compositor.
+- **`footprint-large` on the long-name brief.** The panel is sized by its text and the text was
+  long; the cap that bounds it is the category's auto-fit width, not a footprint budget.
+
 ---
 
 ## 16. The first REAL hosted generation - 2026-08-15, and what it settles
