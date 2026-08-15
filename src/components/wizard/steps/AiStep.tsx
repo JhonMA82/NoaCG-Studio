@@ -1622,6 +1622,9 @@ export default function AiStep({
               {lastPath === 'pro' && (() => {
                 const pro = proDetails.current.get(result);
                 if (!pro) return null;
+                const scoredMessages = new Set(
+                  [...(validation?.errors ?? []), ...(validation?.warnings ?? [])].map((f) => f.message),
+                );
                 return (
                   <div className="wz-pro-concept" style={{ marginTop: 8 }} data-testid="pro-report">
                     <img
@@ -1647,9 +1650,14 @@ export default function AiStep({
                         </li>
                       ))}
                     </ul>
-                    {pro.report.warnings.map((warning, index) => (
-                      <p key={index} className="hint" data-testid="pro-warning">⚠ {warning}</p>
-                    ))}
+                    {/* A refusal the gate now scores is shown by the readiness rows, as the
+                        blocking ✗ it is - repeating it here as a ⚠ would soften the same
+                        sentence one line below itself. */}
+                    {pro.report.warnings
+                      .filter((warning) => !scoredMessages.has(warning))
+                      .map((warning, index) => (
+                        <p key={index} className="hint" data-testid="pro-warning">⚠ {warning}</p>
+                      ))}
                   </div>
                 );
               })()}
@@ -1708,12 +1716,18 @@ export default function AiStep({
                       )}
                     </div>
                   ))}
-                  {unclaimedFindings(validation).map((f, i) => (
-                    <div key={`x${i}`} className="ai-ready-row warn">
-                      <span className="ai-ready-mark" aria-hidden="true">⚠</span>
-                      <span className="ai-ready-label">{f.message}</span>
-                    </div>
-                  ))}
+                  {unclaimedFindings(validation).map((f, i) => {
+                    // An unclaimed ERROR is still an error: the row that shows it says so.
+                    // Painting every unrowed finding as a warning is how a blocking defect
+                    // reads as advice - the shape of the §16 failure, one layer up.
+                    const blocking = validation.errors.includes(f);
+                    return (
+                      <div key={`x${i}`} className={`ai-ready-row ${blocking ? 'fail' : 'warn'}`}>
+                        <span className="ai-ready-mark" aria-hidden="true">{blocking ? '✗' : '⚠'}</span>
+                        <span className="ai-ready-label">{f.message}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               {validation && !validation.ok && tier === 'custom' && (

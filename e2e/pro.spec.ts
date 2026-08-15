@@ -300,7 +300,7 @@ test('pro: baked text outside panels is erased where the backdrop is flat, refus
   const out = await page.evaluate(async () => {
     const bust = `?t=${Date.now()}`;
     const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
-    const { compileProPlan } = await import(`/src/ai/pro/compile.ts${bust}`);
+    const { compileProPlan, validateProCompile } = await import(`/src/ai/pro/compile.ts${bust}`);
     const { uuid } = await import(`/src/model/id.ts${bust}`);
 
     const FRAME = { width: 1920, height: 1080 };
@@ -347,7 +347,13 @@ test('pro: baked text outside panels is erased where the backdrop is flat, refus
     const compileOn = async (flat: boolean) => {
       const dataUrl = draw(flat);
       const plan = normalizeProInterpretation(interpretation, FRAME, uuid);
-      const { template, report } = await compileProPlan(plan, { dataUrl, ...FRAME }, brief, {});
+      const compiled = await compileProPlan(plan, { dataUrl, ...FRAME }, brief, {});
+      const { template, report } = compiled;
+      // The verdict the PIPELINE forms, through the seam pipeline.ts and stub.ts both use.
+      // A gate that says nothing is passed in on purpose: what is under test is the finding
+      // the compiler owns, not the platform validator's.
+      const clean = { ok: true, errors: [], warnings: [] };
+      const verdict = await validateProCompile(compiled, async () => clean);
       // Read the shipped artwork back: the erased text centre and a ring corner pixel.
       const art = template.assets[0]?.data ?? null;
       let centre = null;
@@ -368,7 +374,21 @@ test('pro: baked text outside panels is erased where the backdrop is flat, refus
         centre = at(NAME.x - plan.unit.x + Math.round(NAME.w / 2), NAME.y - plan.unit.y + Math.round(NAME.h / 2));
         corner = at(0, 0);
       }
-      return { report: { textErased: report.textErased, ringMatted: report.ringMatted, warnings: report.warnings }, centre, corner };
+      return {
+        report: {
+          textErased: report.textErased,
+          bakedTextRefused: report.bakedTextRefused,
+          ringMatted: report.ringMatted,
+          warnings: report.warnings,
+        },
+        verdict: {
+          ok: verdict!.ok,
+          errors: verdict!.errors.map((f: { rule: string }) => f.rule),
+          warnings: verdict!.warnings.map((f: { rule: string }) => f.rule),
+        },
+        centre,
+        corner,
+      };
     };
 
     return { flat: await compileOn(true), gradient: await compileOn(false) };
@@ -377,8 +397,12 @@ test('pro: baked text outside panels is erased where the backdrop is flat, refus
   // Flat backdrop: both baked lines erased, the pad ring written as transparency, no
   // baked-text warning left to give.
   expect(out.flat.report.textErased).toBe(2);
+  expect(out.flat.report.bakedTextRefused).toEqual([]);
   expect(out.flat.report.ringMatted).toBe(true);
   expect(out.flat.report.warnings).toEqual([]);
+  // A clean reconstruction still passes: the new codes are findings, not a tax on every
+  // Pro result.
+  expect(out.flat.verdict).toEqual({ ok: true, errors: [], warnings: [] });
   // The shipped pixels agree with the report: the name's centre is the backdrop fill again
   // (not the near-white ink), and the ring corner is fully transparent.
   expect(out.flat.centre![3]).toBe(255);
@@ -395,6 +419,50 @@ test('pro: baked text outside panels is erased where the backdrop is flat, refus
   expect(out.gradient.centre![3]).toBe(255);
   expect(out.gradient.centre![0]).toBeGreaterThan(200);
   expect(out.gradient.corner![3]).toBe(255);
+
+  // AND THE REFUSAL IS NOT USABLE (docs/NOACG_PRO_PLAN.md §16). The first real hosted
+  // generation shipped exactly this - baked text the erase refused, the live field on top of
+  // it - with `validation_rule_codes` EMPTY and the ledger row saying `usable`. A refusal the
+  // compiler records and nothing scores is a scoring bug: the verdict now carries one blocking
+  // `pro-baked-text` per refused region, so the wizard shows a failing result and the outcome
+  // the browser reports is `failed` with those codes.
+  expect(out.gradient.report.bakedTextRefused).toEqual(['Name', 'Title']);
+  expect(out.gradient.verdict.ok).toBe(false);
+  expect(out.gradient.verdict.errors).toEqual(['pro-baked-text', 'pro-baked-text']);
+  // The pad ring is degraded, not broken - reported, never blocking.
+  expect(out.gradient.verdict.warnings).toEqual(['pro-artwork-ring']);
+});
+
+test('pro: the offline pipeline scores a clean reconstruction through the same seam', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+
+  // The whole offline pipeline - stub concept, real normalize + compile, the REAL production
+  // validator - so the blocking code is proved to cost a good generation nothing. The bench
+  // agrees at scale: of twelve checked-in fixtures the three carrying refusals fail and the
+  // nine without them pass exactly as before.
+  const out = await page.evaluate(async () => {
+    const bust = `?t=${Date.now()}`;
+    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/stub.ts${bust}`);
+    const { productionSpxValidator } = await import(`/src/ai/litePipeline.ts${bust}`);
+
+    const brief = { name: 'Maya Chen', title: 'Anchor', includeLogo: false, style: '' };
+    const concept = await stubProConcept(brief);
+    const result = await stubCompilePro(brief, concept, { validate: productionSpxValidator() });
+    return {
+      bakedTextRefused: result.report.bakedTextRefused,
+      ringRefused: result.report.ringRefused,
+      ok: result.validation?.ok ?? null,
+      proCodes: [...(result.validation?.errors ?? []), ...(result.validation?.warnings ?? [])]
+        .map((f: { rule: string }) => f.rule)
+        .filter((rule: string) => rule.startsWith('pro-')),
+    };
+  });
+
+  expect(out.bakedTextRefused).toEqual([]);
+  expect(out.ringRefused).toBe(false);
+  expect(out.proCodes).toEqual([]);
+  expect(out.ok).toBe(true);
 });
 
 test('pro: tight concept pixels stay native while artwork, live text, panels and logo share one downscaled canvas placement', async ({ page }) => {

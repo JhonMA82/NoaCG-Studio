@@ -151,6 +151,28 @@ test('a design added under src/templates selects every spec that enumerates the 
   );
 });
 
+// THE RULE: a change whose only coverage lives in e2e/configured must SAY so. That suite is
+// ignored by this planner and unrunnable in CI, so hosted Pro's door, its metering and its
+// allowance read-back can break while the offline specs that pin their ABSENCE stay green -
+// the quiet failure, one directory over from the catalog hole above.
+test('a change only a configured deployment can cover raises the configured flag', () => {
+  for (const file of [
+    'src/ai/pro/session.ts',
+    'api/_lib/pro/status.ts',
+    'src/components/wizard/steps/AiStep.tsx',
+    'e2e/configured/pro-wizard.spec.ts',
+  ]) {
+    assert.equal(planFor([file]).configured, true, `${file} must raise the configured flag`);
+  }
+  // e2e/configured/** is IGNORED for the offline plan, and the flag has to survive that: the
+  // spec files themselves are exactly the change whose suite most needs naming.
+  const { mode, configured } = planFor(['e2e/configured/pro-wizard.spec.ts']);
+  assert.equal(mode, 'none', 'the configured suite is reported, never run by this gate');
+  assert.equal(configured, true);
+  // And it stays off for an ordinary change, or the line is noise nobody reads.
+  assert.equal(planFor(['src/templates/competition/esp09.ts']).configured, false);
+});
+
 test('public legal pages select their clean-URL and responsive-layout spec', () => {
   for (const file of ['terms.html', 'privacy.html', 'src/legal.css']) {
     const { mode, specs } = planFor([file]);

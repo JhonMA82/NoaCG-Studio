@@ -130,9 +130,27 @@ tile-wall presentation, which no longer ships):
   space is the mark's own MARGIN, never the box's `column-gap`** (a track is charged its gap even
   when nothing is in it, so an empty slot shifted the words 26px), and the lockup takes
   `row-gap: inherit`, which is what keeps a design that spaced its lines from its own box spacing
-  them identically. Five designs (lt07, lt08, lt41, lt49, lt53) style `.{prefix}-logo` in their
-  CSS without declaring a slot, so `designHasLogoSlot` misses them and their own sizing wins -
-  pre-existing, unchanged, and the reason a sweep must compare against BARE rather than assume.
+  them identically. **`designHasLogoSlot` MISSES NOTHING**, and the note that used to stand here
+  claiming five designs (lt07, lt08, lt41, lt49, lt53) slip past it was wrong - measured
+  2026-08-15 over all 24 mark-capable lower thirds rendered with a real mark, EIGHTEEN
+  hand-author a slot and all eighteen are detected; only six (lt02, lt05, lt11, lt15, lt25,
+  lt32) take the shared one, and only those six emit a `.{prefix}-lockup`. A design's slot is
+  conditional on the same `logoEnabled` the check is guarded by, so by the time it runs a design
+  that has a slot has already emitted the `<img>` AND the filelist field. **Do not add a
+  `design.css` clause**: it changes 0 of the 24 answers and would later be wrong, because a
+  design may style `.{prefix}-logo` unconditionally (lt07's badge is an accent square with or
+  without a mark) and would then be denied the field entirely. Two real things the sweep did
+  find, both by design and both stated in each design's own source: a slot drawn in a WELL
+  reserves that well's width while EMPTY (lt08 97px, lt41 107px, lt53 124px, lt49 133px, and
+  lt30/ls12/ls17/ls18/ls29 up to 188px); and the `mark-crowded` readings that prompted this look
+  are an INSTRUMENT artifact, not a catalog defect - a mark that fills its well carries its clear
+  space as the `<img>`'s own padding, which `spacingCheck`'s border box swallows. Measured by the
+  mark's CONTENT box instead, lt07 goes 0.22 -> 0.36, lt41 0.24 -> 0.39 and ls10 0.20 -> 0.42
+  against the 0.25 floor, and only ls25 stays flagged (0.19, genuinely edge to edge:
+  `object-fit: cover`, no padding). **That fix belongs in `src/ai/spike/spacingCheck.ts` and is
+  NOT made here** - it was in flight on another branch the day this was measured. A sweep still
+  compares against a BARE render rather than an absolute, because `findPanel` resolves for only
+  10 of these 24.
   **THE MARK'S SIZE IS THREE MEASURED NUMBERS, and the third is the strap's own wrap cap**
   (2026-08-14, the value-gate ballot's other finding - the logo was called too small on four of
   eight briefs). The WIDTH cap used to bind before the height cap, so a 4:1 wordmark painted 33px

@@ -686,6 +686,19 @@ generations; Pro has produced none through this route and the telemetry ring is 
 `AI_PRO_RETRY_SPACING_MS` is a starting value, and `/api/ai/pro-outcome` now records
 `runtime_ms` so it can be replaced by a real turnover the way Lite's was.
 
+**A REFUSED ERASE IS A BLOCKING CODE, and `validateProCompile` is the one seam it arrives
+through** (2026-08-15, `docs/NOACG_PRO_PLAN.md` §16). The first real hosted generation shipped
+the baked-text ghost with `validation_rule_codes` EMPTY and the ledger row saying `usable`: the
+compiler recorded the refusal in `ProCompileReport.warnings` and NOTHING READ IT - the same
+scoring bug §14 recorded for the benchmark, one layer nearer the student. The refusal is now
+structured (`bakedTextRefused`, `ringRefused`) and `compile.ts` `validateProCompile` folds it
+into the injected gate's verdict: `pro-baked-text` is an ERROR per refused region (the graphic
+prints its words twice), `pro-artwork-ring` a warning (a thin band over live video). The
+pipeline, the offline stub and `pro-bench.mjs` all validate through that one function, because
+a second call site is how an engine ships a compile whose refusals were never scored. Measured
+free on the fixture bank: `corporate` went from `pass` to failing on its two refusals, and the
+nine clean fixtures are unchanged.
+
 `PRO_STANDARD_ROUTES` (`pro/pipeline.ts`) is pinned so a normal Pro user never picks models; **do not
 change it without re-running `npm run bench:pro` paid stages** - and pass `--save-fixtures`, because the
 2026-08-08 round did not and its twelve interpretations are gone. Offline the deterministic stub

@@ -231,7 +231,21 @@ fixes produced *"correct, plain graphics; correctness was never what was missing
 
 ## 7. The experiment that separates model from harness
 
-Never run in this repo. The one frontier arm on record (`AI_ATTEMPTS.md`, 2026-08-02:
+**RUN 2026-08-15** - authorized at $4, spent ~$2.70; design below unchanged. Rig:
+`scripts/model-vs-harness.mjs`; record and predeclared readings:
+`docs/MODEL_VS_HARNESS_STUDY.md`; round archive
+`C:\claude\noacg-lite-eval-archive\model-vs-harness-2026-08-15`. 24 of 24 captured
+(6 no-logo briefs x 4 arms, `alibaba/qwen3-coder` + `anthropic/claude-sonnet-5`, all four
+arms over one shared real-footage bed). **VERDICT (owner's blind ballot, same day):
+A ≈ B and D >> A - it is NOT the checkpoint, and the harness carries quality rather than
+suppressing it** (harness arms 4.17 mean / 6-of-6 would-air on BOTH checkpoints; bare arms
+~3.2; checkpoints tie in both conditions at a ~20x price gap). §6's selection-for-plainness
+hypothesis is refuted as the cause of the gap; what the ballot leaves open is VARIETY and
+brand conditioning, which are the Pro §15 and Lite brand programs. The paragraphs below are
+the design as it stood before the run, kept because the readings were predeclared against
+them.
+
+The one frontier arm previously on record (`AI_ATTEMPTS.md`, 2026-08-02:
 `claude-sonnet-5`, 8 briefs, $0.7272, 4 of 8 usable) ran **through** the harness, in an era the
 same entry flags as invalidated by two platform bugs.
 
@@ -254,7 +268,8 @@ choosing, with a short pleasant name. Ours is judged over live footage, at broad
 real name lengths, under an SPX field contract. All four arms have to be rendered and shown
 identically or the experiment measures the viewing conditions.
 
-Costs real money (~$2 at 6 briefs, ~$4 at 12). **Not authorized; not run.**
+Costs real money (~$2 at 6 briefs, ~$4 at 12). **Authorized 2026-08-15 and run - see the
+banner at the top of this section.**
 
 ---
 
