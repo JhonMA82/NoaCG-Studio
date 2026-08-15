@@ -215,12 +215,14 @@ test.describe('hosted NoaCG Pro (configured)', () => {
     });
     await page.route('**/api/ai/generate', async (route: Route) => {
       const body = route.request().postDataJSON() as {
-        request: { expect?: string; tool?: { name?: string } };
+        // `tool` is rewritten as `structuredOutput` on the wire (src/ai/modelGateway.ts), which
+        // is the name the server revalidates the parsed answer against.
+        request: { expect?: string; structuredOutput?: { name?: string } };
         proGenerationId?: string;
       };
       calls.push('design');
       chargedTo.push(body.proGenerationId);
-      toolsAsked.push(body.request.tool?.name);
+      toolsAsked.push(body.request.structuredOutput?.name);
       // NO IMAGE IS EVER ASKED FOR. Failing loudly rather than fulfilling is deliberate: an
       // image request reaching here means the retired concept engine is live again, and a stub
       // that quietly answered it would let that ship (docs/NOACG_PRO_PLAN.md §16).
