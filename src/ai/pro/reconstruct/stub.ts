@@ -3,11 +3,11 @@
 // fixed interpretation, which is what keeps the whole Pro UX e2e-testable without tokens.
 // Nothing here reaches the network.
 
-import type { SpxValidator } from '../provider';
-import type { Resolution } from '../../model/types';
-import type { PurposedImage } from '../../model/imagePurpose';
-import { uuid } from '../../model/id';
-import type { ProBrief, ProInterpretationV1 } from './contract';
+import type { SpxValidator } from '../../provider';
+import type { Resolution } from '../../../model/types';
+import type { PurposedImage } from '../../../model/imagePurpose';
+import { uuid } from '../../../model/id';
+import type { ProBrief, ProInterpretationV1 } from '../contract';
 import { normalizeProInterpretation } from './normalize';
 import { compileProPlan, validateProCompile } from './compile';
 import { fillProLogoSlot } from './logoAsset';

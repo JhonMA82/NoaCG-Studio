@@ -6,17 +6,17 @@
 // reconstructed panel shapes. The result opens, animates, validates and exports exactly like
 // any other imported design; nothing downstream knows Pro exists.
 
-import type { Resolution, SpxTemplate } from '../../model/types';
-import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
-import type { Zone9 } from '../../model/wizard';
-import type { ValidationIssue, ValidationResult } from '../../validation/validateTemplate';
-import type { SpxValidator } from '../provider';
-import { IMPORTED_DESIGN, PREFIX } from '../../templates/importedDesign/shared';
-import { applyPlacedFieldSpecs } from '../../blocks/designFields';
-import { addPlacedImageSlot, placeLine, setSlotSize } from '../../blocks/designLayout';
-import { uniqueAssetPath } from '../../assets/assetUtils';
-import { eraseRegionFlat, matteRingTransparent } from '../../assets/eraseRegion';
-import { PRO_CANVAS, type ProBrief } from './contract';
+import type { Resolution, SpxTemplate } from '../../../model/types';
+import { DEFAULT_GRAPHICS_RESOLUTION } from '../../../model/projectFormat';
+import type { Zone9 } from '../../../model/wizard';
+import type { ValidationIssue, ValidationResult } from '../../../validation/validateTemplate';
+import type { SpxValidator } from '../../provider';
+import { IMPORTED_DESIGN, PREFIX } from '../../../templates/importedDesign/shared';
+import { applyPlacedFieldSpecs } from '../../../blocks/designFields';
+import { addPlacedImageSlot, placeLine, setSlotSize } from '../../../blocks/designLayout';
+import { uniqueAssetPath } from '../../../assets/assetUtils';
+import { eraseRegionFlat, matteRingTransparent } from '../../../assets/eraseRegion';
+import { PRO_CANVAS, type ProBrief } from '../contract';
 import type { ProPlan, ProRegionOutcome } from './normalize';
 
 export interface ProCompileReport {

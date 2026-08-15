@@ -26,9 +26,9 @@
 //   one, so the region's outcome line says the mark was placed and the "still waiting"
 //   warning is retired by identity (PRO_EMPTY_LOGO_SLOT_WARNING).
 
-import { uniqueAssetPath } from '../../assets/assetUtils';
-import type { PurposedImage } from '../../model/imagePurpose';
-import { replaceDefinitionInHtml } from '../../model/spxDefinition';
+import { uniqueAssetPath } from '../../../assets/assetUtils';
+import type { PurposedImage } from '../../../model/imagePurpose';
+import { replaceDefinitionInHtml } from '../../../model/spxDefinition';
 import { PRO_EMPTY_LOGO_SLOT_WARNING, type ProCompileResult } from './compile';
 
 /** Add a class to the element carrying `id`, whatever order its attributes are written in. */

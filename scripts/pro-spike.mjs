@@ -971,6 +971,7 @@ if (paid) {
           const bust = '?t=' + Date.now();
           const { generateDesignLanguage } = await import('/src/ai/pro/language/generate.ts' + bust);
           const { composeFromLanguage } = await import('/src/ai/pro/language/compose.ts' + bust);
+          const { validateProLanguage } = await import('/src/ai/pro/language/gate.ts' + bust);
           const { brandBlock } = await import('/src/ai/spike/brand.ts' + bust);
           const spikeAnchors = await import('/src/ai/spike/anchors.ts' + bust);
           const { productionSpxValidator } = await import('/src/ai/litePipeline.ts' + bust);
@@ -993,7 +994,7 @@ if (paid) {
             },
           );
 
-          const { template, spacing, notes, adjustments } = composeFromLanguage(generated.language, {
+          const composed = composeFromLanguage(generated.language, {
             lines: [
               { title: 'Name', sample: input.brief.name },
               { title: 'Role', sample: input.brief.title },
@@ -1003,10 +1004,20 @@ if (paid) {
                 logo: {
                   assetPath: input.brand.mark.path,
                   images: [{ path: input.brand.mark.path, data: input.brand.mark.dataUrl }],
+                  // THE MEASURED INK, which is what the mark field decides on. Without these the
+                  // trigger can never fire, so the round would compose a graphic the PRODUCT
+                  // does not - the "a control that does not run the code under test is not a
+                  // control" rule, arriving as three missing properties.
+                  backing: input.brand.mark.probe.backing,
+                  inkLuminance: input.brand.mark.probe.inkLuminance,
+                  ...(typeof input.brand.mark.probe.inkSpread === 'number'
+                    ? { inkSpread: input.brand.mark.probe.inkSpread }
+                    : {}),
                 },
               }
               : {}),
           });
+          const { template, spacing, notes, adjustments } = composed;
 
           // The slot the shared logo band minted - the platform placed it, so the mark gate and
           // the spacing instrument point at the field a real upload would land in.
@@ -1014,13 +1025,21 @@ if (paid) {
             ? (template.fields.find((f) => f.ftype === 'filelist')?.field ?? null)
             : null;
 
+          // THROUGH THE ONE SEAM the product is scored by (`pro/language/gate.ts`), so the
+          // round measures the same verdict a user gets - including the platform's own
+          // divergences, which a bare call to the injected validator cannot see. A bench that
+          // scores a different gate than the product runs is the mistake §14 and §16 both
+          // recorded, one layer apart.
+          //
           // There is NO repair loop here and that is deliberate: nothing the model returns can
           // make the code invalid, so a failing validation would be a PLATFORM bug worth
           // surfacing rather than something to spend a second call on (the grounded-assembly
           // rule, src/ai/AGENTS.md).
-          const validation = await productionSpxValidator(
-            null, input.brand ? [input.brand.mark.path] : [],
-          )(template);
+          const validation = await validateProLanguage(
+            composed,
+            generated.fallbacks,
+            productionSpxValidator(null, input.brand ? [input.brand.mark.path] : []),
+          );
 
           const data = spikeAnchors.dataFor(input.brief);
           const stressData = spikeAnchors.stressFor(input.brief);

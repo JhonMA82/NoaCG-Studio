@@ -289,9 +289,13 @@ and code repair are all hidden; an unsupported response shows the server's expla
 simplification. Creating or exporting records acceptance by generation id, which is transient
 and never enters the template or the saved graphic. Lite disabled = the BYO surface unchanged.
 
-**Pro** shows the concept image with its provider-reported cost plus the per-region editability
-report (`data-testid="pro-report"`, keyed to the template by WeakMap so a restored past result
-shows its own concept). **The tier is OFFERED only where it can actually run** - the server says
+**Pro** spends ONE model call, for the design LANGUAGE the platform then composes the graphic in
+(`src/ai/pro/language/pipeline.ts`; §15-16 of docs/NOACG_PRO_PLAN.md, and src/ai/AGENTS.md for the
+engine's rules). The result card reports that language - its name, its rationale, its palette, and
+every divergence the platform recorded - at `data-testid="pro-report"`, keyed to the template by
+WeakMap so a restored past result shows its own. **There is no concept image any more**: the
+graphic rendered above the card IS the answer, and the picture the retired engine displayed was
+the one thing it could not keep. **The tier is OFFERED only where it can actually run** - the server says
 hosted Pro is available to this visitor (`/api/ai/pro-status`) AND the deployment carries the
 backend that route is metered through (`proOffered = proHosted && isBackendConfigured()`). Where
 that is false the tier is ABSENT, never a greyed row and never a key request: a NoaCG tier runs
@@ -300,14 +304,20 @@ read-back with the remaining allowance (`ai-pro-hosted-note`) and no chooser of 
 provider, no model, no key. **A hosted deployment is never reachable from the browser** - no
 flag, no query parameter, no localStorage key - which is the property `e2e/pro.spec.ts` pins by
 answering the status endpoint and nothing else. A generation opens ONE reservation before the
-first model call and reports its outcome after the last (`src/ai/pro/session.ts`); the spend is
-recorded server-side and is never a number this step sends. Categories
+model call and reports its outcome after it (`src/ai/pro/session.ts`); the spend is
+recorded server-side and is never a number this step sends. **The outcome carries rule codes for
+the platform's own repairs, not just errors** (`proRuleCodes`) - a graphic the platform rescued
+used to write an empty `validation_rule_codes` beside a `usable` status. Categories
 clamp to lower-third/auto, spec-field findings demote to warnings (`demoteSpecFields`: fixed
 contract, no repair loop), and refine/fix stand down because regenerate is the honest move.
 The step no longer carries a stub branch of its own - the tier is absent where a real
-generation cannot run - so `e2e/pro.spec.ts` stays token-free by driving `pro/stub.ts` directly,
-the way `scripts/pro-bench.mjs` already does. The step passes the FIRST "use it as it is" upload
-in as `logoMark`; the ordering that makes that safe is src/ai/AGENTS.md's.
+generation cannot run - so `e2e/pro.spec.ts` stays token-free by driving the RETIRED engine's
+`pro/reconstruct/stub.ts` directly; the LIVE walk is `e2e/configured/pro-wizard.spec.ts`, which
+pins the engine by what it spends (one call, forcing `emit_design_language`, and an image request
+fails the spec). The step MEASURES the first "use it as it is" upload with `probeMark` before
+generating: its shape and ink go into the brief in content-free words, and the same probe is what
+lets the composer give the mark's column a field when its ink cannot read on the panel the
+language chose.
 
 The harness is ON BY DEFAULT, with the **"Use NoaCG harness (3 options)"** checkbox
 (`AiSettings.useHarness`, default true — the benchmark showed it a clean win) still able to

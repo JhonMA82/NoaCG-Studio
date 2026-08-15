@@ -76,7 +76,7 @@ test('pro: the compiled concept is an ordinary editable template', async ({ page
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   const shape = await page.evaluate(async () => {
     const bust = `?t=${Date.now()}`;
-    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/stub.ts${bust}`);
+    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/reconstruct/stub.ts${bust}`);
     const { getTemplateParts } = await import(`/src/model/structure.ts${bust}`);
     const { parseAnimData } = await import(`/src/blocks/animData.ts${bust}`);
     const brief = {
@@ -116,7 +116,7 @@ test('pro: an as-is upload is bundled into the logo slot it asked the concept fo
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   const placed = await page.evaluate(async () => {
     const bust = `?t=${Date.now()}`;
-    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/stub.ts${bust}`);
+    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/reconstruct/stub.ts${bust}`);
     const brief = {
       brief: 'A calm news strap with the channel mark.',
       name: 'Maya Chen',
@@ -139,7 +139,7 @@ test('pro: an as-is upload is bundled into the logo slot it asked the concept fo
       bundled: t.assets.some((a) => a.path === 'images/mark.png'),
       srcInMarkup: slot ? new RegExp(`<img[^>]*id="${slot.field}"[^>]*src="images/mark.png"`).test(t.html) : false,
       // The per-region report's own words about what became of the mark - `note`, which is
-      // where fillProLogoSlot writes it (src/ai/pro/logoAsset.ts).
+      // where fillProLogoSlot writes it (src/ai/pro/reconstruct/logoAsset.ts).
       outcomes: compiled.report.outcomes.map((o) => o.note ?? '').join(' | '),
     };
   });
@@ -161,9 +161,9 @@ test('pro: filling the slot retires the empty-slot warning, keeps the as-is scre
   // warning exists for - and the case whose wording changes once a file is picked.
   const out = await page.evaluate(async () => {
     const bust = `?t=${Date.now()}`;
-    const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
-    const { compileProPlan, PRO_EMPTY_LOGO_SLOT_WARNING } = await import(`/src/ai/pro/compile.ts${bust}`);
-    const { fillProLogoSlot } = await import(`/src/ai/pro/logoAsset.ts${bust}`);
+    const { normalizeProInterpretation } = await import(`/src/ai/pro/reconstruct/normalize.ts${bust}`);
+    const { compileProPlan, PRO_EMPTY_LOGO_SLOT_WARNING } = await import(`/src/ai/pro/reconstruct/compile.ts${bust}`);
+    const { fillProLogoSlot } = await import(`/src/ai/pro/reconstruct/logoAsset.ts${bust}`);
     const { assetIntegrityFindings } = await import(`/src/ai/assetIntegrity.ts${bust}`);
     const { parseDefinition } = await import(`/src/model/spxDefinition.ts${bust}`);
     const { uuid } = await import(`/src/model/id.ts${bust}`);
@@ -258,7 +258,7 @@ test('pro: the quality gate is handed the FILLED template, not the one with an e
   // reports what it was actually given.
   const seen = await page.evaluate(async () => {
     const bust = `?t=${Date.now()}`;
-    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/stub.ts${bust}`);
+    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/reconstruct/stub.ts${bust}`);
     const { assetIntegrityFindings } = await import(`/src/ai/assetIntegrity.ts${bust}`);
 
     const brief = { brief: '', name: 'Maya Chen', title: 'Anchor', includeLogo: true };
@@ -299,8 +299,8 @@ test('pro: baked text outside panels is erased where the backdrop is flat, refus
   // their text is panel-covered and their backdrops are non-flat.
   const out = await page.evaluate(async () => {
     const bust = `?t=${Date.now()}`;
-    const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
-    const { compileProPlan, validateProCompile } = await import(`/src/ai/pro/compile.ts${bust}`);
+    const { normalizeProInterpretation } = await import(`/src/ai/pro/reconstruct/normalize.ts${bust}`);
+    const { compileProPlan, validateProCompile } = await import(`/src/ai/pro/reconstruct/compile.ts${bust}`);
     const { uuid } = await import(`/src/model/id.ts${bust}`);
 
     const FRAME = { width: 1920, height: 1080 };
@@ -443,7 +443,7 @@ test('pro: the offline pipeline scores a clean reconstruction through the same s
   // nine without them pass exactly as before.
   const out = await page.evaluate(async () => {
     const bust = `?t=${Date.now()}`;
-    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/stub.ts${bust}`);
+    const { stubProConcept, stubCompilePro } = await import(`/src/ai/pro/reconstruct/stub.ts${bust}`);
     const { productionSpxValidator } = await import(`/src/ai/litePipeline.ts${bust}`);
 
     const brief = { name: 'Maya Chen', title: 'Anchor', includeLogo: false, style: '' };
@@ -471,8 +471,8 @@ test('pro: tight concept pixels stay native while artwork, live text, panels and
 
   const out = await page.evaluate(async () => {
     const bust = `?t=${Date.now()}`;
-    const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
-    const { compileProPlan } = await import(`/src/ai/pro/compile.ts${bust}`);
+    const { normalizeProInterpretation } = await import(`/src/ai/pro/reconstruct/normalize.ts${bust}`);
+    const { compileProPlan } = await import(`/src/ai/pro/reconstruct/compile.ts${bust}`);
     const { composeDocument } = await import(`/src/preview/composeDocument.ts${bust}`);
     const { uuid } = await import(`/src/model/id.ts${bust}`);
     const SOURCE = { width: 1376, height: 300 };
@@ -572,7 +572,7 @@ test('pro: decorative regions with panel geometry are rebuilt, and a duplicate b
   // The plan must rebuild the bar and paint the strap ONCE.
   const out = await page.evaluate(async () => {
     const bust = `?t=${Date.now()}`;
-    const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
+    const { normalizeProInterpretation } = await import(`/src/ai/pro/reconstruct/normalize.ts${bust}`);
     const { uuid } = await import(`/src/model/id.ts${bust}`);
 
     const FRAME = { width: 1920, height: 1080 };

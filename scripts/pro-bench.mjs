@@ -185,10 +185,10 @@ for (const entry of briefs) {
   try {
     outcome = await page.evaluate(async (input) => {
       const bust = `?t=${Date.now()}`;
-      const { stubProConcept } = await import(`/src/ai/pro/stub.ts${bust}`);
-      const { generateProConcept, compileProConcept } = await import(`/src/ai/pro/pipeline.ts${bust}`);
-      const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
-      const { compileProPlan, validateProCompile } = await import(`/src/ai/pro/compile.ts${bust}`);
+      const { stubProConcept } = await import(`/src/ai/pro/reconstruct/stub.ts${bust}`);
+      const { generateProConcept, compileProConcept } = await import(`/src/ai/pro/reconstruct/pipeline.ts${bust}`);
+      const { normalizeProInterpretation } = await import(`/src/ai/pro/reconstruct/normalize.ts${bust}`);
+      const { compileProPlan, validateProCompile } = await import(`/src/ai/pro/reconstruct/compile.ts${bust}`);
       const { productionSpxValidator } = await import(`/src/ai/litePipeline.ts${bust}`);
       const { uuid } = await import(`/src/model/id.ts${bust}`);
 
@@ -241,7 +241,7 @@ for (const entry of briefs) {
         // spent nothing, which is a measurement rather than a missing one.
         interpretCost = 0;
       } else {
-        const { stubCompilePro } = await import(`/src/ai/pro/stub.ts${bust}`);
+        const { stubCompilePro } = await import(`/src/ai/pro/reconstruct/stub.ts${bust}`);
         const concept = await stubProConcept(input.brief);
         result = await stubCompilePro(input.brief, concept, { validate });
         interpretCost = result.interpretCostUsd;

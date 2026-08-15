@@ -4,8 +4,8 @@
 // regions run through the import-analysis normalizer itself, so cap-height sizing, width
 // fitting, weight snapping and slot margins mean exactly one thing in this codebase.
 
-import { normalizeAnalysis, type FieldProposal } from '../importAnalysis/normalize';
-import type { ImportAnalysisRegion, ImportedGraphicAnalysisV1 } from '../importAnalysis/contract';
+import { normalizeAnalysis, type FieldProposal } from '../../importAnalysis/normalize';
+import type { ImportAnalysisRegion, ImportedGraphicAnalysisV1 } from '../../importAnalysis/contract';
 import {
   PRO_FONT_IDS,
   PRO_LIMITS,
@@ -14,7 +14,7 @@ import {
   type ProInterpretationV1,
   type ProRegion,
   type ProTreatment,
-} from './contract';
+} from '../contract';
 
 /** Below this a region is noise, not a plan input (the import-analysis floor). */
 const CONFIDENCE_FLOOR = 0.35;

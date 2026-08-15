@@ -1433,8 +1433,27 @@ on the one graphic the owner named. An older probe with no spread is treated as 
 which means do not touch it. Pinned by `e2e/spike-instruments.spec.ts` as a BAND on each side, so
 a drift that narrows the gap fails rather than quietly restoring the false positive.
 
-**The default is still OFF.** The objection to a mark field is answered; the rule that a mark
-carries no plate is the owner's, and flipping `markField` is one line whenever they want it.
+**RULED ON 2026-08-15 (owner): the field is ON, and what was ruled on is the TRIGGER.**
+`markField` now defaults to true in `composeFromLanguage`, so the product, the paid arm and the
+zero-token control all compose the same graphic - a control that runs different code than the
+product is not a control, which is the finding this file has already paid for three times.
+
+The standing no-plate rule (2026-08-14) is not overturned; its premise no longer applies. It was
+written for Lite, where the platform does NOT own the composition and a well can only ever be a
+repair scar pasted over somebody else's design. Phase A owns the whole composition and knows the
+mark's ink before the panel colour is chosen, so the field is a designed band - `align-self:
+stretch`, `object-fit: contain`, a segment of the panel - rather than a rectangle behind a logo.
+
+What makes it safe is `inkSpread`, and the numbers above are the argument: the trigger fires once
+in 18 cells, on the monogram the owner named as making its graphic look unfinished, and leaves
+both coloured roundels alone. A field wired to the older mean-luminance signal would have damaged
+two graphics he passed in order to repair one he failed.
+
+Pinned by `e2e/pro-language.spec.ts` as four cases - the single dark ink takes its field, the
+coloured mark does not, a probe with no spread at all is treated as "cannot tell", and
+`markField: false` still composes the un-repaired graphic for a future A/B. Mutation-checked: with
+the default back at false the monogram case fails and nothing else does. The repair is recorded as
+`mark_field_painted` and reaches the ledger row as `pro-mark-field`.
 
 **The original framing, kept because the premise change stands.** The standing rule is *a mark carries NO PLATE* (2026-08-14),
 and its reasoning was explicit: on Lite the platform does not own the composition, so a well is a
@@ -1554,3 +1573,75 @@ generation row), both settlements landed, the lease renewed, and the allowance m
 **First real turnover: 62 s** (`runtime_ms` 61984). `AI_PRO_RETRY_SPACING_MS` is an unmeasured
 8 s; Lite's own formula (turnover / retries) puts it near 31 s. One sample - re-derive after a
 class rather than treating it as settled.
+
+### SHIPPED 2026-08-15 - the composer IS the product path
+
+`src/ai/pro/language/pipeline.ts` is now the only route from the wizard to a Pro graphic.
+Pressing Create spends **one** forced structured text call on
+`PRO_STANDARD_ROUTES.language` and then composes deterministically; nothing in the product asks
+an image model for anything.
+
+**Reproduced before it was rewired.** The shipped path was watched running through
+`pro/stub.ts` into `compile.ts` (15 of 15 offline Pro specs green on the unmodified tree), and
+`src/ai/pro/language/` confirmed to be imported by exactly two things, both bench-only:
+`scripts/pro-spike.mjs` and `src/ai/spike/anchors.ts`. The rewire replaced that path rather
+than adding beside it.
+
+What ships with it:
+
+| | before | after |
+|---|---|---|
+| model calls per generation | 2 (a concept IMAGE, then an interpretation) | **1** (text) |
+| measured cost | $0.0777, 86% of it the flat image charge | ~$0.0055 (the §15.8 round's rate) |
+| who composes the panel | the platform's raster reconstruction | the catalog's own assembler |
+| browser cost ceiling | refuses the second call after the first overspends | **none, and none is possible** |
+| ledger row on a repaired graphic | `usable`, `validation_rule_codes` EMPTY | `usable`, carrying the `pro-` codes |
+
+**The browser ceiling is gone because the shape removed its job.** `PRO_MAX_GENERATION_COST_USD`
+existed to stop the SECOND call once the first had spent the budget. With one call the money is
+already spent by the time a browser could refuse it, and throwing then destroys a finished
+graphic for no saving - the 2026-08-08 mistake exactly. The server's `pro-generate` booking
+enforces the same constant and is the half a browser was never trusted with.
+
+**The §16 hole is closed from the other side too.** `pro/language/gate.ts` is the one seam a
+composed graphic is scored through, and it mints the platform's own divergences as findings:
+`pro-palette-repaired`, `pro-mark-field`, `pro-language-fallback`, all WARNINGS, because each
+describes a graphic that is airable *because* the platform intervened. `proRuleCodes` then sends
+every ERROR unfiltered (an error is why a row says `failed`) and only `pro-` WARNINGS (the
+runtime bench is chatty by design and the wire caps the list at 30, so bench noise would evict
+the Pro-owned codes). A row can now tell a clean generation from a rescued one.
+
+**Why the retired engine still exists**, per the requirement to say so explicitly. It moved to
+`src/ai/pro/reconstruct/` behind a build-time import boundary
+(`retiredProEngineRestriction`, `eslint.config.js`) that refuses it from every region of `src/`
+a user can reach - mutation-checked from the UI and from `pro/language/`, and a per-file version
+of the same rule was measured to be VACUOUS first, because the patterns match the import string
+and missed the sibling form. Three reasons it was not deleted outright:
+
+- **The fixture bank is the evidence for §16.** `scripts/pro-bench.mjs` replays it free and
+  reproduces the defect that argued for Phase A. Deleting the engine deletes that check.
+- **Deleting reaches outside this change.** `api/_lib/aiProProfile.ts` funds the image route,
+  `api/_lib/admin/models.ts` and two api tests read `PRO_STANDARD_ROUTES`, and four `scripts/`
+  entries plus a `package.json` script drive the engine - none of it owned here, and a live
+  worktree is editing `scripts/` and `package.json` right now.
+- **The precedent is the repo's own.** `creative/` is carried the same way, and that file says
+  it: removing it is a separate, deliberate change. The order to do it in is
+  `src/ai/pro/reconstruct/AGENTS.md`.
+
+The one consequence worth naming: the server still funds `PRO_STANDARD_ROUTES.concept`, an image
+route the product no longer calls. Funding is not spending, so it costs nothing - but it should
+come off the funded list when the engine goes.
+
+**Owed, and deliberately not done here:**
+
+- **A real hosted generation.** This is verified by build, by the offline composer gates and by
+  the configured walk's route interception - not yet by a graphic a person looked at. The
+  configured suite needs `VITE_SUPABASE_URL` and `E2E_EMAIL`/`E2E_PASSWORD`, which this worktree
+  does not carry, so it skips here and must run where they exist.
+- **Pro's own example briefs.** The step still offers Lite's, which describe one strap; Pro now
+  decides a language for a whole channel. One line, waiting on `claude/tier-promise-briefs-0e4d77`
+  (TODO in `AiStep.tsx`). Inventing briefs locally would fork the bank a round is measured against.
+- **A requested brand palette is still a prompt, not a lock.** Lite's ratified rule is that
+  identity colours are copied verbatim by the platform and never left to the model. Phase A passes
+  them in the brief, which is what the 26/30 round measured; making them verbatim is a real
+  improvement and a behaviour change no round has read yet.

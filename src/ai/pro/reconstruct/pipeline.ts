@@ -1,21 +1,27 @@
-// The NoaCG Pro browser pipeline (docs/NOACG_PRO_PLAN.md): brief -> concept image ->
-// interpretation -> deterministic reconstruction -> the injected production validator.
+// RETIRED 2026-08-15 (docs/NOACG_PRO_PLAN.md §16, and the directory's own note in
+// eslint.config.js). NO USER REACHES THIS. The product's Pro tier runs
+// `src/ai/pro/language/pipeline.ts` - one text call for a design language, composed through the
+// catalog's own assembler - and a build-time boundary refuses any import of this directory from
+// anywhere a user can reach. What is left here is bench-only: `scripts/pro-bench.mjs` replays
+// the checked-in fixture bank through it, which is the evidence for the §16 finding.
+//
+// The NoaCG Pro browser pipeline as it was: brief -> concept image -> interpretation ->
+// deterministic reconstruction -> the injected production validator.
 //
 // Two model calls, both through the shared gateway with `surface: 'pro'` (the ai.pro
 // entitlement gate + the pro-generate ledger row), each bounded by the gateway's own
 // attempt budget - there is no hidden retry cascade here. Every run records to the local
-// telemetry ring as kind 'pro-generate'. The UI owns nothing pipeline-shaped: it calls
-// `generateProConcept` and `compileProConcept` and renders the states between them.
+// telemetry ring as kind 'pro-generate'.
 
-import { callModelDetailed } from '../modelGateway';
-import { outputBudget, type ModelImage, type ModelRoute } from '../modelTypes';
-import type { PurposedImage } from '../../model/imagePurpose';
-import { startAiRun } from '../telemetry';
-import { downscaleForAnalysis } from '../importAnalysis/client';
-import type { SpxValidator } from '../provider';
-import type { Resolution } from '../../model/types';
-import type { ValidationResult } from '../../validation/validateTemplate';
-import { uuid } from '../../model/id';
+import { callModelDetailed } from '../../modelGateway';
+import { outputBudget, type ModelImage, type ModelRoute } from '../../modelTypes';
+import type { PurposedImage } from '../../../model/imagePurpose';
+import { startAiRun } from '../../telemetry';
+import { downscaleForAnalysis } from '../../importAnalysis/client';
+import type { SpxValidator } from '../../provider';
+import type { Resolution } from '../../../model/types';
+import type { ValidationResult } from '../../../validation/validateTemplate';
+import { uuid } from '../../../model/id';
 import {
   PRO_INTERPRET_TOOL,
   PRO_INTERPRET_VERSION,
@@ -26,9 +32,9 @@ import {
   proSpendExceeds,
   type ProBrief,
   type ProInterpretationV1,
-} from './contract';
+} from '../contract';
 import { normalizeProInterpretation } from './normalize';
-import type { ProSession } from './session';
+import type { ProSession } from '../session';
 import { compileProPlan, ProCompileError, validateProCompile, type ProCompileResult } from './compile';
 import { fillProLogoSlot } from './logoAsset';
 
@@ -64,7 +70,7 @@ export class ProCostCeilingError extends ProCompileError {
 /** The tier's curated routes, defined in the dependency-light contract so `api/` can read the
  *  same constant this pipeline obeys (see the note there). Re-exported unchanged: every
  *  existing `import { PRO_STANDARD_ROUTES } from './pipeline'` keeps working. */
-export { PRO_STANDARD_ROUTES } from './contract';
+export { PRO_STANDARD_ROUTES } from '../contract';
 
 /** A generated concept, ready to review: the image plus what it cost. */
 export interface ProConcept {

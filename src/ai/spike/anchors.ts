@@ -412,7 +412,19 @@ function anchorFrom(id: string, kind: AnchorKind, provenance: string, template: 
 export function languageAnchors(brand?: SpikeBrand | null): SpikeAnchor[] {
   return STUB_LANGUAGES.map((language, i) => {
     const logo = i === 0 && brand
-      ? { assetPath: brand.mark.path, images: [{ path: brand.mark.path, data: brand.mark.dataUrl }] }
+      ? {
+        assetPath: brand.mark.path,
+        images: [{ path: brand.mark.path, data: brand.mark.dataUrl }],
+        // THE MEASURED INK travels with the file, because the composer decides the mark field
+        // on it (`markFieldFor`, ON since 2026-08-15). Omitting these numbers would leave the
+        // control composing a graphic the product does not - the exact way a control stops
+        // being one.
+        backing: brand.mark.probe.backing,
+        inkLuminance: brand.mark.probe.inkLuminance,
+        ...(typeof brand.mark.probe.inkSpread === 'number'
+          ? { inkSpread: brand.mark.probe.inkSpread }
+          : {}),
+      }
       : null;
     const { template, spacing, notes } = composeFromLanguage(language, {
       lines: [

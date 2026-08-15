@@ -81,7 +81,7 @@ let spent = 0;
 for (let i = 0; i < repeats; i += 1) {
   const outcome = await page.evaluate(async (input) => {
     const bust = `?t=${Date.now()}`;
-    const { compileProConcept } = await import(`/src/ai/pro/pipeline.ts${bust}`);
+    const { compileProConcept } = await import(`/src/ai/pro/reconstruct/pipeline.ts${bust}`);
     const measure = (dataUrl) => new Promise((resolve, reject) => {
       const el = new Image();
       el.onload = () => resolve({ width: el.naturalWidth, height: el.naturalHeight });

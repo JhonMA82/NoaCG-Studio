@@ -72,8 +72,8 @@ for (const id of ids) {
 
   const out = await page.evaluate(async (input) => {
     const bust = `?t=${Date.now()}`;
-    const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
-    const { compileProPlan } = await import(`/src/ai/pro/compile.ts${bust}`);
+    const { normalizeProInterpretation } = await import(`/src/ai/pro/reconstruct/normalize.ts${bust}`);
+    const { compileProPlan } = await import(`/src/ai/pro/reconstruct/compile.ts${bust}`);
     const { composeDocument } = await import(`/src/preview/composeDocument.ts${bust}`);
     const { uuid } = await import(`/src/model/id.ts${bust}`);
 

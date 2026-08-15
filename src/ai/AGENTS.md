@@ -578,9 +578,41 @@ into `DesignFieldSpec`s - accepted suggestions apply through the exact transform
 No second representation, no auto-apply, no code generation. E2E: `e2e/import-analysis.spec.ts` (flag-off
 absence is mutation-pinned).
 
-## NoaCG Pro - the image-guided tier (`pro/`)
+## NoaCG Pro - the design-language tier (`pro/`)
 
-**EXPERIMENT - the reconstruction path is PARKED on measurement (2026-08-08).** The concept stage works
+**LIVE since 2026-08-15 (hosted deployments where `AI_PRO_ENABLED` is on).** Pressing Create on the
+Pro tier runs **ONE text call for a design LANGUAGE**, then the platform composes the graphic:
+`pro/brief.ts` maps the shared wizard brief onto it, `pro/language/pipeline.ts` is the one route
+from the wizard to a Pro graphic, and `pro/language/gate.ts` is the one seam it is scored through.
+The Phase A section below holds the four rules that bind the composer.
+
+Three things this shape changed, all of them consequences rather than choices:
+
+- **There is no browser cost ceiling on the live path.** `PRO_MAX_GENERATION_COST_USD` guarded a
+  TWO-call pipeline - it existed to stop the second call once the first had spent the budget. With
+  one call the money is already spent by the time a browser could refuse it, and throwing then
+  destroys a finished graphic for no saving (the 2026-08-08 lesson). The server's `pro-generate`
+  booking is the bound that still binds, against the same constant.
+- **The ledger row carries WARNINGS as well as errors**, filtered to a `pro-` prefix
+  (`proRuleCodes`). Errors stay unfiltered because an error is why a row says `failed`; warnings
+  are filtered because the runtime bench is chatty by design and the wire caps the list at 30, so
+  bench noise would evict the Pro-owned codes. Sending errors alone is what let a repaired graphic
+  write an EMPTY `validation_rule_codes` beside `usable` (§16).
+- **The mark field is ON** (`composeFromLanguage`'s `markField`, default true). What the owner
+  ruled on is the TRIGGER, not the no-plate policy: it fires only on a single-ink mark whose
+  measured `inkSpread` says it is one ink AND whose contrast on the chosen panel is under the
+  floor - once in 18 cells, on the monogram the blind read named as unfinished. Pinned as a band
+  on each side by `e2e/pro-language.spec.ts`.
+
+**The concept-and-reconstruct engine is RETIRED and lives in `pro/reconstruct/`**, behind a
+build-time import boundary (`eslint.config.js`), bench-only. Read
+`src/ai/pro/reconstruct/AGENTS.md` before touching it - including for why it was not deleted. The
+account below is kept because it is the measurement Phase A rests on.
+
+### The retired engine's record (`pro/reconstruct/`)
+
+**RETIRED - the reconstruction path was PARKED on measurement (2026-08-08) and replaced
+(2026-08-15).** The concept stage works
 and the compiler cannot keep what it designs: visibly broken on 5 of 12 while the gates reported 11 of 12
 passing. **Read `docs/NOACG_PRO_PLAN.md` before proposing further work.** What measured well is the
 concept itself, whose live reuse is as a `layout` REFERENCE into the grounded adapt path.
@@ -699,16 +731,21 @@ a second call site is how an engine ships a compile whose refusals were never sc
 free on the fixture bank: `corporate` went from `pass` to failing on its two refusals, and the
 nine clean fixtures are unchanged.
 
-`PRO_STANDARD_ROUTES` (`pro/pipeline.ts`) is pinned so a normal Pro user never picks models; **do not
-change it without re-running `npm run bench:pro` paid stages** - and pass `--save-fixtures`, because the
-2026-08-08 round did not and its twelve interpretations are gone. Offline the deterministic stub
-(`pro/stub.ts`) runs the identical flow, keeping `e2e/pro.spec.ts` token-free. `fillProLogoSlot` bundles
-an as-is upload into the slot it asked for, deterministically and writing no CSS, and runs BETWEEN the
-compile and the injected validator - that order is load-bearing (see the as-is screen above).
+`PRO_STANDARD_ROUTES` (`pro/contract.ts`) is pinned so a normal Pro user never picks models. Its
+`language` entry is what the product spends today and is deliberately the SAME route the retired
+`interpret` stage used: the §15.8 round that produced the 26/30 blind read ran on exactly that
+model, and the server's funded list already carries it, so the live call needs no server change.
+Its `concept` entry is the retired image route, kept only because `api/_lib/aiProProfile.ts` funds
+from it - **do not change either without re-running `npm run bench:pro` paid stages**, and pass
+`--save-fixtures`, because the 2026-08-08 round did not and its twelve interpretations are gone.
+Offline the deterministic stub (`pro/reconstruct/stub.ts`) runs the retired flow, keeping
+`e2e/pro.spec.ts` token-free. `fillProLogoSlot` bundles an as-is upload into the slot it asked for,
+deterministically and writing no CSS, and runs BETWEEN the compile and the injected validator -
+that order is load-bearing (see the as-is screen above).
 
 ## NoaCG Pro PHASE A - the design language (`pro/language/`)
 
-**EXPERIMENT - bench-only, no user reaches it, no model call wired yet.** The premise change in
+**LIVE since 2026-08-15 - this is what a Pro user gets.** The premise change in
 `docs/NOACG_PRO_PLAN.md` §15: **the platform owns each graphic type's structure and spacing, and
 the model's entire contribution is the design LANGUAGE** - palette, type scale and weight, shape
 and corner language, accent form and weight, density, motion character. Three paid rounds moved
@@ -716,8 +753,13 @@ the owner's verdict 6 → 7 of 12 while every machine measure improved, and all 
 failures were panel layout; §15.3 ranks what has ever moved a rate (asking for judgement moved
 nothing, a boundary moved a lot, **removing the decision** moved most and stayed removed).
 
-Four rules bind anyone editing it:
+Five rules bind anyone editing it:
 
+- **ONE ENGINE, AND THE PRODUCT IS ON IT.** `pipeline.ts` is the only route from the wizard to a
+  Pro graphic and `gate.ts` the only seam a composed graphic is scored through - product, bench
+  and control alike. Both exist because the alternative was measured: for two months the product
+  ran an engine the plan had already replaced, and the composer nobody could reach scored 26/30
+  while the live one shipped a graphic printing its own words twice.
 - **THERE IS NO NUMBER IN THE MODEL'S ANSWER.** `contract.ts` is enums, four hex colours and a
   bundled font id. A geometry field would be a panel decision wearing a different name, and the
   five failure classes would come straight back through it. `normalizeDesignLanguage` never fails

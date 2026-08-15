@@ -33,6 +33,31 @@ const videoGatewayRestriction = {
   message:
     "src/ai/video calls the gateway through ./videoGateway, which stamps surface: 'video' — a direct ../modelGateway import silently drops the ai.video entitlement tag (docs/ADMIN.md).",
 };
+/**
+ * NoaCG Pro's RETIRED concept-and-reconstruct engine, `src/ai/pro/reconstruct/`
+ * (docs/NOACG_PRO_PLAN.md §16).
+ *
+ * The product runs the design-language composer, `src/ai/pro/language/`. `reconstruct/` is the
+ * engine it replaced - a concept IMAGE, an interpretation of it, and a raster rebuild - kept
+ * only because the checked-in fixture bank and its bench are the evidence for the §16 finding,
+ * and deleting it reaches into api/ and scripts/ that this change does not own.
+ *
+ * A RETIREMENT NOBODY CAN SEE IS A RE-WIRE WAITING TO HAPPEN, which is why it is a directory
+ * with a build-time boundary around it rather than five files with banner comments. §16's whole
+ * point is that a second live engine is how the wrong one keeps shipping: the first real hosted
+ * generation printed its own words twice, at $0.0777 a go, while the composer that scored 26 of
+ * 30 sat unreachable behind a bench script.
+ *
+ * THE DIRECTORY IS WHAT MAKES THE RULE HOLD. Patterns here match the IMPORT STRING rather than
+ * the resolved file, so a per-file list missed the sibling form (`../compile`) entirely - it
+ * linted clean when mutation-checked. A path segment appears in EVERY form of the import, deep
+ * or relative, and `reconstruct/`'s own files are exempted by `files:` below instead.
+ */
+const retiredProEngineRestriction = {
+  group: ['**/pro/reconstruct/**', '**/reconstruct/**'],
+  message:
+    'The concept-and-reconstruct Pro engine is RETIRED (docs/NOACG_PRO_PLAN.md §16). A Pro graphic is composed from a design language — src/ai/pro/language/pipeline.ts.',
+};
 
 export default tseslint.config(
   {
@@ -134,6 +159,17 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-restricted-imports': ['error', {
         paths: [supabaseRestriction],
+        patterns: [storeRestriction, componentsRestriction, retiredProEngineRestriction],
+      }],
+    },
+  },
+  {
+    // The retired Pro engine may still import ITSELF - the bench replays the fixture bank
+    // through it. Everything else in src/ is held to the boundary above.
+    files: ['src/ai/pro/reconstruct/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        paths: [supabaseRestriction],
         patterns: [storeRestriction, componentsRestriction],
       }],
     },
@@ -141,8 +177,12 @@ export default tseslint.config(
   {
     // The UI region may import store/ and components/ freely; Supabase stays behind backend/.
     files: ['src/components/**/*.{ts,tsx}', 'src/App.tsx', 'src/main.tsx'],
+    // The UI is where the retired engine was reached from, so the boundary matters most here.
     rules: {
-      '@typescript-eslint/no-restricted-imports': ['error', { paths: [supabaseRestriction] }],
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        paths: [supabaseRestriction],
+        patterns: [retiredProEngineRestriction],
+      }],
     },
   },
   {

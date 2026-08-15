@@ -30,8 +30,8 @@ await page.locator('.topbar').waitFor();
 
 const readout = await page.evaluate(async (input) => {
   const bust = `?t=${Date.now()}`;
-  const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
-  const { compileProPlan } = await import(`/src/ai/pro/compile.ts${bust}`);
+  const { normalizeProInterpretation } = await import(`/src/ai/pro/reconstruct/normalize.ts${bust}`);
+  const { compileProPlan } = await import(`/src/ai/pro/reconstruct/compile.ts${bust}`);
   const { uuid } = await import(`/src/model/id.ts${bust}`);
   const { parseAnimData } = await import(`/src/blocks/animData.ts${bust}`);
   const { deriveMachine } = await import(`/src/blocks/animMachine.ts${bust}`);
