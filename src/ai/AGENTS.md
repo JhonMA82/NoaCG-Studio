@@ -740,13 +740,30 @@ Four rules bind anyone editing it:
   and this repo has paid for that finding three times.
 - **AN INSTRUMENT MEASURES THE BOX ITS QUESTION IS ABOUT, and the two mark boxes are the
   precedent.** `spacingCheck` reported the mark's clear space off the `<img>`'s BORDER box, so a
-  design expressing that clear space as image padding had it counted as zero: `mark-crowded` fired
-  on lt07, lt41 and ls10, three of the designs that carry a crest BEST. An instrument whose false
-  positives are the good designs is one authors learn to ignore, which is worse than no instrument.
-  It now measures the INK (`markContentRect`, inset by padding and border) - and `proportionCheck`
-  deliberately does NOT follow, because `mark-oversized` asks how much ROOM the mark takes and a
-  padded well takes all of it. Two questions, two boxes, each stated where it is read.
-  `node scripts/spike-mark-clearance-sweep.mjs` measures both columns off one render.
+  design expressing that clear space as image padding had it counted as zero. An instrument whose
+  false positives are the good designs is one authors learn to ignore, which is worse than no
+  instrument. It now measures the INK (`markContentRect`, inset by padding and border), and
+  `proportionCheck` deliberately does NOT follow: `mark-oversized` asks how much ROOM the mark
+  takes and a padded well takes all of it, which is also what `MARK_SCALE_CEILING` is calibrated
+  on. Two questions, two boxes, each stated where it is read.
+  **Measured over all 24 mark-capable lower thirds with a square crest**
+  (`node scripts/spike-mark-clearance-sweep.mjs`, which reports the border-box control and the ink
+  reading off ONE render): exactly three designs move and all three move up - lt07 0.22 -> 0.36,
+  lt41 0.31 -> 0.52, ls10 0.25 -> 0.56 - and the other 21 are byte-identical, because only those
+  three pad the image itself. lt07 was the only reading the artifact was pushing under the 0.25
+  floor. **The absolute ratios depend on the MARK**, since a slot that sizes itself from the
+  artwork's aspect paints a different height for each one; the set that MOVES does not.
+- **THE MARK-GAP UNIT IS THE MARK'S OWN HEIGHT, so a design is divided by its own generosity -
+  and that, not the bleed, is what still flags ls18 and ls25.** Same sweep: ls18 is called crowded
+  at **22px** of clear space while lt08 passes at exactly 22px, and ls25 at **30px** while lt15
+  passes at 26px. In both pairs the flagged design has the same or a LARGER gap and a much taller
+  mark (135px and 130px against 75px and 84px). Neither is a spacing defect: ls25 is a `picture`
+  well holding square cover art `object-fit: cover` by design - the brand audit already excludes
+  picture wells from mark rules for exactly this reason - and ls18 stretches an institution's mark
+  to the height of the card. **Not repaired, and deliberately not recalibrated**: the 0.25 floor is
+  the brand manual's clear space for a free-standing mark, and moving the unit unmeasured would
+  trade a known artifact for an unknown one. What changed is that both findings now carry the RAW
+  px beside the ratio, so a tight gap can be told from a tall mark by reading the finding.
 
 ## Phase-C creative pilot (`creative/`)
 

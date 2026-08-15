@@ -185,6 +185,85 @@ test.describe('the platform seats a mark against the words, not against empty gr
   });
 });
 
+test.describe('a docked mark is measured by its INK, not by the well it sits in', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/app', { waitUntil: 'domcontentloaded' });
+    await page.locator('.topbar').waitFor();
+  });
+
+  // THE FALSE POSITIVES THIS CLOSES, and they were the GOOD designs. `mark-crowded` fired on
+  // lt07 (0.22), lt41 and ls10 - three of the designs that carry a crest best - because each
+  // draws the mark inside a well and expresses the brand manual's clear space as the image's own
+  // PADDING. `getBoundingClientRect` reports the border box, so that clear space sat INSIDE the
+  // thing being measured and the gap to the text was nearly zero by construction. Swept over the
+  // 24 mark-capable lower thirds, the ink box moves exactly those three and leaves the other 21
+  // untouched (scripts/spike-mark-clearance-sweep.mjs).
+  //
+  // TWO SIDES, because a check that can only prove it stopped firing is satisfied by one that
+  // never fires: the same geometry with the padding moved OUT of the image must still be caught.
+  // THE GEOMETRY, stated because both readings fall straight out of it. The image's INK is always
+  // the same 120px square at x 40..160; `padding` grows its border box symmetrically around that
+  // ink, and the text always starts `gap` past the border box's right edge - which is what a well
+  // drawn as image padding does. So the ink stands `padding + gap` off the words while the border
+  // box stands exactly `gap` off them, and the two boxes disagree by the padding alone.
+  const markFixture = (options: { padding: number; gap: number }): string => {
+    const size = 120 + options.padding * 2;
+    const textLeft = 40 + size + options.gap;
+    return `<!doctype html><html><head><meta name="color-scheme" content="dark"></head>
+<body style="margin:0;background:#333">
+  <div id="panel" style="position:absolute;left:100px;top:100px;width:700px;height:260px;background:#101216">
+    <img id="f2" alt="" style="position:absolute;left:40px;top:40px;width:${size}px;height:${size}px;
+         padding:${options.padding}px;box-sizing:border-box"
+         src="data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#f6a623"/></svg>')}" />
+    <div id="f0" style="position:absolute;left:${textLeft}px;top:50px;width:220px;height:60px;font:700 48px/60px Arial, sans-serif;color:#fff">Alexandra Riva</div>
+    <div id="f1" style="position:absolute;left:${textLeft}px;top:120px;width:220px;height:30px;font:500 24px/30px Arial, sans-serif;color:#ccc">Correspondent</div>
+  </div>
+</body></html>`;
+  };
+
+  async function markGap(page: Page, html: string) {
+    return page.evaluate(async (doc) => {
+      document.getElementById('spike-fixture')?.remove();
+      const frame = document.createElement('iframe');
+      frame.id = 'spike-fixture';
+      frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;'
+        + 'z-index:99999;background:#333;color-scheme:dark;';
+      document.body.appendChild(frame);
+      frame.srcdoc = doc;
+      await new Promise((resolve) => { frame.onload = resolve; });
+      const inner = frame.contentDocument as Document;
+      await inner.fonts.ready;
+      const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts');
+      // Read BEFORE the frame leaves the DOM: a live CSSStyleDeclaration empties the moment its
+      // iframe is detached, and every length then parses as 0 - an inset of nothing, reported as
+      // a measurement.
+      const out = measureSpacing(inner, { markFieldId: 'f2' });
+      frame.remove();
+      return { markGap: out.markGap, codes: out.findings.map((f) => f.code), findings: out.findings };
+    }, html) as Promise<{ markGap: number | null; codes: string[]; findings: { code: string; detail: string }[] }>;
+  }
+
+  test('clear space carried as the image\'s own padding is COUNTED, not swallowed', async ({ page }) => {
+    // 30px of padding plus a 10px gap: the ink stands 40px off a 120px mark = 0.33, clear of the
+    // 0.25 floor. Measured on the BORDER box the identical design reads 10px off a 180px box =
+    // 0.06 and is called cramped - which is the lt07 reading, in a fixture.
+    const measured = await markGap(page, markFixture({ padding: 30, gap: 10 }));
+    expect(measured.markGap).toBeCloseTo(0.33, 2);
+    expect(measured.codes).not.toContain('mark-crowded');
+  });
+
+  test('…and a mark that really is crammed is still caught', async ({ page }) => {
+    // No padding at all, 10px of gap: 10/120 = 0.08. Nothing about the ink box excuses this.
+    const measured = await markGap(page, markFixture({ padding: 0, gap: 10 }));
+    expect(measured.markGap).toBeCloseTo(0.08, 2);
+    expect(measured.codes).toContain('mark-crowded');
+    // The finding carries BOTH raw numbers, because a ratio alone cannot tell a tight gap from a
+    // tall mark - the catalog has pairs where the flagged design has the LARGER gap.
+    const detail = measured.findings.find((f) => f.code === 'mark-crowded')!.detail;
+    expect(detail).toContain('10px from a 120px mark');
+  });
+});
+
 test.describe('the spacing instrument sees content that escapes its panel', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/app', { waitUntil: 'domcontentloaded' });
