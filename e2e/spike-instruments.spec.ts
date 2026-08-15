@@ -201,17 +201,20 @@ test.describe('a docked mark is measured by its INK, not by the well it sits in'
   //
   // TWO SIDES, because a check that can only prove it stopped firing is satisfied by one that
   // never fires: the same geometry with the padding moved OUT of the image must still be caught.
-  // THE GEOMETRY, stated because both readings fall straight out of it. The image's INK is always
-  // the same 120px square at x 40..160; `padding` grows its border box symmetrically around that
-  // ink, and the text always starts `gap` past the border box's right edge - which is what a well
-  // drawn as image padding does. So the ink stands `padding + gap` off the words while the border
-  // box stands exactly `gap` off them, and the two boxes disagree by the padding alone.
-  const markFixture = (options: { padding: number; gap: number }): string => {
-    const size = 120 + options.padding * 2;
+  // THE GEOMETRY, stated because every reading falls straight out of it. The image's INK is an
+  // `ink`px square at x 40 (120px unless a case says otherwise); `padding` grows its border box
+  // symmetrically around that ink, and the text always starts `gap` past the border box's right
+  // edge - which is what a well drawn as image padding does. So the ink stands `padding + gap`
+  // off the words while the border box stands exactly `gap` off them, and the two boxes disagree
+  // by the padding alone. `ink` is the third knob, and it moves ONLY the mark: it is what tells a
+  // unit that divides by the mark apart from one that divides by the type.
+  const markFixture = (options: { padding: number; gap: number; ink?: number }): string => {
+    const ink = options.ink ?? 120;
+    const size = ink + options.padding * 2;
     const textLeft = 40 + size + options.gap;
     return `<!doctype html><html><head><meta name="color-scheme" content="dark"></head>
 <body style="margin:0;background:#333">
-  <div id="panel" style="position:absolute;left:100px;top:100px;width:700px;height:260px;background:#101216">
+  <div id="panel" style="position:absolute;left:100px;top:100px;width:700px;height:${Math.max(260, size + 80)}px;background:#101216">
     <img id="f2" alt="" style="position:absolute;left:40px;top:40px;width:${size}px;height:${size}px;
          padding:${options.padding}px;box-sizing:border-box"
          src="data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#f6a623"/></svg>')}" />
@@ -244,23 +247,44 @@ test.describe('a docked mark is measured by its INK, not by the well it sits in'
   }
 
   test('clear space carried as the image\'s own padding is COUNTED, not swallowed', async ({ page }) => {
-    // 30px of padding plus a 10px gap: the ink stands 40px off a 120px mark = 0.33, clear of the
-    // 0.25 floor. Measured on the BORDER box the identical design reads 10px off a 180px box =
-    // 0.06 and is called cramped - which is the lt07 reading, in a fixture.
+    // 30px of padding plus a 10px gap: the ink stands 40px off the words, and the primary type
+    // size is the heading's 48px, so 40/48 = 0.83 - clear of the 0.35 floor. Measured on the
+    // BORDER box the identical design stands 10px off = 0.21 and is called cramped, which is the
+    // lt07 reading in a fixture.
     const measured = await markGap(page, markFixture({ padding: 30, gap: 10 }));
-    expect(measured.markGap).toBeCloseTo(0.33, 2);
+    expect(measured.markGap).toBeCloseTo(0.83, 2);
     expect(measured.codes).not.toContain('mark-crowded');
   });
 
   test('…and a mark that really is crammed is still caught', async ({ page }) => {
-    // No padding at all, 10px of gap: 10/120 = 0.08. Nothing about the ink box excuses this.
+    // No padding at all, 10px of gap: 10/48 = 0.21. Nothing about the ink box excuses this.
     const measured = await markGap(page, markFixture({ padding: 0, gap: 10 }));
-    expect(measured.markGap).toBeCloseTo(0.08, 2);
+    expect(measured.markGap).toBeCloseTo(0.21, 2);
     expect(measured.codes).toContain('mark-crowded');
-    // The finding carries BOTH raw numbers, because a ratio alone cannot tell a tight gap from a
-    // tall mark - the catalog has pairs where the flagged design has the LARGER gap.
+    // The finding carries ALL THREE raw numbers, because a ratio alone cannot say which of
+    // several things happened - and the mark's height in particular is the one the unit used to
+    // be, which is how ls18 came to be flagged for being generous (MARK_GAP_FLOOR_RATIO).
     const detail = measured.findings.find((f) => f.code === 'mark-crowded')!.detail;
-    expect(detail).toContain('10px from a 120px mark');
+    expect(detail).toContain('10px from 48px type, mark 120px');
+  });
+
+  test('a mark given room by a TALL design is not called crowded for it', async ({ page }) => {
+    // THE ARTIFACT THE UNIT CHANGE CLOSES, as a fixture: the same 40px of clear space that
+    // passes above, beside a mark twice the height. Under the old mark-height unit this reads
+    // 40/240 = 0.17 and was flagged; under the type-size unit it is the identical 0.83 the
+    // first test asserts, because the gap and the type did not move - only the mark did.
+    //
+    // This is the ls18 pair in miniature: it was called crowded at 22px of clear space while
+    // lt08 passed at exactly 22px, on nothing but a taller mark.
+    const measured = await markGap(page, markFixture({ padding: 30, gap: 10, ink: 240 }));
+    expect(measured.markGap).toBeCloseTo(0.83, 2);
+    expect(measured.codes).not.toContain('mark-crowded');
+    // …and the mark's height is still REPORTED, so a reader can see it is a tall mark. Asserted
+    // through the adrift-free clean case by re-reading the raw pair off the crowded twin below.
+    const crowded = await markGap(page, markFixture({ padding: 0, gap: 10, ink: 240 }));
+    expect(crowded.codes).toContain('mark-crowded');
+    expect(crowded.findings.find((f) => f.code === 'mark-crowded')!.detail)
+      .toContain('mark 240px');
   });
 });
 

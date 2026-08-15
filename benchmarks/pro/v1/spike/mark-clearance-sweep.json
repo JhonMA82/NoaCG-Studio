@@ -3,16 +3,17 @@
   "mark": "badge-square",
   "category": "lower-third",
   "designs": 24,
-  "crowdedBefore": [
+  "crowdedOriginalRule": [
     "lt07",
     "ls18",
     "ls25"
   ],
-  "crowdedAfter": [
+  "crowdedInkBoxMarkHeightRule": [
     "ls18",
     "ls25"
   ],
-  "moved": [
+  "crowdedLive": [],
+  "movedByInkBox": [
     "lt07",
     "lt41",
     "ls10"
@@ -23,6 +24,20 @@
   ],
   "tallerBySqueezedWords": [],
   "tallerAtOwnLines": [],
+  "units": {
+    "markHeights": {
+      "p05": 0.23,
+      "p25": 0.31,
+      "p50": 0.38,
+      "p95": 1
+    },
+    "typeSizes": {
+      "p05": 0.45,
+      "p25": 0.48,
+      "p50": 0.7,
+      "p95": 1.3
+    }
+  },
   "rows": [
     {
       "id": "lt11",
@@ -39,6 +54,8 @@
       },
       "borderRatio": 0.31,
       "inkRatio": 0.31,
+      "typeSizePx": 54,
+      "typeRatio": 0.48,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {
@@ -74,6 +91,8 @@
       },
       "borderRatio": 0.59,
       "inkRatio": 0.59,
+      "typeSizePx": 49,
+      "typeRatio": 0.84,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {
@@ -133,6 +152,8 @@
       },
       "borderRatio": 1.2,
       "inkRatio": 1.2,
+      "typeSizePx": 44,
+      "typeRatio": 1.61,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {
@@ -168,6 +189,8 @@
       },
       "borderRatio": 0.31,
       "inkRatio": 0.31,
+      "typeSizePx": 56,
+      "typeRatio": 0.46,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -203,6 +226,8 @@
       },
       "borderRatio": 0.73,
       "inkRatio": 0.73,
+      "typeSizePx": 46,
+      "typeRatio": 1.02,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -238,6 +263,8 @@
       },
       "borderRatio": 0.31,
       "inkRatio": 0.31,
+      "typeSizePx": 57,
+      "typeRatio": 0.46,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -273,6 +300,8 @@
       },
       "borderRatio": 0.88,
       "inkRatio": 0.88,
+      "typeSizePx": 54,
+      "typeRatio": 1.07,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -308,6 +337,8 @@
       },
       "borderRatio": 0.38,
       "inkRatio": 0.38,
+      "typeSizePx": 60,
+      "typeRatio": 0.67,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -367,6 +398,8 @@
       },
       "borderRatio": 0.31,
       "inkRatio": 0.31,
+      "typeSizePx": 54,
+      "typeRatio": 0.48,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -402,6 +435,8 @@
       },
       "borderRatio": 0.78,
       "inkRatio": 0.78,
+      "typeSizePx": 53,
+      "typeRatio": 1.08,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -437,6 +472,8 @@
       },
       "borderRatio": 0.49,
       "inkRatio": 0.49,
+      "typeSizePx": 50,
+      "typeRatio": 0.9,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -496,6 +533,8 @@
       },
       "borderRatio": 0.31,
       "inkRatio": 0.31,
+      "typeSizePx": 58,
+      "typeRatio": 0.45,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -526,11 +565,13 @@
         "bottom": 13
       },
       "markPx": {
-        "height": 153,
-        "gap": 33
+        "height": 127,
+        "gap": 46
       },
       "borderRatio": 0.22,
       "inkRatio": 0.36,
+      "typeSizePx": 67,
+      "typeRatio": 0.69,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {
@@ -561,11 +602,13 @@
         "bottom": 13
       },
       "markPx": {
-        "height": 127,
-        "gap": 39
+        "height": 101,
+        "gap": 52
       },
       "borderRatio": 0.31,
       "inkRatio": 0.52,
+      "typeSizePx": 51,
+      "typeRatio": 1.02,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {
@@ -625,6 +668,8 @@
       },
       "borderRatio": 0.29,
       "inkRatio": 0.29,
+      "typeSizePx": 54,
+      "typeRatio": 0.41,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -660,6 +705,8 @@
       },
       "borderRatio": 0.31,
       "inkRatio": 0.31,
+      "typeSizePx": 46,
+      "typeRatio": 0.57,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -695,6 +742,8 @@
       },
       "borderRatio": 1,
       "inkRatio": 1,
+      "typeSizePx": 40,
+      "typeRatio": 1.3,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -730,6 +779,8 @@
       },
       "borderRatio": 1,
       "inkRatio": 1,
+      "typeSizePx": 48,
+      "typeRatio": 1.56,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {
@@ -784,11 +835,13 @@
         "bottom": 18
       },
       "markPx": {
-        "height": 124,
-        "gap": 31
+        "height": 88,
+        "gap": 49
       },
       "borderRatio": 0.25,
       "inkRatio": 0.56,
+      "typeSizePx": 51,
+      "typeRatio": 0.96,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {
@@ -848,6 +901,8 @@
       },
       "borderRatio": 0.76,
       "inkRatio": 0.76,
+      "typeSizePx": 58,
+      "typeRatio": 1,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {
@@ -907,6 +962,8 @@
       },
       "borderRatio": 0.48,
       "inkRatio": 0.48,
+      "typeSizePx": 45,
+      "typeRatio": 0.84,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {
@@ -966,6 +1023,8 @@
       },
       "borderRatio": 0.17,
       "inkRatio": 0.17,
+      "typeSizePx": 43,
+      "typeRatio": 0.52,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {
@@ -1007,9 +1066,7 @@
         },
         "count": 3
       },
-      "codes": [
-        "mark-crowded"
-      ],
+      "codes": [],
       "bareCodes": []
     },
     {
@@ -1027,6 +1084,8 @@
       },
       "borderRatio": 0.23,
       "inkRatio": 0.23,
+      "typeSizePx": 43,
+      "typeRatio": 0.7,
       "panel": null,
       "barePanel": null,
       "bareSize": {
@@ -1068,9 +1127,7 @@
         },
         "count": 3
       },
-      "codes": [
-        "mark-crowded"
-      ],
+      "codes": [],
       "bareCodes": []
     },
     {
@@ -1088,6 +1145,8 @@
       },
       "borderRatio": 0.38,
       "inkRatio": 0.38,
+      "typeSizePx": 49,
+      "typeRatio": 0.69,
       "panel": "div.lower-third-box",
       "barePanel": "div.lower-third-box",
       "bareSize": {

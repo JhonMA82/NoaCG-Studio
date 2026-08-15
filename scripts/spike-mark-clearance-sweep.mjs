@@ -13,12 +13,19 @@
 // construction. An instrument whose false positives are the good designs is one authors learn to
 // ignore, so the number had to be measured rather than argued about.
 //
-// BOTH COLUMNS COME OFF THE SAME RENDER, which is the point. A before/after run would compare two
-// renders of two builds, and this catalog moves; here `border` is computed inline from the same
-// frame the instrument measured, so the two answers differ by the box alone. `border` deliberately
-// re-implements the instrument's gap arithmetic in ten lines rather than importing it - it is the
-// OLD instrument, kept alive as a control, and the moment it is wired to the new one the control
-// stops controlling anything.
+// …AND THE SECOND READING IT SETTLED, the same day: the UNIT. The gap was divided by the MARK's
+// own height, so a design that gives its mark a lot of room was divided by its own generosity -
+// ls18 was called crowded at 22px of clear space while lt08 passed at exactly 22px, on nothing
+// but a taller mark. The unit is now the primary TYPE SIZE, like every other ratio in that
+// instrument, and the floor and ceiling were read off the distribution this sweep prints at the
+// end (`spacingCheck.ts` MARK_GAP_FLOOR_RATIO carries the full account).
+//
+// EVERY COLUMN COMES OFF THE SAME RENDER, which is the point. A before/after run would compare
+// two renders of two builds, and this catalog moves; here both retired readings are computed
+// inline from the same frame the live instrument measured, so the answers differ by the rule
+// alone. They deliberately re-implement the gap arithmetic in a few lines rather than importing
+// it - they are the OLD instruments, kept alive as controls, and the moment either is wired to
+// the live one it stops controlling anything.
 //
 // A BARE RENDER, NEVER AN ABSOLUTE: `findPanel` resolves for only 10 of these 24 designs, so a
 // sweep that asserted padding numbers would be asserting on a minority and calling it the
@@ -126,6 +133,13 @@ console.log(`Sweeping ${ids.length} mark-capable ${CATEGORY}s with "${MARK_ID}"�
 
 /** True when the mark's own furniture is the taller of the box's two children. */
 const wellSetTheRow = (parts) => Boolean(parts) && parts.mark >= parts.words;
+
+/** The ORIGINAL `mark-crowded` floor - a quarter of the mark's own height, the brand manual's
+ *  clear space for a free-standing mark. Frozen here as the control's own number rather than
+ *  imported from the instrument: the point of the control is that it does NOT move when the
+ *  instrument does, and importing `MARK_GAP_FLOOR_RATIO` would make the "before" column follow
+ *  the "after" one. The unit changed on 2026-08-15 - see that constant for the account. */
+const ORIGINAL_FLOOR = 0.25;
 
 const growthLine = (label, bare, marked, parts, bareLines, markedLines) => {
   const d = marked.height - bare.height;
@@ -300,6 +314,7 @@ for (const id of ids) {
     // does. A second opinion about which elements count would move the control's numbers for a
     // reason that has nothing to do with the change, which is a control measuring itself.
     let borderRatio = null;
+    let inkMarkRatio = null;
     let inset = null;
     let markPx = null;
     if (img) {
@@ -310,21 +325,41 @@ for (const id of ids) {
         + (parseFloat(style.getPropertyValue(`border-${side}-width`)) || 0);
       inset = { left: pad('left'), right: pad('right'), top: pad('top'), bottom: pad('bottom') };
       const texts = painted.filter((p) => p.isText);
-      const rect = markItem?.rect ?? null;
-      const height = rect ? rect.bottom - rect.top : 0;
-      const gaps = rect ? texts.map((t) => {
-        const dx = Math.max(rect.left - t.rect.right, t.rect.left - rect.right, 0);
-        const dy = Math.max(rect.top - t.rect.bottom, t.rect.top - rect.bottom, 0);
-        return Math.max(dx, dy) || Math.min(dx, dy);
-      }) : [];
-      if (gaps.length && height > 0) {
-        borderRatio = Math.round((Math.min(...gaps) / height) * 100) / 100;
-        // The two RAW numbers behind every ratio. A ratio alone cannot say whether a design was
-        // flagged for a tight gap or for a tall mark, and those are opposite findings: the unit
-        // is the mark's own height, so a design that gives its mark a lot of room is DIVIDING BY
-        // its own generosity. ls25 stretches its cover artwork to the full height of the text
-        // block beside it, which is the largest denominator in the catalog.
-        markPx = { height: Math.round(height), gap: Math.round(Math.min(...gaps)) };
+      const border = markItem?.rect ?? null;
+      // The INK box, computed here the same ten-line way the border box is - both controls, both
+      // re-implemented rather than imported, for the reason stated at the top of this file.
+      const ink = border ? {
+        left: border.left + inset.left,
+        right: border.right - inset.right,
+        top: border.top + inset.top,
+        bottom: border.bottom - inset.bottom,
+      } : null;
+      const nearest = (rect) => {
+        if (!rect) return null;
+        const gaps = texts.map((t) => {
+          const dx = Math.max(rect.left - t.rect.right, t.rect.left - rect.right, 0);
+          const dy = Math.max(rect.top - t.rect.bottom, t.rect.top - rect.bottom, 0);
+          return Math.max(dx, dy) || Math.min(dx, dy);
+        });
+        return gaps.length ? Math.min(...gaps) : null;
+      };
+      const borderH = border ? border.bottom - border.top : 0;
+      const inkH = ink ? ink.bottom - ink.top : 0;
+      const borderGap = nearest(border);
+      const inkGap = nearest(ink);
+      if (borderGap !== null && borderH > 0) {
+        borderRatio = Math.round((borderGap / borderH) * 100) / 100;
+      }
+      if (inkGap !== null && inkH > 0) {
+        // THE SECOND CONTROL, and the one the 2026-08-15 unit change retired: the INK box
+        // measured in the MARK'S OWN HEIGHT. It is kept because a ratio alone cannot say whether
+        // a design was flagged for a tight gap or for a tall mark, and those are opposite
+        // findings - a design that gives its mark a lot of room was DIVIDING BY its own
+        // generosity. ls25 stretches its cover artwork to the full height of the text block
+        // beside it, which is the largest denominator in the catalog. Keeping the column is what
+        // lets the change be re-read rather than taken on trust.
+        inkMarkRatio = Math.round((inkGap / inkH) * 100) / 100;
+        markPx = { height: Math.round(inkH), gap: Math.round(inkGap) };
       }
     }
 
@@ -347,8 +382,16 @@ for (const id of ids) {
       markFieldId,
       inset,
       markPx,
+      // THREE READINGS OF THE SAME FRAME, oldest first. `borderRatio` is the original
+      // instrument (border box, mark's own height); `inkMarkRatio` is what replaced it on
+      // 2026-08-15 morning (ink box, still the mark's own height); `typeRatio` is what it
+      // reports now (ink box, primary TYPE SIZE - see MARK_GAP_FLOOR_RATIO). Both retired
+      // readings are computed inline, so a later reader can re-derive the change instead of
+      // taking the commit message for it.
       borderRatio,
-      inkRatio: spacing.markGap,
+      inkRatio: inkMarkRatio,
+      typeSizePx: spacing.typeSizePx,
+      typeRatio: spacing.markGap,
       panel: spacing.panel,
       barePanel: bareSpacing.panel,
       bareSize,
@@ -368,15 +411,20 @@ for (const id of ids) {
   const pad = row.inset
     ? `${Math.round(row.inset.left)}/${Math.round(row.inset.right)}/${Math.round(row.inset.top)}/${Math.round(row.inset.bottom)}`
     : '-';
-  const crowdedBefore = row.borderRatio !== null && row.borderRatio < 0.25;
+  // The verdict compares the ORIGINAL instrument (border box, mark height, 0.25 floor) with what
+  // the live one says today, because that pair is the whole span of the change. The middle
+  // reading has its own column.
+  const crowdedBefore = row.borderRatio !== null && row.borderRatio < ORIGINAL_FLOOR;
   const crowdedAfter = row.codes.includes('mark-crowded');
   const verdict = crowdedBefore === crowdedAfter
     ? (crowdedAfter ? 'still flagged' : '')
     : (crowdedAfter ? 'NEWLY FLAGGED' : 'cleared');
   console.log(
     `${(id + (wells.get(id) === 'picture' ? '*' : '')).padEnd(6)}`
-    + ` border ${String(row.borderRatio ?? '-').padEnd(6)} ink ${String(row.inkRatio ?? '-').padEnd(6)}`
-    + ` (${row.markPx ? `${row.markPx.gap}px gap / ${row.markPx.height}px mark` : '-'})`.padEnd(26)
+    + ` border ${String(row.borderRatio ?? '-').padEnd(6)} inkMark ${String(row.inkRatio ?? '-').padEnd(6)}`
+    + ` LIVE ${String(row.typeRatio ?? '-').padEnd(6)}`
+    + ` (${row.markPx ? `${row.markPx.gap}px gap / ${row.markPx.height}px ink` : '-'}`
+    + `${row.typeSizePx ? ` / ${Math.round(row.typeSizePx)}px type` : ''})`.padEnd(40)
     + ` inset ${pad.padEnd(16)} panel ${(row.panel ? 'yes' : 'no').padEnd(4)}`
     + ` ${(row.codes.join(',') || 'clean').padEnd(24)} ${verdict}`,
   );
@@ -388,7 +436,8 @@ await browser.close();
 
 // ── What moved, and what did not ──────────────────────────────────────────────────────
 const measured = rows.filter((r) => r.borderRatio !== null && r.inkRatio !== null);
-const before = measured.filter((r) => r.borderRatio < 0.25).map((r) => r.id);
+const before = measured.filter((r) => r.borderRatio < ORIGINAL_FLOOR).map((r) => r.id);
+const inkOnly = measured.filter((r) => r.inkRatio < ORIGINAL_FLOOR).map((r) => r.id);
 const after = measured.filter((r) => r.codes.includes('mark-crowded')).map((r) => r.id);
 const moved = measured.filter((r) => r.borderRatio !== r.inkRatio).map((r) => r.id);
 const compared = rows.filter((r) => r.markedSize && r.bareSize);
@@ -397,9 +446,17 @@ const unmeasurable = rows.filter((r) => !r.markedSize || !r.bareSize).map((r) =>
 
 console.log(`\n${measured.length}/${rows.length} designs produced a mark gap`
   + ` (a design with no painted text beside its mark cannot have one).`);
-console.log(`mark-crowded BEFORE (border box): ${before.length ? before.join(', ') : 'none'}`);
-console.log(`mark-crowded AFTER  (ink box):    ${after.length ? after.join(', ') : 'none'}`);
-console.log(`readings that MOVED at all:       ${moved.length ? moved.join(', ') : 'none'}`);
+// Three verdicts, one frame - the two retired rules and the live one. Printing only the first
+// and last would hide which of the two changes cleared which design, and they cleared different
+// ones: the ink box cleared lt07, the type-size unit cleared ls18 and ls25.
+console.log(`crowded, ORIGINAL rule (border box / mark height, floor ${ORIGINAL_FLOOR}):`
+  + ` ${before.length ? before.join(', ') : 'none'}`);
+console.log(`crowded, INK box but still / mark height:                    `
+  + ` ${inkOnly.length ? inkOnly.join(', ') : 'none'}`);
+console.log(`crowded, the LIVE instrument (ink box / type size):          `
+  + ` ${after.length ? after.join(', ') : 'none'}`);
+console.log(`readings the INK BOX moved at all:                          `
+  + ` ${moved.length ? moved.join(', ') : 'none'}`);
 // Named rather than folded into "none": a design whose strap could not be measured has not been
 // shown to be unharmed, and a denominator that shrinks silently reads as full coverage.
 console.log(`straps the mark made TALLER:      ${grew.length ? grew.map((r) => r.id).join(', ') : 'none'}`
@@ -415,20 +472,48 @@ const ownCompared = rows.filter((r) => r.own?.bare?.size && r.own?.marked?.size)
 const ownGrew = ownCompared.filter((r) => r.own.marked.size.height > r.own.bare.size.height + 1);
 console.log(`taller at the design's OWN lines: ${ownGrew.length ? ownGrew.map((r) => `${r.id} (${r.own.count})`).join(', ') : 'none'}`
   + ` (of ${ownCompared.length} that draw for more than two)`);
-console.log('\nA design still flagged is one to LOOK at: the ink box removes the artifact, so what');
-console.log('survives is either a real crowding or a deliberate edge-to-edge composition.');
+console.log('\nA design still flagged by the LIVE instrument is one to LOOK at: both retired');
+console.log('artifacts are gone, so what survives is either a real crowding or a deliberate');
+console.log('edge-to-edge composition.');
+
+// ── The two candidate units, side by side ────────────────────────────────────────────────
+//
+// The same discipline `spike-spacing-calibrate.mjs` states: a threshold is READ OFF the
+// catalog, never chosen. These 24 hand-authored designs are the house's own definition of a
+// correctly spaced mark, so what matters about a unit is how TIGHTLY they cluster in it - a
+// unit whose shipped designs spread over an order of magnitude has no floor to put under them.
+// This block is what the 2026-08-15 unit change was decided on, and it stays so the decision
+// can be re-read against a catalog that has moved since.
+const pct = (arr, p) => {
+  if (!arr.length) return null;
+  const s = [...arr].sort((a, b) => a - b);
+  return Math.round(s[Math.floor((s.length - 1) * p)] * 100) / 100;
+};
+const inkRatios = rows.map((r) => r.inkRatio).filter((v) => typeof v === 'number');
+const typeRatios = rows.map((r) => r.typeRatio).filter((v) => typeof v === 'number');
+const spread = (arr) => (pct(arr, 0.05) ? Math.round((pct(arr, 0.95) / pct(arr, 0.05)) * 10) / 10 : null);
+console.log('\nThe unit question, read off the catalog:');
+console.log(`  gap in MARK HEIGHTS  p05 ${pct(inkRatios, 0.05)}  p25 ${pct(inkRatios, 0.25)}`
+  + `  p50 ${pct(inkRatios, 0.5)}  p95 ${pct(inkRatios, 0.95)}   spread ${spread(inkRatios)}x`);
+console.log(`  gap in TYPE SIZES    p05 ${pct(typeRatios, 0.05)}  p25 ${pct(typeRatios, 0.25)}`
+  + `  p50 ${pct(typeRatios, 0.5)}  p95 ${pct(typeRatios, 0.95)}   spread ${spread(typeRatios)}x`);
 
 await writeFile(OUT, `${JSON.stringify({
   sweptAt: null,
   mark: MARK_ID,
   category: CATEGORY,
   designs: rows.length,
-  crowdedBefore: before,
-  crowdedAfter: after,
-  moved,
+  crowdedOriginalRule: before,
+  crowdedInkBoxMarkHeightRule: inkOnly,
+  crowdedLive: after,
+  movedByInkBox: moved,
   tallerByWell: welled,
   tallerBySqueezedWords: squeezed,
   tallerAtOwnLines: ownGrew.map((r) => r.id),
+  units: {
+    markHeights: { p05: pct(inkRatios, 0.05), p25: pct(inkRatios, 0.25), p50: pct(inkRatios, 0.5), p95: pct(inkRatios, 0.95) },
+    typeSizes: { p05: pct(typeRatios, 0.05), p25: pct(typeRatios, 0.25), p50: pct(typeRatios, 0.5), p95: pct(typeRatios, 0.95) },
+  },
   rows,
 }, null, 2)}\n`);
 console.log(`\nWritten: ${OUT}`);

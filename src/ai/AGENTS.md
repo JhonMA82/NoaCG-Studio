@@ -809,17 +809,25 @@ Five rules bind anyone editing it:
   three pad the image itself. lt07 was the only reading the artifact was pushing under the 0.25
   floor. **The absolute ratios depend on the MARK**, since a slot that sizes itself from the
   artwork's aspect paints a different height for each one; the set that MOVES does not.
-- **THE MARK-GAP UNIT IS THE MARK'S OWN HEIGHT, so a design is divided by its own generosity -
-  and that, not the bleed, is what still flags ls18 and ls25.** Same sweep: ls18 is called crowded
-  at **22px** of clear space while lt08 passes at exactly 22px, and ls25 at **30px** while lt15
-  passes at 26px. In both pairs the flagged design has the same or a LARGER gap and a much taller
-  mark (135px and 130px against 75px and 84px). Neither is a spacing defect: ls25 is a `picture`
-  well holding square cover art `object-fit: cover` by design - the brand audit already excludes
-  picture wells from mark rules for exactly this reason - and ls18 stretches an institution's mark
-  to the height of the card. **Not repaired, and deliberately not recalibrated**: the 0.25 floor is
-  the brand manual's clear space for a free-standing mark, and moving the unit unmeasured would
-  trade a known artifact for an unknown one. What changed is that both findings now carry the RAW
-  px beside the ratio, so a tight gap can be told from a tall mark by reading the finding.
+- **THE MARK-GAP UNIT IS THE PRIMARY TYPE SIZE, and it used to be the mark's own height - which
+  divided a design by its own generosity.** Under the old unit ls18 was called crowded at
+  **22px** of clear space while lt08 passed at exactly 22px, and ls25 at **30px** while lt15
+  passed at 26px; in both pairs the flagged design had the same or a LARGER gap and a much taller
+  mark (135px and 130px against 75px and 84px). Neither was a spacing defect - ls25 is a
+  `picture` well holding square cover art, ls18 stretches an institution's mark to the height of
+  the card - and this file's own doctrine is that an instrument whose false positives are the
+  good designs is one authors learn to ignore. **Recalibrated 2026-08-15 against the catalog**,
+  the way `spike-spacing-calibrate.mjs` requires and the way every OTHER ratio in `spacingCheck`
+  already worked: floor **0.35** type sizes (under the catalog's tightest shipped pairing, lt08
+  at 0.41, and inside a real gap - the next reading is 0.45), ceiling **2.1** (the same ~1.3x
+  headroom over the widest shipped lockup, lt54 at 1.61, that the old ceiling carried). In type
+  sizes the 24 mark-capable lower thirds run 0.41-1.61 and neither previously-flagged design is
+  an outlier: ls18 is 8th of 24, ls25 is 13th. The unit also clusters far tighter - p95/p05 is
+  **2.9x** against the mark-height unit's **4.3x**, and a distribution spread four-fold has no
+  floor to put under it. **Nothing is lost by dropping the mark's height as the unit**, because
+  `proportionCheck`'s `mark-oversized` still measures it (ceiling 3.2, on the BORDER box), so a
+  design cannot dodge the gap floor by growing its mark - it hits that ceiling instead. The
+  finding now carries all three raw numbers (`22px from 43px type, mark 135px`).
 
 ## Phase-C creative pilot (`creative/`)
 

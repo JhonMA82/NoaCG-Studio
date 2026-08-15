@@ -19,7 +19,14 @@
 //   panel-oversized      fill floor 0.18        · lowest here ~0.47    (the panel hugs its text)
 //   footprint-large      ceiling 0.10 of frame  · largest here ~0.071  (at the auto-fit cap)
 //   mark-oversized       ceiling 3.2 type sizes · here 1.2
-//   mark-crowded/adrift  band 0.25-1.6          · here 0.4 of the mark's height
+//   mark-crowded/adrift  band 0.35-2.1          · here 0.48 seated, 0.72 with a mark band
+//                                                 (MEASURED on the rendered composition, not
+//                                                 derived: `markGapPx` is the slot's gap, and
+//                                                 the band adds half of it again as the field's
+//                                                 own padding. The line this replaced said "0.4
+//                                                 of the mark's height" and both real readings
+//                                                 were 0.31 and 0.46 - a stated margin nobody
+//                                                 had rendered.)
 //   text-escapes-panel   -                      · structurally impossible: the box is
 //                                                 `width: fit-content` with the category's
 //                                                 auto-fit cap, so it is SIZED BY its text
