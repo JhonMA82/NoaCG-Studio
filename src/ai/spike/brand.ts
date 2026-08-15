@@ -347,7 +347,7 @@ export function fillBrandMark(
   if (placed?.placed) html = placed.html;
 
   const css = `${template.css}\n${filledMarkVisibilityCss(slot.field)}`
-    + (placed?.placed ? `\n${markSlotCss(stamped.prefix as string, slot.field, surface.surface)}` : '');
+    + (placed?.placed ? `\n${markSlotCss(stamped.prefix as string, slot.field, surface.surface, placed.rows)}` : '');
 
   return {
     template: {
@@ -393,8 +393,8 @@ export function fillBrandMark(
  */
 function placeMark(
   html: string, prefix: string, fieldId: string,
-): { html: string; placed: boolean; droppedWrapper: boolean } {
-  const unchanged = { html, placed: false, droppedWrapper: false };
+): { html: string; placed: boolean; droppedWrapper: boolean; rows: number } {
+  const unchanged = { html, placed: false, droppedWrapper: false, rows: 1 };
   if (typeof DOMParser === 'undefined') return unchanged;
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const img = doc.getElementById(fieldId);
@@ -422,7 +422,19 @@ function placeMark(
   // operator drives the graphic by, deleted by the step that moves an image. The mark findings
   // in that round were the best yet and every template was invalid.
   const doctype = doc.doctype ? `<!DOCTYPE ${doc.doctype.name}>\n` : '';
-  return { html: doctype + doc.documentElement.outerHTML, placed: true, droppedWrapper };
+  // HOW MANY ROWS THE TEXT ACTUALLY OCCUPIES - counted, never assumed.
+  //
+  // The slot below spans the text stack so the mark centres against it. That span used to be a
+  // fixed `span 9` ("more rows than any design draws"), and the owner failed the seated control
+  // twice on what it did: "name in the top right, logo centred, empty space underneath". Nine
+  // rows means EIGHT row gaps, and a box that declared `gap: 20px` for its two text rows got
+  // 160px of empty grid under them - the mark centred over the void, the words pushed to the
+  // top, and the panel a third taller than its content (measured: a 4.38x top-to-bottom padding
+  // imbalance, which the spacing instrument reported as `padding-lopsided`).
+  //
+  // The row count is a DOM fact and the platform is holding the DOM, so it is counted here.
+  const rows = Math.max(1, box.children.length - 1);
+  return { html: doctype + doc.documentElement.outerHTML, placed: true, droppedWrapper, rows };
 }
 
 /**
@@ -440,7 +452,7 @@ function placeMark(
  * field runs the full height of the text stack, so it reads as a segment of the panel rather
  * than a plate around the mark, and it no longer matches `bounding-box-well`.
  */
-function markSlotCss(prefix: string, fieldId: string, surface: MarkSurface): string {
+function markSlotCss(prefix: string, fieldId: string, surface: MarkSurface, rows: number): string {
   const fill = surface === 'light-field' ? MARK_FIELD_LIGHT
     : surface === 'dark-field' ? MARK_FIELD_DARK : null;
   const background = fill
@@ -463,7 +475,9 @@ function markSlotCss(prefix: string, fieldId: string, surface: MarkSurface): str
 }
 .noacg-mark-field {
   grid-column: 1;
-  grid-row: 1 / span 9;            /* spans more rows than any design draws - centres the mark */
+  grid-row: 1 / span ${rows};            /* exactly the rows the text occupies - centres the mark
+                                      against the words. A fixed larger span buys the box that
+                                      many ROW GAPS of empty grid underneath. */
   align-self: stretch;             /* FULL HEIGHT of the text stack: a field, not a box */
   display: flex;
   align-items: center;

@@ -84,6 +84,70 @@ async function measure(page: Page, html: string): Promise<{ spacing: Spacing; pa
   }, html) as Promise<{ spacing: Spacing; panelFill: number | null }>;
 }
 
+/** A transparent-ink wordmark, the shape most channels bring. */
+const WORDMARK =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120">'
+  + '<rect x="0" y="26" width="64" height="14" fill="#ffffff"/>'
+  + '<text x="90" y="76" font-family="Arial" font-size="58" font-weight="700" fill="#ffffff">Meridian</text></svg>';
+
+test.describe('the platform seats a mark against the words, not against empty grid', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/app', { waitUntil: 'domcontentloaded' });
+    await page.locator('.topbar').waitFor();
+  });
+
+  // THE DEFECT the owner failed twice (docs/NOACG_PRO_PLAN.md §15.6): "name in the top right,
+  // logo centred, empty space underneath". The seat spanned a fixed nine rows so the mark would
+  // centre against any design's text stack - and nine rows means EIGHT row gaps, so a box that
+  // declared `gap: 20px` for its two text rows got 160px of empty grid beneath them. The mark
+  // centred over the void, the words were pushed to the top, and the panel came out a third
+  // taller than its content.
+  test('the seated control is centred on its own content', async ({ page }) => {
+    const measured = await page.evaluate(async (svg) => {
+      const { seatedMarkControlAnchor } = await import('/src/ai/spike/anchors.ts');
+      const { probeMark } = await import('/src/assets/assetInfo.ts');
+      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts');
+      const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
+      const probe = await probeMark({ path: 'images/mark.svg', data: dataUrl });
+      if (!probe) return { error: 'the mark did not probe' };
+      const anchor = seatedMarkControlAnchor({
+        id: 'meridian',
+        name: 'Meridian',
+        world: 'a regional news channel',
+        typeface: 'inter',
+        palette: [{ name: 'Gold', hex: '#c8a24a', note: 'the accent' }],
+        mark: { path: 'images/mark.svg', dataUrl, probe },
+      });
+
+      document.getElementById('spike-fixture')?.remove();
+      const frame = document.createElement('iframe');
+      frame.id = 'spike-fixture';
+      frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;'
+        + 'z-index:99999;background:#333;color-scheme:dark;';
+      document.body.appendChild(frame);
+      frame.srcdoc = composeDocument(anchor.template);
+      await new Promise((resolve) => { frame.onload = resolve; });
+      const inner = frame.contentDocument as Document;
+      await inner.fonts.ready;
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const spacing = measureSpacing(inner, { markFieldId: anchor.markFieldId ?? null });
+      frame.remove();
+      // The design declares two text rows, so the seat spans two.
+      return { spacing, spansTwoRows: /grid-row:\s*1\s*\/\s*span 2\b/.test(anchor.template.css) };
+    }, WORDMARK);
+
+    expect(measured.error).toBeUndefined();
+    expect(measured.spansTwoRows).toBe(true);
+    const pad = measured.spacing?.padding;
+    expect(pad).toBeTruthy();
+    // The behavioural half: a panel sitting evenly on its own content. Measured at 4.38x before
+    // the fix, which is what the instrument reported as `padding-lopsided`.
+    expect(pad!.bottom / pad!.top).toBeLessThan(1.25);
+    expect(measured.spacing?.findings.map((f) => f.code)).not.toContain('padding-lopsided');
+  });
+});
+
 test.describe('the spacing instrument sees content that escapes its panel', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/app', { waitUntil: 'domcontentloaded' });

@@ -1238,6 +1238,24 @@ src/ai/AGENTS.md for the four rules that bind it). What the shape of it buys:
   languages through the identical function a model answer takes, measured on the free pass of
   `node scripts/pro-spike.mjs --control`.
 
+**What the control run measured (2026-08-15, zero tokens), after two rounds of fixes it paid for
+itself:**
+
+| language | padding (T/R/B/L, type sizes) | type ratio | fill | footprint | findings |
+| --- | --- | --- | --- | --- | --- |
+| Harbour Nightly (solid, edge-bar, mark seated) | 0.46 / 0.61 / 0.46 / 0.61 | 0.48 | 0.62 | 0.06 | none |
+| Volt Matchday (solid, accent block, compact) | 0.33 / 0.46 / 0.33 / 0.46 | 0.35 | 0.65 | 0.03 | none |
+| Alder Quiet (no panel, underline, airy) | - (no panel by design) | 0.61 | - | - | none |
+| Sunbeam Daytime (blurred, top rule, airy) | 0.61 / 0.85 / 0.61 / 0.85 | 0.48 | 0.57 | 0.06 | none |
+
+Spacing, proportion AND alignment clean on all four, and the stress hold wraps inside the panel
+rather than escaping it. **The control earned its keep three times over**, which is the argument
+for running it before buying anything: it caught an accent rule that was INVISIBLE on two
+languages (an empty div in a flex column has no width), a supporting line pushed 8px off the
+primary line's axis by its own block's inset, and then - after the obvious repair - the same
+near-miss moved onto the block's edge. None of the three is a model failure and all three would
+have been read as one in a paid round.
+
 Still owed before a paid round: the `--language` arm in the runner, and the calibration re-sweep
 §15.6 names.
 
@@ -1267,8 +1285,19 @@ to be the fix mechanism, and this section exists because we ran it as one for th
   edge is recorded without a finding, because a bleed is a composition and an instrument that
   fails one teaches designs to be timid. `e2e/spike-instruments.spec.ts` pins all four cases and
   each was mutation-checked against the code it guards.
-- **The seated-mark control** has now been failed by the owner twice ("name in the top right,
-  logo centred, empty space underneath"). A control a reviewer fails is not a yardstick.
+- **The seated-mark control - DONE, and it was the SEAT rather than the control.** The owner's
+  three observations ("name in the top right, logo centred, empty space underneath") are one bug:
+  the platform's mark slot spanned a fixed `grid-row: 1 / span 9` so the mark would centre against
+  any design's text stack, and **nine rows means eight ROW GAPS**. A box that declares `gap: 20px`
+  for its two text rows therefore got 160px of empty grid beneath them - the mark centred over the
+  void, the words pushed to the top, and the panel a third taller than its content. Measured, not
+  inferred: `gridTemplateRows` came back `41.8px 24px 0px 0px 0px 0px 0px 0px 0px` with the field
+  225.8px tall, and the spacing instrument read a 4.38x top-to-bottom imbalance
+  (`padding-lopsided`). `placeMark` now COUNTS the rows the text occupies and the slot spans
+  exactly those. After: padding 0.63 top / 0.63 bottom, no findings, footprint 0.08 → 0.04.
+  Pinned by `e2e/spike-instruments.spec.ts`, which asserts both the span and the symmetry.
+  **The same CSS shipped on every seated generation of the 2026-08-13 round**, which is worth
+  remembering when reading that round's verdict.
 - **A calibration re-sweep**, because the two changes above move numbers the thresholds were read
   from: `scripts/spike-spacing-calibrate.mjs` and `scripts/spike-proportion-calibrate.mjs` over
   the catalog, compared against the committed fixtures rather than against an absolute - and

@@ -21,7 +21,6 @@
 // colour, weight, case, tracking, corner, accent form and motion. There is no code path from a
 // model answer to a geometry value.
 
-import { fontById, labelFontFaceCss } from '../../../model/fonts';
 import { defineVariant, lineMasks } from '../../../templates/lowerThirds/shared';
 import type { AssetFile, Resolution, SpxTemplate } from '../../../model/types';
 import type { L3Design } from '../../../templates/lowerThirds/shared';
@@ -126,6 +125,18 @@ ${language.accent.form === 'underline' ? accentEl : ''}    </div>`;
    ${s.ruleGapPx}px at scale 1, which is well clear of the crowding band the spacing instrument
    measures; text sitting ON a rule is a composition this form does not draw. */
 .lower-third-accent {
+${language.accent.form === 'top-rule'
+  ? `  align-self: stretch;              /* a rule across the top spans the words beneath it.
+                                       IT NEEDS A WIDTH FROM SOMEWHERE: the panel is a flex
+                                       column aligned to the reading edge, and an empty div in
+                                       one has no content to be as wide as - which is why this
+                                       accent was INVISIBLE on two of the four languages until
+                                       the free control run rendered them. */`
+  : `  width: ${px(Math.round(s.supportingPx * 2.4))};  /* a SHORT rule, deliberately shorter than
+                                       either line. Stretching it to the text column instead put
+                                       its end 5px past the name's last glyph - a rule that
+                                       almost lines up with the words reads as a mistake, which
+                                       is exactly what the alignment instrument reported. */`}
   height: ${px(s.accentPx)};  /* the language's accent weight */
   background: var(--accent);        /* the one accent surface */
   border-radius: ${px(Math.min(s.cornerPx, s.accentPx))};  /* a rule rounds to its own thickness at most */
@@ -143,14 +154,21 @@ ${language.accent.form === 'underline' ? accentEl : ''}    </div>`;
 .lower-third-mask + .lower-third-mask {
   background: var(--accent);        /* the block the supporting line reads on */
   border-radius: ${px(Math.min(s.cornerPx, 8))};  /* the package's corner language, kept tight */
-  padding: ${px(Math.round(s.lineGapPx / 2))} ${px(s.lineGapPx)};  /* the block's own inset */
+  /* NO INSET ON THE LEADING EDGE, so the block's edge, its words and the primary line above
+     all sit on ONE axis. An inset there has to be paid for somewhere: the first attempt padded
+     both sides and pushed the supporting line 8px off the name's axis, and pulling the block
+     back by the same amount only moved the near-miss onto the block's own edge (measured, both
+     times, by the alignment instrument on the free control run). The trailing edge aligns with
+     nothing, so that is where the words get their air. */
+  padding: ${px(Math.round(s.lineGapPx / 2))} ${px(s.lineGapPx)} ${px(Math.round(s.lineGapPx / 2))} 0;
   align-self: flex-start;           /* the block is as wide as its words, never the panel */
 }`
         : '/* This language carries no accent SHAPE — the accent colour lives in the type alone. */';
 
-  const css = `${heading.fontId === 'jetbrains-mono' ? '' : labelFontFaceCss(fontById('jetbrains-mono'))}
-
-${accentCss}
+  // ONE TYPEFACE, and no second @font-face. The heading face the language chose sets both lines,
+  // because a label font nothing references still ships its bytes into every export - the
+  // dangling-asset class one door over, arriving as dead weight rather than a broken reference.
+  const css = `${accentCss}
 
 /* The panel — ${surface.note}. It is \`width: fit-content\` (the category's auto-fit rule), so
    it is SIZED BY its own text: a longer name widens it and then wraps inside it, and content
