@@ -96,6 +96,22 @@ the vendor prefix, the dot-vs-dash separator and the dated snapshot suffix, and 
 ambiguous or unmatched model is left unpriced and unsuggested rather than guessed at; the model
 box takes free text, so nothing is ever blocked by the book being wrong.
 
+**A LISTING IS NOT AN ENTITLEMENT, and no filter can fix that** (measured on Google,
+2026-08-14). `gemini-2.5-flash` and `gemini-2.5-flash-lite` appear in both of Google's own
+listings, indistinguishable from live models in every published field, and answer 404 "no longer
+available to new users" on a key created after their retirement. Discovery has nothing to filter
+on, so the honest place to help is the ERROR: `providerFailure` maps that shape to "not available
+on this account - the provider lists it but will not serve it". Two consequences worth keeping:
+a curated fallback id in `settings.ts` must be one VERIFIED by a real call, not merely listed
+(`gemini-3.1-flash-lite` is, as of that date), and `scripts/check-model-ids.mjs` cannot catch
+this class at all - it checks presence, and presence is exactly what lies here.
+
+**Verified end to end on real customer credentials 2026-08-14:** Hugging Face
+(`Qwen/Qwen2.5-Coder-3B-Instruct`, 74 schema-capable routes listed for the token) and Google
+(`gemini-3.1-flash-lite`), both returning schema-valid objects through the real adapters. HF
+issues USER ACCESS TOKENS needing the **Inference Providers** permission, never API keys - hence
+`credentialNoun` and the `HF_TOKEN` variable name.
+
 ## Retrieval - the shortlist of proven designs (`retrieval.ts`)
 
 **LIVE, on the ADAPT route only.** The design stage used to be handed `catalogDigest()` - **430
@@ -307,6 +323,19 @@ can fix that, and the two remaining moves - dropping the customer's mark or past
 over the design - are both worse than the defect. The mark ships where the design puts it and the
 pairing is recorded (`logo_ink_unreadable_on_surface`). `ls12`'s fixed dark tile is the one
 ratified exception, because it is a designed part of that composition rather than a repair.
+
+**RECORDING IT WAS NOT ENOUGH, and the value gate is what proved it** (owner's blind ballot,
+2026-08-14 - `docs/AI_LITE_BRAND_PLAN.md` §2.2). A ledger column is not a place anyone looks: a
+knockout mark on a light package shipped invisible on the generated arm AND on the arm a person
+branded by hand, where nothing was recorded at all. `validation/markLegibility.ts` now MEASURES it
+on the rendered frame - the mark's ink probed with the same `probeMarkElement` a real upload goes
+through, against every surface it could be composited over - and says so twice: as the always-on
+`bench-mark-unreadable` warning in the runtime bench, and live in the wizard's Style step, beside
+the palette that broke it. Still no repair, for the reasons above; the change is that the person
+who can fix it is told. **Judged for TRANSPARENT ink only**: swept over all 23 mark-capable lower
+thirds, luminance flagged 2 own-field crests that render perfectly (a blue crest on a red tile
+separates by hue), and a gate whose false positives are the designs that carry a crest best would
+teach authors to ignore it. Pinned by `e2e/mark-legibility.spec.ts`, including the wizard path.
 
 **A BRAND MARK is under the same rule, and `LiteCatalogEntry.logoSlot` is the measurement.**
 `node scripts/ai-lite-brand-audit.mjs --lite --check` renders a real mark into a real slot and

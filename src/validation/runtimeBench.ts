@@ -18,6 +18,7 @@ import { detectPrefix } from '../model/structure';
 import type { SpxTemplate } from '../model/types';
 import type { ValidationIssue, ValidationResult } from './validateTemplate';
 import { unreachableFields } from './fieldPaint';
+import { markLegibilityFindings, markLegibilityMessage } from './markLegibility';
 
 export interface RuntimeBenchOptions {
   /** Hard cap on the whole bench run (iframe load + every phase). */
@@ -888,6 +889,19 @@ export async function benchTemplateRuntime(
     const flow = overflowIssues(leaves, exempt, win, { width, height }, 'with the default field values');
     errors.push(...flow.errors);
     warnings.push(...flow.warnings);
+
+    // ── Can the brand mark be SEEN where the design puts it? ─────────────────────────
+    // Here, on the settled default look, for the same reason the field-paint drive is: this is
+    // the frame that goes to air. NOT opt-in, unlike `fieldPaints` - that one has a false
+    // positive the caller has to rule out (a field only a later state paints), and this one has
+    // none: an image is either readable against its own surface or it is not, and the check
+    // skips anything it cannot measure. A WARNING, because the two available repairs were both
+    // ruled out as worse than the defect (§3.7) - so the honest act is to say so, not to block
+    // an author who knows their mark sits over video.
+    phase = 'mark legibility';
+    for (const finding of markLegibilityFindings(doc, win)) {
+      warnings.push(issue('bench-mark-unreadable', markLegibilityMessage(finding)));
+    }
 
     // ── Every declared field reaches the screen ──────────────────────────────────────
     // Here rather than at the end, because this is where the question starts: the settled

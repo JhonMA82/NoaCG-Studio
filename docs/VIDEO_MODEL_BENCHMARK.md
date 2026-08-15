@@ -40,7 +40,8 @@ benchmark.
 All credentials are server-only and must never use a `VITE_` prefix:
 
 - `AI_GATEWAY_API_KEY` (or the ambient `VERCEL_OIDC_TOKEN`)
-- `HUGGINGFACE_API_KEY`, or the conventional alias `HF_TOKEN`
+- `HF_TOKEN` - a Hugging Face user access token, not an API key (they issue no such thing);
+  `HUGGINGFACE_TOKEN` and the older `HUGGINGFACE_API_KEY` are still read
 - `AI_KEY_ENCRYPTION_SECRET` to accept an optional user key through the encrypted HttpOnly cookie
 - `AI_TIMEOUT_MS` and `AI_RETRY_LIMIT` for bounded provider calls
 - `AI_MODEL_PRICING_JSON` for configured estimates when a provider does not return cost

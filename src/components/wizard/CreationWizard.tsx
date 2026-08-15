@@ -42,6 +42,7 @@ import VideoStep from './steps/VideoStep';
 import BlankStep from './steps/BlankStep';
 import FinishStep, { aiSummaryRows, catalogSummaryRows, type SummaryStepKey } from './steps/FinishStep';
 import { useExportUi } from '../ExportWindow';
+import { useMarkLegibility } from './useMarkLegibility';
 import type { SpxTemplate } from '../../model/types';
 import { clearSpecDraft, type GenerationSpec } from '../../model/generationSpec';
 import type { AiThread } from '../../model/aiThread';
@@ -329,6 +330,9 @@ export default function CreationWizard() {
     () => (variant ? buildDraftTemplate(variant, draft, { stretchDemo: mode === 'design' }) : null),
     [variant, draft, mode],
   );
+  // Can the user's own mark still be seen in the package they picked? Only asked when the draft
+  // actually carries one - the check mounts a frame, and a graphic with no logo cannot fail it.
+  const markWarning = useMarkLegibility(previewTemplate, Boolean(draft.logoAssetPath));
   const blankPreview = useMemo(
     () => (mode === 'blank' ? createBlankTemplate(draftResolution(draft), draft.fps) : null),
     [mode, draft],
@@ -1458,7 +1462,7 @@ export default function CreationWizard() {
               <FieldsStep variant={variant} draft={draft} onDraft={patch} />
             )}
             {step === (mode === 'template' ? 3 : 4) && (mode === 'template' || mode === 'import') && variant && (
-              <StyleStep variant={variant} draft={draft} onDraft={patch} builtCss={previewTemplate?.css ?? null} />
+              <StyleStep variant={variant} draft={draft} onDraft={patch} builtCss={previewTemplate?.css ?? null} markWarning={markWarning} />
             )}
             {step === animStep && (mode === 'template' || mode === 'import') && variant && (
               <AnimationStep

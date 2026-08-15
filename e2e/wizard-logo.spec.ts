@@ -142,6 +142,73 @@ test('a lower third places the logo BESIDE the text, not above it', async ({ pag
   expect(Math.abs(centres.logo - centres.stack)).toBeLessThan(1);
 });
 
+test('a wide lockup is sized by the words, and the strap pays in width', async ({ page }) => {
+  // The owner's blind value-gate ballot (2026-08-14): "the logo is too small compared to the
+  // name and title", on four of eight briefs. Measured over all 23 mark-capable lower thirds,
+  // the cause was arithmetic - the slot's WIDTH cap bound before its height cap, so a 4:1
+  // wordmark painted 33px beside a 54px name and a 13:1 rail painted 10px at 1080p.
+  //
+  // The fix is not a bigger cap on its own: measured, that made 1-3 designs wrap their role and
+  // grew those straps up to 73% TALLER, which is the failure the beside-the-text rule above
+  // exists to prevent. The strap's own wrap cap is widened by the mark's column instead, so the
+  // words keep their whole measure and the graphic grows in the one dimension a strap may spend.
+  //
+  // This pins both halves, because either alone is satisfiable by a wrong change: a mark big
+  // enough to read, AND a strap no taller than the same strap without one.
+  const WORDMARK = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120">'
+    + '<rect width="480" height="120" fill="#1f4f9c"/></svg>',
+    'utf8',
+  );
+  await toFieldsStep(page, 'Lower thirds', 'House Strap');
+
+  const logoSection = page.locator('.panel-section', { hasText: 'Include a logo slot' });
+  await logoSection.getByRole('checkbox').check();
+  await logoSection.locator('input[type="file"]').setInputFiles({
+    name: 'lockup.svg',
+    mimeType: 'image/svg+xml',
+    buffer: WORDMARK,
+  });
+  await expect(logoSection.locator('img[alt="Logo preview"]')).toBeVisible();
+  await awaitPreviewRebuild(page, async () => {
+    await finishIntoEditor(page);
+    await expect(page.locator('.wz-modal')).toBeHidden();
+  });
+
+  const frame = page.frameLocator('iframe.preview-frame');
+  await expect(frame.locator('.lower-third-logo')).toBeVisible();
+  const measured = await frame.locator('.lower-third-box').evaluate((box) => {
+    const win = box.ownerDocument.defaultView!;
+    const logo = box.querySelector('.lower-third-logo')!.getBoundingClientRect();
+    const name = box.querySelector('#f0')!;
+    const style = win.getComputedStyle(name);
+    const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2;
+    // The WORDS' own block - everything in the box that is not the mark, measured as a union
+    // rather than as the wrapper element (the beside-the-text test above says why).
+    const rest = [...box.children]
+      .filter((el) => !el.classList.contains('lower-third-logo'))
+      .map((el) => el.getBoundingClientRect())
+      .filter((r) => r.height > 0);
+    return {
+      markHeight: logo.height,
+      wordsHeight: Math.max(...rest.map((r) => r.bottom)) - Math.min(...rest.map((r) => r.top)),
+      nameFontSize: parseFloat(style.fontSize),
+      nameLines: Math.round(name.getBoundingClientRect().height / Math.max(1, lineHeight)),
+    };
+  });
+
+  // Big enough to read: a 4:1 lockup now paints about 65px against a ~54px name. The floor is
+  // the NAME's own type size rather than a pixel count, because that is the comparison the
+  // ballot actually made - and it was 0.6 of it before.
+  expect(measured.markHeight).toBeGreaterThanOrEqual(measured.nameFontSize);
+  // The words keep their measure: the identity line still sets on ONE line. This is the half a
+  // bigger cap alone fails - measured, it wrapped this line on lt11 and lt25.
+  expect(measured.nameLines).toBe(1);
+  // …and the mark never out-grows the words, which is what stops it setting the strap's height.
+  // A local invariant rather than a before/after: whatever the design, the words decide.
+  expect(measured.markHeight).toBeLessThanOrEqual(measured.wordsHeight + 1);
+});
+
 test('logo toggle off: nothing is injected', async ({ page }) => {
   await toFieldsStep(page, 'Topic', 'Hairline Card');
   // Offered but left off (the default when no image was imported).
