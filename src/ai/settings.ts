@@ -25,6 +25,11 @@ export interface AiProviderOption {
   id: AiProviderId;
   label: string;
   blurb: string;
+  /** What this provider CALLS the credential it issues. Hugging Face issues user access
+   *  TOKENS and has no such thing as an API key, so a surface asking for a "Hugging Face key"
+   *  is asking for something that does not exist - the user then looks for it, does not find
+   *  it, and reasonably concludes the integration is broken. Defaults to 'key'. */
+  credential?: 'key' | 'token';
 }
 
 /**
@@ -42,9 +47,15 @@ export const AI_PROVIDERS: AiProviderOption[] = [
   {
     id: 'huggingface',
     label: 'Hugging Face',
-    blurb: 'Open-weight models through Hugging Face Inference Providers, on your own key.',
+    blurb: 'Open-weight models through Hugging Face Inference Providers, on your own access token.',
+    credential: 'token',
   },
 ];
+
+/** The word a provider uses for its own credential, for any surface that has to name it. */
+export function credentialNoun(provider: AiProviderId): 'key' | 'token' {
+  return AI_PROVIDERS.find((option) => option.id === provider)?.credential ?? 'key';
+}
 
 export const BYOK_PROVIDER_IDS: AiProviderId[] = AI_PROVIDERS.map((provider) => provider.id);
 
@@ -116,8 +127,11 @@ export const AI_MODELS: AiModelOption[] = [
   },
   {
     provider: 'google',
-    id: 'gemini-2.5-flash',
-    label: 'Gemini 2.5 Flash',
+    // Verified callable on a fresh Google key 2026-08-14. Do NOT put a 2.5-series id here: the
+    // listing still advertises them and they answer 404 "no longer available to new users",
+    // which is exactly the trap a fallback suggestion must not walk someone into.
+    id: 'gemini-3.1-flash-lite',
+    label: 'Gemini 3.1 Flash Lite',
     blurb: 'Fallback suggestion when live Google discovery is unavailable.',
     role: 'default',
   },

@@ -92,6 +92,19 @@ test('a model row carries its price per 1M tokens and says which key pays for it
   await expect(page.getByTestId('ai-model-cost')).toContainText('Charged to your OpenAI key.');
 });
 
+test('a provider is asked for the credential IT issues, not for an "API key" it has none of', async ({ page }) => {
+  // Hugging Face issues user access TOKENS and has no API keys at all, so a field labelled
+  // "Hugging Face key" sends a customer looking for a page that does not exist. Verified
+  // against a real token on 2026-08-14; the wording is what was wrong, not the route.
+  await openAiSettings(page);
+  await page.locator('#ai-provider').selectOption('huggingface');
+  await expect(page.getByLabel('Hugging Face token')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Store token' })).toBeVisible();
+  await page.locator('#ai-provider').selectOption('openai');
+  await expect(page.getByLabel('OpenAI key')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Store key' })).toBeVisible();
+});
+
 test('the tier runs on a key the user owns, never on the funded route', async ({ page }) => {
   // The saved route is the managed transport - the harness default, and what every bench sets.
   // Entering the tier must move it onto a real bring-your-own-key provider, or the tier spends

@@ -201,6 +201,24 @@ export interface MarkProbe {
   inkLuminance: number;
 }
 
+/**
+ * Probe an already-loaded image ELEMENT, wherever it lives.
+ *
+ * `probeMark` below answers the same question about an AssetFile the user just dropped;
+ * `validation/markLegibility.ts` asks it of the `<img>` a rendered graphic actually painted,
+ * because the file is not what a viewer sees - the placed mark is. One reader, so the two can
+ * never disagree about what "the ink" or "own-field" means. The element must already be loaded
+ * and same-origin (a data URL, which is what composeDocument inlines).
+ */
+export function probeMarkElement(img: HTMLImageElement): MarkProbe | null {
+  if (!img.complete || !img.naturalWidth) return null;
+  try {
+    return readMark(img);
+  } catch {
+    return null;
+  }
+}
+
 function readMark(img: HTMLImageElement): MarkProbe | null {
   const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
   // The same 64px cap probeAlpha uses: a mark's tone and coverage do not need full resolution,

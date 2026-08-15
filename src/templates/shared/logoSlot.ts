@@ -6,6 +6,7 @@
 // square) keep their own markup; `designHasLogoSlot` keeps this helper away from them.
 
 import type { ResolvedOptions } from '../../model/wizard';
+import { computeMaxTextWidth, maxTextWidthCss } from './base';
 import type { StandardDesign } from './standard';
 
 /** Whether the design already carries its own logo slot (a filelist field or a
@@ -158,23 +159,55 @@ function boxCloseIndex(html: string, from: number): number {
  * margin disappears with the element it is on, so a strap with the slot switched on and no file
  * in it lays out exactly like a strap with no slot at all.
  */
-function sideBySideSizeCss(prefix: string): string {
+/** The mark's column on a strap, and the tallest it may be. Every one of these three numbers is
+ *  MEASURED rather than chosen - see the calibration note in `sideBySideSizeCss`. */
+const MARK_MAX_WIDTH_PX = 260;
+const MARK_MAX_HEIGHT_PX = 84;
+const MARK_CLEAR_PX = 26;
+
+function sideBySideSizeCss(prefix: string, o: ResolvedOptions): string {
   if (prefix !== 'lower-third') return '';
+  // The strap's own wrap cap, WIDENED by the column the mark takes. `computeMaxTextWidth` is the
+  // same function `assembleStandard` calls for the base cap, so the two cannot disagree - and
+  // this rule lands after it (design.css is emitted last at equal specificity), which is what
+  // lets it win. It would desync only if this category grew a `CategorySpec.maxTextWidth` of its
+  // own; it does not have one, and the lower third is the only prefix this function serves.
+  const widened = computeMaxTextWidth(o.resolution) + MARK_MAX_WIDTH_PX + MARK_CLEAR_PX;
   return `
 
 /* On a strap the mark is bounded, never leading: it may take width, and only as much height as
-   the words beside it already occupy. */
+   the words beside it already occupy.
+
+   ── THE THREE NUMBERS, AND THE ROUND THAT SET THEM ────────────────────────────────────────
+   The owner's blind value-gate ballot said the logo was too small on four of eight briefs, and
+   swept over all 23 mark-capable lower thirds the reason was arithmetic rather than taste: the
+   WIDTH cap bound first, so a 4:1 wordmark painted 33px beside a 54px name and a 13:1 rail
+   painted TEN pixels on a 1080p strap. Only a 1:1 crest ever reached the height cap.
+
+   Raising the width cap alone is the obvious fix and it is wrong: measured, 180px made one
+   design wrap, 220px two and 260px three, and each wrapped line grew that strap by up to 73% -
+   which is exactly the failure "a strap spends width, never height" exists to prevent. The
+   width a mark takes on a strap is width taken from the words.
+
+   So the strap's own wrap cap is widened by the mark's column instead. The words keep their
+   whole measure, the mark gets its room, and the graphic grows in the one dimension a strap is
+   allowed to spend. Measured across the same 23 designs with a long academic role: mark height
+   33 -> 65px for a wordmark and 9 -> 20px for a rail, ZERO newly wrapped lines, ZERO height
+   growth, and nothing leaving the title-safe area.
+
+   84px is the height ceiling for the same reason: at 96px the mark starts to out-grow the two
+   lines beside it and sets the row's height itself (+8.5% on some designs), and at 110px +19.7%.
+   84 is the tallest a mark can be while the WORDS still decide how tall the strap is. */
 .${prefix}-logo {
   height: auto;                    /* the artwork no longer dictates a row height */
-  max-height: calc(68px * var(--scale));  /* …and can never out-grow the two lines beside it */
-  /* 132px, in line with what the designs that hand-author a side slot chose for themselves
-     (lt30 124, lt37 126, ls29 136). It was 190 for one round and that was too greedy for a
-     SHARED slot: on lt25, whose measure is narrow, the column took the width a long academic
-     role needed and the identity lines wrapped - bench-line-wrap twice, surfacing as
-     lite-hold-overflow. A slot every design inherits has to be modest, because it cannot know
-     which design's measure it is spending. */
-  max-width: calc(132px * var(--scale));
-  margin: 0 calc(26px * var(--scale)) 0 0;  /* the mark's clear space from the words */
+  max-height: calc(${MARK_MAX_HEIGHT_PX}px * var(--scale));  /* …and can never out-grow the two lines beside it */
+  max-width: calc(${MARK_MAX_WIDTH_PX}px * var(--scale));  /* a wide lockup letterboxes only past ~3:1 */
+  margin: 0 calc(${MARK_CLEAR_PX}px * var(--scale)) 0 0;  /* the mark's clear space from the words */
+}
+/* The wrap cap, widened by exactly the column above: the mark's width is no longer taken out of
+   the text's measure, so a marked strap is WIDER than an unmarked one and never taller. */
+.${prefix}-box {
+  max-width: ${maxTextWidthCss(o.resolution, widened)};
 }`;
 }
 
@@ -263,7 +296,7 @@ ${closeIndent}${design.html.slice(closeAt)}`;
   max-width: calc(260px * var(--scale));  /* the cap a very wide rail letterboxes inside */
   margin-bottom: calc(20px * var(--scale));  /* clear space: a quarter of the mark's height */
   object-fit: contain;             /* show the whole logo, never crop a wide wordmark */
-}${sideBySideSizeCss(prefix)}`;
+}${sideBySideSizeCss(prefix, o)}`;
 
 
   return {

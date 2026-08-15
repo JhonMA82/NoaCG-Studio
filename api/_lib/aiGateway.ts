@@ -863,8 +863,34 @@ function allowlistExcludesModel(body: string): boolean {
   return /No available providers match the '?only'? filter/i.test(body);
 }
 
+/**
+ * The model does not exist FOR THIS CREDENTIAL - which is not the same as not existing.
+ *
+ * Measured against Google AI on 2026-08-14: `gemini-2.5-flash` and `gemini-2.5-flash-lite` are
+ * listed by BOTH of Google's own model listings, with no field of any kind marking them apart,
+ * and then answer 404 "no longer available to new users" for a key created after they were
+ * retired. So a picker cannot filter them out - the listing is what it has to trust - and the
+ * only honest place left to help is the error. A bare "the provider rejected the request"
+ * sends someone hunting a fault in their key or in NoaCG; naming the cause costs one regex.
+ */
+function modelUnavailableForKey(body: string): boolean {
+  return /no longer available|not found for api version|is not supported for|models\/[^"']+ is not found/i.test(body);
+}
+
 function providerFailure(status: number, body = ''): GatewayError {
   if (status === 408) return new GatewayError('timeout', 'The AI provider timed out.', 504, true);
+  if (status === 404 || (status === 400 && modelUnavailableForKey(body))) {
+    if (modelUnavailableForKey(body)) {
+      return new GatewayError(
+        'provider_rejected',
+        'That model is not available on this account - the provider lists it but will not serve it. '
+          + 'Pick a newer model from the list.',
+        502,
+        false,
+      );
+    }
+    return new GatewayError('provider_rejected', 'The AI provider does not know that model id.', 502, false);
+  }
   if (status === 429) return new GatewayError('rate_limited', 'The AI provider is busy. Try again shortly.', 429, true);
   if (status === 400 && allowlistExcludesModel(body)) {
     return new GatewayError(

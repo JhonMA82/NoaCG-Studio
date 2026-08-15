@@ -175,7 +175,9 @@ Managed keys are server-only:
 - `ANTHROPIC_API_KEY`
 - `OPENAI_API_KEY`
 - `GOOGLE_API_KEY` (or the conventional `GEMINI_API_KEY`)
-- `HUGGINGFACE_API_KEY` (or the conventional `HF_TOKEN`)
+- `HF_TOKEN` - Hugging Face issues USER ACCESS TOKENS, not API keys, and the token needs the
+  **Inference Providers** permission or every call answers 401. `HUGGINGFACE_TOKEN` and the
+  older `HUGGINGFACE_API_KEY` are still read, so an existing deployment keeps working.
 
 Optional user-provided keys require `AI_KEY_ENCRYPTION_SECRET` with at least 32 characters.
 The key is submitted once to `PUT /api/ai/credentials`, sealed with AES-256-GCM, and stored
