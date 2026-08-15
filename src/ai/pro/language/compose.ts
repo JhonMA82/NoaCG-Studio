@@ -21,29 +21,37 @@
 // colour, weight, case, tracking, corner, accent form and motion. There is no code path from a
 // model answer to a geometry value.
 
-import { contrastRatio, parseCssColor } from '../../../blocks/cssVars';
-import { clampLitePalette } from '../../liteContract';
 import { defineVariant, lineMasks } from '../../../templates/lowerThirds/shared';
-import type { AssetFile, Resolution, SpxTemplate } from '../../../model/types';
+import type { Resolution, SpxTemplate } from '../../../model/types';
 import type { L3Design } from '../../../templates/lowerThirds/shared';
-import type { LineSpec, Palette, ResolvedOptions, TemplateVariant } from '../../../model/wizard';
+import type { LineSpec, ResolvedOptions, TemplateVariant } from '../../../model/wizard';
 import { accentPlan, resolveSpacing, type ResolvedSpacing } from './structure';
-import type { DesignLanguage } from './contract';
+import type { DesignLanguage, LanguagePalette } from './contract';
+import {
+  markFieldCss,
+  markFieldFor,
+  panelSurface,
+  platformNotes,
+  readableInkOn,
+  resolvePalette,
+  wizardPalette,
+  type BrandPalette,
+  type ProLogo,
+} from './paint';
 
 export interface ComposeOptions {
   /** The lines the graphic carries. Content, never design. */
   lines: LineSpec[];
   resolution?: Resolution;
   fps?: number;
-  /** A brand mark to seat, as the shared slot expects it. `inkLuminance` and `backing` are the
-   *  content-free facts `probeMark` measures; they are what the mark FIELD below decides on. */
-  logo?: {
-    assetPath: string;
-    images: AssetFile[];
-    inkLuminance?: number;
-    inkSpread?: number;
-    backing?: 'transparent' | 'own-field';
-  } | null;
+  /** A brand mark to seat, as the shared slot expects it. */
+  logo?: ProLogo | null;
+  /**
+   * The customer's OWN colours, when they stated any. Identity (accent, panel) is copied from
+   * here verbatim and the model gets no vote on it; furniture is repaired for legibility. See
+   * `resolvePalette` in paint.ts for why this is the platform's job and not the prompt's.
+   */
+  brandPalette?: BrandPalette | null;
   /**
    * PAINT THE MARK'S COLUMN when its ink cannot read on the panel the language chose.
    *
@@ -80,184 +88,16 @@ export interface ComposedGraphic {
   adjustments: string[];
 }
 
-/**
- * The ink that READS on a surface - white or black, whichever measures better.
- *
- * The block accent form used to print the supporting line in `var(--panel-bg)`, on the reasoning
- * that the panel's own colour would look deliberate against the accent. It does not measure:
- * the owner's blind read named it twice on the two graphics that used the form (*"black text on
- * an orange background is not so good"*), and a dark plum on a bright orange is exactly the pair
- * that argument produces. The panel colour is a DESIGN answer to a LEGIBILITY question, which is
- * the class of decision the platform exists to take off the model.
- */
-function readableInkOn(surface: string): string {
-  const bg = parseCssColor(surface);
-  if (!bg) return '#000000';
-  const white = parseCssColor('#ffffff');
-  const black = parseCssColor('#000000');
-  if (!white || !black) return '#000000';
-  return contrastRatio(white, bg) >= contrastRatio(black, bg) ? '#ffffff' : '#000000';
-}
-
-/** The audited pair from `benchmarks/lite/BRAND-AUDIT-2026-08-09.md` - a fixed neutral, never the
- *  palette whose tone already failed. */
-const MARK_FIELD_LIGHT = '#f2f4f7';
-const MARK_FIELD_DARK = '#12161c';
-/** The same 3:1 the rendered mark gate and the Lite brand audit both measure against. */
-const MARK_INK_CONTRAST_FLOOR = 3;
-/**
- * How far a mark's ink may spread and still count as ONE ink (`MarkProbe.inkSpread`).
- *
- * MEASURED over the four fixture marks rather than chosen: the two single-ink marks - a volt
- * wordmark and a navy monogram, hues as far apart as the set holds - come in at 0.0021 and
- * 0.0004, and the full-colour roundel at 0.2053. Two orders of magnitude, so this floor sits 24x
- * above the loosest single ink and 4x below the coloured mark, and no plausible drift crosses it.
- *
- * This is the whole reason the field can be trusted. A mean luminance flagged three marks in the
- * Phase A round and the owner's eye agreed with one; the spread is what separates the mark that
- * genuinely vanishes from the one that merely measures badly.
- */
-const MARK_SINGLE_INK_SPREAD = 0.05;
-
-/** A colour's relative luminance, read back out of the one contrast function this repo has.
- *  contrast(c, black) = (L + 0.05) / 0.05, so L falls straight out of it - which is cheaper and
- *  safer than a second copy of the luminance formula. */
-function luminanceOf(color: string): number | null {
-  const parsed = parseCssColor(color);
-  const black = parseCssColor('#000000');
-  if (!parsed || !black) return null;
-  return contrastRatio(parsed, black) * 0.05 - 0.05;
-}
-
-function contrastFromLuminance(a: number, b: number): number {
-  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-}
-
-/**
- * The surface the mark needs, or null when it already reads.
- *
- * Deciding this needs nothing from the layout - only the mark's measured ink and the panel the
- * language chose - so it is deterministic and it is here. A mark that brings its own field reads
- * on anything and is left alone; a transparent one is judged against the panel, and when it falls
- * under the floor the better of the two audited neutrals is chosen BY MEASUREMENT rather than by
- * assuming a dark ink wants the light one (the sunbeam roundel is the counter-example: mid-tone
- * ink that reads 9.4:1 on the dark neutral and 1.8:1 on the light).
- */
-function markFieldFor(
-  language: DesignLanguage, logo: NonNullable<ComposeOptions['logo']>,
-): { fill: string; reason: string } | null {
-  if (logo.backing === 'own-field' || typeof logo.inkLuminance !== 'number') return null;
-  // ONE INK, OR NOTHING. A coloured mark reads by hue and shape, not by the mean luminance the
-  // contrast test measures, so a field would be a repair for a defect it does not have - which
-  // is exactly what a rendered A/B showed on the Phase A round: the two flagged roundel cells
-  // came out WORSE with a field and the owner's blind read had passed both. An older probe with
-  // no spread at all is treated as "cannot tell", and cannot tell means do not touch it.
-  if (typeof logo.inkSpread !== 'number' || logo.inkSpread > MARK_SINGLE_INK_SPREAD) return null;
-  const panel = luminanceOf(panelSurface(language).value);
-  if (panel === null) return null;   // a panel-free super paints no surface to fail against
-  const onPanel = contrastFromLuminance(logo.inkLuminance, panel);
-  if (onPanel >= MARK_INK_CONTRAST_FLOOR) return null;
-  const light = luminanceOf(MARK_FIELD_LIGHT) ?? 1;
-  const dark = luminanceOf(MARK_FIELD_DARK) ?? 0;
-  const onLight = contrastFromLuminance(logo.inkLuminance, light);
-  const onDark = contrastFromLuminance(logo.inkLuminance, dark);
-  const better = onLight >= onDark
-    ? { fill: MARK_FIELD_LIGHT, ratio: onLight }
-    : { fill: MARK_FIELD_DARK, ratio: onDark };
-  return {
-    fill: better.fill,
-    // An honest failure beats a silent one: if neither neutral clears the floor the field still
-    // goes on, as the best surface available, and the reason says so.
-    reason: `the mark reads ${onPanel.toFixed(2)}:1 on this panel (floor ${MARK_INK_CONTRAST_FLOOR})`
-      + ` - its column carries ${better.fill}, where it reads ${better.ratio.toFixed(2)}:1`,
-  };
-}
-
-/** #rrggbb plus an alpha, as an rgba() a decade-old CasparCG build still parses. No color-mix:
- *  the auto-fit cap next door carries a comment about exactly this, and a panel that silently
- *  drops its background on an old engine is a graphic nobody can read. */
-function rgba(hex: string, alpha: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
-}
-
-/** The surface the words sit on, per the language's panel treatment. */
-function panelSurface(language: DesignLanguage): { value: string; blur: boolean; note: string } {
-  switch (language.shape.panel) {
-    case 'solid':
-      return { value: language.palette.panel, blur: false, note: 'a solid surface' };
-    case 'translucent':
-      return { value: rgba(language.palette.panel, 0.82), blur: false, note: 'a translucent surface' };
-    case 'none':
-      return { value: 'transparent', blur: false, note: 'no surface - the words sit on the picture' };
-    case 'blurred':
-    default:
-      return { value: rgba(language.palette.panel, 0.72), blur: true, note: 'a blurred surface' };
-  }
-}
-
-/**
- * The palette the `:root` contract is written from - IDENTITY verbatim, FURNITURE legible.
- *
- * The split is Lite's, ratified there and imported rather than re-implemented (a second copy of
- * a legibility ladder is how two answers come to disagree): **accent and panel are the model's
- * and are never touched**, while **text and textDim are the platform's** and are brought up to
- * the contrast floor against the panel by `clampLitePalette`'s three rungs.
- *
- * THE FIRST PAID CELL IS WHY THIS IS HERE. The model took the Aldervale Institute's own palette
- * faithfully - navy panel, parchment text, and the brand's "Slate" for the supporting line. Slate
- * is specified as supporting text ON PARCHMENT; on the navy it reads at about 1.9:1, and the role
- * line was barely there. That is not a taste failure to teach away, it is a measurable boundary
- * the platform can simply own - which is the whole of §15.3's ranking.
- *
- * Only the panel's TREATMENT alpha is applied afterwards, so the repair reasons about the colour
- * the words actually sit on.
- */
-function paletteFor(language: DesignLanguage, surface: string): { palette: Palette; adjustments: string[] } {
-  const repaired = clampLitePalette({
-    accent: language.palette.accent,
-    panel: language.palette.panel,
-    text: language.palette.text,
-    textDim: language.palette.textDim,
-  });
-  return {
-    palette: {
-      id: 'pro-language',
-      name: language.name,
-      styleTags: ['noacg'],
-      accent: repaired.palette.accent,
-      text: repaired.palette.text,
-      textDim: repaired.palette.textDim,
-      panel: surface,
-    },
-    adjustments: repaired.adjustments,
-  };
-}
-
-/**
- * The mark's column as a BAND of the composition, not a plate around the artwork.
- *
- * `align-self: stretch` makes the img's own box the full height of the text stack, and
- * `object-fit: contain` keeps the artwork undistorted inside it (never `cover` - the as-is screen
- * refuses a cropped mark, and rightly). So the field reads as a segment of the panel rather than
- * as a rectangle someone pasted behind a logo, which is the whole distinction the no-plate rule
- * turns on - and it is only drawable at all because the platform owns this composition.
- */
-function markFieldCss(fill: string, s: ResolvedSpacing, reason: string): string {
-  return `
-/* == PLATFORM: ${reason}. == */
-.lower-third-box > .lower-third-logo {
-  align-self: stretch;              /* the full height of the words beside it: a band, not a box */
-  background: ${fill};              /* a fixed neutral - never the palette whose tone already failed */
-  object-fit: contain;              /* the whole mark, never cropped or stretched */
-  padding: 0 calc(${Math.round(s.markGapPx / 2)}px * var(--scale));  /* its clear space, inside the field */
-}`;
-}
-
 /** The design body: platform structure, language paint. */
-function buildDesign(language: DesignLanguage, s: ResolvedSpacing, o: ResolvedOptions, markField: string): L3Design {
+function buildDesign(
+  language: DesignLanguage,
+  palette: LanguagePalette,
+  s: ResolvedSpacing,
+  o: ResolvedOptions,
+  markField: string,
+): L3Design {
   const plan = accentPlan(language.accent.form);
-  const surface = panelSurface(language);
+  const surface = panelSurface(language, palette);
   const heading = language.typography;
   const upper = (c: 'as-written' | 'caps') => (c === 'caps' ? 'uppercase' : 'none');
   const px = (n: number) => `calc(${n}px * var(--scale))`;
@@ -341,7 +181,7 @@ ${language.accent.form === 'top-rule'
   padding: ${px(Math.round(s.lineGapPx / 2))} ${px(s.lineGapPx)} ${px(Math.round(s.lineGapPx / 2))} 0;
 }
 /* The block's INK is measured, not designed: white or black, whichever reads on this accent. */
-.lower-third-mask + .lower-third-mask > span { color: ${readableInkOn(language.palette.accent)}; }`
+.lower-third-mask + .lower-third-mask > span { color: ${readableInkOn(palette.accent)}; }`
         : '/* This language carries no accent SHAPE — the accent colour lives in the type alone. */';
 
   // ONE TYPEFACE, and no second @font-face. The heading face the language chose sets both lines,
@@ -388,18 +228,19 @@ ${language.accent.form === 'top-rule'
   return { html, css: css + markField, hasAccent: plan.element };
 }
 
-/** Whether the language's accent form emits a `.PREFIX-accent` element at all. */
-function hasAccentElement(language: DesignLanguage): boolean {
-  return accentPlan(language.accent.form).element;
-}
-
 /**
  * The `TemplateVariant` this language IS. Built rather than looked up: Phase A's claim is that
  * one language renders across every graphic type, and a variant is the unit the wizard, the
  * timeline, the Style panel, the exporters and the control layer all already speak.
  */
-export function variantForLanguage(language: DesignLanguage, markField = ''): TemplateVariant {
+export function variantForLanguage(
+  language: DesignLanguage,
+  markField = '',
+  brandPalette?: BrandPalette | null,
+): TemplateVariant {
   const s = resolveSpacing(language);
+  const { palette } = resolvePalette(language, brandPalette);
+  const surface = panelSurface(language, palette);
   return defineVariant(
     {
       id: 'pro-language',
@@ -415,7 +256,7 @@ export function variantForLanguage(language: DesignLanguage, markField = ''): Te
       ],
       logo: 'optional',
       animationPresets: [s.preset, 'line-reveal', 'slide-up', 'mask-wipe', 'fade'],
-      defaultPalette: paletteFor(language, panelSurface(language).value).palette,
+      defaultPalette: wizardPalette(language, palette, surface.value),
       defaultFontId: language.typography.fontId,
       defaultZone: 'bottom-left',
     },
@@ -424,40 +265,37 @@ export function variantForLanguage(language: DesignLanguage, markField = ''): Te
       description: language.rationale,
       uicolor: '4',
     },
-    (o) => buildDesign(language, s, o, markField),
+    (o) => buildDesign(language, palette, s, o, markField),
   );
 }
 
 /**
- * Render a graphic in this language. Deterministic, token-free, and the same function the paid
- * round and the zero-token control both call - a control that does not run the code under test
- * is not a control (docs/AI_ATTEMPTS.md, the $0.25 lesson).
+ * Render a LOWER THIRD in this language. Deterministic, token-free, and the same function the
+ * paid round and the zero-token control both call - a control that does not run the code under
+ * test is not a control (docs/AI_ATTEMPTS.md, the $0.25 lesson).
+ *
+ * The other graphic types in the package are composed by their own modules and reached through
+ * `graphics.ts`; this one keeps its own entry point because it is what the product, the spike's
+ * anchors and three specs already call.
  */
 export function composeFromLanguage(language: DesignLanguage, options: ComposeOptions): ComposedGraphic {
   const s = resolveSpacing(language);
+  const { palette, adjustments: paletteAdjustments } = resolvePalette(language, options.brandPalette);
+  const surface = panelSurface(language, palette);
   // ON unless a caller explicitly asks for the un-repaired composition - see `ComposeOptions`.
   const markField = options.markField ?? true;
-  const field = markField && options.logo ? markFieldFor(language, options.logo) : null;
-  const variant = variantForLanguage(language, field ? markFieldCss(field.fill, s, field.reason) : '');
-  // Every divergence from what the model asked for, said out loud. A repair the ledger cannot
-  // count is a promise nobody can check (the Lite brand rule, `docs/AI_LITE_BRAND_PLAN.md` §3.2).
-  const adjustments = [
-    ...paletteFor(language, panelSurface(language).value).adjustments,
-    ...(field ? ['mark_field_painted'] : []),
-  ];
-  const notes = [
-    `structure and spacing: platform-owned (${language.density} density -`
-    + ` ${s.padVPx}/${s.padHPx}px padding, ${s.lineGapPx}px line gap, at scale 1)`,
-    `accent: ${accentPlan(language.accent.form).note}`,
-    `surface: ${panelSurface(language).note}`,
-    `motion: ${language.motion.character} at ${language.motion.pace} pace → preset ${s.preset}`,
-  ];
-  if (!hasAccentElement(language) && language.accent.form !== 'none') {
-    notes.push('the accent is drawn without a .lower-third-accent element, so the entrance'
-      + ' animates the panel and its lines rather than a separate shape');
-  }
-  if (adjustments.length) notes.push(`palette furniture repaired: ${adjustments.join(', ')}`);
-  if (field) notes.push(`mark field: ${field.reason}`);
+  const field = markField && options.logo ? markFieldFor(surface.value, options.logo) : null;
+  const variant = variantForLanguage(
+    language,
+    field ? markFieldCss('lower-third', field, s) : '',
+    options.brandPalette,
+  );
+  // Every divergence from what was asked for, said out loud. A repair the ledger cannot count is
+  // a promise nobody can check (the Lite brand rule, `docs/AI_LITE_BRAND_PLAN.md` §3.2).
+  const adjustments = [...paletteAdjustments, ...(field ? ['mark_field_painted'] : [])];
+  const notes = platformNotes({
+    language, spacing: s, surface, prefix: 'lower-third', adjustments, field,
+  });
   const template = variant.create({
     lines: options.lines,
     ...(options.resolution ? { resolution: options.resolution } : {}),

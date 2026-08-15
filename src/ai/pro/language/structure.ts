@@ -33,6 +33,21 @@
 // WHAT THE MODEL DECIDES is which of these arrangements to use and what it looks like - see
 // contract.ts. Nothing in this file is reachable from the model's answer except by picking one of
 // the named enum values, each of which resolves here.
+//
+// ── PHASE B: THE SAME RATIOS, MORE THAN ONE GRAPHIC (docs/NOACG_PRO_PLAN.md §15.9) ──────────
+//
+// A channel does not need a lower third; it needs a lower third, a sponsor bug and a countdown
+// that visibly belong to each other. Every ratio above is therefore expressed against a PER-TYPE
+// anchor (`GRAPHIC_METRICS[id].primaryPx`) rather than against one hard-coded 54px heading: a
+// corner bug's caption is small and a countdown's clock is huge, and holding them to the same
+// absolute size would be sameness rather than coherence.
+//
+// TWO NUMBERS DELIBERATELY DO NOT SCALE WITH THE ANCHOR, and that is the sibling rule made
+// structural (docs/DESIGN_LANGUAGE.md §8, "reuse the exact token values across categories"): the
+// ACCENT's thickness and the CORNER radius are one value for the whole package, resolved against
+// `PACKAGE_UNIT_PX`. The catalog already works this way - lt11, gt05 and bug03 all draw their bar
+// from the family's single `--accent-weight` - and it is what makes three graphics read as one
+// system instead of as three graphics that happen to share a palette.
 
 import type {
   AccentForm,
@@ -53,6 +68,98 @@ import type { AnimPresetId, AnimSpeed } from '../../../model/wizard';
  * at rather than at a size invented here. Everything below is a multiple of it.
  */
 export const HEADING_PX = 54;
+
+/**
+ * The PACKAGE's reference size - the unit the two cross-graphic constants are resolved against.
+ *
+ * It is the lower third's own anchor because the strap is the graphic every package is judged by
+ * and the one type the calibration was taken on; making it a separate constant is what stops a
+ * later edit to one graphic's anchor from silently re-weighting the accent on all three.
+ */
+export const PACKAGE_UNIT_PX = HEADING_PX;
+
+/** The graphic types Pro composes. Ordered by the registry's own frequency figure - how many of
+ *  the 60 reference formats ask for that graphic (`src/templates/types/registry.ts`), which is
+ *  what "a show cannot go on air without it" is answered by here rather than by taste. */
+export const PRO_GRAPHIC_IDS = ['lower-third', 'sponsor-bug', 'countdown'] as const;
+export type ProGraphicId = (typeof PRO_GRAPHIC_IDS)[number];
+
+/**
+ * What a graphic TYPE contributes to the resolved spacing: its own type anchor, its own mark
+ * geometry, and the presets its category actually draws.
+ *
+ * The mark numbers are the SHARED SLOT's, not this file's - `templates/shared/logoSlot.ts` draws
+ * the mark and the two arrangements it draws are the category's decision, never the language's.
+ * They are restated here because the mark FIELD (compose's measured neutral band) has to pad to
+ * the band the platform actually paints; a value invented here would pad to a band that is not
+ * there.
+ */
+export interface GraphicMetrics {
+  /** The primary type size at 1080p, before `--scale` and `--type-scale`. */
+  primaryPx: number;
+  /**
+   * Whether this graphic draws TWO type sizes, so the language's `step` has something to step.
+   *
+   * A sponsor bug carries one line and there is nothing for a hierarchy to be expressed between,
+   * so its caption is set at the primary size and takes the package's LABEL voice - the same
+   * weight, case and tracking a lower third's role line and a countdown's label take. Stepping a
+   * single line down from itself would be a size decision with no relationship in it, and it
+   * would hand the weight floor a number nothing paints.
+   */
+  steppedSecondary: boolean;
+  /** The mark's painted height and its clear space, or null for a type that carries no mark. */
+  mark: { heightPx: number; gapPx: number } | null;
+  /** Motion character to a real preset, per category. A preset the category never drew for is a
+   *  different graphic rather than a different feeling, so each map stays inside the type's own
+   *  declared preset set (`GraphicType.capabilities.animationPresets`). */
+  motion: Record<MotionCharacter, AnimPresetId>;
+}
+
+export const GRAPHIC_METRICS: Record<ProGraphicId, GraphicMetrics> = {
+  // 52 of 60 formats. The strap: two lines, a mark beside them, the calibration's own subject.
+  'lower-third': {
+    primaryPx: HEADING_PX,
+    steppedSecondary: true,
+    // 1.2 type sizes tall, its clear space 0.4 of that - the numbers the §15.8 round measured,
+    // and 26px of clear space is exactly the shared slot's own `MARK_CLEAR_PX`.
+    mark: { heightPx: Math.round(HEADING_PX * 1.2), gapPx: Math.round(HEADING_PX * 1.2 * 0.4) },
+    motion: { snap: 'slide-up', glide: 'mask-wipe', reveal: 'line-reveal', fade: 'fade' },
+  },
+  // 37 of 60 - second only to the lower third. A mark and a caption, parked in a corner for as
+  // long as the segment runs, so the MARK is the graphic and the caption is subordinate to it.
+  'sponsor-bug': {
+    // 24px, the largest caption the four shipped bugs draw (bug03; the other three set 16px).
+    // A bug is read at a glance from across a room, and the catalog's smallest is the size the
+    // §15.8 blind read already called out on a supporting line ("too thin and small").
+    primaryPx: 24,
+    steppedSecondary: false,
+    // The shared slot's stacked band: 64px tall with 20px of clear space beneath it
+    // (`applyLogoSlot`). Not ours to choose - stated so the mark field pads to what is painted.
+    mark: { heightPx: 64, gapPx: 20 },
+    // The corner-bug type declares fade / slide-up / blur-in / pop-spring. A bug has no line to
+    // reveal from behind a mask, so `reveal` resolves out of a blur - the glass entrance the
+    // category already ships (bug01).
+    motion: { snap: 'pop-spring', glide: 'slide-up', reveal: 'blur-in', fade: 'fade' },
+  },
+  // 30 of 60. A labelled clock counting down to zero, pausable on air - and the one of the three
+  // whose primary element is not a line the operator types.
+  countdown: {
+    // The clock, at gt05's own display size. The label steps down from it exactly as a lower
+    // third's role line steps down from the name, which is the point: one type step, one package.
+    primaryPx: 80,
+    steppedSecondary: true,
+    mark: null,   // the countdown type declares `logo: 'none'` - there is no slot to fill
+    // The game-timer category draws exactly two entrances, so three characters resolve onto the
+    // quieter one. That is honest rather than lossy: a category that never drew a glide has no
+    // glide, and inventing one would be a different graphic (see GraphicMetrics.motion).
+    motion: {
+      snap: 'timer-run',
+      glide: 'timer-line-reveal',
+      reveal: 'timer-line-reveal',
+      fade: 'timer-line-reveal',
+    },
+  },
+};
 
 /** How far the supporting line steps down. The catalog's own distribution (p50 0.48, p95 0.63)
  *  read off `scripts/spike-proportion-calibrate.mjs`, not chosen by taste. */
@@ -124,17 +231,8 @@ export const BLOCK_LABEL_MIN_PX = 30;
 export const MARK_HEIGHT_RATIO = 1.2;
 export const MARK_GAP_RATIO = 0.4;
 
-/**
- * Motion character to a real preset. The lower third's declared preset set is the ceiling here:
- * a preset the category never drew for is a different graphic, not a different feeling.
- */
-const MOTION_PRESET: Record<MotionCharacter, AnimPresetId> = {
-  snap: 'slide-up',
-  glide: 'mask-wipe',
-  reveal: 'line-reveal',
-  fade: 'fade',
-};
-
+/** Pace is the one motion decision that means the same thing in every category, so unlike the
+ *  character map above it is a single table. */
 const MOTION_SPEED: Record<MotionPace, AnimSpeed> = { fast: 1.5, measured: 1, slow: 0.75 };
 
 /** Every number the composer needs, resolved from the language. Nothing downstream computes
@@ -158,11 +256,22 @@ export interface ResolvedSpacing {
   speed: AnimSpeed;
 }
 
-export function resolveSpacing(language: DesignLanguage): ResolvedSpacing {
+/**
+ * Every number a composer needs, resolved from the language for ONE graphic type.
+ *
+ * `graphic` defaults to the lower third, which is what keeps the shipped strap byte-identical to
+ * the composition the §15.8 blind read scored: at that anchor every expression below reduces to
+ * the constant it was before Phase B existed.
+ */
+export function resolveSpacing(
+  language: DesignLanguage,
+  graphic: ProGraphicId = 'lower-third',
+): ResolvedSpacing {
+  const metrics = GRAPHIC_METRICS[graphic];
   const space = DENSITY_SPACE[language.density];
-  const heading = HEADING_PX;
+  const heading = metrics.primaryPx;
   const supporting = Math.max(
-    Math.round(heading * STEP_RATIO[language.typography.step]),
+    metrics.steppedSecondary ? Math.round(heading * STEP_RATIO[language.typography.step]) : heading,
     language.accent.form === 'block' ? BLOCK_LABEL_MIN_PX : 0,
   );
   const tracking = TRACKING_EM[language.typography.tracking];
@@ -172,22 +281,35 @@ export function resolveSpacing(language: DesignLanguage): ResolvedSpacing {
     supporting < SUPPORTING_WEIGHT_FLOOR_BELOW_PX ? SUPPORTING_WEIGHT_FLOOR : 0,
     language.accent.form === 'block' ? BLOCK_LABEL_WEIGHT_FLOOR : 0,
   );
+  // ── THE UNIT IS THE LARGEST PAINTED TYPE SIZE, NOT THE ANCHOR ──────────────────────────
+  //
+  // `spacingCheck` reports padding as a ratio of the PRIMARY type size it measures on the frame,
+  // and on two of the three graphics the anchor IS that size - so this reduced to `heading` and
+  // nobody noticed the difference. On a sponsor bug it does not: the caption is the only line,
+  // and the block accent form's own size floor (BLOCK_LABEL_MIN_PX) can raise what is painted
+  // above the anchor the padding was derived from. Measured on the free per-type sweep: a compact
+  // block-accent bug came out at 8px of padding on a 30px caption - 0.27 against a 0.28 floor,
+  // `padding-tight`, on a composition whose whole premise is that the threshold is cleared BY
+  // CONSTRUCTION. Deriving the unit from what is painted is what makes that true again.
+  const unit = Math.max(heading, supporting);
   return {
     headingPx: heading,
     supportingPx: supporting,
-    padVPx: Math.round(heading * space.padV),
-    padHPx: Math.round(heading * space.padH),
-    lineGapPx: Math.round(heading * space.lineGap),
-    accentPx: Math.round(heading * ACCENT_RATIO[language.accent.weight]),
+    padVPx: Math.round(unit * space.padV),
+    padHPx: Math.round(unit * space.padH),
+    lineGapPx: Math.round(unit * space.lineGap),
+    // Against the PACKAGE unit, not this graphic's anchor - one bar weight for the whole set.
+    accentPx: Math.round(PACKAGE_UNIT_PX * ACCENT_RATIO[language.accent.weight]),
     ruleGapPx: Math.round(heading * RULE_GAP_RATIO),
     cornerPx: CORNER_PX[language.shape.corner],
-    markHeightPx: Math.round(heading * MARK_HEIGHT_RATIO),
-    markGapPx: Math.round(heading * MARK_HEIGHT_RATIO * MARK_GAP_RATIO),
+    // The shared slot's own geometry, or the lower third's ratios where it has none to state.
+    markHeightPx: metrics.mark?.heightPx ?? Math.round(heading * MARK_HEIGHT_RATIO),
+    markGapPx: metrics.mark?.gapPx ?? Math.round(heading * MARK_HEIGHT_RATIO * MARK_GAP_RATIO),
     headingWeight: WEIGHT[language.typography.headingWeight],
     supportingWeight,
     headingTracking: tracking.heading,
     supportingTracking: tracking.supporting,
-    preset: MOTION_PRESET[language.motion.character],
+    preset: metrics.motion[language.motion.character],
     speed: MOTION_SPEED[language.motion.pace],
   };
 }

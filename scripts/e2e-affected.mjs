@@ -44,6 +44,16 @@ const MAP = [
   // union'd with it: the language path shares nothing with the concept-and-compile pipeline
   // pro.spec.ts covers, so its guarantees had no gate at all until this spec existed.
   [/^src\/ai\/pro\/language\//, ['pro-language.spec.ts']],
+  // …and the platform HALF of that composer, which since Phase B (§15.9) is the graphic-type
+  // registry and two category assemblers rather than one. A Pro sponsor bug is compiled through
+  // `types/bugs.ts` and a Pro countdown through `types/clocks.ts`, and both take their mark
+  // placement from the shared logo slot - so a change to any of them can break a Pro package
+  // while every catalog spec stays green, which is exactly the mapping hole this file exists to
+  // close. Union'd with the generic src/templates rule below.
+  [
+    /^src\/templates\/(types\/(bugs|clocks|graphicType|registry)\.ts|shared\/(logoSlot|standard)\.ts|(cornerBug|gameTimers|lowerThirds)\/shared\.ts)$/,
+    ['pro-language.spec.ts'],
+  ],
   [/^src\/ai\/pro\//, ['pro.spec.ts', 'import-graphic.spec.ts']],
   // The bench-only spike instruments. They never gate a user flow, but they are what a paid
   // round's numbers MEAN - and the panel-overflow blindness (docs/NOACG_PRO_PLAN.md §15.6) is

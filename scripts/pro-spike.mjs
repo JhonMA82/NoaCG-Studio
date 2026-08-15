@@ -188,6 +188,8 @@ if (flag('rebuild')) {
     capturedAt: ledger.capturedAt ?? null,
   }));
   await writeNotesTemplate(path.join(OUT, 'notes.md'), ledger.results);
+  const rebuiltSet = setGalleryHtml(ledger.results, { name: path.basename(OUT) });
+  if (rebuiltSet) await writeFile(path.join(OUT, 'set-gallery.html'), rebuiltSet);
   console.log(`Rebuilt ${path.join(OUT, 'review.html')} from ${ledger.results.length} record(s). No tokens spent.`);
   process.exit(0);
 }
@@ -385,7 +387,7 @@ async function captureHold(item, measure = false) {
   // Measure the SETTLED frame while it is still mounted: the rendered mark gate (the Phase 0
   // broken-image lesson - read the paint, not the markup) and the alignment-axis instrument.
   // Normal hold only: the stress hold is the same layout under longer text.
-  const measured = !measure ? null : await page.evaluate(async ({ markFieldId, markProbe }) => {
+  const measured = !measure ? null : await page.evaluate(async ({ markFieldId, markProbe, instruments }) => {
     const bust = '?t=' + Date.now();
     const { measureRenderedMark } = await import('/src/ai/spike/brand.ts' + bust);
     const { measureAxes } = await import('/src/ai/spike/axisCheck.ts' + bust);
@@ -393,15 +395,24 @@ async function captureHold(item, measure = false) {
     const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts' + bust);
     const doc = document.getElementById('spike-hold-frame')?.contentDocument;
     if (!doc) return null;
+    // THE THRESHOLDS ARE THE GRAPHIC TYPE's (`PRO_GRAPHICS[id].instruments`, §15.9). Every number
+    // in both instruments was calibrated on the lower-third catalog, and measured over the
+    // shipped bugs and timers seven of fourteen fail a threshold that is simply not about them.
+    // Absent = the lower third's own value, which is what a strap keeps.
+    const base = { markFieldId: markFieldId ?? null };
     return {
       axis: measureAxes(doc),
       // Padding and gaps as ratios of type size - the other half of what the owner's blind
       // reads keep naming (docs/DESIGN_PRINCIPLES.md §4, §9).
-      spacing: measureSpacing(doc, { markFieldId: markFieldId ?? null }),
-      proportion: measureProportion(doc, { markFieldId: markFieldId ?? null }),
+      spacing: measureSpacing(doc, { ...base, ...(instruments?.spacing ?? {}) }),
+      proportion: measureProportion(doc, { ...base, ...(instruments?.proportion ?? {}) }),
       mark: markFieldId && markProbe ? measureRenderedMark(doc, markFieldId, markProbe) : null,
     };
-  }, { markFieldId: item.markFieldId ?? null, markProbe: item.markProbe ?? null });
+  }, {
+    markFieldId: item.markFieldId ?? null,
+    markProbe: item.markProbe ?? null,
+    instruments: item.instruments ?? null,
+  });
   const file = `${item.slug}.hold.png`;
   await page.frameLocator('#spike-hold-frame').locator('body').screenshot({ path: path.join(OUT, file) });
   await page.evaluate(() => document.getElementById('spike-hold-frame')?.remove());
@@ -847,8 +858,15 @@ const freeItems = await page.evaluate(async (markBrand) => {
   // composer. Free, and the whole point of running them here is that the composer is measured by
   // the same instruments a paid round is scored by, before a paid round exists.
   const languages = spikeAnchors.languageAnchors(markBrand);
+  // PHASE B (§15.9): the same four languages as the two NEW graphic types - a sponsor bug and a
+  // countdown - through `composeGraphic`, the identical function the paid arm takes. It covers
+  // the new types only: the strap's four control rows are the §15.5 table this round is compared
+  // against, so re-composing them here would either duplicate every row or move a baseline.
+  const { newTypeAnchors } = await import('/src/ai/pro/language/control.ts' + bust);
+  const { PRO_GRAPHICS } = await import('/src/ai/pro/language/graphics.ts' + bust);
+  const newTypes = newTypeAnchors(markBrand ? markBrand.mark : null);
   return [control, ...(markControl ? [markControl] : []), ...(seatedControl ? [seatedControl] : []),
-    ...languages, ...anchors].map((a) => ({
+    ...languages, ...newTypes, ...anchors].map((a) => ({
     id: a.id,
     kind: a.kind,
     provenance: a.provenance,
@@ -856,6 +874,8 @@ const freeItems = await page.evaluate(async (markBrand) => {
     data: a.data,
     stressData: a.stressData,
     markFieldId: a.markFieldId ?? null,
+    graphic: a.graphic ?? 'lower-third',
+    instruments: PRO_GRAPHICS[a.graphic ?? 'lower-third'].instruments,
   }));
 }, controlBrand);
 
@@ -867,11 +887,16 @@ for (const item of freeItems) {
     slug,
     markProbe: item.markFieldId && controlBrand ? controlBrand.mark.probe : null,
   });
+  const flagged = [
+    ...(captured.spacingReport?.findings ?? []),
+    ...(captured.proportionReport?.findings ?? []),
+  ];
   const record = {
     blindId: blindId(),
     slug,
     kind: item.kind,
     provenance: item.provenance,
+    graphic: item.graphic ?? 'lower-third',
     ...captured,
     ms: Date.now() - started,
   };
@@ -880,6 +905,9 @@ for (const item of freeItems) {
   console.log(`  ${slug} · in ${record.plan.measured.inMs} ms · out ${record.plan.measured.outMs} ms`
     + ` · ${record.frames.length} motion frames · ${clipsCell(record)}${flat}`
     + `${record.errors.length ? ` · ${record.errors.length} runtime error(s)` : ''}`);
+  // A Phase A composition flagging ANYTHING is a composer bug, and the control exists to find it
+  // for free - so the readings are printed here rather than left in the ledger for later.
+  for (const finding of flagged) console.log(`    ⚠ ${finding.code}: ${finding.detail}`);
   for (const error of record.errors) console.log(`    ✗ ${error}`);
   if (record.markReport) {
     console.log(`    mark: ${record.markReport.findings.length ? record.markReport.findings.join(', ') : 'CLEAN'}`
@@ -890,6 +918,11 @@ for (const item of freeItems) {
   if (record.axisReport && (record.axisReport.nearMisses.length || record.axisReport.skewStraddles.length)) {
     console.log(`    axis: ${record.axisReport.nearMisses.length} near-miss(es),`
       + ` ${record.axisReport.skewStraddles.length} skew straddle(s)`);
+    // The READING, not just the count - a near-miss is only actionable if you can see which two
+    // edges almost line up, and on a free control run there is no reason to leave it in a file.
+    for (const miss of record.axisReport.nearMisses) {
+      console.log(`      ${typeof miss === 'string' ? miss : JSON.stringify(miss)}`);
+    }
   }
   logEscapes(record);
 }
@@ -971,6 +1004,7 @@ if (paid) {
           const bust = '?t=' + Date.now();
           const { generateDesignLanguage } = await import('/src/ai/pro/language/generate.ts' + bust);
           const { composeFromLanguage } = await import('/src/ai/pro/language/compose.ts' + bust);
+          const { composeGraphic, packageLines, PRO_GRAPHIC_LIST } = await import('/src/ai/pro/language/graphics.ts' + bust);
           const { validateProLanguage } = await import('/src/ai/pro/language/gate.ts' + bust);
           const { brandBlock } = await import('/src/ai/spike/brand.ts' + bust);
           const spikeAnchors = await import('/src/ai/spike/anchors.ts' + bust);
@@ -1047,7 +1081,80 @@ if (paid) {
             data[slotFieldId] = input.brand.mark.path;
             stressData[slotFieldId] = input.brand.mark.path;
           }
+
+          // ── THE REST OF THE PACKAGE (§15.9) ─────────────────────────────────────────────
+          //
+          // The SAME language, rendered as every other graphic type Pro composes. This is the
+          // whole Phase B question and it costs NOTHING: the model call above is the only paid
+          // step, and composing is deterministic - so a package of three graphics is one call,
+          // not three. That is also the claim Pro is sold on, and until this loop existed it had
+          // been tested on one type.
+          //
+          // The words are the SET's, from one show's facts (`packageLines`): the strap names the
+          // person on camera, the bug names the channel that is on screen all segment, and the
+          // countdown names what the viewer is waiting for. Three unrelated captions would make
+          // a coherence read impossible to answer.
+          const show = {
+            name: input.brief.name,
+            title: input.brief.title,
+            channel: input.brand?.name ?? null,
+          };
+          const members = [];
+          for (const spec of PRO_GRAPHIC_LIST) {
+            if (spec.id === 'lower-third') continue;   // captured as the record's own graphic
+            const memberLogo = spec.takesMark && input.brand
+              ? {
+                assetPath: input.brand.mark.path,
+                images: [{ path: input.brand.mark.path, data: input.brand.mark.dataUrl }],
+                backing: input.brand.mark.probe.backing,
+                inkLuminance: input.brand.mark.probe.inkLuminance,
+                ...(typeof input.brand.mark.probe.inkSpread === 'number'
+                  ? { inkSpread: input.brand.mark.probe.inkSpread }
+                  : {}),
+              }
+              : null;
+            const memberLines = packageLines(spec.id, show);
+            const composedMember = composeGraphic(spec.id, generated.language, {
+              lines: memberLines,
+              ...(memberLogo ? { logo: memberLogo } : {}),
+            });
+            // Through the SAME gate the strap goes through - one seam, every graphic.
+            const memberValidation = await validateProLanguage(
+              composedMember,
+              generated.fallbacks,
+              productionSpxValidator(null, input.brand ? [input.brand.mark.path] : []),
+            );
+            const memberText = composedMember.template.fields.filter(
+              (f) => f.ftype === 'textfield' || f.ftype === 'textarea',
+            );
+            const memberData = {};
+            memberText.forEach((f, i) => {
+              memberData[f.field] = memberLines[i]?.sample ?? String(f.value ?? '');
+            });
+            const memberSlot = memberLogo
+              ? composedMember.template.fields.find((f) => f.ftype === 'filelist')?.field ?? null
+              : null;
+            if (memberSlot) memberData[memberSlot] = input.brand.mark.path;
+            members.push({
+              graphic: spec.id,
+              label: spec.label,
+              instruments: spec.instruments,
+              template: composedMember.template,
+              data: memberData,
+              markFieldId: memberSlot,
+              notes: composedMember.notes,
+              adjustments: composedMember.adjustments,
+              spacingPlan: composedMember.spacing,
+              validation: {
+                ok: memberValidation.ok,
+                errors: memberValidation.errors.map((e) => `${e.rule}: ${e.message.slice(0, 200)}`),
+                warnings: memberValidation.warnings.map((e) => `${e.rule}: ${e.message.slice(0, 200)}`),
+              },
+            });
+          }
+
           return {
+            setMembers: members,
             template,
             validation: {
               ok: validation.ok,
@@ -1249,6 +1356,64 @@ if (paid) {
         captured = { captureError: error.message.slice(0, 500), frames: [], errors: [] };
       }
 
+      // ── THE REST OF THE PACKAGE, captured beside the strap (§15.9) ─────────────────────
+      //
+      // A HOLD each, not a full motion set: the coherence question is answered by looking at
+      // three graphics on one screen, and three motion strips per cell would triple the round's
+      // wall clock to answer a question nobody asked of it. Each member is measured under its
+      // OWN graphic type's thresholds, which is the whole point of the per-type calibration.
+      const setMembers = [];
+      for (const member of outcome.setMembers ?? []) {
+        try {
+          const shot = await captureHold({
+            template: member.template,
+            data: member.data,
+            slug: `${slug}.${member.graphic}`,
+            markFieldId: member.markFieldId,
+            markProbe: member.markFieldId && brand ? brand.mark.probe : null,
+            instruments: member.instruments,
+          }, true);
+          setMembers.push({
+            graphic: member.graphic,
+            label: member.label,
+            hold: shot.file,
+            ...(shot.playError ? { playError: shot.playError } : {}),
+            ...(shot.measured?.spacing ? { spacingReport: shot.measured.spacing } : {}),
+            ...(shot.measured?.proportion ? { proportionReport: shot.measured.proportion } : {}),
+            ...(shot.measured?.mark ? { markReport: shot.measured.mark } : {}),
+            notes: member.notes,
+            adjustments: member.adjustments,
+            spacingPlan: member.spacingPlan,
+            validation: member.validation,
+          });
+          const findings = [
+            ...(shot.measured?.spacing?.findings ?? []),
+            ...(shot.measured?.proportion?.findings ?? []),
+          ];
+          console.log(`    set · ${member.label.padEnd(13)} ${findings.length
+            ? findings.map((f) => f.code).join(', ') : 'clean'}`
+            + `${member.validation.ok ? '' : ` · VALIDATION FAILED: ${member.validation.errors[0] ?? ''}`}`
+            + `${shot.playError ? ` · ✗ ${shot.playError}` : ''}`);
+          for (const f of findings) console.log(`        ${f.code}: ${f.detail}`);
+        } catch (error) {
+          // Same rule as the strap's capture: a capture failure is a RESULT. The language is
+          // already paid for and the member composes deterministically from it.
+          console.log(`    set · ${member.graphic}: CAPTURE FAILED ${error.message.split('\n')[0]}`);
+          setMembers.push({ graphic: member.graphic, label: member.label, captureError: error.message.slice(0, 300) });
+        }
+      }
+      // The member CODE is saved too - it is as much a deliverable as the strap's, and it is
+      // what an export or a re-read is done from.
+      for (const member of outcome.setMembers ?? []) {
+        const memberDir = path.join(codeDir, member.graphic);
+        await mkdir(memberDir, { recursive: true });
+        await Promise.all([
+          writeFile(path.join(memberDir, 'index.html'), member.template.html),
+          writeFile(path.join(memberDir, 'template.css'), member.template.css),
+          writeFile(path.join(memberDir, 'template.js'), member.template.js),
+        ]);
+      }
+
       const record = {
         blindId: blindId(),
         slug,
@@ -1275,6 +1440,7 @@ if (paid) {
           }
           : {}),
         fill: outcome.fill,
+        ...(setMembers.length ? { setMembers } : {}),
         validation: outcome.validation,
         repairRounds: outcome.repairRounds,
         contract,
@@ -1359,11 +1525,17 @@ await writeFile(reviewFile, reviewHtml(results, {
   capturedAt: new Date().toISOString(),
 }));
 await writeNotesTemplate(notesFile, results);
+// THE SET GALLERY (§15.9) - the one artifact the package-coherence claim can be read from, and
+// mode-scoped like the others so a free control rerun never replaces a paid round's.
+const setFile = path.join(OUT, paid ? 'set-gallery.html' : 'control-set-gallery.html');
+const setGallery = setGalleryHtml(results, { name: path.basename(OUT) });
+if (setGallery) await writeFile(setFile, setGallery);
 
 const candidates = results.filter((r) => r.kind === 'candidate' && !r.skipped && !r.error);
 console.log(`\n${candidates.length} candidate(s) captured, ${results.length - candidates.length} control/anchor/failed`
   + `${paid ? ` · spent ~$${spentUsd.toFixed(3)} of the $${maxCost.toFixed(2)} ceiling` : ''}`);
 console.log(`Blind gallery: ${reviewFile}`);
+if (setGallery) console.log(`Set gallery (judge the ROW, not the graphics): ${setFile}`);
 console.log(`Write notes into ${notesFile} BEFORE running --reveal.`);
 await browser.close();
 
@@ -1415,6 +1587,12 @@ async function blindTheFrames(all) {
     };
     record.blindHold = await copy(record.hold, 'hold');
     record.blindStressHold = await copy(record.stressHold, 'stress');
+    // The rest of the package (§15.9) is blinded on the same rule and for the same reason: the
+    // set gallery's whole job is "do these three belong to each other", and a filename naming
+    // the brand answers a different question before the reviewer has looked.
+    for (const member of record.setMembers ?? []) {
+      member.blindHold = await copy(member.hold, `set-${member.graphic}`);
+    }
     for (const frame of record.frames ?? []) {
       frame.blindFile = await copy(frame.file, `${frame.strip}-${frame.index}`);
     }
@@ -1708,6 +1886,90 @@ ${rows}
  * different brands must be visibly different graphics; four tints of one design is the named
  * failure. Null when the round had no brands (a --no-brand run).
  */
+/**
+ * THE SET GALLERY - three graphic types side by side, one row per design language (§15.9).
+ *
+ * The Phase B claim is not "the composer handles three types"; the instruments answer that and
+ * they answered it for free. It is that ONE language produces a package a channel could put on
+ * air - judged AS A SET, which is a question no per-graphic gallery can ask, because every
+ * graphic in a bad package can be individually fine.
+ *
+ * IT IS BLIND, like the main gallery and for the same reason. The row is keyed by its blind id
+ * and every image is a blind copy, so "these three belong to each other" is answered before
+ * anyone knows which brand or which checkpoint produced them. The brand names live in key.html.
+ *
+ * On a CONTROL run the members are separate records rather than one record's `setMembers`, so
+ * the rows are grouped by the hand-written language they were composed from - the languages are
+ * ours and there is nothing to blind about them.
+ */
+function setGalleryHtml(all, round = {}) {
+  const rows = [];
+  // Paid rows: one record carrying the strap plus its package members.
+  for (const r of all) {
+    if (!r.setMembers?.length || r.skipped || r.error) continue;
+    const cells = [
+      { label: 'Lower third', file: r.blindHold ?? r.hold, findings: findingCodes(r) },
+      ...r.setMembers.map((m) => ({
+        label: m.label ?? m.graphic,
+        file: m.blindHold ?? m.hold,
+        findings: findingCodes(m),
+      })),
+    ];
+    rows.push({ key: r.blindId, sub: r.language?.name ? `“${r.language.name}”` : '', cells });
+  }
+  // Control rows: `language-<graphic>-<slug>` records, grouped by the language slug.
+  const byLanguage = new Map();
+  for (const r of all) {
+    const match = /^language-(?:([a-z-]+?)-)?((?:harbour|volt|alder|sunbeam)-[a-z-]+)$/.exec(r.slug ?? '');
+    if (!match || r.setMembers?.length) continue;
+    const [, , slug] = match;
+    if (!byLanguage.has(slug)) byLanguage.set(slug, []);
+    byLanguage.get(slug).push(r);
+  }
+  for (const [slug, records] of byLanguage) {
+    if (records.length < 2) continue;   // one graphic is not a set
+    const order = ['lower-third', 'sponsor-bug', 'countdown'];
+    const cells = records
+      .sort((a, b) => order.indexOf(a.graphic ?? 'lower-third') - order.indexOf(b.graphic ?? 'lower-third'))
+      .map((r) => ({
+        label: (r.graphic ?? 'lower-third').replace(/-/g, ' '),
+        file: r.blindHold ?? r.hold,
+        findings: findingCodes(r),
+      }));
+    rows.push({ key: slug.replace(/-/g, ' '), sub: 'zero-token control', cells });
+  }
+  if (!rows.length) return null;
+  const sections = rows.map((row) => {
+    const cells = row.cells.map((c) => `<figure><img src="${c.file}">`
+      + `<figcaption>${c.label}${c.findings.length ? ` · <b>${c.findings.join(', ')}</b>` : ''}</figcaption></figure>`).join('');
+    return `<section><h2>${row.key} <span>${row.sub}</span></h2><div class="row">${cells}</div></section>`;
+  }).join('\n');
+  return `<!doctype html><meta charset="utf-8">
+<title>NoaCG Pro - the package, judged as a set</title>
+<style>body{background:#101216;color:#e8e9ec;font:14px/1.5 system-ui;padding:24px;max-width:1900px;margin:0 auto}
+h1{font-size:19px} h2{font-size:14px;border-top:1px solid #2a2d34;padding-top:14px;margin:26px 0 8px}
+h2 span{color:#9aa0ab;font-weight:400}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start} figure{margin:0}
+img{width:560px;border:1px solid #2a2d34;background:#000;display:block}
+figcaption{color:#9aa0ab;font-size:11px;margin-top:3px} b{color:#f0a94a}
+p{color:#9aa0ab;max-width:70ch}</style>
+<h1>One design language, the whole package${round.name ? ` - ${round.name}` : ''}</h1>
+<p>Each row is ONE design language rendered as every graphic type Pro composes. Judge the ROW,
+not the graphics: a channel needs a lower third, a sponsor bug and a countdown that visibly
+belong to each other, and every graphic in an incoherent package can be individually fine.</p>
+<p>Blind: the rows are keyed by their blind id and the images are blind copies. What produced
+each row is in <code>key.html</code>, after the notes are written.</p>
+${sections}`;
+}
+
+/** The codes both instruments raised on one capture, for the gallery caption. */
+function findingCodes(record) {
+  return [
+    ...(record.spacingReport?.findings ?? []).map((f) => f.code),
+    ...(record.proportionReport?.findings ?? []).map((f) => f.code),
+  ];
+}
+
 function divergenceHtml(ledger) {
   // A capture-failed record has no hold to compare - the key still carries it.
   const candidates = ledger.results.filter((r) => r.kind === 'candidate' && r.brand && !r.skipped && !r.error && r.hold);

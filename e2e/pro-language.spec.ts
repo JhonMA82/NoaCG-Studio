@@ -345,3 +345,225 @@ test.describe('the platform owns the Phase A panel', () => {
     );
   });
 });
+
+// ── PHASE B: the language drives a PACKAGE (§15.9) ─────────────────────────────────────────
+//
+// Everything above measures ONE graphic type. The claim Pro is sold on is that a design language
+// renders across every graphic type a show needs, and the tests below are the ones that fail if
+// that stops being true: a new type composing dirty, a package whose members stop sharing the
+// decisions that make them siblings, and a stated brand palette the model gets a vote on.
+test.describe('one design language, the whole package', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/app', { waitUntil: 'domcontentloaded' });
+    await page.locator('.topbar').waitFor();
+  });
+
+  test('every graphic type composes clean under its own calibrated thresholds', async ({ page }) => {
+    const rows = await page.evaluate(async () => {
+      const { STUB_LANGUAGES } = await import('/src/ai/pro/language/stub.ts');
+      const { composeGraphic, packageLines, PRO_GRAPHIC_LIST } = await import('/src/ai/pro/language/graphics.ts');
+      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts');
+      const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts');
+
+      const show = { name: 'Priya Raghunathan', title: 'Senior Research Fellow', channel: 'Northgate Sport' };
+      const out: { graphic: string; language: string; codes: string[] }[] = [];
+      for (const spec of PRO_GRAPHIC_LIST) {
+        for (const language of STUB_LANGUAGES) {
+          const lines = packageLines(spec.id, show);
+          const { template } = composeGraphic(spec.id, language, { lines });
+          document.getElementById('pkg-frame')?.remove();
+          const frame = document.createElement('iframe');
+          frame.id = 'pkg-frame';
+          frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;'
+            + 'z-index:99999;background:#333;color-scheme:dark;';
+          document.body.appendChild(frame);
+          frame.srcdoc = composeDocument(template);
+          await new Promise((resolve) => { frame.onload = resolve; });
+          const win = frame.contentWindow as Window & { update: (j: string) => void; play: () => void };
+          const doc = frame.contentDocument as Document;
+          const data: Record<string, string> = {};
+          template.fields
+            .filter((f) => f.ftype === 'textfield' || f.ftype === 'textarea')
+            .forEach((f, i) => { data[f.field] = lines[i]?.sample ?? String(f.value ?? ''); });
+          try {
+            win.update(JSON.stringify(data));
+            win.play();
+          } catch { /* a graphic that throws still paints - measure that */ }
+          await doc.fonts.ready;
+          await new Promise((resolve) => setTimeout(resolve, 700));
+          // THE TYPE's OWN thresholds - every calibrated number in both instruments was read off
+          // the lower-third catalog, and measured over the shipped bugs and timers half of them
+          // fail a threshold that is simply not about them (§15.9).
+          const codes = [
+            ...measureSpacing(doc, { ...(spec.instruments.spacing ?? {}) }).findings.map((f) => f.code),
+            ...measureProportion(doc, { ...(spec.instruments.proportion ?? {}) }).findings.map((f) => f.code),
+          ];
+          out.push({ graphic: spec.id, language: language.name, codes });
+          frame.remove();
+        }
+      }
+      return out;
+    });
+
+    // Three graphic types x four deliberately far-apart languages.
+    expect(rows).toHaveLength(12);
+    for (const row of rows) {
+      expect(row.codes, `${row.graphic} in ${row.language}`).toEqual([]);
+    }
+  });
+
+  test('the package shares the decisions that make its members siblings', async ({ page }) => {
+    const sets = await page.evaluate(async () => {
+      const { STUB_LANGUAGES } = await import('/src/ai/pro/language/stub.ts');
+      const { composeGraphic, packageLines, PRO_GRAPHIC_LIST } = await import('/src/ai/pro/language/graphics.ts');
+      const { resolveSpacing } = await import('/src/ai/pro/language/structure.ts');
+
+      const show = { name: 'Priya Raghunathan', title: 'Senior Research Fellow', channel: 'Northgate Sport' };
+      return STUB_LANGUAGES.map((language) => ({
+        name: language.name,
+        members: PRO_GRAPHIC_LIST.map((spec) => {
+          const { template } = composeGraphic(spec.id, language, {
+            lines: packageLines(spec.id, show),
+          });
+          const s = resolveSpacing(language, spec.id);
+          // Read off the emitted `:root` contract - what the graphic is actually drawn in,
+          // never what it was asked for.
+          const root = /:root\s*\{([\s\S]*?)\}/.exec(template.css)?.[1] ?? '';
+          const varOf = (name: string) => new RegExp(`--${name}:\\s*([^;]+);`).exec(root)?.[1].trim() ?? null;
+          return {
+            graphic: spec.id,
+            accentPx: s.accentPx,
+            cornerPx: s.cornerPx,
+            accent: varOf('accent'),
+            panelBg: varOf('panel-bg'),
+            text: varOf('text-color'),
+            font: varOf('font-heading'),
+            // …and the anchor sizes must DIFFER, or "coherent" would just mean "identical".
+            primaryPx: s.headingPx,
+          };
+        }),
+      }));
+    });
+
+    for (const set of sets) {
+      const [first, ...rest] = set.members;
+      for (const member of rest) {
+        // THE SIBLING RULE, made structural (DESIGN_LANGUAGE §8): the accent's weight and the
+        // corner radius are resolved against the PACKAGE unit, not against each graphic's own
+        // anchor, so all three carry one bar and one corner language.
+        expect(member.accentPx, `${set.name} ${member.graphic} accent weight`).toBe(first.accentPx);
+        expect(member.cornerPx, `${set.name} ${member.graphic} corner radius`).toBe(first.cornerPx);
+        // One palette and one typeface across the set - the same four roles, the same face.
+        expect(member.accent, `${set.name} ${member.graphic} accent colour`).toBe(first.accent);
+        expect(member.panelBg, `${set.name} ${member.graphic} surface`).toBe(first.panelBg);
+        expect(member.text, `${set.name} ${member.graphic} text colour`).toBe(first.text);
+        expect(member.font, `${set.name} ${member.graphic} typeface`).toBe(first.font);
+      }
+      // COHERENT IS NOT IDENTICAL. A corner mark's caption, a strap's name and a clock's digits
+      // are three different sizes on purpose; if this ever collapsed, every assertion above would
+      // still pass while the package had stopped being a package.
+      const sizes = new Set(set.members.map((m) => m.primaryPx));
+      expect(sizes.size, `${set.name} anchors differ per type`).toBe(set.members.length);
+    }
+  });
+
+  test('a new type is composed THROUGH its registry declaration, machine and all', async ({ page }) => {
+    const built = await page.evaluate(async () => {
+      const { STUB_LANGUAGES } = await import('/src/ai/pro/language/stub.ts');
+      const { composeGraphic, packageLines } = await import('/src/ai/pro/language/graphics.ts');
+      const { parseAnimData } = await import('/src/blocks/animData.ts');
+
+      const show = { name: 'Priya Raghunathan', title: 'Senior Research Fellow', channel: 'Northgate Sport' };
+      const timer = composeGraphic('countdown', STUB_LANGUAGES[0], {
+        lines: packageLines('countdown', show),
+      });
+      const bug = composeGraphic('sponsor-bug', STUB_LANGUAGES[0], {
+        lines: packageLines('sponsor-bug', show),
+      });
+      const machine = parseAnimData(timer.template.js)?.machine ?? null;
+      return {
+        timerVariantId: timer.variant.id,
+        timerTypeId: timer.variant.typeId,
+        // The countdown type declares a PARALLEL pause/resume group and two control events. A
+        // graphic composed through the category alone would carry neither.
+        groupIds: machine?.groups.map((g) => g.id) ?? [],
+        controlEvents: (machine?.controls ?? []).map((c) => c.event),
+        // The type's own field contract, in the type's own order: a label then a duration.
+        timerFields: timer.template.fields.map((f) => `${f.field}:${f.ftype}`),
+        // …and the bug's: a caption, then the mark LAST (the shared slot derives its id from the
+        // count of everything else).
+        bugFields: bug.template.fields.map((f) => `${f.field}:${f.ftype}`),
+        bugTypeId: bug.variant.typeId,
+      };
+    });
+
+    expect(built.timerTypeId).toBe('countdown');
+    expect(built.bugTypeId).toBe('sponsor-bug');
+    expect(built.groupIds, 'the countdown carries its declared parallel clock group').toContain('clock');
+    expect(built.controlEvents, 'and the buttons that drive it').toEqual(
+      expect.arrayContaining(['pause', 'resume']),
+    );
+    expect(built.timerFields).toEqual(['f0:textfield', 'f1:number']);
+    expect(built.bugFields).toEqual(['f0:textfield', 'f1:filelist']);
+  });
+
+  /**
+   * A REQUESTED BRAND PALETTE IS THE PLATFORM'S TO APPLY, NEVER THE MODEL'S TO RETURN.
+   *
+   * Ratified on Lite 2026-08-13 and missing from Pro until 2026-08-16 (§15.9). The three
+   * assertions are the three silent failures the rule exists to close: a near-miss hex echoed
+   * back, a palette the model simply did not return, and a legibility repair that used to delete
+   * the whole bespoke package rather than move its furniture.
+   */
+  test('a stated brand palette is copied verbatim and its divergences are recorded', async ({ page }) => {
+    const cases = await page.evaluate(async () => {
+      const { composeGraphic, packageLines } = await import('/src/ai/pro/language/graphics.ts');
+      const { HOUSE_LANGUAGE } = await import('/src/ai/pro/language/contract.ts');
+      // A language whose own palette is nothing like the brand's, so an echo is unmistakable.
+      const language = {
+        ...HOUSE_LANGUAGE,
+        palette: { accent: '#22ff88', panel: '#ffffff', text: '#000000', textDim: '#444444' },
+        shape: { ...HOUSE_LANGUAGE.shape, panel: 'solid' as const },
+      };
+      // Identity the platform must keep, and a supporting tone that CANNOT read on that panel -
+      // the Aldervale case: a brand's own "slate", specified for parchment, on navy.
+      const brandPalette = {
+        accent: '#c8a24a', panel: '#0b1522', text: '#ffffff', textDim: '#2a3444',
+      };
+      const show = { name: 'Priya Raghunathan', title: 'Senior Research Fellow', channel: 'Northgate Sport' };
+      const rootOf = (css: string) => {
+        const root = /:root\s*\{([\s\S]*?)\}/.exec(css)?.[1] ?? '';
+        const varOf = (name: string) => new RegExp(`--${name}:\\s*([^;]+);`).exec(root)?.[1].trim() ?? null;
+        return { accent: varOf('accent'), panel: varOf('panel-bg'), textDim: varOf('text-dim') };
+      };
+      const out: Record<string, unknown> = {};
+      for (const graphic of ['lower-third', 'sponsor-bug', 'countdown'] as const) {
+        const composed = composeGraphic(graphic, language, {
+          lines: packageLines(graphic, show),
+          brandPalette,
+        });
+        out[graphic] = { ...rootOf(composed.template.css), adjustments: composed.adjustments };
+      }
+      // …and with no brand stated, the language's own palette still carries.
+      const unbranded = composeGraphic('lower-third', language, {
+        lines: packageLines('lower-third', show),
+      });
+      out.unbranded = rootOf(unbranded.template.css);
+      return out as Record<string, { accent: string; panel: string; textDim: string; adjustments?: string[] }>;
+    });
+
+    for (const graphic of ['lower-third', 'sponsor-bug', 'countdown']) {
+      const c = cases[graphic];
+      // IDENTITY, verbatim, on every member of the package - the model's #22ff88 gets no vote.
+      expect(c.accent, `${graphic} accent`).toBe('#c8a24a');
+      expect(c.panel, `${graphic} surface`).toContain('11, 21, 34');   // #0b1522, as the rgba() surface
+      // FURNITURE, repaired: #2a3444 cannot read on #0b1522, so it moves - and says so.
+      expect(c.textDim, `${graphic} supporting colour`).not.toBe('#2a3444');
+      expect(c.adjustments, `${graphic} divergence recorded`)
+        .toEqual(expect.arrayContaining([expect.stringContaining('palette_')]));
+    }
+    // The unbranded path is untouched: no brand, no override, the language's own colours.
+    expect(cases.unbranded.accent).toBe('#22ff88');
+  });
+});

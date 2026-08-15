@@ -38,6 +38,7 @@ import { isBackendConfigured } from '../../../backend/config';
 import type { ProStatusResponse } from '../../../ai/proTypes';
 import {
   PRO_SUPPORTED_CATEGORIES,
+  proBrandPalette,
   proLines,
   proMarkDescriptor,
   standardProLanguageBrief,
@@ -834,6 +835,9 @@ export default function AiStep({
               language: standardProLanguageBrief(brief, activeSpec, probe ? proMarkDescriptor(probe) : null),
               lines: proLines(activeSpec),
               mark,
+              // The customer's stated colours are the PLATFORM's to apply, never the model's to
+              // return - the rule Lite has carried since 2026-08-13 (src/ai/pro/brief.ts).
+              brandPalette: proBrandPalette(activeSpec),
               resolution,
               fps,
             },

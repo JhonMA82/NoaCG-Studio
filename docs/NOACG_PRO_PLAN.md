@@ -1261,7 +1261,7 @@ Still owed before a paid round: the `--language` arm in the runner, and the cali
 
 **Phase B - broaden the repertoire.** New brief banks per graphic type, starting with the ones a
 show cannot go on air without. The type registry supplies the structure, so each new type costs a
-brief bank and a calibration sweep rather than a new pipeline.
+brief bank and a calibration sweep rather than a new pipeline. **BUILT 2026-08-16 - see §15.9.**
 
 **Phase C - package coherence.** One design language, N graphic types, judged as a SET. The
 sibling rule the catalog already lives under becomes Pro's headline feature and its own gate.
@@ -1477,6 +1477,195 @@ schedule.
   chosen. The cheap version is a boundary in the prompt rather than a repair in the compositor.
 - **`footprint-large` on the long-name brief.** The panel is sized by its text and the text was
   long; the cap that bounds it is the category's auto-fit width, not a footprint budget.
+
+### 15.9 Phase B - the language drives a PACKAGE (2026-08-16)
+
+Phase A's claim, and Pro's whole promise, is that *a model decides a design language and the
+platform renders it across every graphic type a show needs*. It had been tested on ONE type. Until
+a second one ran, Pro was a lower-third generator with a plan attached - and it is also the only
+honest basis for charging for the tier, because a channel does not need a lower third, it needs a
+lower third, a sponsor bug and a countdown that visibly belong to each other, which Lite
+structurally cannot do (it adapts one proven catalog design at a time).
+
+**THE TWO TYPES WERE PICKED FROM THE REGISTRY, NOT FROM TASTE.** `src/templates/types/` records
+`GraphicType.frequency` - how many of the 60 reference formats ask for that graphic - and the
+order is not a matter of opinion:
+
+| type | frequency | why it is also the hardest test |
+| --- | --- | --- |
+| lower third | 52/60 | Phase A's subject; the type both instruments were calibrated on |
+| **sponsor bug** | **37/60** | mark-led, ONE line, on screen LONGEST - so it sits beside every other graphic in the package, which is what makes incoherence visible |
+| **countdown** | **30/60** | its primary element is not a line an operator types (the clock is painted by the shared runtime), and it carries a real MACHINE - a parallel pause/resume group |
+| topic card | 29/60 | the next one, and a third word-in-a-panel type - it would have tested less |
+
+Together the three span the package's whole footprint range (a corner mark a fifth of the frame
+wide, a strap, an 80px display clock), which is the range a coherence claim has to survive.
+
+**They are composed THROUGH THE TYPE REGISTRY, not merely through the category assembler**
+(`pro/language/fromType.ts`). Each Phase A design is handed to `variantsFromType` as that type's
+one design, so four things arrive as declarations rather than as claims: the field contract in the
+type's own order, the REQUIRED-PARTS gate (`missingParts` throws when the composed design fails to
+emit a part the type promised - a real measurement of the platform's composition), the compiled
+machine (a Pro countdown gets the same pause/resume buttons the catalog's own timers get), and the
+clamped content channel (`withContentValues` drops an illegal duration rather than writing it).
+That is what makes a new type *a brief bank and a sweep* rather than a pipeline.
+
+**What is shared across the package, and what is not.** Every ratio is expressed against a
+per-type anchor (`GRAPHIC_METRICS`: 54px name, 24px caption, 80px clock) - holding three graphics
+to one absolute size would be sameness, not coherence. But **the accent's thickness and the corner
+radius are resolved against `PACKAGE_UNIT_PX` instead**, so they are one value for the whole set.
+That is DESIGN_LANGUAGE §8's sibling rule made structural, and it is what the catalog already does
+(lt11, gt05 and bug03 all draw their bar from one `--accent-weight`).
+
+#### The calibration sweep, per type (`node scripts/pro-type-calibrate.mjs`, FREE)
+
+Every threshold in `spike/{spacingCheck,proportionCheck}.ts` was read off the lower-third catalog.
+Both instruments take an override for every one of them, so a per-type calibration is a set of
+ARGUMENTS (`PRO_GRAPHICS[id].instruments`) rather than an edit to a shared gate - nothing about
+how a lower third is judged moved. The sweep renders each type's SHIPPED catalog designs plus
+Phase A's four stub languages, under both calibrations:
+
+| | shipped designs flagged |
+| --- | --- |
+| catalog under the LOWER THIRD's thresholds | **7 of 14** |
+| catalog under the TYPE's thresholds | **3 of 14** |
+| Phase A's own compositions under the type's thresholds | **0 of 12** |
+
+Three thresholds moved, each read off the catalog rather than chosen:
+
+- **`markScaleCeiling` 3.2 → 5.5 (sponsor bug).** Measured, the shipped bugs run 1.67x-5.25x the
+  caption; bug01 (5.25) and bug04 (4.81) are a small caption UNDER a mark, not a mark beside a
+  headline. Phase A's own bugs come in at 2.1x-2.7x, so the ceiling bounds the catalog and never
+  binds the composer.
+- **`markGapFloorRatio` 0.25 → 0.10 (sponsor bug).** The strap's clear space flagged HALF the
+  shipped bugs (bug01 0.12, bug02 0.20) - a corner mark is a compact lockup, and 0.25 of an 84px
+  mark is 21px of air inside a tile a fifth of the frame wide.
+- **`typeRatioThin` 0.28 → 0.18 and `paddingFloorRatio` 0.28 → 0.24 (countdown).** Three of four
+  shipped timers step their label further down than a strap ever steps its role line (gt01 0.20,
+  gt02/gt05 0.25), and gt05 - the HOUSE countdown - reads 0.26 of top padding against a 0.28
+  floor. Phase A's step never goes below 0.36 and its tightest padding is 0.34.
+
+**Two shipped readings are left flagged on purpose** (gt01's clock 0.11 type sizes from its accent,
+inside the almost-touch band; gt06's label-to-clock gap 1.5 against 1.4) plus bug02's own layered
+live clock, which the instrument correctly reads as overlapping text. One design is not a
+calibration, and moving a threshold to silence a single design is how an instrument stops
+measuring anything.
+
+**A `panelFillFloor` override for the bug was WRITTEN AND THEN DELETED by the measurement.** The
+reasoning was that a corner tile is mostly mark and mostly air; measured, the shipped bug fills
+0.56 of its tile and Phase A's fill 0.70-0.78, so the strap's 0.18 floor was never near firing. An
+override nothing needs is a second number that can drift from the one it was copied from.
+
+#### What the free control run bought this time - two composer bugs, before any tokens
+
+The zero-token control (`--control`, now 20 rows: the strap's four plus eight new-type rows through
+`composeGraphic`) earned its keep again, and both findings were structural rather than cosmetic:
+
+- **A padding unit that was not the unit the instrument measures in.** Padding was derived from the
+  type's ANCHOR, and on two of three graphics the anchor IS the painted primary size, so this
+  reduced to the same number and nothing showed it. On a sponsor bug it does not: the block accent
+  form's own size floor raises what is painted above the anchor, and a compact block-accent bug
+  came out at 8px of padding on a 30px caption - 0.27 against a 0.28 floor, `padding-tight`, on a
+  composition whose entire premise is that the threshold is cleared BY CONSTRUCTION. The unit is
+  now the largest PAINTED type size.
+- **A tile tighter than its own mark's clear space.** The mark gate measures clear space in the
+  MARK's height (0.25, the brand manual's) while a tile's padding is measured in its CAPTION's
+  size, and on a bug those units are three times apart: a balanced-density tile put 15px between
+  the mark and the accent bar against a 15.6px need. The floor is now the mark's - on this type
+  the mark IS the graphic, so the tile's air belongs to it - which costs the two tightest densities
+  their horizontal difference and is the right trade.
+- **And a badge with 4px of air.** The strap borrows its block-accent padding from the gap between
+  its two lines; a bug has ONE line, so that expression collapsed. The alignment instrument read it
+  as a near-miss (the block's edge 4px past its own word); on screen it is a badge somebody forgot
+  to finish. A bug's badge padding is now a function of its own text.
+
+After all three: **20 control rows, zero spacing findings, zero proportion findings, zero alignment
+near-misses, zero mark findings, and every row animates** (15 motion frames and three clips each).
+
+**A fourth was found by LOOKING, which is the part no instrument was going to do.** The bug's
+`top-rule` accent rendered BETWEEN the mark and the caption rather than across the top of the tile:
+the shared logo slot injects the mark as the box's first child (it must - a first-child insertion
+is what renumbers a design's own `nth-child` rules), and the rule is written after it, so source
+order decided. Every instrument passed it, because a rule one clear space from the text is a rule
+one clear space from the text wherever it sits. It is a coherence defect rather than a spacing one:
+**the same enum value has to mean the same thing on every graphic in the package**, or the claim is
+only ever about colour. Fixed with `order: -1` rather than by fighting the slot's insertion point.
+
+#### The palette rule finally reaches Pro - and what that says about the 26/30
+
+**A requested brand palette is copied VERBATIM by the platform, never returned as prose by the
+model.** Lite has had this since 2026-08-13 (`docs/AI_LITE_BRAND_PLAN.md` §3.1) and Pro did not:
+`proBrandSection` stated the four hexes to the model and the model returned a palette, so "exactly
+the brand's colours" rode on an echo that could fail three silent ways - a near-miss hex, an
+omitted palette letting a default carry, or the legibility repair deleting the package.
+
+Now `proBrandPalette` (pro/brief.ts) carries `GenerationSpec.brandColors` as DATA and
+`resolvePalette` (pro/language/paint.ts) applies Lite's own split through `applyLiteBrandPalette` -
+identity (accent, panel) verbatim, furniture (text, textDim) legibility-owned - with every
+divergence recorded as an adjustment that reaches the ledger. The prompt still DESCRIBES the brand,
+because a language decision needs to know what world it is in; what changed is that the identity is
+no longer the model's to return.
+
+**This changes what the §15.8 verdict covers.** The owner's 26-of-30 blind read measured the PROSE
+version, on a bench brand that states its colours as a brand BRIEF rather than as a filled-in
+palette - so it says nothing about how faithfully a *stated* palette now lands, and a later round
+should not be read as confirming that.
+
+#### The paid round - the package-coherence question
+
+`node scripts/pro-spike.mjs --generate --arms=language --divergence-arm=language
+--route=vercel:google/gemini-2.5-flash --max-cost=0.20 --out=pro-spike-out-phaseb-set news-public`
+(the `pro-spike-out*` prefix is what keeps a round's 400-odd captures out of the repo - and the
+round still has to be ARCHIVED outside the worktree before any cleanup, because ignored files die
+with it.)
+
+ONE brief, under FOUR brands - four design languages - each rendered as all three graphic types.
+**Twelve graphics for four model calls, $0.021 of the $0.20 ceiling** ($0.0043-$0.0065 a language,
+$0.0018 a GRAPHIC), because composing is deterministic: the package is what the one paid call
+already bought. That is the economic half of the Phase A argument arriving as a number rather than
+as a claim - and it is the number that says a package is not three times the price of a graphic.
+
+What the machine measured, over 4 languages x 3 types:
+
+| | result |
+| --- | --- |
+| contract (scaffold + fields + declared slot) | **4/4**, zero blocking errors |
+| set members composing clean (bug + countdown) | **8/8** under their own calibrated thresholds |
+| repair rounds | **0** (there is no repair loop on this path) |
+| fields the model failed to answer legibly | **0** - every language came back complete |
+| palette furniture repaired | 1 of 4 (`palette_text_dim_lightness_clamped`, the navy brand) |
+| code audit | spine ok, region ok, **timeline editable on all four**, es5-drift 0, comments 24-25% |
+
+**The divergence held, and it held harder than §15.8's.** Four brands returned four typefaces
+(source-serif-4, anton, outfit, ibm-plex-sans), four accents, three different accent forms and
+three motion characters - and one of them (`Ledger Report`) chose a **LIGHT package**, `#8a8a85` on
+`#fafaf8`, which is the one thing the catalog's own variety audit says a style family cannot do
+(`docs/CATALOG_VARIETY.md`: 148 designs cannot take a light palette). Not one look with the colours
+swapped, which is the named sameness failure.
+
+**One reading to carry forward, and it is not new.** The navy-monogram brand reports
+`mark-own-background, ink-contrast` on its strap - the mark field FIRED correctly
+(`mark_field_painted` is in its adjustments) and the rendered mark gate then sees a background
+behind the mark and says so. The gate cannot tell a platform-drawn field from a mark that brought
+its own, which is the §15.8 trigger working and the instrument describing it in the only vocabulary
+it has. It is on the lower-third path and predates Phase B.
+
+**The human read is owed and nothing here is a substitute for it.** The machine measured that the
+composer works; whether four channels' worth of graphics look like four channels' packages is the
+question `set-gallery.html` exists to be asked.
+
+**The deliverable is `set-gallery.html`**: one row per design language, three graphic types side by
+side, so the coherence claim is read in one glance. It is BLIND like the main gallery - rows keyed
+by blind id, images blind copies - because "do these three belong to each other" must be answered
+before anyone knows which brand or checkpoint produced them. Judge the ROW, not the graphics:
+every graphic in an incoherent package can be individually fine, which is exactly why no
+per-graphic gallery can ask this question.
+
+**What is deliberately NOT done.** `PRO_SUPPORTED_CATEGORIES` still lists only the lower third:
+that constant is the WIZARD's copy of what a user can reach, and the wizard has no way to ask for a
+package yet. The engine composes three (`ProGenerateRequest.graphic`, one argument), and widening
+the constant before the UI exists would leave the tier naming a graphic its own door cannot
+produce - the failure `src/ai/AGENTS.md` already records against Pro's shipped copy.
 
 ---
 
