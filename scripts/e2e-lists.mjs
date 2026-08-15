@@ -49,3 +49,31 @@ export const FOCUS = [
   'wizard-preview.spec.ts',
   'wizard-shell.spec.ts',
 ];
+
+// THE CONFIGURED SUITE'S TRIGGERS - files whose behaviour the OFFLINE suite structurally
+// cannot cover, because the thing they change only exists when a backend is configured.
+//
+// `scripts/e2e-affected.mjs` ignores `e2e/configured/**` outright: those specs need a real
+// Supabase project and a throwaway account, so they can neither run in CI nor be selected by
+// the per-merge gate. That is the right call and it leaves a hole - a change to hosted Pro's
+// door or its metering maps to specs that pin its ABSENCE, all of which stay green while the
+// live path breaks. Naming the triggers turns that hole into a printed line: the affected run
+// says "also run npm run test:e2e:live:queued" and it is then a decision rather than an
+// oversight. It REPORTS and never runs - running it would start a dev server on the real .env,
+// which is exactly what the offline pin exists to prevent.
+export const CONFIGURED_TRIGGERS = [
+  // The hosted-Pro door and its wire contract: absent offline, so only the configured suite
+  // can walk it (e2e/configured/pro-wizard.spec.ts).
+  /^src\/ai\/pro\/session\.ts$/,
+  /^src\/ai\/proTypes\.ts$/,
+  /^api\/_lib\/pro\//,
+  /^api\/ai\/\[\.\.\.path\]\.ts$/,
+  /^scripts\/aiDevPlugin\.mjs$/,
+  // The step that decides which tiers are offered at all, and the one feature-detection point
+  // the second half of that decision reads.
+  /^src\/components\/wizard\/steps\/AiStep\.tsx$/,
+  /^src\/backend\/config\.ts$/,
+  // The suite's own files.
+  /^e2e\/configured\//,
+  /^playwright\.live\.config\.ts$/,
+];

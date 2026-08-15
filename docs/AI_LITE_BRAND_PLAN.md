@@ -1,12 +1,18 @@
 # NoaCG Lite brand graphics - custom graphics that beat free templates, or nothing
 
-**Status: ITS OWN GATE ANSWERED NO - 2026-08-14.** The §2 value gate FAILED on the owner's blind
-ballot (§2.2), so the predeclared consequence is in force: **custom AI generation is retired from
-the roadmap for now**, free templates plus manual wizard branding stand, and the rest of this plan
-is a record rather than a queue of work. Read §2.2 first; the plan is otherwise unedited, because
-a plan rewritten after its own verdict cannot be checked against what it promised. **The platform
-work §2.2 names - a mark-legibility gate and a mark-SIZE rule - is free, is not AI work, and is
-what any revival needs first.** Ratified 2026-08-12 (§9); the built-and-measured record it stands
+**Status: ITS OWN GATE ANSWERED NO - 2026-08-14. REVIVED BY OWNER DECISION - 2026-08-15, and the
+bar is a RE-RUN of the same gate.** The §2 value gate FAILED on the owner's blind ballot (§2.2), so
+the predeclared consequence went into force: **custom AI generation was retired from the roadmap**,
+free templates plus manual wizard branding standing in its place. On 2026-08-15 the owner reopened
+it, on the evidence that every failure the ballot named was the MARK and hit the hand-branded DIY
+arm too, and that Pro's first real hosted generation failed the same way - a good model design
+wrecked by the platform's reconstruction (`docs/NOACG_PRO_PLAN.md` §16). **The revival is recorded
+in `docs/GOALS.md` ("NEXT", owner decision 2026-08-15), which also carries the bar: the same §2
+gate, same three arms, same predeclared rule, re-run once the 2026-08-15 slices land - and a second
+FAIL means the retirement stands.** Read §2.2 first; the plan is otherwise unedited, because a plan
+rewritten after its own verdict cannot be checked against what it promised. **The platform work
+§2.2 names - a mark-legibility gate and a mark-SIZE rule - is free, is not AI work, and is what any
+revival needs first; both are now built and merged (§2.2).** Ratified 2026-08-12 (§9); the built-and-measured record it stands
 on is `docs/AI_LITE_PLAN.md` §7 and `benchmarks/lite/BRAND-AUDIT-2026-08-09.md`. Doctrine and code
 contract stay `src/ai/AGENTS.md`; dead ends stay `docs/AI_ATTEMPTS.md`.
 

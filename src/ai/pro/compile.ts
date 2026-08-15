@@ -9,6 +9,8 @@
 import type { Resolution, SpxTemplate } from '../../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import type { Zone9 } from '../../model/wizard';
+import type { ValidationIssue, ValidationResult } from '../../validation/validateTemplate';
+import type { SpxValidator } from '../provider';
 import { IMPORTED_DESIGN, PREFIX } from '../../templates/importedDesign/shared';
 import { applyPlacedFieldSpecs } from '../../blocks/designFields';
 import { addPlacedImageSlot, placeLine, setSlotSize } from '../../blocks/designLayout';
@@ -25,8 +27,18 @@ export interface ProCompileReport {
   flattened: number;
   /** Baked text regions the deterministic flat-fill erase removed from the artwork. */
   textErased: number;
+  /** The field labels whose baked text the erase REFUSED - the backdrop under them was not
+   *  flat, so the concept's own text is still in the artwork behind the live field. This is
+   *  the ghost that made the first real hosted generation unusable
+   *  (docs/NOACG_PRO_PLAN.md §16); `proReconstructionFindings` turns it into a blocking
+   *  finding, which is why it is a structured list rather than only a warning sentence. */
+  bakedTextRefused: string[];
   /** True when the crop's pad ring was flat backdrop and was written as transparency. */
   ringMatted: boolean;
+  /** True when there WAS a pad ring and the matte refused it - a band of the concept's
+   *  backdrop ships with the graphic. Distinct from `!ringMatted`, which is also what a
+   *  crop with no pad at all reports. */
+  ringRefused: boolean;
   /** True when the reconstruction covered everything and the raster crop was dropped -
    *  the graphic is pure editable code. */
   artDropped: boolean;
@@ -69,6 +81,22 @@ export class ProCompileError extends Error {
  *  a copied literal in the second place is how the two come to disagree. */
 export const PRO_EMPTY_LOGO_SLOT_WARNING =
   "The concept's own logo mark stays visible in the artwork until a file is picked for the Logo slot.";
+
+/** The BLOCKING rule: baked text the erase refused is still in the artwork, so the graphic
+ *  prints its own words twice - the ghost of docs/NOACG_PRO_PLAN.md §16. */
+export const PRO_BAKED_TEXT_RULE = 'pro-baked-text';
+/** A band of the concept's backdrop the matte refused. A warning, not a block: it is a thin
+ *  edge over live video rather than a doubled graphic. */
+export const PRO_ARTWORK_RING_RULE = 'pro-artwork-ring';
+
+/** ONE wording for a refused text region, used for the report's warning line AND the
+ *  blocking finding, so the two can never come to say different things. */
+export function proBakedTextMessage(label: string): string {
+  return `The concept's baked "${label}" text sits on a non-flat background, so it could not be erased cleanly - it stays visible in the artwork under the live field; restyle the panel to cover it or regenerate.`;
+}
+
+export const PRO_ARTWORK_RING_MESSAGE =
+  "A thin ring of the concept's backdrop remains around the design - it is not flat enough to remove automatically and can show over live video.";
 
 /** Load a data URL into pixels. Isolated so the compiler stays testable: only this touches
  *  the DOM image decoder. */
@@ -199,7 +227,9 @@ export async function compileProPlan(
   const assets: SpxTemplate['assets'] = [];
   let artPath = '';
   let textErased = 0;
+  const bakedTextRefused: string[] = [];
   let ringMatted = false;
+  let ringRefused = false;
   if (!artDropped) {
     let art = await cropToUnit(concept.dataUrl, plan.unit);
 
@@ -221,9 +251,8 @@ export async function compileProPlan(
         textErased += 1;
       } else {
         const label = plan.fields[index]?.title ?? `text ${index + 1}`;
-        warnings.push(
-          `The concept's baked "${label}" text sits on a non-flat background, so it could not be erased cleanly - it stays visible in the artwork under the live field; restyle the panel to cover it or regenerate.`,
-        );
+        bakedTextRefused.push(label);
+        warnings.push(proBakedTextMessage(label));
       }
     }
 
@@ -238,9 +267,8 @@ export async function compileProPlan(
         art = matte.dataUrl;
         ringMatted = true;
       } else {
-        warnings.push(
-          "A thin ring of the concept's backdrop remains around the design - it is not flat enough to remove automatically and can show over live video.",
-        );
+        ringRefused = true;
+        warnings.push(PRO_ARTWORK_RING_MESSAGE);
       }
     }
 
@@ -331,7 +359,9 @@ export async function compileProPlan(
       panelsRebuilt,
       flattened,
       textErased,
+      bakedTextRefused,
       ringMatted,
+      ringRefused,
       artDropped,
       logoSlot,
       editability: meaningful.length === 0 ? 1 : editable.length / meaningful.length,
@@ -339,4 +369,58 @@ export async function compileProPlan(
       warnings,
     },
   };
+}
+
+/**
+ * What the RECONSTRUCTION knows that the template alone cannot show.
+ *
+ * The injected gate reads the compiled template: markup, CSS, and the rendered frame. It has
+ * no way to see that the artwork underneath still carries the concept's own words, because
+ * those are pixels inside a legitimate `<img>`. The compiler is the only thing that knows,
+ * and until 2026-08-15 it knew in a `warnings` string nothing read - so the first real hosted
+ * generation shipped a doubled lower third with `validation_rule_codes` EMPTY and the ledger
+ * row saying `usable` (docs/NOACG_PRO_PLAN.md §16). A gate that measures the right dimension
+ * and discards the answer is a scoring bug, not a blind spot.
+ *
+ * Un-erased baked TEXT is an ERROR: the graphic prints its own words twice, at two different
+ * sizes, and no operator input can repair it. A refused pad RING is a warning: a thin band of
+ * backdrop at the edges is degraded rather than broken, and blocking on it would refuse
+ * graphics people can actually use.
+ */
+export function proReconstructionFindings(report: ProCompileReport): {
+  errors: ValidationIssue[];
+  warnings: ValidationIssue[];
+} {
+  return {
+    errors: report.bakedTextRefused.map((label) => ({
+      rule: PRO_BAKED_TEXT_RULE,
+      message: proBakedTextMessage(label),
+    })),
+    warnings: report.ringRefused
+      ? [{ rule: PRO_ARTWORK_RING_RULE, message: PRO_ARTWORK_RING_MESSAGE }]
+      : [],
+  };
+}
+
+/**
+ * Run the injected gate over a compiled Pro result and fold the reconstruction's own findings
+ * into its verdict. THE ONE place a Pro result becomes a validation result - `pipeline.ts`,
+ * `stub.ts` and the benchmark all go through here, so no engine can deliver a compile whose
+ * refusals were never scored.
+ *
+ * A caller with no validator still gets a result when there is something to report: "nobody
+ * ran a gate" and "the gate found nothing" are different answers, and only the first is null.
+ */
+export async function validateProCompile(
+  result: ProCompileResult,
+  validate?: SpxValidator,
+): Promise<ValidationResult | null> {
+  const own = proReconstructionFindings(result.report);
+  const gate = validate ? await validate(result.template) : null;
+  if (!gate) {
+    if (!own.errors.length && !own.warnings.length) return null;
+    return { ok: own.errors.length === 0, errors: own.errors, warnings: own.warnings };
+  }
+  const errors = [...gate.errors, ...own.errors];
+  return { ok: errors.length === 0, errors, warnings: [...gate.warnings, ...own.warnings] };
 }

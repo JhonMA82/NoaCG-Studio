@@ -28,6 +28,13 @@ const ROUTES = new Set([
   'models',
   'config',
   'credentials',
+  // Hosted NoaCG Pro. Missing here since the route shipped, so the whole tier was a dev 404:
+  // `loadProStatus` reads that as "this deployment has no Pro" and the door never appears,
+  // which made the one flow a class will run unreachable outside production. Single segments
+  // on purpose - api/_lib/pro/router.ts records why.
+  'pro-status',
+  'pro-generations',
+  'pro-outcome',
   'lite/status',
   'lite/generations',
   'lite/outcome',

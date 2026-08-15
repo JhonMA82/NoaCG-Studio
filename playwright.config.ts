@@ -127,6 +127,12 @@ export default defineConfig({
       HUGGINGFACE_TOKEN: '',
       HUGGINGFACE_API_KEY: '',
       AI_KEY_ENCRYPTION_SECRET: '',
+      // Hosted Pro is pinned OFF for the same reason every key above is pinned empty: the dev
+      // server now mounts the pro-* routes (scripts/aiDevPlugin.mjs), so a developer whose .env
+      // switches the tier on would have this suite answering /api/ai/pro-status from their real
+      // configuration. e2e/pro.spec.ts pins the ABSENCE of the door and stubs the status itself,
+      // and a spec that asserts an absence must not be the thing deciding whether it holds.
+      AI_PRO_ENABLED: '',
     },
   },
 });

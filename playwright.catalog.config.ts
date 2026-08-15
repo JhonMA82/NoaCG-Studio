@@ -59,6 +59,10 @@ export default defineConfig({
       HUGGINGFACE_TOKEN: '',
       HUGGINGFACE_API_KEY: '',
       AI_KEY_ENCRYPTION_SECRET: '',
+      // Pinned off with the keys above, and in BOTH offline configs: this list enumerates what
+      // it clears, so a new switch added to only one of them is a real credential reaching one
+      // suite's dev server (measured on Google, 2026-08-14).
+      AI_PRO_ENABLED: '',
     },
   },
 });
