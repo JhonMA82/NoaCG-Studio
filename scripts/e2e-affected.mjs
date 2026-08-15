@@ -40,6 +40,10 @@ const MAP = [
   // creative-routing covers the mode + intent ROUTER and the brief-satisfaction check, both
   // of which live here - it was previously nightly-only for src/ai changes, which is exactly
   // the surface it exists to protect.
+  // Phase A's composer (docs/NOACG_PRO_PLAN.md §15.5). Listed BEFORE the generic pro rule and
+  // union'd with it: the language path shares nothing with the concept-and-compile pipeline
+  // pro.spec.ts covers, so its guarantees had no gate at all until this spec existed.
+  [/^src\/ai\/pro\/language\//, ['pro-language.spec.ts']],
   [/^src\/ai\/pro\//, ['pro.spec.ts', 'import-graphic.spec.ts']],
   // The bench-only spike instruments. They never gate a user flow, but they are what a paid
   // round's numbers MEAN - and the panel-overflow blindness (docs/NOACG_PRO_PLAN.md §15.6) is
