@@ -66,3 +66,96 @@ export const EXAMPLE_PROMPTS: ExamplePrompt[] = [
       'meet in the middle. Dark arena mood, sharp accents.',
   },
 ];
+
+// ── The managed tiers' banks ─────────────────────────────────────────────────────────────────
+//
+// THE TIER PROMISES (recorded in docs/GOALS.md and src/ai/AGENTS.md - change them there first):
+//
+//   LITE: a proven catalog design, carrying your brand and your words - reliably, every time.
+//   PRO:  an on-air look designed for your channel - a palette, type voice, accent form and
+//         motion character no shipped design carries - rendered by the platform, so the layout
+//         is always sound.
+//
+// The two banks below hold the same standard as EXAMPLE_PROMPTS above - what it is, what the
+// operator fills in, how it should look and move, where it sits - because a brief that does not
+// describe a look cannot produce one. They differ where the tiers differ:
+//
+//   - Every LITE brief has a catalog starting point (a lower third the retrieval can anchor
+//     on), because Lite ADAPTS a proven design and never invents a layout. Lite briefs name NO
+//     colours and NO zone: a model-invented palette is dropped by design (colour belongs to the
+//     brand input - src/ai/AGENTS.md "A REQUESTED palette") and placement follows the chassis,
+//     so a colour or position word here is a promise the render will break - measured, not
+//     assumed (the first draft asked for a navy panel and got the house dark). And a Lite
+//     brief states its two lines as an explicit STACK ("name over a smaller role line", "tag
+//     with the team line under it"): in the same test, every brief that listed its fields
+//     abstractly ("name and department") lost the second line to a one-line chassis.
+//   - Every PRO brief asks for a LOOK no shipped design carries - the general bank's
+//     "no starting point" property moved into the dimension Pro actually owns. Pro's model
+//     decides the design language (palette, type, accent, density, motion); the platform owns
+//     structure, so a Pro brief that asked for a novel STRUCTURE would read well and render as
+//     something else - the exact defect example briefs must not teach.
+//
+// Both banks were generated and read as frames before landing (2026-08-15); a brief that reads
+// well and renders badly does not belong here.
+
+export const LITE_EXAMPLE_PROMPTS: ExamplePrompt[] = [
+  {
+    label: 'News reporter',
+    prompt:
+      'A public-news lower third for a reporter’s name and role. Dark editorial panel with ' +
+      'one thin accent rule on the leading edge, a strong name over a smaller tracked caps ' +
+      'role line, generous side padding. Calm slide-in, no bounce.',
+  },
+  {
+    label: 'University lecture',
+    prompt:
+      'A university lecture lower third for a speaker’s name with their academic role in a ' +
+      'smaller line under it. Clean quiet panel, roomy spacing, nothing decorative. Gentle ' +
+      'rise, settles quickly.',
+  },
+  {
+    label: 'Esports player',
+    prompt:
+      'An esports lower third for a player tag and team. Near-black panel with one electric ' +
+      'accent edge, sharp hierarchy - condensed caps tag with the team line under it - tight ' +
+      'spacing. Fast snap in, no wobble.',
+  },
+  {
+    label: 'Documentary subject',
+    prompt:
+      'A documentary lower third for an interview subject’s name and location. Barely-there ' +
+      'translucent strip, small tracked caps for the location, light text over the shot. Sits ' +
+      'low and quiet, slow fade in and out.',
+  },
+];
+
+export const PRO_EXAMPLE_PROMPTS: ExamplePrompt[] = [
+  {
+    label: 'Late-night arts',
+    prompt:
+      'A lower third for a late-night arts show: guest name and their work. Deep plum panel, ' +
+      'warm gold underline accent, a serif bold name against airy tracked caps for the work ' +
+      'line, soft corners, an unhurried reveal that follows the reading order.',
+  },
+  {
+    label: 'Esports channel',
+    prompt:
+      'A lower third for a youth esports channel: player tag and role. Acid green on near-black, ' +
+      'a heavy accent block behind the role line, black-weight condensed caps for the tag, tight ' +
+      'tracking, compact spacing, fast snap.',
+  },
+  {
+    label: 'Morning community',
+    prompt:
+      'A lower third for a community morning show: host name and segment. Warm cream panel, ' +
+      'terracotta bar on the leading edge, deep brown text, rounded corners, airy spacing, a ' +
+      'gentle glide in.',
+  },
+  {
+    label: 'Markets desk',
+    prompt:
+      'A lower third for an evening markets desk: analyst name and firm. Ink-dark translucent ' +
+      'panel, steel-blue hairline rule across the top, medium-weight name with wide-tracked ' +
+      'caps for the firm line, compact density, a measured fade.',
+  },
+];
