@@ -64,13 +64,25 @@ export const MARK_GAP_FLOOR_RATIO = 0.25;
 export const MARK_GAP_CEILING_RATIO = 1.6;
 /** An element spanning nearly the whole frame is a backdrop, not a composition member. */
 const BACKDROP_WIDTH_PX = 1728; // 90% of 1920, the same cut axisCheck makes
+/** How far past its panel a member may paint before it counts as ESCAPING. Sub-pixel layout,
+ *  a border and an italic's overhang all put a glyph box a hair outside its box legitimately;
+ *  1px is the same slack every containment test in this file already carries. */
+const ESCAPE_TOLERANCE_PX = 1;
 
 export interface SpacingFinding {
-  /** The audit's code vocabulary: padding-tight, padding-lopsided, lines-crowded,
-   *  lines-adrift, mark-crowded, mark-adrift. */
+  /** The audit's code vocabulary: padding-tight, padding-lopsided, text-escapes-panel,
+   *  lines-crowded, lines-adrift, text-over-rule, text-crowds-rule, mark-crowded, mark-adrift. */
   code: string;
   /** Human-readable, with the numbers that produced it. */
   detail: string;
+}
+
+/** One member painting outside the panel it belongs to, per side. */
+export interface SpacingEscape {
+  desc: string;
+  side: 'left' | 'right' | 'top' | 'bottom';
+  px: number;
+  isText: boolean;
 }
 
 export interface SpacingReport {
@@ -78,8 +90,11 @@ export interface SpacingReport {
   panel: string | null;
   /** The primary type size in px - the unit everything below is expressed in. */
   typeSizePx: number | null;
-  /** Padding per side, in TYPE SIZES, rounded to 2dp. Null when no panel was found. */
+  /** Padding per side, in TYPE SIZES, rounded to 2dp. Null when no panel was found.
+   *  NEGATIVE where the panel's own content paints outside it - see `escapes`. */
   padding: { top: number; right: number; bottom: number; left: number } | null;
+  /** Every member painting past the panel's edge, in px. Empty is the normal case. */
+  escapes: SpacingEscape[];
   /** Gaps between consecutive stacked text lines, in type sizes. */
   lineGaps: number[];
   /** The mark's gap to the nearest text, in mark heights, when a mark is present. */
@@ -119,6 +134,39 @@ function opaqueBackground(style: CSSStyleDeclaration): boolean {
   return true;
 }
 
+/**
+ * The rect a viewer actually SEES: the element's own box, cut down by every ancestor that
+ * clips.
+ *
+ * `getBoundingClientRect` reports the LAYOUT box, which is not what paints. A house template
+ * wraps each field in `.PREFIX-mask { overflow: hidden }`, so a line too long for its mask lays
+ * out past it and is painted cut off - and every measurement below would otherwise read the
+ * part of it that does not exist. This matters most for the overflow finding: "the text is on
+ * the picture" and "the text is cut off" are different defects, and only the visual rect can
+ * tell them apart.
+ */
+function visualRect(el: Element, win: Window): { left: number; right: number; top: number; bottom: number } {
+  const r = el.getBoundingClientRect();
+  const box = { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+  for (let a = el.parentElement; a; a = a.parentElement) {
+    const s = win.getComputedStyle(a);
+    // `hidden`, `clip`, `auto` and `scroll` all cut; only `visible` lets a child paint outside.
+    const clipsX = s.overflowX !== 'visible';
+    const clipsY = s.overflowY !== 'visible';
+    if (!clipsX && !clipsY) continue;
+    const ar = a.getBoundingClientRect();
+    if (clipsX) {
+      box.left = Math.max(box.left, ar.left);
+      box.right = Math.min(box.right, ar.right);
+    }
+    if (clipsY) {
+      box.top = Math.max(box.top, ar.top);
+      box.bottom = Math.min(box.bottom, ar.bottom);
+    }
+  }
+  return box;
+}
+
 export function collectPainted(doc: Document): Painted[] {
   const win = doc.defaultView;
   if (!win) return [];
@@ -128,12 +176,13 @@ export function collectPainted(doc: Document): Painted[] {
     if (style.display === 'none' || style.visibility === 'hidden') continue;
     if (parseFloat(style.opacity) < 0.05) continue;
     if (!paints(el, style)) continue;
-    const r = el.getBoundingClientRect();
-    if (r.width < 1 || r.height < 1) continue;
+    const rect = visualRect(el, win);
+    // An element clipped away entirely paints nothing, so it is not a composition member.
+    if (rect.right - rect.left < 1 || rect.bottom - rect.top < 1) continue;
     out.push({
       el,
       desc: describe(el),
-      rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom },
+      rect,
       fontSizePx: parseFloat(style.fontSize) || 0,
       isText: hasOwnText(el) && el.tagName !== 'IMG',
       hasSurface: opaqueBackground(style),
@@ -142,22 +191,50 @@ export function collectPainted(doc: Document): Painted[] {
   return out;
 }
 
+/** Geometric containment, with the 1px slack every check here uses. */
+function encloses(a: Painted, b: Painted): boolean {
+  return a !== b && a.rect.left <= b.rect.left + 1 && a.rect.right >= b.rect.right - 1
+    && a.rect.top <= b.rect.top + 1 && a.rect.bottom >= b.rect.bottom - 1;
+}
+
+/**
+ * THE PANEL'S OWN CONTENT - including whatever ESCAPED it.
+ *
+ * THE BUG THIS EXISTS TO CLOSE (docs/NOACG_PRO_PLAN.md §15.6, first item). Membership used to
+ * be geometric containment alone, so a name hanging off the edge of its panel was not the
+ * panel's content at all: it was dropped from the union, the remaining children were measured
+ * against the far edge, and the WORST overflow in the round reported the ROOMIEST padding. An
+ * instrument that reads a defect as its opposite is worse than no instrument, and Phase A's own
+ * numbers would have inherited the blindness.
+ *
+ * Membership is therefore answered by the DOM as well as by geometry: an element is the panel's
+ * content when the panel CONTAINS it in the document, whatever it does with the space, or when
+ * it happens to sit inside the panel's box (the sibling-overlay idiom, which is how the rule
+ * read before and is why no catalog number moves for a design whose content stays home).
+ */
+export function panelMembers(items: Painted[], panel: Painted): Painted[] {
+  return items.filter((p) => p !== panel && (encloses(panel, p) || panel.el.contains(p.el)));
+}
+
 /**
  * THE PANEL is the innermost surface that holds the composition.
  *
  * Not simply the largest background: a full-frame scrim would win that and every measurement
  * would then be relative to the frame, which is a different question. Take the SMALLEST
- * painted surface that still contains at least two other painted elements - that is the thing
+ * painted surface that still holds at least two other painted elements - that is the thing
  * a viewer reads as "the box", and on a house-contract graphic it resolves to the `-box`
  * element without needing to know the prefix.
+ *
+ * "Holds" is `panelMembers`, not geometry alone, for the reason that function gives: a box
+ * whose content escaped it is still that content's box. Counting geometrically would make the
+ * panel VANISH exactly when the overflow is worst - two children off the edge and the design
+ * has no measurable panel at all - which is the same blindness one step earlier. For a design
+ * whose content stays inside, the two counts are the same set and nothing moves.
  */
 export function findPanel(items: Painted[]): Painted | null {
-  const contains = (a: Painted, b: Painted): boolean =>
-    a !== b && a.rect.left <= b.rect.left + 1 && a.rect.right >= b.rect.right - 1
-    && a.rect.top <= b.rect.top + 1 && a.rect.bottom >= b.rect.bottom - 1;
   const candidates = items
     .filter((p) => p.hasSurface && (p.rect.right - p.rect.left) < BACKDROP_WIDTH_PX)
-    .filter((p) => items.filter((q) => contains(p, q)).length >= 2)
+    .filter((p) => panelMembers(items, p).length >= 2)
     .sort((a, b) => (a.rect.right - a.rect.left) * (a.rect.bottom - a.rect.top)
       - (b.rect.right - b.rect.left) * (b.rect.bottom - b.rect.top));
   return candidates[0] ?? null;
@@ -171,6 +248,25 @@ export function primaryTypeSize(items: Painted[]): number | null {
 
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/** Each side of the panel against the BOUNDING BOX of the content it holds, in type sizes.
+ *  A side is negative when that content paints outside the panel on that side. */
+function paddingRatios(
+  panel: Painted, members: Painted[], typeSize: number,
+): { top: number; right: number; bottom: number; left: number } {
+  const union = {
+    left: Math.min(...members.map((p) => p.rect.left)),
+    right: Math.max(...members.map((p) => p.rect.right)),
+    top: Math.min(...members.map((p) => p.rect.top)),
+    bottom: Math.max(...members.map((p) => p.rect.bottom)),
+  };
+  return {
+    top: round2((union.top - panel.rect.top) / typeSize),
+    right: round2((panel.rect.right - union.right) / typeSize),
+    bottom: round2((panel.rect.bottom - union.bottom) / typeSize),
+    left: round2((union.left - panel.rect.left) / typeSize),
+  };
 }
 
 export interface SpacingOptions {
@@ -197,7 +293,7 @@ export function measureSpacing(doc: Document, options: SpacingOptions = {}): Spa
   const markCeiling = options.markGapCeilingRatio ?? MARK_GAP_CEILING_RATIO;
 
   const report: SpacingReport = {
-    panel: null, typeSizePx: null, padding: null, lineGaps: [], markGap: null, findings: [],
+    panel: null, typeSizePx: null, padding: null, escapes: [], lineGaps: [], markGap: null, findings: [],
   };
 
   const items = collectPainted(doc);
@@ -209,27 +305,47 @@ export function measureSpacing(doc: Document, options: SpacingOptions = {}): Spa
   const panel = findPanel(items);
   if (panel) {
     report.panel = panel.desc;
-    const inside = items.filter((p) => p !== panel
-      && p.rect.left >= panel.rect.left - 1 && p.rect.right <= panel.rect.right + 1
-      && p.rect.top >= panel.rect.top - 1 && p.rect.bottom <= panel.rect.bottom + 1);
-    if (inside.length) {
-      const union = {
-        left: Math.min(...inside.map((p) => p.rect.left)),
-        right: Math.max(...inside.map((p) => p.rect.right)),
-        top: Math.min(...inside.map((p) => p.rect.top)),
-        bottom: Math.max(...inside.map((p) => p.rect.bottom)),
-      };
-      const pad = {
-        top: round2((union.top - panel.rect.top) / typeSize),
-        right: round2((panel.rect.right - union.right) / typeSize),
-        bottom: round2((panel.rect.bottom - union.bottom) / typeSize),
-        left: round2((union.left - panel.rect.left) / typeSize),
-      };
+    const inside = panelMembers(items, panel);
+    // ── What ESCAPED, named ──────────────────────────────────────────────────────────
+    //
+    // Reported per element rather than inferred from a negative padding number, because the
+    // useful sentence is "this line paints 152px outside its panel on the right", and because a
+    // side can be bled into deliberately AND overflowed by something else.
+    //
+    // ONLY TEXT RAISES A FINDING, AND ONLY TEXT WIDENS THE PADDING UNION. A decorative member
+    // running past the panel is one of the most ordinary shapes in broadcast - an accent that
+    // carries on past the strap - and this file's own rule is that an instrument which fails a
+    // deliberate composition teaches designs to be timid. It is still RECORDED, so the number is
+    // there for a human comparing two candidates. What the owner's blind read named is LIVE TEXT
+    // ending up on the picture, and that is the thing this counts.
+    const bleeding = new Set<Painted>();
+    for (const member of inside) {
+      for (const [side, over] of [
+        ['left', panel.rect.left - member.rect.left],
+        ['right', member.rect.right - panel.rect.right],
+        ['top', panel.rect.top - member.rect.top],
+        ['bottom', member.rect.bottom - panel.rect.bottom],
+      ] as const) {
+        if (over <= ESCAPE_TOLERANCE_PX) continue;
+        report.escapes.push({ desc: member.desc, side, px: round2(over), isText: member.isText });
+        if (!member.isText) { bleeding.add(member); continue; }
+        report.findings.push({
+          code: 'text-escapes-panel',
+          detail: `${member.desc} paints ${round2(over)}px past its panel's ${side} edge`
+            + ' - live text is sitting on the picture rather than in its box',
+        });
+      }
+    }
+
+    // A panel holding nothing but bleeding decoration has no padding to speak of; the escapes
+    // above are the whole report for it.
+    const measured = inside.filter((p) => !bleeding.has(p));
+    const pad = measured.length ? paddingRatios(panel, measured, typeSize) : null;
+    if (pad) {
       report.padding = pad;
 
       // A side under the bleed ratio is deliberate contact with the edge, not tightness.
-      const sides = Object.entries(pad).filter(([, v]) => v >= bleed);
-      const tight = sides.filter(([, v]) => v < floor);
+      const tight = Object.entries(pad).filter(([, v]) => v >= bleed && v < floor);
       if (tight.length) {
         report.findings.push({
           code: 'padding-tight',

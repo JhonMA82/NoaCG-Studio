@@ -1227,12 +1227,25 @@ to be the fix mechanism, and this section exists because we ran it as one for th
 
 ### 15.6 Owed before Phase A
 
-- **The panel-overflow bug**: `spacingCheck` must count content that escapes its panel instead of
-  dropping it. It reported comfortable padding on a graphic whose name hung off the edge.
+- **The panel-overflow bug - DONE.** `spacingCheck` counted only the children a panel
+  geometrically CONTAINED, so a name hanging off the edge was not the panel's content at all: it
+  was dropped from the union, the children that stayed home were measured against the far edge,
+  and the worst overflow of the round reported the roomiest padding. Membership is now answered
+  by the DOM as well as by geometry (`panelMembers`, shared with `proportionCheck`, whose panel
+  FILL carried the identical blindness), every member's overflow is recorded per side, and live
+  text outside its panel raises `text-escapes-panel`. Two things keep it honest: measurements now
+  use the VISUAL rect - clipped down by every ancestor that hides its overflow - so text cut off
+  inside a mask is not reported as text on the picture; and a DECORATIVE member running past the
+  edge is recorded without a finding, because a bleed is a composition and an instrument that
+  fails one teaches designs to be timid. `e2e/spike-instruments.spec.ts` pins all four cases and
+  each was mutation-checked against the code it guards.
 - **The seated-mark control** has now been failed by the owner twice ("name in the top right,
   logo centred, empty space underneath"). A control a reviewer fails is not a yardstick.
-- **The catalog's own shared logo slot** was flagged for padding in two consecutive rounds, by
-  both the owner and the instrument (`padding-lopsided`). That is catalog work, not spike work.
+- **A calibration re-sweep**, because the two changes above move numbers the thresholds were read
+  from: `scripts/spike-spacing-calibrate.mjs` and `scripts/spike-proportion-calibrate.mjs` over
+  the catalog, compared against the committed fixtures rather than against an absolute - and
+  remembering that `findPanel` resolves for only about half of it, so the sweep measures fewer
+  designs than it lists.
 
 ---
 

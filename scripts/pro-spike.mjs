@@ -777,6 +777,16 @@ function summarizeAxis(axis) {
 
 // ── The run ────────────────────────────────────────────────────────────────────────────
 /** A previous run's captured candidates, when resuming. Keyed by slug (`<brief>.<arm>`). */
+/** Live text painting outside its own panel - said out loud, because it is the defect the
+ *  instrument used to report as the ROOMIEST padding in the round (plan §15.6). A decorative
+ *  bleed is a composition and stays in the ledger without a line here. */
+function logEscapes(record) {
+  for (const escape of record.spacingReport?.escapes ?? []) {
+    if (!escape.isText) continue;
+    console.log(`    ✗ ESCAPES ITS PANEL: ${escape.desc} paints ${escape.px}px past ${escape.side}`);
+  }
+}
+
 const kept = new Map();
 let carriedSpendUsd = 0;
 if (resume) {
@@ -863,6 +873,7 @@ for (const item of freeItems) {
     console.log(`    axis: ${record.axisReport.nearMisses.length} near-miss(es),`
       + ` ${record.axisReport.skewStraddles.length} skew straddle(s)`);
   }
+  logEscapes(record);
 }
 
 // ── The paid arms ──────────────────────────────────────────────────────────────────────
@@ -1141,6 +1152,7 @@ if (paid) {
           console.log(`    axis: ${record.axisReport.nearMisses.length} near-miss(es),`
             + ` ${record.axisReport.skewStraddles.length} skew straddle(s)`);
         }
+        logEscapes(record);
       }
       await writeLedger();
   }
@@ -1459,12 +1471,18 @@ function spacingCell(r) {
   const pad = s.padding
     ? `<small>pad ${s.padding.top}/${s.padding.right}/${s.padding.bottom}/${s.padding.left}</small>`
     : '<small>no panel</small>';
+  // The escapes are spelled out rather than left to the finding code: "which line, which edge,
+  // how far" is the sentence a human needs, and a decorative bleed raises no finding at all.
+  const escapes = s.escapes?.length
+    ? `<br>${s.escapes.map((e) =>
+      `<small>${e.isText ? '⚠ ' : ''}${e.desc} ${e.px}px past ${e.side}</small>`).join('<br>')}`
+    : '';
   const gaps = s.lineGaps?.length ? `<br><small>gaps ${s.lineGaps.join(', ')}</small>` : '';
   const mark = typeof s.markGap === 'number' ? `<br><small>mark ${s.markGap}</small>` : '';
   const found = s.findings.length
     ? `<br>${s.findings.map((f) => `<small>${f.code}</small>`).join('<br>')}`
     : '<br><small>clean</small>';
-  return `${pad}${gaps}${mark}${found}`;
+  return `${pad}${escapes}${gaps}${mark}${found}`;
 }
 
 function axisCell(r) {

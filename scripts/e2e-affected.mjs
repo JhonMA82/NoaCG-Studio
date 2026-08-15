@@ -41,6 +41,10 @@ const MAP = [
   // of which live here - it was previously nightly-only for src/ai changes, which is exactly
   // the surface it exists to protect.
   [/^src\/ai\/pro\//, ['pro.spec.ts', 'import-graphic.spec.ts']],
+  // The bench-only spike instruments. They never gate a user flow, but they are what a paid
+  // round's numbers MEAN - and the panel-overflow blindness (docs/NOACG_PRO_PLAN.md §15.6) is
+  // exactly the class that builds green and reports a defect as its opposite.
+  [/^src\/ai\/spike\//, ['spike-instruments.spec.ts']],
   [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-tiers.spec.ts', 'ai-retrieval.spec.ts', 'adapt-first.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts', 'pro.spec.ts', 'lite-line-fit.spec.ts', 'lite-type-floor.spec.ts', 'lite-parity.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts']],
   // The AI step and its child panels are what the ai-* specs actually drive; the generic
   // wizard rule below does not name them, which silently left an AiStep edit unpinned.

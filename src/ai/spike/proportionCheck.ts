@@ -29,7 +29,7 @@
 // It REPORTS and does not gate, like every instrument beside it. The thresholds come from the
 // catalog sweep (scripts/spike-proportion-calibrate.mjs), not from taste.
 
-import { collectPainted, findPanel, primaryTypeSize, round2, type Painted } from './spacingCheck';
+import { collectPainted, findPanel, panelMembers, primaryTypeSize, round2, type Painted } from './spacingCheck';
 
 /** The supporting line's type size against the primary's. Above this the two sizes are so close
  *  that size is carrying no hierarchy; the catalog's own spread sits well below it (p50 0.48,
@@ -162,9 +162,11 @@ export function measureProportion(doc: Document, options: ProportionOptions = {}
           + `(ceiling ${Math.round(footprintCeiling * 100)}%)`,
       });
     }
-    const inside = items.filter((p) => p !== panel
-      && p.rect.left >= panel.rect.left - 1 && p.rect.right <= panel.rect.right + 1
-      && p.rect.top >= panel.rect.top - 1 && p.rect.bottom <= panel.rect.bottom + 1);
+    // The same membership rule the spacing instrument uses, and for the same reason: fill
+    // measured over only the children that STAYED inside reads an overflowing graphic as a
+    // roomier one, which is the §15.6 blindness one instrument over. A fill above 1 is now
+    // possible and is the honest answer - the content is bigger than the box holding it.
+    const inside = panelMembers(items, panel);
     if (inside.length && panelArea > 0) {
       // The UNION of the content, not the sum of its parts - overlapping children (a mask over
       // its span) would otherwise total more than the panel they sit in.
