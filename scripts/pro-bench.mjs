@@ -188,7 +188,7 @@ for (const entry of briefs) {
       const { stubProConcept } = await import(`/src/ai/pro/stub.ts${bust}`);
       const { generateProConcept, compileProConcept } = await import(`/src/ai/pro/pipeline.ts${bust}`);
       const { normalizeProInterpretation } = await import(`/src/ai/pro/normalize.ts${bust}`);
-      const { compileProPlan } = await import(`/src/ai/pro/compile.ts${bust}`);
+      const { compileProPlan, validateProCompile } = await import(`/src/ai/pro/compile.ts${bust}`);
       const { productionSpxValidator } = await import(`/src/ai/litePipeline.ts${bust}`);
       const { uuid } = await import(`/src/model/id.ts${bust}`);
 
@@ -233,7 +233,10 @@ for (const entry of briefs) {
         const concept = { dataUrl: input.fixture.concept, mediaType: 'image/png', ...size, model: 'fixture', costUsd: 0 };
         const plan = normalizeProInterpretation(input.fixture.interpretation, size, uuid);
         const compiled = await compileProPlan(plan, concept, input.brief, {});
-        result = { ...compiled, validation: await validate(compiled.template), concept };
+        // Through the pipeline's own seam, not the bare validator: a fixture replay that
+        // scored only the gate would keep reporting `pass` on the refused-erase ghost the
+        // product now blocks (docs/NOACG_PRO_PLAN.md §16).
+        result = { ...compiled, validation: await validateProCompile(compiled, validate), concept };
         // A fixture replays a call that was paid for once, long ago. Zero, not null: this run
         // spent nothing, which is a measurement rather than a missing one.
         interpretCost = 0;
@@ -263,6 +266,10 @@ for (const entry of briefs) {
         panelsRebuilt: result.report.panelsRebuilt,
         flattened: result.report.flattened,
         textErased: result.report.textErased,
+        // The refused half of the same measurement - what stays baked in the artwork. It is
+        // recorded beside the erased count because a run reporting only successes reads as if
+        // there were nothing else to report.
+        bakedTextRefused: result.report.bakedTextRefused.length,
         ringMatted: result.report.ringMatted,
         artDropped: result.report.artDropped,
         reportWarnings: result.report.warnings,
@@ -400,7 +407,8 @@ const rows = results.map((r) => `
     </div>
     ${r.checks !== undefined || r.textFields !== undefined ? `<pre>${JSON.stringify({
       textFields: r.textFields, editability: r.editability, panelsRebuilt: r.panelsRebuilt,
-      flattened: r.flattened, textErased: r.textErased, ringMatted: r.ringMatted,
+      flattened: r.flattened, textErased: r.textErased, bakedTextRefused: r.bakedTextRefused,
+      ringMatted: r.ringMatted,
       artDropped: r.artDropped, warnings: r.reportWarnings,
     }, null, 1)}</pre>` : ''}
   </section>`).join('\n');

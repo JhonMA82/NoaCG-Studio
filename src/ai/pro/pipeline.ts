@@ -29,7 +29,7 @@ import {
 } from './contract';
 import { normalizeProInterpretation } from './normalize';
 import type { ProSession } from './session';
-import { compileProPlan, ProCompileError, type ProCompileResult } from './compile';
+import { compileProPlan, ProCompileError, validateProCompile, type ProCompileResult } from './compile';
 import { fillProLogoSlot } from './logoAsset';
 
 export type ProStage = 'concept' | 'interpret' | 'compile' | 'validate';
@@ -269,13 +269,13 @@ export async function compileProConcept(
     );
     run.stage('compile', t0);
 
-    let validation: ValidationResult | null = null;
-    if (options.validate) {
-      options.onStage?.('validate');
-      t0 = Date.now();
-      validation = await options.validate(compiled.template);
-      run.stage('validate', t0);
-    }
+    options.onStage?.('validate');
+    t0 = Date.now();
+    // The gate AND the compiler's own refusals, in one verdict (compile.ts
+    // `validateProCompile`). It runs even with no injected validator, because a refused erase
+    // is a finding this pipeline owns rather than one it was handed.
+    const validation: ValidationResult | null = await validateProCompile(compiled, options.validate);
+    run.stage('validate', t0);
     run.finish(validation ? validation.ok : true, validation?.errors.map((finding) => finding.rule));
     return { ...compiled, validation, concept, interpretation: result.output, interpretCostUsd };
   } catch (error) {
