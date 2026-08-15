@@ -45,6 +45,9 @@ const MAP = [
   // round's numbers MEAN - and the panel-overflow blindness (docs/NOACG_PRO_PLAN.md §15.6) is
   // exactly the class that builds green and reports a defect as its opposite.
   [/^src\/ai\/spike\//, ['spike-instruments.spec.ts']],
+  // The mark PROBE is read by the Lite legibility gate and by Pro's mark-field trigger, and the
+  // trigger rests entirely on `inkSpread` separating one ink from several.
+  [/^src\/assets\/assetInfo\.ts$/, ['spike-instruments.spec.ts', 'mark-legibility.spec.ts', 'assets.spec.ts']],
   [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-tiers.spec.ts', 'ai-retrieval.spec.ts', 'adapt-first.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts', 'pro.spec.ts', 'lite-line-fit.spec.ts', 'lite-type-floor.spec.ts', 'lite-parity.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts']],
   // The AI step and its child panels are what the ai-* specs actually drive; the generic
   // wizard rule below does not name them, which silently left an AiStep edit unpinned.

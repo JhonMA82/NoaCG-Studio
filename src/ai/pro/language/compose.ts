@@ -41,6 +41,7 @@ export interface ComposeOptions {
     assetPath: string;
     images: AssetFile[];
     inkLuminance?: number;
+    inkSpread?: number;
     backing?: 'transparent' | 'own-field';
   } | null;
   /**
@@ -93,6 +94,19 @@ const MARK_FIELD_LIGHT = '#f2f4f7';
 const MARK_FIELD_DARK = '#12161c';
 /** The same 3:1 the rendered mark gate and the Lite brand audit both measure against. */
 const MARK_INK_CONTRAST_FLOOR = 3;
+/**
+ * How far a mark's ink may spread and still count as ONE ink (`MarkProbe.inkSpread`).
+ *
+ * MEASURED over the four fixture marks rather than chosen: the two single-ink marks - a volt
+ * wordmark and a navy monogram, hues as far apart as the set holds - come in at 0.0021 and
+ * 0.0004, and the full-colour roundel at 0.2053. Two orders of magnitude, so this floor sits 24x
+ * above the loosest single ink and 4x below the coloured mark, and no plausible drift crosses it.
+ *
+ * This is the whole reason the field can be trusted. A mean luminance flagged three marks in the
+ * Phase A round and the owner's eye agreed with one; the spread is what separates the mark that
+ * genuinely vanishes from the one that merely measures badly.
+ */
+const MARK_SINGLE_INK_SPREAD = 0.05;
 
 /** A colour's relative luminance, read back out of the one contrast function this repo has.
  *  contrast(c, black) = (L + 0.05) / 0.05, so L falls straight out of it - which is cheaper and
@@ -122,6 +136,12 @@ function markFieldFor(
   language: DesignLanguage, logo: NonNullable<ComposeOptions['logo']>,
 ): { fill: string; reason: string } | null {
   if (logo.backing === 'own-field' || typeof logo.inkLuminance !== 'number') return null;
+  // ONE INK, OR NOTHING. A coloured mark reads by hue and shape, not by the mean luminance the
+  // contrast test measures, so a field would be a repair for a defect it does not have - which
+  // is exactly what a rendered A/B showed on the Phase A round: the two flagged roundel cells
+  // came out WORSE with a field and the owner's blind read had passed both. An older probe with
+  // no spread at all is treated as "cannot tell", and cannot tell means do not touch it.
+  if (typeof logo.inkSpread !== 'number' || logo.inkSpread > MARK_SINGLE_INK_SPREAD) return null;
   const panel = luminanceOf(panelSurface(language).value);
   if (panel === null) return null;   // a panel-free super paints no surface to fail against
   const onPanel = contrastFromLuminance(logo.inkLuminance, panel);

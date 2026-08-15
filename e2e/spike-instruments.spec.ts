@@ -90,6 +90,43 @@ const WORDMARK =
   + '<rect x="0" y="26" width="64" height="14" fill="#ffffff"/>'
   + '<text x="90" y="76" font-family="Arial" font-size="58" font-weight="700" fill="#ffffff">Meridian</text></svg>';
 
+/** The same wordmark drawn in TWO inks - the shape a coloured logo has. */
+const COLOURED_MARK =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">'
+  + '<circle cx="128" cy="128" r="96" fill="#ff7a1a"/>'
+  + '<circle cx="128" cy="128" r="48" fill="#ffc838"/></svg>';
+
+// THE MEASUREMENT THAT DECIDES WHETHER A MARK GETS A READING FIELD
+// (docs/NOACG_PRO_PLAN.md §15.8). A mean ink luminance flagged three marks in the first Phase A
+// round; the owner's blind read and a rendered A/B agreed with exactly one of them, and both
+// false positives were one full-colour roundel that reads perfectly. `inkSpread` is what tells
+// the two apart, and the whole trigger rests on the gap between them staying wide.
+test.describe('a single-ink mark and a coloured one separate by their ink spread', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/app', { waitUntil: 'domcontentloaded' });
+    await page.locator('.topbar').waitFor();
+  });
+
+  test('one ink measures near zero, several measure far above the floor', async ({ page }) => {
+    const measured = await page.evaluate(async ([single, coloured]) => {
+      const { probeMark } = await import('/src/assets/assetInfo.ts');
+      const probe = async (svg: string) =>
+        probeMark({ path: 'images/mark.svg', data: `data:image/svg+xml;base64,${btoa(svg)}` });
+      return {
+        single: (await probe(single))?.inkSpread,
+        coloured: (await probe(coloured))?.inkSpread,
+      };
+    }, [WORDMARK, COLOURED_MARK]);
+
+    // The floor the composer uses is 0.05, read off the fixture marks (0.0004 and 0.0021 for a
+    // single ink, 0.2053 for the roundel). Asserted as a BAND on each side rather than as the
+    // constant, so a drift that narrows the gap fails here instead of quietly re-enabling the
+    // false positive.
+    expect(measured.single).toBeLessThan(0.01);
+    expect(measured.coloured).toBeGreaterThan(0.1);
+  });
+});
+
 test.describe('the platform seats a mark against the words, not against empty grid', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/app', { waitUntil: 'domcontentloaded' });

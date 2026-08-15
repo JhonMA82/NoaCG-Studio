@@ -199,6 +199,22 @@ export interface MarkProbe {
   /** Alpha-weighted mean relative luminance of the ink, 0-1. Only meaningful when the mark is
    *  transparent-backed; on an own-field mark the "ink" includes its own background. */
   inkLuminance: number;
+  /**
+   * How far the ink's luminance SPREADS around that mean - the alpha-weighted standard
+   * deviation, 0-1. Additive and optional, so nothing that already builds a probe moves.
+   *
+   * WHY IT EXISTS. A mean alone cannot tell a single-ink KNOCKOUT wordmark from a full-colour
+   * logo, and the two want opposite treatment: a monogram in one dark ink genuinely vanishes on
+   * a dark surface, while a coloured roundel whose mean happens to land mid-tone reads perfectly
+   * well. Measured on the Pro Phase A round (docs/NOACG_PRO_PLAN.md §15.8): the mean flagged
+   * three marks, the owner's eye and a rendered A/B agreed with only one of them, and the two
+   * false positives were the same coloured roundel. A single ink has a spread near zero
+   * whatever its hue; several inks do not.
+   *
+   * Alpha-WEIGHTED for the same reason the mean is: an anti-aliased edge pixel is a fraction of
+   * an ink, and counting it whole would give every mark a spread it does not have.
+   */
+  inkSpread?: number;
 }
 
 /**
@@ -236,6 +252,7 @@ function readMark(img: HTMLImageElement): MarkProbe | null {
   let opaque = 0;
   let inkWeight = 0;
   let inkSum = 0;
+  let inkSquareSum = 0;
   for (let i = 0; i < px.length; i += 4) {
     const alpha = px[i + 3];
     if (alpha === 255) opaque += 1;
@@ -247,13 +264,19 @@ function readMark(img: HTMLImageElement): MarkProbe | null {
     const lum = 0.2126 * channel(px[i]) + 0.7152 * channel(px[i + 1]) + 0.0722 * channel(px[i + 2]);
     const weight = alpha / 255;
     inkSum += lum * weight;
+    inkSquareSum += lum * lum * weight;
     inkWeight += weight;
   }
   const total = (px.length / 4) || 1;
+  const mean = inkWeight > 0 ? inkSum / inkWeight : 0;
+  // E[x²] - E[x]², clamped at zero: the two terms are near-equal for a single-ink mark, where
+  // float error can push the difference a hair below it.
+  const variance = inkWeight > 0 ? Math.max(0, inkSquareSum / inkWeight - mean * mean) : 0;
   return {
     aspect,
     backing: opaque / total >= OWN_FIELD_OPACITY ? 'own-field' : 'transparent',
-    inkLuminance: inkWeight > 0 ? inkSum / inkWeight : 0,
+    inkLuminance: mean,
+    inkSpread: Math.sqrt(variance),
   };
 }
 

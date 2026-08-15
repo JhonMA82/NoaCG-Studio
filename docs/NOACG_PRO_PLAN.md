@@ -1412,12 +1412,29 @@ one he failed.
 
 **This is the recorded Lite false-positive class arriving on the Pro side** (`src/ai/AGENTS.md`:
 luminance flagged crests that render perfectly, "a blue crest on a red tile separates by hue").
-`MarkProbe` carries aspect, backing and one alpha-weighted ink luminance - which cannot tell a
+`MarkProbe` carried aspect, backing and one alpha-weighted ink luminance - which cannot tell a
 single-ink knockout wordmark from a coloured logo, and that distinction is the whole question.
-**So the cheapest correct step is a measurement, not a policy change**: extend the probe with an
-ink SPREAD (chroma or luminance variance), fire the field only on a genuinely single-ink mark,
-and the rate goes from 3 of 18 to about 1. Until that exists the default stays report-only, which
-is where the code is.
+
+**THE MEASUREMENT NOW EXISTS AND THE SEPARATION IS TWO ORDERS OF MAGNITUDE.**
+`MarkProbe.inkSpread` (additive, optional) is the alpha-weighted standard deviation of the ink's
+luminance, computed in the same pass as the mean. Over the four fixture marks:
+
+| mark | backing | ink luminance | **ink spread** |
+| --- | --- | --- | --- |
+| volt wordmark | transparent | 0.7772 | **0.0021** |
+| navy monogram | transparent | 0.0200 | **0.0004** |
+| consumer roundel | transparent | 0.4910 | **0.2053** |
+| editorial mark | own-field | 0.1820 | 0.3439 (excluded - own field) |
+
+`MARK_SINGLE_INK_SPREAD = 0.05` sits 24x above the loosest single ink and 4x below the coloured
+one. **Re-run on the same three cells, free: the monogram takes its field (1.01:1 → 13.61:1) and
+both roundel cells are left untouched** - the trigger fires once in 18 instead of three times, and
+on the one graphic the owner named. An older probe with no spread is treated as "cannot tell",
+which means do not touch it. Pinned by `e2e/spike-instruments.spec.ts` as a BAND on each side, so
+a drift that narrows the gap fails rather than quietly restoring the false positive.
+
+**The default is still OFF.** The objection to a mark field is answered; the rule that a mark
+carries no plate is the owner's, and flipping `markField` is one line whenever they want it.
 
 **The original framing, kept because the premise change stands.** The standing rule is *a mark carries NO PLATE* (2026-08-14),
 and its reasoning was explicit: on Lite the platform does not own the composition, so a well is a
