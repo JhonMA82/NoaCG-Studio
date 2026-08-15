@@ -218,6 +218,50 @@ if (PRO_DIR) {
   }).join('\n');
 }
 
+// ── The HOSTED generation - the one a person drove through the product ────────────────────
+//
+// Separate from the round above, and it earns its own section: those 18 ran through the bench's
+// route, this one went through /api/ai/pro-generations with a real reservation, a real settle and
+// a real ledger row. It is one graphic, so it is shown large.
+let hostedSection = '';
+const hostedDir = path.join(EVIDENCE, 'hosted-2026-08-16');
+const hostedRun = await readFile(path.join(hostedDir, 'run.json'), 'utf8')
+  .then((raw) => JSON.parse(raw)).catch(() => null);
+if (hostedRun) {
+  const rel = path.relative(path.dirname(OUT), hostedDir).split(path.sep).join('/');
+  const facts = [
+    ['brief typed into the wizard', hostedRun.brief],
+    ['ledger row', hostedRun.ledger?.id ?? '-'],
+    ['status', hostedRun.ledger?.status ?? '-'],
+    ['provider cost', hostedRun.ledger?.cost != null ? `$${hostedRun.ledger.cost}` : '-'],
+    ['model calls on the reservation', hostedRun.ledger?.calls ?? '-'],
+    ['server runtime', hostedRun.ledger?.runtime != null ? `${(hostedRun.ledger.runtime / 1000).toFixed(1)} s` : '-'],
+    ['wall clock, press to result card', `${(hostedRun.runtimeMs / 1000).toFixed(1)} s`],
+    ['rule codes on the row', (hostedRun.ledger?.codes ?? []).join(', ') || 'none'],
+    ['adjustments on the row', (hostedRun.ledger?.adjustments ?? []).join(', ') || 'none'],
+    ['every /api/ai call the browser made', (hostedRun.calls ?? []).join('  →  ')],
+    ['page errors', (hostedRun.pageErrors ?? []).join(' | ') || 'none'],
+    ['what the result card said', hostedRun.proReport ?? '-'],
+  ];
+  hostedSection = `<h3>The hosted generation - one graphic, through the product</h3>
+<p class="lead">Driven through the wizard on a configured deployment with <strong>nothing
+stubbed</strong>: a real reservation, a real managed call, a real outcome and a real ledger row.
+The composed document was saved and the screenshots taken BEFORE any assertion ran, and there was
+no retry - the two rules this file's own history bought. The frames below are that saved document
+re-rendered transparent.</p>
+<section class="design pro hosted">
+  <h2>hosted · ${esc(hostedRun.ledger?.id ?? 'run')}</h2>
+  <div class="frames">${[
+    frameFigure(`${rel}/hosted.hold.png`, 'settled hold', ''),
+    frameFigure(`${rel}/hosted.stress.png`, 'stress text', ''),
+  ].join('')}</div>
+  <h4>and the product surface it was made on</h4>
+  <div class="frames">${frameFigure(`${rel}/step-5-result.png`, 'the wizard at the moment it finished', '', true)}</div>
+  <div class="cols"><div class="col wide"><dl class="measure">${facts
+    .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div></div>
+</section>`;
+}
+
 const markLead = sweeps.length
   ? `<p class="lead"><strong>${designIds.length} mark-capable lower thirds</strong>, each rendered `
     + `bare and then carrying ${sweeps.map((s) => s.mark).join(' and ')}. `
@@ -313,6 +357,8 @@ means is yours to say.</p>
 <h3>The marked straps</h3>
 ${markLead}
 ${markSection || '<p class="lead">No mark sweep on disk yet.</p>'}
+
+${hostedSection}
 
 ${proSection ? `<h3>NoaCG Pro - Phase A generations</h3>\n${proLead}\n${proSection}` : ''}
 

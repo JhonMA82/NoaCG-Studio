@@ -1805,3 +1805,46 @@ bench's route, not through `/api/ai/pro-generations`. The hosted WALK is now cov
 with a stub (above), and the entitlement gate is what stops the throwaway test account from
 running the real thing locally: `ai.pro` is owner + `@arcada.fi` only, and granting it to a test
 account to make a spec pass would be the gate telling itself what it wants to hear.
+
+#### And the one that went through the PRODUCT - ledger `28807ce7`, 2026-08-16
+
+The eighteen above ran through the bench's route. This one was typed into the wizard on a
+configured deployment with **nothing stubbed** - a real reservation, a real managed call, a real
+outcome, a real ledger row - and a person then looked at it.
+
+| | |
+|---|---|
+| ledger row | `28807ce7-f385-422f-9417-0ae04a2bfe7a`, `status: usable` |
+| model calls on the reservation | **1** |
+| provider cost | **$0.0041359** |
+| server runtime / wall clock to the result card | 12.4 s / 12.9 s |
+| `validation_rule_codes` / `adjustments` | empty, and honestly so - no repair fired, no mark was uploaded, no field fell back |
+| page errors | none |
+
+The browser's whole `/api/ai` timeline, in order: `pro-status` → **`POST pro-generations`** →
+**`POST generate`** → **`POST pro-outcome`** → `pro-status`. One reservation, one call inside it,
+one settle, and the panel re-asking the server what is left rather than decrementing its own copy.
+
+**What it looks like**: a navy panel with square corners, a thin gold rule fused to the leading
+edge, the name in white Libre Franklin bold and the role in grey beneath it, bottom-left. One
+strap. Nothing is printed twice. Under the stress values the panel grows and the name wraps to two
+lines inside it. **The design language the model returned was "Election Night Watch"**, and the
+result card says so along with what the platform decided from it (balanced density, 25/33px
+padding, 11px line gap, accent outside the padding, reveal at measured pace).
+
+**How it was run, because both rules here were bought with money.** The composed document and the
+screenshots were written to disk BEFORE the first assertion, and the driver has no retry - the
+2026-08-15 run lost its picture to a locator that failed after the product had finished and
+Playwright's retry bought a second graphic. The whole walk was also driven once in `--dry` mode,
+stopping at the Create button with the brief filled, so every locator was proved before a cent
+moved. The runner is deliberately NOT a committed spec: a spec that spends real money is one CI
+run away from spending it repeatedly.
+
+**Two things about the account, stated plainly.** The tester account already held a permanent
+`ai.pro` grant, so nothing was written to production to make this run. Its BINDING counter
+(successes) was spent, so the run used `AI_PRO_OVERRIDE_USER_IDS` in the local `.env` - the
+documented development override - which lifts the quota and leaves the reservation, the lease, the
+settle and the ledger row exactly as real as they would be for a student. The allowance GATE is
+therefore covered by the stubbed configured spec rather than by this run, which is the honest
+division: this one exists to answer "what does the product actually produce", and it now has a
+picture on the review page to answer it with.
