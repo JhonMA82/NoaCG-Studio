@@ -196,9 +196,22 @@ at least equal to the DIY arm on quality, on a clear majority of briefs, with ze
 defects among accepted results - and the same operationalization already written down in §2.1
 ("clearly beats" = strictly higher brand fit; "at least equal" = quality no lower; "clear majority"
 = more than half the fully judged briefs; "accepted" = would air as-is or after minor edits). The
-re-run happens **once the two 2026-08-15 slices running alongside this decision have landed**
-(sessions B and C of that day's orchestration), so the round films what the product actually does
-after them. **A second FAIL means the retirement stands** - the gate does not get a third reading.
+re-run happens **once the two 2026-08-15 slices running alongside this decision have landed**, so
+the round films what the product actually does after them:
+
+  - **a Pro graphic whose baked text could not be erased is BLOCKED** rather than reported usable.
+    The compiler already recorded the refusal in a warnings string nothing read, which is how §16's
+    unusable generation carried an empty `validation_rule_codes` and a `usable` ledger row; the
+    refusal becomes a structured blocking finding that every path - browser, offline stub,
+    benchmark - scores through one seam.
+  - **Pro Phase A - the platform takes the panel** (`docs/NOACG_PRO_PLAN.md` §15.5). The platform
+    owns each graphic type's structure and spacing; the model supplies the design LANGUAGE as
+    parameters (palette, type scale and weight, shape and corner language, accent form, density,
+    motion character). `applyLogoSlot` and `fillBrandMark` generalised from the mark to the whole
+    composition, which kills the remaining layout failures by construction rather than by
+    inspection.
+
+**A second FAIL means the retirement stands** - the gate does not get a third reading.
 
 **Nobody should treat the re-run as expensive.** The rig exists: `scripts/ai-lite-value-gate.mjs`
 builds the arms, the blind sheet and the verdict, and `--verdict <ballot.jsonl>` applies the rule
