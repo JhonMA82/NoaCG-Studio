@@ -1,74 +1,22 @@
-// Maps the SHARED Create-with-AI brief (the prompt, the "More control" GenerationSpec, and
-// the step's uploads) onto the v1 ProBrief - the one deterministic seam between the unified
-// wizard workflow and the image-guided pipeline. Pro is a TIER of the same creation flow,
-// not a second flow, so the user authors one brief and this file translates it; nothing
-// here calls a model. Dependency-light like contract.ts.
+// Maps the SHARED Create-with-AI brief (the prompt, the "More control" GenerationSpec, and the
+// step's uploads) onto the design-language call - the one deterministic seam between the unified
+// wizard workflow and NoaCG Pro. Pro is a TIER of the same creation flow, not a second flow, so
+// the user authors one brief and this file translates it; nothing here calls a model.
+// Dependency-light like contract.ts.
+//
+// The concept-and-reconstruct engine's own mapper (`standardProBrief` -> `ProBrief`) went with it
+// on 2026-08-15: it had no caller left, not even the bench, which builds its briefs from the
+// fixture bank. See `src/ai/pro/reconstruct/AGENTS.md`.
 
 import type { GenerationSpec } from '../../model/generationSpec';
-import type { PurposedImage } from '../../model/imagePurpose';
 import type { LineSpec } from '../../model/wizard';
 import { markShapeFromAspect, type LiteMarkDescriptor } from '../liteTypes';
-import { PRO_LIMITS, type ProBrief } from './contract';
+import { PRO_LIMITS } from './contract';
 import type { LanguageBrief } from './language/prompt';
 
-/** The graphic categories the v1 pipeline can compile (docs/NOACG_PRO_PLAN.md §11 - the
- *  contract carries `graphicType` so widening is an allowlist change, and this list is the
- *  UI's copy of that allowlist). */
+/** The graphic types Pro composes (docs/NOACG_PRO_PLAN.md §15.5 - Phase B widens this by adding
+ *  a brief bank and a calibration sweep per type, and this list is the UI's copy of it). */
 export const PRO_SUPPORTED_CATEGORIES = ['lower-third'] as const;
-
-/** 'auto' is supported: with no explicit pick, v1 designs the one type it can compile. */
-export function proCategorySupported(spec: GenerationSpec | null): boolean {
-  if (!spec) return true;
-  return spec.category === 'auto'
-    || (PRO_SUPPORTED_CATEGORIES as readonly string[]).includes(spec.category);
-}
-
-/**
- * Build the ProBrief the standard tier generates from. The mapping is honest about what v1
- * carries: the first two text fields become the name/title lines (their example values ride
- * into the concept so the design is judged with realistic content lengths), an as-is upload
- * or a requested image field asks for a logo slot, and the look decisions (style, mood,
- * avoid, exact brand colours) travel as concept direction text.
- */
-export function standardProBrief(
-  prompt: string,
-  spec: GenerationSpec | null,
-  uploads: PurposedImage[],
-): ProBrief {
-  const textFields = (spec?.fields ?? []).filter((f) => f.kind === 'text' || f.kind === 'lines');
-  const line = (index: number, fallback: string): string => {
-    const field = textFields[index];
-    return field?.example?.trim() || field?.label?.trim() || fallback;
-  };
-  const brand = spec?.brandColors;
-  const direction = [
-    prompt.trim(),
-    spec?.styleNotes?.trim() ? `Visual style: ${spec.styleNotes.trim()}` : '',
-    spec?.mood?.trim() ? `Mood: ${spec.mood.trim()}` : '',
-    spec?.avoidNotes?.trim() ? `Avoid: ${spec.avoidNotes.trim()}` : '',
-    brand
-      ? `Brand colours - accent ${brand.accent}, text ${brand.text}, panel ${brand.panel}. Use the accent exactly.`
-      : '',
-  ]
-    .filter(Boolean)
-    .join('\n')
-    .slice(0, PRO_LIMITS.briefChars);
-  return {
-    brief: direction,
-    name: line(0, 'Alexandra Riva'),
-    title: line(1, 'Chief Correspondent'),
-    includeLogo:
-      uploads.some((u) => u.purpose === 'asset')
-      || (spec?.fields ?? []).some((f) => f.kind === 'image'),
-  };
-}
-
-// ── Phase A: the SAME wizard brief, mapped onto the design-language call ──────────────────────
-//
-// The functions below are the live mapping (docs/NOACG_PRO_PLAN.md §15, §16); `standardProBrief`
-// above belongs to the retired concept-and-reconstruct engine. Both read the one brief the user
-// authored, which is the whole reason this file exists: Pro is a TIER of the shared creation
-// flow, so there is no second brief vocabulary anywhere.
 
 /** The two lines a v1 Pro graphic carries, from the user's own field setup. Content, never
  *  design - the language decides how they read, the platform decides where they sit. */

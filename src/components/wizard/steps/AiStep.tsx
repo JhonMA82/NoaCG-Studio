@@ -1659,10 +1659,13 @@ export default function AiStep({
                 ];
                 return (
                   <div className="wz-pro-concept" style={{ marginTop: 8 }} data-testid="pro-report">
-                    <p className="hint">
-                      <strong>{pro.language.name}</strong> — {pro.language.rationale}
-                    </p>
-                    <div className="row" style={{ gap: 6, marginTop: 4 }} data-testid="pro-palette">
+                    {/* The RATIONALE is not repeated here: it is already the result summary one
+                        line above, which is the slot every path writes its reasoning into. */}
+                    {/* `wrap`, because this row carries a model-chosen NAME beside four swatches
+                        and three enum words - a long look name on a narrow step would otherwise
+                        push the palette off the card. */}
+                    <div className="row wrap" style={{ gap: 6, alignItems: 'center' }} data-testid="pro-palette">
+                      <strong style={{ marginRight: 2 }}>{pro.language.name}</strong>
                       {swatches.map(([role, hex]) => (
                         <span
                           key={role}
