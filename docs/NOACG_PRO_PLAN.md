@@ -1233,3 +1233,64 @@ to be the fix mechanism, and this section exists because we ran it as one for th
   logo centred, empty space underneath"). A control a reviewer fails is not a yardstick.
 - **The catalog's own shared logo slot** was flagged for padding in two consecutive rounds, by
   both the owner and the instrument (`padding-lopsided`). That is catalog work, not spike work.
+
+---
+
+## 16. The first REAL hosted generation - 2026-08-15, and what it settles
+
+Hosted Pro went live for the owner and one cohort domain on 2026-08-14. The owner ran the first
+real generation the next morning, from the wizard on a phone, using **one of the service's own
+suggested prompts**. Ledger id `8e9a35eb-3df8-4d79-a089-083a7ed55c2b`.
+
+**The verdict was UNUSABLE, and the gate said `usable`.**
+
+### What arrived
+
+The rebuilt panel - a name, a role, a dark rounded panel, a thin amber edge accent - was clean
+and correct. **Behind it sat the same text baked into the artwork at roughly four times the
+size**, clipped at both edges, with the tail of the name bleeding in from the right. The
+familiar baked-text ghost.
+
+### Why
+
+The concept model draws the lower third AS PIXELS, text included. The compiler finds the text
+regions, rebuilds the panel in CSS with live fields, and then tries to erase the baked original.
+`eraseRegion` is a FLAT FILL: it erases where the backdrop is flat and refuses where it is not
+(pinned by `e2e/pro.spec.ts`, "baked text outside panels is erased where the backdrop is flat,
+refused honestly where not"). This ghost sat on a dark gradient, so the erase refused - honestly
+- and left it. The rebuilt panel carries house type sizing while the ghost keeps the concept's
+native scale, which is why the two disagree so violently.
+
+### The part that is a defect rather than a limitation
+
+`validation_rule_codes` came back EMPTY and the row says `usable`. **The compiler knew**: it
+records the refusal in `ProCompileReport.warnings`, and nothing reads it. §14 already recorded
+this for the benchmark - *a gate that measures the right dimension and discards the answer is a
+scoring bug, not a blind spot*. This generation proves the same hole exists on the PRODUCT
+surface, where the person on the other end is a student rather than a reviewer.
+
+**The cheapest honest change: make an erase refusal blocking.** A graphic with un-erased baked
+text outside its rebuilt panels must not be presented as usable. On the 2026-08-10 numbers that
+would have caught three of the four broken frames. It does not produce a good graphic; it stops
+the product asserting a broken one is fine.
+
+### What it says about §15
+
+**The panel the model designed was good.** Clean type, sensible hierarchy, restrained accent.
+What wrecked the frame was the platform's reconstruction of it. §15.2 found that none of the
+remaining failures were colour, typography, motion or brand; here even the composition was
+sound. That is evidence FOR §15.4's option 3 - *the model decides a design language and the
+platform renders it* - and against spending anything further on making raster reconstruction
+work.
+
+### Operational state
+
+The cohort domain was cleared from the `arcada` plan the same hour, so no student can reach
+Pro; the owner's own grant stands so the investigation can continue. The hosted ROUTE is
+verified and correct and is not implicated: cost reconciled exactly (concept image $0.0671020 -
+the documented flat rate - plus interpret $0.0184629, summing to the $0.0855649 on the
+generation row), both settlements landed, the lease renewed, and the allowance moved.
+
+**First real turnover: 62 s** (`runtime_ms` 61984). `AI_PRO_RETRY_SPACING_MS` is an unmeasured
+8 s; Lite's own formula (turnover / retries) puts it near 31 s. One sample - re-derive after a
+class rather than treating it as settled.
