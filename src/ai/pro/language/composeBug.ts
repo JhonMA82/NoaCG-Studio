@@ -30,13 +30,15 @@ import type { BugDesign } from '../../../templates/cornerBug/shared';
 import type { ResolvedOptions, TemplateVariant } from '../../../model/wizard';
 import type { LanguagePalette, DesignLanguage } from './contract';
 import {
-  markFieldCss,
-  markFieldFor,
+  markKnockCss,
+  platePlan,
+  markTreatmentFor,
   panelSurface,
   platformNotes,
   readableInkOn,
   resolvePalette,
   wizardPalette,
+  type MarkTreatment,
 } from './paint';
 import { accentPlan, resolveSpacing, type ResolvedSpacing } from './structure';
 import type { ComposeOptions, ComposedGraphic } from './compose';
@@ -271,21 +273,31 @@ export function composeBugFromLanguage(
   const { palette, adjustments: paletteAdjustments } = resolvePalette(language, options.brandPalette);
   const surface = panelSurface(language, palette);
   const markField = options.markField ?? true;
-  const field = markField && options.logo ? markFieldFor(surface.value, options.logo) : null;
+  const mark: MarkTreatment = markField && options.logo
+    ? markTreatmentFor(surface.value, options.logo)
+    : { kind: 'none', reason: null };
   const variant = bugVariantForLanguage(
     language,
-    field ? markFieldCss(PREFIX, field, s) : '',
+    mark.kind === 'knock' ? markKnockCss(PREFIX, mark) : '',
     options.brandPalette,
   );
-  const adjustments = [...paletteAdjustments, ...(field ? ['mark_field_painted'] : [])];
-  const notes = platformNotes({ language, spacing: s, surface, prefix: PREFIX, adjustments, field });
+  const adjustments = [...paletteAdjustments, ...(mark.kind === 'knock' ? ['mark_ink_knocked'] : [])];
+  const notes = platformNotes({
+    language, spacing: s, surface, prefix: PREFIX, adjustments, mark,
+    plates: platePlan(language, palette, surface, s),
+  });
   const template = variant.create({
     lines: options.lines,
     ...(options.resolution ? { resolution: options.resolution } : {}),
     ...(options.fps ? { fps: options.fps } : {}),
     animation: { presetId: s.preset, speed: s.speed, easing: 'auto', steps: false },
     ...(options.logo
-      ? { logoEnabled: true, logoAssetPath: options.logo.assetPath, importedImages: options.logo.images }
+      ? {
+        logoEnabled: true,
+        logoAssetPath: options.logo.assetPath,
+        importedImages: options.logo.images,
+        ...(mark.kind === 'knock' ? { logoInkKnocked: true } : {}),
+      }
       : {}),
   });
   return { template, variant, spacing: s, notes, adjustments };
