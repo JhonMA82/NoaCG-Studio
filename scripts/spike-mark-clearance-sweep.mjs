@@ -49,10 +49,28 @@
 // the row at two. Reporting only the two-line number reads a design's own proportions as a defect;
 // reporting only its own lines misses what a user gets after deleting a row. Both are printed.
 //
+// ── --capture: THE FRAME, not only the number ─────────────────────────────────────────────
+//
+// Every reading above was accepted on numbers alone, and the four designs this sweep exists to
+// settle changed what a mark LOOKS like. `--capture` writes each render this sweep already makes
+// to a 1920x1080 PNG **with its alpha intact**, so the review page can composite it over anything
+// - the graphic ships transparent and is judged over pictures, never over the grey card a bench
+// happens to mount it on.
+//
+// The alpha is why the shot is taken on a SECOND page rather than off the mounted iframe: an
+// element screenshot inside /app carries whatever the app painted behind it, and the app's own
+// body background is not the "default background" `omitBackground` removes. The composed document
+// is self-contained by contract (composeDocument inlines CSS, GSAP, JS and assets), so it is
+// simply `setContent` into a page parked on this origin - relative `fonts/<file>` still resolves,
+// and the graphic runs its own lifecycle exactly as an export does.
+//
+//   node scripts/spike-mark-clearance-sweep.mjs --capture
+//   node scripts/spike-mark-clearance-sweep.mjs --mark=shield-tall --capture --ids=ls29,ls17,lt07,ls10
+//
 // Requires the dev server on this checkout's port (node scripts/dev-port.mjs). Free - no model
 // call, no tokens. ~4 minutes for 24 designs.
 
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { devPort } from './dev-port.mjs';
@@ -66,7 +84,13 @@ const arg = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=').s
 const MARK_ID = arg('mark') ?? 'badge-square';
 const ID_FILTER = (arg('ids') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 const CATEGORY = 'lower-third';
-const OUT = path.resolve('benchmarks/pro/v1/spike/mark-clearance-sweep.json');
+const CAPTURE = args.includes('--capture');
+// The measurement ledger keeps its committed path so a capture run and a plain one stay
+// comparable; the frames land beside the review page that reads them, under the mark they were
+// rendered with (a second mark must never overwrite the first one's pictures - the one-out-dir-
+// per-checkpoint lesson from pro-spike.mjs, arriving here as one directory per mark).
+const OUT = path.resolve(arg('out') ?? 'benchmarks/pro/v1/spike/mark-clearance-sweep.json');
+const FRAMES = path.resolve(arg('frames') ?? 'benchmarks/pro/evidence/frames', MARK_ID);
 
 const mark = LITE_BRAND_MARKS_BY_ID.get(MARK_ID);
 if (!mark) {
@@ -162,9 +186,42 @@ const heightVerdict = (row) => {
   return `height  ${said.join('   |   ')}`;
 };
 
+// ── The alpha shot ────────────────────────────────────────────────────────────────────────
+//
+// A page of its own, parked on this origin so the composed document's relative `fonts/<file>`
+// resolves exactly as it does in the preview, then `setContent` - which keeps that base URL. The
+// document runs its own lifecycle (update, play, settle) because a graphic screenshotted before
+// its entrance is a picture of an empty frame, and `omitBackground` then leaves everything the
+// design did not paint transparent, which is what "over live footage" means for a broadcast
+// graphic.
+let shotPage = null;
+async function alphaShot(html, payload, file) {
+  if (!shotPage) {
+    shotPage = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+    await shotPage.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
+  }
+  await shotPage.setContent(html, { waitUntil: 'load' });
+  const playError = await shotPage.evaluate(async (data) => {
+    let error = null;
+    try {
+      window.update(JSON.stringify(data));
+      window.play();
+    } catch (e) {
+      error = String(e?.message ?? e).slice(0, 200);
+    }
+    await document.fonts.ready;
+    await new Promise((resolve) => setTimeout(resolve, 1800));
+    return error;
+  }, payload);
+  await shotPage.screenshot({ path: file, omitBackground: true });
+  return playError;
+}
+
+if (CAPTURE) await mkdir(FRAMES, { recursive: true });
+
 const rows = [];
 for (const id of ids) {
-  const row = await page.evaluate(async ({ variantId, markSpec }) => {
+  const row = await page.evaluate(async ({ variantId, markSpec, capture }) => {
     const bust = '?t=' + Date.now();
     const cat = await import('/src/templates/catalog.ts' + bust);
     const { composeDocument } = await import('/src/preview/composeDocument.ts' + bust);
@@ -234,7 +291,12 @@ for (const id of ids) {
     // …and the design's OWN content, which is the shape its well was drawn against.
     const ownLines = (variant.suggestedLines ?? []).map((l) => ({ title: l.title, sample: l.sample }));
 
-    const render = async (content, options) => {
+    // Every composed document this row rendered, kept for the driver to shoot on a clean page.
+    // Collected HERE rather than re-composed later because `variant.create` is the only thing
+    // that knows the options each state was built with, and a second compose is a second graphic.
+    const docs = [];
+
+    const render = async (content, options, state) => {
       document.getElementById('mark-sweep-frame')?.remove();
       const template = variant.create({ lines: content, ...options });
       const frame = document.createElement('iframe');
@@ -242,15 +304,17 @@ for (const id of ids) {
       frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;'
         + 'z-index:99999;background:#333;color-scheme:dark;';
       document.body.appendChild(frame);
-      frame.srcdoc = composeDocument(template);
+      const html = composeDocument(template);
+      frame.srcdoc = html;
       await new Promise((resolve) => { frame.onload = resolve; });
       const win = frame.contentWindow;
+      // Through update(), because that is the path an operator's text takes - and it must be
+      // THIS content: a payload hard-coded to two fields leaves a four-line design showing its
+      // own samples for the rest, which is not the same graphic.
+      const payload = {};
+      content.forEach((line, i) => { payload[`f${i}`] = line.sample; });
+      if (capture && state) docs.push({ state, html, payload });
       try {
-        // Through update(), because that is the path an operator's text takes - and it must be
-        // THIS content: a payload hard-coded to two fields leaves a four-line design showing its
-        // own samples for the rest, which is not the same graphic.
-        const payload = {};
-        content.forEach((line, i) => { payload[`f${i}`] = line.sample; });
         win.update(JSON.stringify(payload));
         win.play();
       } catch { /* a broken lifecycle still paints something - measure what is there */ }
@@ -269,8 +333,8 @@ for (const id of ids) {
     };
 
     /** Strap size, line-box count and the two children's heights off one render. */
-    const shape = async (content, options) => {
-      const r = await render(content, options);
+    const shape = async (content, options, state) => {
+      const r = await render(content, options, state);
       const doc = r.frame.contentDocument;
       const win = r.frame.contentWindow;
       const prefix = detectPrefix(r.template.html);
@@ -284,7 +348,7 @@ for (const id of ids) {
     };
 
     // ── The bare render: what this design measures with no mark at all ────────────────
-    const bare = await render(lines, {});
+    const bare = await render(lines, {}, 'bare');
     const barePrefix = detectPrefix(bare.template.html);
     const bareSpacing = measureSpacing(bare.frame.contentDocument);
     const bareSize = strapSize(bare.frame.contentDocument, barePrefix);
@@ -298,7 +362,7 @@ for (const id of ids) {
     };
 
     // ── …and the same design carrying a real mark ─────────────────────────────────────
-    const marked = await render(lines, markOptions);
+    const marked = await render(lines, markOptions, 'marked');
     const doc = marked.frame.contentDocument;
     const win = marked.frame.contentWindow;
 
@@ -375,10 +439,18 @@ for (const id of ids) {
     // Skipped when a design draws for exactly the two lines above: rendering the same graphic
     // twice more to print the same numbers is 40 seconds of the sweep for nothing.
     const own = ownLines.length && ownLines.length !== lines.length
-      ? { bare: await shape(ownLines, {}), marked: await shape(ownLines, markOptions), count: ownLines.length }
+      ? {
+        bare: await shape(ownLines, {}, 'own-bare'),
+        marked: await shape(ownLines, markOptions, 'own-marked'),
+        count: ownLines.length,
+      }
       : null;
 
     return {
+      docs,
+      // The words each render carried, so the review page can print the graphic's content beside
+      // the picture instead of leaving a reader to guess which shape they are looking at.
+      content: { probe: lines, own: ownLines },
       markFieldId,
       inset,
       markPx,
@@ -403,10 +475,20 @@ for (const id of ids) {
       codes: spacing.findings.map((f) => f.code),
       bareCodes: bareSpacing.findings.map((f) => f.code),
     };
-  }, { variantId: id, markSpec: { path: mark.path, data: mark.data } });
+  }, { variantId: id, markSpec: { path: mark.path, data: mark.data }, capture: CAPTURE });
 
   if (row.error) continue;
-  rows.push({ id, ...row });
+  // The composed documents never reach the ledger - they are ~100 KB each with GSAP inlined, and
+  // the ledger is a file people read. What lands is the FILE each one became.
+  const { docs = [], ...record } = row;
+  const frames = [];
+  for (const doc of docs) {
+    const file = `${id}.${doc.state}.png`;
+    const playError = await alphaShot(doc.html, doc.payload, path.join(FRAMES, file));
+    frames.push({ state: doc.state, file, ...(playError ? { playError } : {}) });
+    if (playError) console.log(`  ${id} ${doc.state}: play() threw - ${playError}`);
+  }
+  rows.push({ id, ...record, ...(frames.length ? { frames } : {}) });
 
   const pad = row.inset
     ? `${Math.round(row.inset.left)}/${Math.round(row.inset.right)}/${Math.round(row.inset.top)}/${Math.round(row.inset.bottom)}`
@@ -501,6 +583,10 @@ console.log(`  gap in TYPE SIZES    p05 ${pct(typeRatios, 0.05)}  p25 ${pct(type
 await writeFile(OUT, `${JSON.stringify({
   sweptAt: null,
   mark: MARK_ID,
+  // The mark's own shape, recorded beside its id: "ls10 with a portrait crest" is only a reading
+  // if the file says what portrait meant. `natural` is the fixture's declared pixel size.
+  markNatural: mark.natural ?? null,
+  frameDir: CAPTURE ? path.relative(process.cwd(), FRAMES).split(path.sep).join('/') : null,
   category: CATEGORY,
   designs: rows.length,
   crowdedOriginalRule: before,
