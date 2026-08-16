@@ -468,6 +468,14 @@ it — so `src/assets/suggestFields.ts` measures it and the Text step opens with
 E2E: the auto-placement case in `e2e/import-graphic.spec.ts` (both fields inside the artwork's
 own opaque block, which is where a wrong answer would show).
 
+**The step also places PICTURE SLOTS** (🖼): a dragged box becomes a real `filelist` field with
+its own `<img>`, through `blocks/designFields.ts` — `addPlacedImageSlot` + `placeLine` +
+`setSlotSize`, the same three patches the editor's Data tab and canvas write. Both dimensions
+come from the drag (a slot's shape is a design decision, unlike a text box where only the
+width means anything), and the spec carries no typography, because what the operator supplies
+is a file. This is what stops the commonest field after text from being a reason to open the
+editor.
+
 ## A finished template file, through the same door (2026-08-16)
 
 "I already have this graphic" is the same errand as "I already have this picture", so the

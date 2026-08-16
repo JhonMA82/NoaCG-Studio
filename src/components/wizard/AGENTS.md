@@ -173,7 +173,8 @@ decodes, rejecting only a file with no intrinsic pixel size, since every downstr
 comes from that measurement; live preview from the moment it lands; Create is available from
 here on - every later step is an optional stop) -> Prepare -> Text -> Animation -> Create.
 The **Text step** (PlaceFieldsStep) places editable fields ON the artwork: T = click point
-text, ⬚ = drag a wrapping area box; move/resize/Delete; per-field name, preview text, and
+text, ⬚ = drag a wrapping area box, 🖼 = drag a picture SLOT (a filelist field, both
+dimensions the user's - a slot's shape is a design decision); move/resize/Delete; per-field name, preview text, and
 typography (family / size / weight / color / align / line-height / tracking) with a live
 styled render on the placement canvas. **It opens with the fields already placed** where the
 artwork has an empty panel (`assets/suggestFields.ts` - deterministic, no model call), ONCE
