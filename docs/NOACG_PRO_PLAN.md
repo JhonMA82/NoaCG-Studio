@@ -2319,3 +2319,16 @@ comment defending it is kept; only the margin moved.
 **Catalog gates, all green after the change**: `type-floor`, `numerals`, `field-coverage`,
 `overflow-sweep --baseline` and the lower-third `l3-sweep` (whose ls17 frame shows the four-line
 composition unchanged).
+
+**The baselines moved with it, and that is the point of them.** `e2e/catalog-baseline.spec.ts`
+holds two: a SOURCE hash per emitted pane, expected to move when a design's CSS deliberately
+changes, and a RENDER fingerprint of the settled graphic's computed styles and geometry, which is
+the one that "must NOT move". Here it moved on purpose and the diff proves the scope: **two hashes
+in the whole 460-variant catalog** - ls17's `css`, and the single element
+`div.lower-third-mask[2]` whose box the margin left. Re-recorded with the documented flags
+(`UPDATE_CATALOG_BASELINE=1 UPDATE_RENDER_BASELINE=1`).
+
+Worth noting for the next catalog change: the local affected plan ran the catalog calibration
+TRIPWIRE (`catalog-bench`), which measures whether a graphic still passes its bench, and that is a
+different question from `catalog-baseline`, which pins the emitted bytes and the rendered geometry.
+CI caught the second one. A catalog edit wants both.
