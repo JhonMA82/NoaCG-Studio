@@ -194,7 +194,13 @@ Font Access, where a picked installed font is EMBEDDED exactly like an upload so
 never depends on the machine's fonts. The **Animation step** is the standard one.
 The **Prepare step** carries the two artwork decisions: ERASE baked-in text (source-px rects
 drawn on DesignPrepCanvas -> assets/eraseRegion flat-fill; flat verdicts apply immediately,
-non-flat holds behind "Use it anyway"). Marks ACCUMULATE into `draft.designErases`, each run
+non-flat holds behind "Use it anyway"). **It OPENS with the box already drawn** -
+`proposeEraseRect` scans the artwork on arrival, so the flow's strongest path is not opt-in;
+the proposal is an OFFER (drag the box or its four grips, "Erase this", or dismiss to the
+manual tools), never applied pixels, it re-runs on the CLEANED artwork after every accepted
+erase, and under its confidence bar it proposes NOTHING and names the rule that refused
+(`erase-scan-refusal`) - a box on the wrong thing costs the student more than an empty canvas.
+Its overlay CSS is wizard-local (`prepProposal.css`), not styles.css. Marks ACCUMULATE into `draft.designErases`, each run
 against the artwork as it stands; removing one REPLAYS the survivors from
 draft.designOriginal, which is what keeps fills from compounding (a fill cannot be undone in
 place). The erase MEASURES the ink it removes, split into LINES, and every line seeds a real

@@ -878,3 +878,174 @@ test('import graphic: full-frame artwork with no transparency says it will cover
   await expect(page.locator('.asset-card')).toContainText('strap.png');
   await expect(page.getByTestId('import-opaque-warning')).toHaveCount(0);
 });
+
+// ── The Prepare step's OPENING PROPOSAL ──────────────────────────────────────────────────
+//
+// The erase is the workhorse of this flow (docs/IMPORT_MVP.md's audit: it answers 9 of the 10
+// designs, where the empty-panel detector answers none of the baked ones), but it only ran if
+// the student thought to drag a box. `assets/eraseRegion.ts proposeEraseRect` scans the
+// artwork and opens with the rectangle drawn, deterministically and with no model call.
+
+const STRAP = { x: 120, y: 760, w: 940, h: 190 };
+
+/**
+ * A strap with REAL typeset words baked into the file — what a student sends when nobody told
+ * them to export the design without its text. It returns the artwork AND the true box of the
+ * painted glyphs, scanned off the canvas: the proposal is checked against the words as they
+ * landed, not against the coordinates the fixture asked for.
+ */
+async function bakedStrap(page: Page) {
+  return page.evaluate(async (s) => {
+    const face = new FontFace('Inter', 'url(/fonts/inter.woff2)');
+    await face.load();
+    document.fonts.add(face);
+    const c = document.createElement('canvas');
+    c.width = 1920;
+    c.height = 1080;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#101b2e';
+    g.fillRect(s.x, s.y, s.w, s.h);
+    g.fillStyle = '#f6a623';
+    g.fillRect(s.x, s.y, 14, s.h); // the accent bar: furniture the erase must not swallow
+    g.fillStyle = '#ffffff';
+    g.textBaseline = 'top';
+    g.font = '700 56px Inter';
+    g.fillText('Alexandra Riva', 170, 800);
+    g.font = '400 31px Inter';
+    g.fillText('Correspondent', 170, 870);
+    const d = g.getImageData(0, 0, 1920, 1080).data;
+    const ink = { left: 1e9, right: -1, top: 1e9, bottom: -1 };
+    for (let y = s.y; y < s.y + s.h; y++) {
+      for (let x = s.x; x < s.x + s.w; x++) {
+        const p = (y * 1920 + x) * 4;
+        if (d[p] > 200 && d[p + 1] > 200 && d[p + 2] > 200) {
+          if (x < ink.left) ink.left = x;
+          if (x > ink.right) ink.right = x;
+          if (y < ink.top) ink.top = y;
+          if (y > ink.bottom) ink.bottom = y;
+        }
+      }
+    }
+    return { base64: c.toDataURL('image/png').split(',')[1], ink };
+  }, STRAP);
+}
+
+/** Drop artwork built in the page, and walk Design -> Prepare. */
+async function toPrepare(page: Page, base64: string, name = 'strap.png') {
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles({
+    name,
+    mimeType: 'image/png',
+    buffer: Buffer.from(base64, 'base64'),
+  });
+  await expect(page.locator('.asset-card')).toContainText('1920 × 1080');
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('erase-surface')).toBeVisible();
+}
+
+/** The proposal rectangle in the ARTWORK's own pixels, read back off its rendered box. */
+async function proposedRect(page: Page) {
+  const surface = (await page.getByTestId('erase-surface').boundingBox())!;
+  const box = (await page.getByTestId('erase-proposal-rect').boundingBox())!;
+  const k = 1920 / surface.width;
+  return {
+    x: (box.x - surface.x) * k,
+    y: (box.y - surface.y) * k,
+    width: box.width * k,
+    height: box.height * k,
+  };
+}
+
+test('the Prepare step opens with the baked-in text already boxed', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  const art = await bakedStrap(page);
+  await toPrepare(page, art.base64);
+
+  // The question "does it have baked-in text?" is answered by measuring, so it is not asked.
+  await expect(page.getByTestId('erase-proposal')).toContainText('2 lines');
+  await expect(page.getByTestId('baked-yes')).toHaveCount(0);
+
+  // The box covers every painted glyph — and stays inside the strap, so the ring that decides
+  // the fill has real background to sample and the amber accent bar is not swallowed with it.
+  const rect = await proposedRect(page);
+  expect(rect.x).toBeLessThanOrEqual(art.ink.left);
+  expect(rect.x + rect.width).toBeGreaterThanOrEqual(art.ink.right);
+  expect(rect.y).toBeLessThanOrEqual(art.ink.top);
+  expect(rect.y + rect.height).toBeGreaterThanOrEqual(art.ink.bottom);
+  expect(rect.x).toBeGreaterThan(STRAP.x + 14);
+  expect(rect.y).toBeGreaterThan(STRAP.y);
+  expect(rect.y + rect.height).toBeLessThan(STRAP.y + STRAP.h);
+
+  // Accepting it is the ordinary erase: flat fill, a field per measured line.
+  await page.getByTestId('erase-proposal-accept').click();
+  await expect(page.getByTestId('erase-done')).toContainText('erased cleanly');
+  await expect(page.getByTestId('erase-done')).toContainText('2 text fields');
+  await expect(page.getByTestId('erase-warning')).toHaveCount(0);
+  // …and the scan re-runs on the CLEANED artwork, which now holds no words to offer.
+  await expect(page.getByTestId('erase-proposal')).toHaveCount(0);
+});
+
+test('the proposed box is dragged and resized before it is accepted', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  const art = await bakedStrap(page);
+  await toPrepare(page, art.base64);
+  const before = await proposedRect(page);
+
+  // The corner grip resizes from its own edges: the far edges hold still.
+  const grip = (await page.getByTestId('erase-proposal-grip-se').boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 + 24, grip.y + grip.height / 2 + 10, { steps: 4 });
+  await page.mouse.up();
+  const resized = await proposedRect(page);
+  expect(resized.width).toBeGreaterThan(before.width + 40);
+  expect(resized.height).toBeGreaterThan(before.height + 10);
+  expect(Math.abs(resized.x - before.x)).toBeLessThan(3);
+  expect(Math.abs(resized.y - before.y)).toBeLessThan(3);
+
+  // The body drags the whole box, keeping its size.
+  const body = (await page.getByTestId('erase-proposal-rect').boundingBox())!;
+  await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(body.x + body.width / 2 + 18, body.y + body.height / 2, { steps: 4 });
+  await page.mouse.up();
+  const dragged = await proposedRect(page);
+  expect(dragged.x).toBeGreaterThan(resized.x + 40);
+  expect(Math.abs(dragged.width - resized.width)).toBeLessThan(3);
+
+  // Nothing has been filled by any of this — it is an offer until it is accepted.
+  await expect(page.getByTestId('erase-done')).toHaveCount(0);
+  await page.getByTestId('erase-proposal-dismiss').click();
+  await expect(page.getByTestId('erase-proposal-rect')).toHaveCount(0);
+  await expect(page.getByTestId('erase-done')).toHaveCount(0);
+});
+
+test('artwork with no baked-in text is offered nothing, and names the rule that refused', async ({ page }) => {
+  // The SAME strap exported the way students are told to: with the words left out. A design
+  // made of solid shapes carries two stroke edges per shape per row and never reaches the
+  // bar, so the honest answer is an empty canvas — a box drawn on the wrong thing costs the
+  // student more than one they simply drag themselves.
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  const base64 = await page.evaluate(async (s) => {
+    const c = document.createElement('canvas');
+    c.width = 1920;
+    c.height = 1080;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#101b2e';
+    g.fillRect(s.x, s.y, s.w, s.h);
+    g.fillStyle = '#f6a623';
+    g.fillRect(s.x, s.y, 14, s.h);
+    return c.toDataURL('image/png').split(',')[1];
+  }, STRAP);
+  await toPrepare(page, base64, 'clean.png');
+
+  await expect(page.getByTestId('erase-proposal')).toHaveCount(0);
+  await expect(page.getByTestId('erase-proposal-rect')).toHaveCount(0);
+  await expect(page.getByTestId('erase-scan-refusal')).toContainText('stroke edges');
+  // The manual path is untouched: the question is still asked, and answering it still works.
+  await page.getByTestId('baked-yes').click();
+  await expect(page.getByTestId('erase-surface')).toBeVisible();
+});
