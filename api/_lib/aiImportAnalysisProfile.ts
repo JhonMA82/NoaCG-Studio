@@ -54,10 +54,16 @@ export function importAnalysisProfile(): ImportAnalysisProfile {
       .trim().slice(0, 64) || IMPORT_ANALYSIS_VERSION,
     // A vision-capable catalog entry; replaced by the vision-suite benchmark winner at
     // promotion time (env change, no code change - plan §8).
+    //
+    // The default is the CHEAP tier of the same family (0.10/0.40 against 0.30/2.50), which
+    // at one downscaled image and a short JSON answer is roughly $0.0006 a call - inside the
+    // owner's ceiling of 100 analyses per EUR with room to spare, where the dearer sibling
+    // was not. This surface proposes field rectangles for a human to tick; it is not the
+    // design call, and there is no measured quality argument for paying six times as much.
     route: envRoute(
       process.env.AI_IMPORT_ANALYSIS_PROVIDER,
       process.env.AI_IMPORT_ANALYSIS_MODEL,
-      { provider: 'vercel', model: 'google/gemini-2.5-flash' },
+      { provider: 'vercel', model: 'google/gemini-2.5-flash-lite' },
     ),
     // The audited catalog snapshot only - no per-task price overrides: an unpriced or
     // uncatalogued route fails closed at the registry gate.
@@ -65,15 +71,20 @@ export function importAnalysisProfile(): ImportAnalysisProfile {
     gatewayProviders: providerSlugs(),
     requireZdr: boolEnv('AI_IMPORT_ANALYSIS_REQUIRE_ZDR', true),
     maxProviderCostUsd: numberEnv('AI_IMPORT_ANALYSIS_MAX_COST_USD', 0.01, 0.0001, 0.1),
-    dailySuccesses: intEnv('AI_IMPORT_ANALYSIS_DAILY_SUCCESSES', 10, 0, 1000),
-    monthlySuccesses: intEnv('AI_IMPORT_ANALYSIS_MONTHLY_SUCCESSES', 100, 0, 10_000),
-    dailyStarts: intEnv('AI_IMPORT_ANALYSIS_DAILY_STARTS', 20, 0, 2000),
-    monthlyStarts: intEnv('AI_IMPORT_ANALYSIS_MONTHLY_STARTS', 200, 0, 20_000),
+    // A class works through several graphics in one session and re-runs an analysis with
+    // instructions when the first answer is off, so ten a day is a wall a student meets in
+    // the first lesson. At the route's price the whole daily allowance is under a cent.
+    dailySuccesses: intEnv('AI_IMPORT_ANALYSIS_DAILY_SUCCESSES', 30, 0, 1000),
+    monthlySuccesses: intEnv('AI_IMPORT_ANALYSIS_MONTHLY_SUCCESSES', 300, 0, 10_000),
+    dailyStarts: intEnv('AI_IMPORT_ANALYSIS_DAILY_STARTS', 60, 0, 2000),
+    monthlyStarts: intEnv('AI_IMPORT_ANALYSIS_MONTHLY_STARTS', 600, 0, 20_000),
     maxConcurrentPerUser: intEnv('AI_IMPORT_ANALYSIS_USER_CONCURRENCY', 1, 1, 10),
     maxConcurrentFleet: intEnv('AI_IMPORT_ANALYSIS_FLEET_CONCURRENCY', 10, 1, 1000),
     dailyFleetSpendUsd: numberEnv('AI_IMPORT_ANALYSIS_FLEET_DAILY_SPEND_USD', 10, 0.01, 100_000),
     maxAttempts: 2,
-    outputTokens: intEnv('AI_IMPORT_ANALYSIS_OUTPUT_TOKENS', 2000, 200, 8000),
+    // A proposal is a handful of rectangles and their type: the observed answers are a few
+    // hundred tokens, and the ceiling is what the price estimate is charged against.
+    outputTokens: intEnv('AI_IMPORT_ANALYSIS_OUTPUT_TOKENS', 1200, 200, 8000),
     // One downscaled image plus the instructions; vision tiles dominate, keep it fat.
     estimatedInputTokens: intEnv('AI_IMPORT_ANALYSIS_INPUT_TOKENS', 4000, 1000, 20_000),
     timeoutMs: intEnv('AI_IMPORT_ANALYSIS_TIMEOUT_MS', 30_000, 5000, 120_000),
