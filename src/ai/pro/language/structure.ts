@@ -3,39 +3,69 @@
 //
 // THE ONE IDEA IN THIS FILE: every size here is a RATIO OF THE PRIMARY TYPE SIZE, which is the
 // unit the instruments measure in (spacingCheck.ts, proportionCheck.ts). The platform therefore
-// composes in the same language the measurements are taken in, and a threshold is cleared BY
-// CONSTRUCTION rather than by inspection. That is the difference between this and three rounds of
-// teaching: `padding-tight` cannot fire on a graphic whose padding is defined as 1.2x the floor.
+// composes in the same language the measurements are taken in, which is what makes each margin
+// KNOWABLE without a model in the loop. Knowable is not the same as CLEAR, and the difference is
+// the whole content of the note below: composing in the instrument's unit means a margin can be
+// rendered and read off, not that the number a ratio implies is the number that paints.
 //
-// The margins, stated so a later edit can see what it is spending (all against the calibrated
-// thresholds in the instruments, at the WORST density/step combination this file can produce):
+// ── THE MARGINS, MEASURED - 2026-08-16 (docs/NOACG_PRO_PLAN.md §18) ────────────────────────
 //
-//   padding-tight        floor 0.28 type sizes  · tightest here 0.34   (compact, vertical)
-//   padding-lopsided     limit 2.6x             · here exactly 1.0x - opposite sides are equal
-//   lines-adrift         ceiling 1.4            · widest here 0.83     (airy + a strong step)
-//   text-crowds-rule     band 0.02-0.12         · nearest rule 0.45    (a rule inside the panel)
-//   type-ratio-thin      floor 0.28             · smallest step 0.36
-//   type-ratio-flat      band 0.86-0.93         · largest step 0.62
-//   panel-oversized      fill floor 0.18        · lowest here ~0.47    (the panel hugs its text)
-//   footprint-large      ceiling 0.10 of frame  · largest here ~0.071  (at the auto-fit cap)
-//   mark-oversized       ceiling 3.2 type sizes · here 1.2
-//   mark-crowded/adrift  band 0.35-2.1          · here 0.48 seated, 0.72 with a mark band
-//                                                 (MEASURED on the rendered composition, not
-//                                                 derived: `markGapPx` is the slot's gap, and
-//                                                 the band adds half of it again as the field's
-//                                                 own padding. The line this replaced said "0.4
-//                                                 of the mark's height" and both real readings
-//                                                 were 0.31 and 0.46 - a stated margin nobody
-//                                                 had rendered.)
-//   text-escapes-panel   -                      · structurally impossible: the box is
+// `node scripts/spike-structure-margins.mjs`, free: 582 cells over density x step x accent form x
+// panel treatment x graphic type x mark arm, each composed through `composeGraphic` +
+// `composeDocument` at 1920x1080 and read by the LIVE instruments (with each type's own
+// thresholds) at the control's words and again at the stress words - 1164 readings. Every line is
+// the WORST the whole package produced, with the cell that produced it:
+//
+//   padding-tight        floor 0.28 type sizes  · tightest 0.33   (strap, compact)
+//   padding-lopsided     limit 2.6x             · 1.00 on every grid cell; 1.06 worst, and that
+//                                                 is a FACE's line box (a bug in Oswald), never
+//                                                 a padding - the CSS sides stay equal
+//   lines-adrift         ceiling 1.4            · widest 1.20    (countdown, airy + block accent:
+//                                                 the block's own padding rides on the line gap)
+//   text-crowds-rule     band 0.02-0.12         · nearest 0.14    (countdown, compact + block).
+//                                                 A strap's own RULES sit at 0.44 and up, which
+//                                                 is what the old 0.45 was about - but the block
+//                                                 accent is a painted rule too, and the gap to it
+//                                                 is the LINE GAP (0.14 compact), not `ruleGapPx`
+//   type-ratio-thin      floor 0.28             · smallest 0.35   (strap, compact + strong step)
+//   type-ratio-flat      band 0.86-0.93         · largest 0.63    (countdown, subtle step)
+//   panel-oversized      fill floor 0.18        · lowest 0.34     (countdown, airy + strong step)
+//   footprint-large      ceiling 0.10 of frame  · 0.08 at the control's words - and 0.14 at the
+//                                                 STRESS words, which BREACHES the ceiling on 59
+//                                                 of 254 strap readings, 46 of them airy. THE ONE
+//                                                 MARGIN THIS FILE DOES NOT HAVE; see below
+//   mark-oversized       ceiling 3.2 type sizes · 1.56 on the strap, 2.13-2.67 on the bug (whose
+//                                                 own ceiling is 5.5). NOT 1.2: the shared slot
+//                                                 caps a mark at 84px (`MARK_MAX_HEIGHT_PX`) and
+//                                                 a square crest reaches it, so 84/54 = 1.56
+//   mark-crowded/adrift  band 0.35-2.1          · 0.48 on the strap, 0.83-0.87 on the bug
+//   text-escapes-panel   -                      · ZERO in 1164 readings - the box is
 //                                                 `width: fit-content` with the category's
 //                                                 auto-fit cap, so it is SIZED BY its text
 //
-// The last line is the whole point of Phase A. The five failures §15.2 decomposed were all panel
-// layout, and four of them are gone here by construction rather than by a check: a panel sized by
-// its own text cannot be overflowed, a rule placed by the platform cannot be sat on, a graphic
-// anchored in the type's own zone cannot be stranded in a corner, and a mark column capped
-// against the type size cannot inflate the composition.
+// OF THE ELEVEN LINES, TWO SURVIVED AND NINE MOVED. What survived is the structural claim (no
+// text ever escaped its panel) and the strap's 0.48 mark gap, which was the one reading anybody
+// had ever rendered. Everything else was DERIVED - a ratio read off the CSS this file writes -
+// and the CSS is not the box the browser paints: line-height leading, the mask idiom, a size
+// floor firing above the anchor its ratio was taken from, a block's own padding riding on a line
+// gap, and a fit-content panel sized by its own text all move it. One reading was out by 3.2x
+// (`text-crowds-rule`, stated 0.45 and measured 0.14) and one was out in the direction that
+// matters.
+//
+// THAT ONE IS `footprint-large`, and it is stated as a breach rather than retuned. A long name
+// and a 60-character role at airy density widen the fit-content panel to the auto-fit cap, and
+// the strap then covers 14% of the frame against a ceiling calibrated at 10% - where the
+// catalog's largest is 0.09 and the owner's own "the box is way too big" sat at 0.12. The
+// instrument REPORTS and does not gate (spacingCheck.ts says why), so nothing here fails; what
+// changes is that the file no longer claims a margin it does not have. Density is the lever - 46
+// of the 59 are airy - and whether an airy strap should hold its width is a design decision, not
+// a threshold to move.
+//
+// The five failures §15.2 decomposed were all panel layout, and four of them are gone here by
+// construction rather than by a check: a panel sized by its own text cannot be overflowed (now
+// measured, 1164 readings, zero escapes), a rule placed by the platform cannot be sat on, a
+// graphic anchored in the type's own zone cannot be stranded in a corner, and a mark column
+// capped against the type size cannot inflate the composition.
 //
 // WHAT THE MODEL DECIDES is which of these arrangements to use and what it looks like - see
 // contract.ts. Nothing in this file is reachable from the model's answer except by picking one of
@@ -97,9 +127,23 @@ export type ProGraphicId = (typeof PRO_GRAPHIC_IDS)[number];
  *
  * The mark numbers are the SHARED SLOT's, not this file's - `templates/shared/logoSlot.ts` draws
  * the mark and the two arrangements it draws are the category's decision, never the language's.
- * They are restated here because the mark FIELD (compose's measured neutral band) has to pad to
- * the band the platform actually paints; a value invented here would pad to a band that is not
- * there.
+ *
+ * WHAT READS THEM IS THE BUG, and only the bug: `composeBug` floors its tile's padding at a
+ * quarter of `markHeightPx`, because on that type the mark IS the graphic and the tile's air
+ * belongs to it rather than to the caption under it. There the numbers are EXACT - the stacked
+ * slot paints a fixed 64px with 20px beneath it, and both are transcribed.
+ *
+ * THE STRAP'S PAIR IS DIFFERENT, and the 2026-08-16 sweep is what said so. `gapPx` 26 is exact
+ * (the slot's own `MARK_CLEAR_PX`); `heightPx` 65 is NOT the slot's geometry but one wordmark's
+ * rendered height from the §15.8 round. The side-by-side slot states a CAP, not a height
+ * (`MARK_MAX_HEIGHT_PX` 84 with `height: auto`), so what paints depends on the artwork's aspect -
+ * a square crest reaches the cap and measures 1.56 type sizes, not the 1.2 this pair implies.
+ * Nothing spends the strap's `heightPx` today, which is why it is corrected in the comment rather
+ * than in the number: changing it would move `markGapPx`'s fallback for a type that never uses it
+ * and would not touch the one caller that does.
+ *
+ * The pair stays here because the mark numbers have to be the ones the platform ACTUALLY paints;
+ * a value invented here would pad a bug's tile to a band that is not there.
  */
 export interface GraphicMetrics {
   /** The primary type size at 1080p, before `--scale` and `--type-scale`. */
@@ -127,8 +171,10 @@ export const GRAPHIC_METRICS: Record<ProGraphicId, GraphicMetrics> = {
   'lower-third': {
     primaryPx: HEADING_PX,
     steppedSecondary: true,
-    // 1.2 type sizes tall, its clear space 0.4 of that - the numbers the §15.8 round measured,
-    // and 26px of clear space is exactly the shared slot's own `MARK_CLEAR_PX`.
+    // 26px of clear space is exactly the shared slot's own `MARK_CLEAR_PX`. The 65px height is
+    // one wordmark's rendered height from the §15.8 round rather than the slot's rule - the slot
+    // caps at 84px and lets the artwork's aspect decide - so read the note on `GraphicMetrics`
+    // before spending it: a square crest paints 1.56 type sizes, not 1.2.
     mark: { heightPx: Math.round(HEADING_PX * 1.2), gapPx: Math.round(HEADING_PX * 1.2 * 0.4) },
     motion: { snap: 'slide-up', glide: 'mask-wipe', reveal: 'line-reveal', fade: 'fade' },
   },
@@ -172,8 +218,24 @@ export const GRAPHIC_METRICS: Record<ProGraphicId, GraphicMetrics> = {
  *  read off `scripts/spike-proportion-calibrate.mjs`, not chosen by taste. */
 const STEP_RATIO: Record<TypeStep, number> = { subtle: 0.62, clear: 0.48, strong: 0.36 };
 
-/** Padding and the gap between lines, per density, as ratios of the heading size.
- *  Opposite sides are always EQUAL, which is what retires `padding-lopsided` structurally. */
+/**
+ * Padding and the gap between lines, per density, as ratios of the heading size.
+ *
+ * OPPOSITE SIDES ARE ALWAYS EQUAL, which is what retires `padding-lopsided` structurally - and
+ * the 2026-08-16 sweep is the first thing to check that in a browser rather than in this table.
+ * Rendered, 580 of 582 cells read exactly 1.00; the two that do not are a sponsor bug set in
+ * Oswald, at 1.06. **That is a FACE's line box, not a padding**: the instrument measures from the
+ * panel's edge to the bounding box of what it holds, and a face whose ascent and descent sit
+ * asymmetrically inside its line box moves that bounding box without moving a single declaration
+ * here. 1.06 against a 2.6x limit, so it costs nothing - but "exactly 1.0" was a claim about CSS
+ * being read as a claim about pixels, which is the whole subject of this file's header.
+ *
+ * `compact.lineGap` IS ALSO A RULE GAP, and that is the one number here with a thin margin. The
+ * `block` accent form seats the supporting line on a painted slab, so the slab is a rule the
+ * spacing instrument measures text against - and the gap to it is this line gap, never
+ * `RULE_GAP_RATIO`. On a countdown that renders 0.14 type sizes against a 0.02-0.12 crowding
+ * band: clear, by 0.02. Lowering compact's line gap would put a real composition inside the band.
+ */
 const DENSITY_SPACE: Record<Density, { padV: number; padH: number; lineGap: number }> = {
   compact: { padV: 0.34, padH: 0.46, lineGap: 0.14 },
   balanced: { padV: 0.46, padH: 0.62, lineGap: 0.20 },
@@ -183,9 +245,20 @@ const DENSITY_SPACE: Record<Density, { padV: number; padH: number; lineGap: numb
 /** The accent's thickness, as a ratio of the heading size. */
 const ACCENT_RATIO: Record<AccentWeight, number> = { hairline: 0.06, medium: 0.15, heavy: 0.3 };
 
-/** The clear space between a rule that sits INSIDE the panel and the text beside it. Well above
- *  the 0.12 crowding band, and never zero - `touching is a composition` is a decision the
- *  catalog's own designs make, not one to fall into by accident. */
+/**
+ * The clear space between a rule that sits INSIDE the panel and the text beside it - the
+ * `top-rule` and `underline` forms, which are the only two that draw one.
+ *
+ * Never zero: `touching is a composition` is a decision the catalog's own designs make, not one
+ * to fall into by accident. MEASURED 2026-08-16, this renders 0.44 on a strap's top rule (its
+ * tightest reading) and 0.46 on a bug's underline, against a 0.02-0.12 crowding band - so the
+ * rules this constant governs are nowhere near it.
+ *
+ * IT IS NOT THE PACKAGE'S NEAREST RULE, and the old note claiming so was reading this constant
+ * instead of the frame. The `block` form's slab is a painted rule as well, and text sits a LINE
+ * GAP from it (0.14 at compact density) - see `DENSITY_SPACE`. Two forms, two clear spaces, and
+ * only one of them is this number.
+ */
 const RULE_GAP_RATIO = 0.45;
 
 /** Corner radii in px at scale 1. `pill` is a capsule, capped by the browser at half the height. */
@@ -233,8 +306,20 @@ export const BLOCK_LABEL_WEIGHT_FLOOR = WEIGHT.semibold;
  *  name; at the bottom of the step range it reads as a caption someone forgot to finish. */
 export const BLOCK_LABEL_MIN_PX = 30;
 
-/** The mark's height and its clear space, against the type it stands beside - never against the
- *  frame, which is what "the logo takes half the screen" gets wrong. */
+/**
+ * The mark's height and its clear space, against the type it stands beside - never against the
+ * frame, which is what "the logo takes half the screen" gets wrong.
+ *
+ * THE FALLBACK ONLY, and no graphic type reaches it today: all three either state the slot's own
+ * numbers (`GraphicMetrics.mark`) or carry no slot. It is kept so a fourth type cannot resolve a
+ * mark geometry of `undefined`, and it is stated in type sizes because that is the unit the
+ * question is asked in.
+ *
+ * IT IS NOT WHAT A STRAP PAINTS. `logoSlot.ts` gives the side-by-side arrangement a CAP
+ * (`MARK_MAX_HEIGHT_PX` 84) and `height: auto`, so the artwork's aspect decides: measured
+ * 2026-08-16, a square crest reaches the cap at 1.56 type sizes and a wordmark paints far less.
+ * 1.2 is a fallback nobody spends, not a description of the slot.
+ */
 export const MARK_HEIGHT_RATIO = 1.2;
 export const MARK_GAP_RATIO = 0.4;
 
@@ -298,6 +383,11 @@ export function resolveSpacing(
   // block-accent bug came out at 8px of padding on a 30px caption - 0.27 against a 0.28 floor,
   // `padding-tight`, on a composition whose whole premise is that the threshold is cleared BY
   // CONSTRUCTION. Deriving the unit from what is painted is what makes that true again.
+  //
+  // CONFIRMED RENDERED, 2026-08-16: over every density/step/accent/panel combination the bug's
+  // tightest padding is 0.53 - the widest margin of the three types, because `composeBug` floors
+  // the tile at a quarter of the mark's height on top of this. The fix is not merely present in
+  // the source, it is present in the frame.
   const unit = Math.max(heading, supporting);
   return {
     headingPx: heading,
