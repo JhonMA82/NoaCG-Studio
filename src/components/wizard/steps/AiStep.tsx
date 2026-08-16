@@ -35,10 +35,12 @@ import {
 import { proRuleCodes, validateProLanguage } from '../../../ai/pro/language/gate';
 import {
   composeGraphic,
+  namedPackage,
   packageLines,
   PRO_GRAPHICS,
   PRO_GRAPHIC_LIST,
   type ProGraphicId,
+  type ProPackageMember,
 } from '../../../ai/pro/language/graphics';
 import { loadProStatus, openProSession, reportProOutcome } from '../../../ai/pro/session';
 import { isBackendConfigured } from '../../../backend/config';
@@ -455,9 +457,6 @@ export default function AiStep({
   // The Pro concept + editability report behind each pro-path template, keyed by the
   // template OBJECT so an archived then restored result still shows its own concept.
   const proDetails = useRef(new WeakMap<SpxTemplate, ProGenerateResult>());
-  /** One graphic of a Pro package, WITH the type it is - so a member can name itself without
-   *  the card guessing from its position in a list two unticked boxes have already shifted. */
-  interface ProPackageMember { id: ProGraphicId; template: SpxTemplate }
   /**
    * THE REST OF THE PACKAGE, keyed by the graphic the step previews (§15.9).
    *
@@ -956,25 +955,11 @@ export default function AiStep({
           }
           members.push({ id: spec.id, template: composed.template });
         }
-        // EVERY MEMBER IS NAMED FOR WHAT IT IS, once there is more than one of them.
-        //
-        // A composed graphic takes the DESIGN LANGUAGE's name, which is right for a single
-        // result and useless for a set: three thumbnails captioned "Harbour Nightly", three
-        // library rows called "Harbour Nightly", three folders of that name inside one export.
-        // The name is also the export slug and the folder an operator reads in the playout
-        // server, so this is not a caption fix - it is what makes the package usable on air.
-        //
-        // A package of ONE is left exactly as it was: there is nothing to tell apart, and the
-        // single-graphic ending's name placeholder is a shipped behaviour.
-        if (members.length > 1) {
-          for (const member of members) {
-            member.template = {
-              ...member.template,
-              name: `${designed.language.name} ${PRO_GRAPHICS[member.id].label.toLowerCase()}`,
-            };
-          }
-        }
-        proPack.current.set(designed.template, members);
+        // NAMED FOR WHAT EACH ONE IS (`namedPackage`, graphics.ts). The rule lives there rather
+        // than here because it is only testable where it can be REACHED: the Pro door exists on
+        // a configured deployment and nowhere else, so a rule buried in this component would be
+        // pinned by a suite CI never runs.
+        proPack.current.set(designed.template, namedPackage(members, designed.language.name));
         setProDropped(dropped);
         // THE LEDGER GETS THE WARNINGS TOO (`proRuleCodes`, src/ai/pro/language/gate.ts). Sending
         // errors alone is the §16 hole from the other side: a graphic the platform quietly

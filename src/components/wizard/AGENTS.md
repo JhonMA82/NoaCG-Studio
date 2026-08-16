@@ -301,7 +301,11 @@ and a set of more than one FINISHES through `KitFinishStep` into a production - 
 the SIZE of the set, never the tier, because the single-graphic door's "open in the editor" would
 pick one member for the user and abandon the rest. Each member is renamed for its type ("<look>
 lower third"), since that name is the export slug and the playout folder an operator reads.
-The walk is pinned by `e2e/configured/pro-wizard.spec.ts` - offline the door does not exist.
+**The two rules that are not about the door live OUTSIDE this step** - `namedPackage`
+(ai/pro/language/graphics.ts) and the `proPackage` normalizer (ai/settings.ts) - because the
+walk is pinned by `e2e/configured/pro-wizard.spec.ts`, a suite CI never runs, so anything
+reachable only from here ships its regressions silently. Both are mutation-checked in
+`e2e/pro-language.spec.ts`.
 
 **Pro** spends ONE model call, for the design LANGUAGE the platform then composes the graphic in
 (`src/ai/pro/language/pipeline.ts`; §15-16 of docs/NOACG_PRO_PLAN.md, and src/ai/AGENTS.md for the

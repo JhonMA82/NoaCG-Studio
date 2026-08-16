@@ -509,6 +509,88 @@ test.describe('one design language, the whole package', () => {
   });
 
   /**
+   * THE TWO PACKAGE RULES CI CAN ACTUALLY REACH.
+   *
+   * The Pro DOOR exists only on a backend-configured deployment, so the wizard walk is pinned in
+   * `e2e/configured/pro-wizard.spec.ts` - a suite that runs on demand with credentials and never
+   * in CI. Anything whose only coverage lives there ships its regressions silently, which is why
+   * both rules below were moved OUT of the AI step and into modules an offline spec can call:
+   * `namedPackage` (graphics.ts) and the `proPackage` normalizer (settings.ts).
+   */
+  test('every member of a package is named for what it is, and a package of one is untouched', async ({ page }) => {
+    const named = await page.evaluate(async () => {
+      const { STUB_LANGUAGES } = await import('/src/ai/pro/language/stub.ts');
+      const { composeGraphic, namedPackage, packageLines, PRO_GRAPHIC_LIST } = await import('/src/ai/pro/language/graphics.ts');
+      const show = { name: 'Priya Raghunathan', title: 'Senior Research Fellow', channel: 'Northgate Sport' };
+      const language = STUB_LANGUAGES[0];
+      const members = PRO_GRAPHIC_LIST.map((spec) => ({
+        id: spec.id,
+        template: composeGraphic(spec.id, language, { lines: packageLines(spec.id, show) }).template,
+      }));
+      return {
+        languageName: language.name,
+        // Every composed graphic arrives carrying the LANGUAGE's name - which is the defect this
+        // rule exists to fix, and asserting it is what stops the test passing vacuously.
+        before: members.map((m) => m.template.name),
+        set: namedPackage(members, language.name).map((m) => m.template.name),
+        // A package of one has nothing to tell apart.
+        alone: namedPackage(members.slice(0, 1), language.name).map((m) => m.template.name),
+      };
+    });
+
+    // The premise: without the rule, all three are the same word.
+    expect(new Set(named.before).size, 'a composed graphic takes the language name').toBe(1);
+    // …and with it, each says which graphic it is. That name is the export slug and the template
+    // FOLDER an operator reads in the playout server, so three identical ones is not a caption
+    // problem - it is a package that cannot be operated once it leaves the wizard.
+    expect(named.set).toEqual([
+      `${named.languageName} lower third`,
+      `${named.languageName} sponsor bug`,
+      `${named.languageName} countdown`,
+    ]);
+    expect(new Set(named.set).size, 'no two members share a name').toBe(3);
+    // A single result keeps the shipped behaviour: the language's own name, unsuffixed.
+    expect(named.alone).toEqual([named.languageName]);
+  });
+
+  test('the stored package is normalized: known ids, package order, and empty means all', async ({ page }) => {
+    const cases = await page.evaluate(async () => {
+      const { loadAiSettings, saveAiSettings } = await import('/src/ai/settings.ts');
+      const { PRO_GRAPHIC_IDS } = await import('/src/ai/pro/language/structure.ts');
+      const read = (stored: unknown) => {
+        localStorage.setItem('spx-gfx-ai', JSON.stringify({ proPackage: stored }));
+        return loadAiSettings().proPackage;
+      };
+      const out = {
+        // Nothing stored - every setting written before this field existed.
+        missing: read(undefined),
+        // The user unticked the last box, or a hand-edited value.
+        empty: read([]),
+        // Ticked out of order, plus an id from a build that offered something else.
+        outOfOrder: read(['countdown', 'ghost-type', 'lower-third']),
+        all: [...PRO_GRAPHIC_IDS],
+        saved: [] as string[],
+      };
+      // The SAVE side normalizes too, or the stored value and the loaded one disagree.
+      localStorage.setItem('spx-gfx-ai', '{}');
+      saveAiSettings({ proPackage: [] });
+      out.saved = JSON.parse(localStorage.getItem('spx-gfx-ai') ?? '{}').proPackage ?? [];
+      localStorage.removeItem('spx-gfx-ai');
+      return out;
+    });
+
+    // EMPTY MEANS THE WHOLE PACKAGE, never "make nothing": a generation that produces no graphic
+    // is not a choice anyone means to express, and a stored value predating this field must not
+    // turn Create into a no-op.
+    expect(cases.missing).toEqual(cases.all);
+    expect(cases.empty).toEqual(cases.all);
+    expect(cases.saved).toEqual(cases.all);
+    // Always in PACKAGE order and never an unknown id - the FIRST member is the graphic the step
+    // previews and refines, so a tick further down the list must not be able to move it.
+    expect(cases.outOfOrder).toEqual(['lower-third', 'countdown']);
+  });
+
+  /**
    * A REQUESTED BRAND PALETTE IS THE PLATFORM'S TO APPLY, NEVER THE MODEL'S TO RETURN.
    *
    * Ratified on Lite 2026-08-13 and missing from Pro until 2026-08-16 (§15.9). The three

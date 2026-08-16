@@ -30,6 +30,7 @@
 // say about them. Where a shipped design fails a lower-third threshold, the threshold is what is
 // wrong for that type, not the design.
 
+import type { SpxTemplate } from '../../../model/types';
 import type { LineSpec } from '../../../model/wizard';
 import type { DesignLanguage } from './contract';
 import { composeFromLanguage, type ComposeOptions, type ComposedGraphic } from './compose';
@@ -209,4 +210,41 @@ export function packageLines(
 /** The primary type size each graphic paints, for a gallery caption that can be checked. */
 export function graphicAnchorPx(id: ProGraphicId): number {
   return GRAPHIC_METRICS[id].primaryPx;
+}
+
+/** One graphic of a composed package, WITH the type it is - so a member can name itself rather
+ *  than be identified by its position in a list an unticked box has already shifted. */
+export interface ProPackageMember {
+  id: ProGraphicId;
+  template: SpxTemplate;
+}
+
+/**
+ * NAME EVERY MEMBER FOR WHAT IT IS, once there is more than one of them.
+ *
+ * A composed graphic takes the design LANGUAGE's name, which is right for a single result and
+ * useless for a set: three thumbnails captioned "Harbour Nightly", three library rows of that
+ * name, and three same-named folders inside one export. **The name is the export slug and the
+ * template FOLDER an operator reads in the playout server** (src/export/AGENTS.md), so this is
+ * not a caption - it is what makes a package operable once it leaves the wizard.
+ *
+ * A package of ONE is returned untouched: there is nothing to tell apart, and the
+ * single-graphic ending's name placeholder is shipped behaviour.
+ *
+ * It lives HERE rather than in the wizard step that calls it because the rule is testable only
+ * where it can be reached - the Pro door exists on a configured deployment and nowhere else, so
+ * a rule buried in that component is pinned by a suite CI never runs.
+ */
+export function namedPackage(
+  members: ProPackageMember[],
+  languageName: string,
+): ProPackageMember[] {
+  if (members.length < 2) return members;
+  return members.map((member) => ({
+    ...member,
+    template: {
+      ...member.template,
+      name: `${languageName} ${PRO_GRAPHICS[member.id].label.toLowerCase()}`,
+    },
+  }));
 }
