@@ -50,18 +50,24 @@ export interface TaskRoutePolicy {
    * Which of this task's routes are called for IMAGE output, and are therefore exempt from
    * the two rules built around reading a structured text answer at a per-token price.
    *
-   * It exists because NoaCG Pro's concept route (`google/gemini-3.1-flash-image`) is a
-   * catalogued, audited, ZDR-verified route that both rules refuse on purpose:
-   * `approvedTextRoute` is false for it, and `fundedModelRoute` answers no for every image
-   * entry because the funded PRICE CEILING measures input/output text tokens and no ceiling
-   * for image work has been decided (docs/ADMIN.md §9, aiModelCatalog.ts). Declaring the
-   * route here does not waive the bound - it names which bound applies. An image route's
-   * spend is held by `maxProviderCostUsd`, BOOKED per generation before the call and settled
-   * after it, which is a bound on the whole bill rather than on the half the token ceiling
-   * can see.
+   * It exists because an image route is a catalogued, audited, ZDR-verified route that both
+   * rules refuse on purpose: `approvedTextRoute` is false for it, and `fundedModelRoute`
+   * answers no for every image entry because the funded PRICE CEILING measures input/output
+   * text tokens and no ceiling for image work has been decided (docs/ADMIN.md §9,
+   * aiModelCatalog.ts). Declaring a route here does not waive the bound - it names which bound
+   * applies. An image route's spend is held by `maxProviderCostUsd`, BOOKED per generation
+   * before the call and settled after it, which is a bound on the whole bill rather than on
+   * the half the token ceiling can see.
    *
-   * Absent (the default) means the task sends only text requests, and both rules apply
-   * unchanged - so Lite's and import-analysis's gates are byte-identical to before.
+   * **NO TASK DECLARES ONE TODAY.** Pro's concept route (`google/gemini-3.1-flash-image`) was
+   * the only one, and Phase A retired the engine that called it (docs/NOACG_PRO_PLAN.md §16).
+   * The FIELD stays because the half of this that matters is `routeConfigured`'s refusal of an
+   * UNDECLARED image route - the check that stops an env edit pointing Lite at an image model
+   * and discovering it on the first call - and that check needs a declaration to be the thing
+   * a task can be missing. It is pinned by a test with no task behind it.
+   *
+   * Absent (the default, and now every task) means the task sends only text requests, and both
+   * rules apply unchanged.
    */
   imageRoutes?: ModelRoute[];
 }
@@ -181,11 +187,14 @@ export function importAnalysisTaskProfile(profile: ImportAnalysisProfile = impor
  * rather than an open tap.
  *
  * THE ENGINE IS NOT DESCRIBED HERE. The route list is what the profile funds, not a pipeline.
- * docs/NOACG_PRO_PLAN.md §15 replaces the current concept-and-reconstruct engine; a registry
- * entry that encoded its stages would have to be rewritten with it.
+ * §15 replaced the concept-and-reconstruct engine and this entry did not have to be rewritten,
+ * which is the property that rule was for: the only thing that moved is how many routes the
+ * profile funds, and this reads that rather than naming stages.
  */
 export function proTaskProfile(profile: ProProfile = proProfile()): TaskProfile {
-  const [concept, interpret] = profile.routes;
+  // Positional, not named: whatever the profile funds first is the primary and the rest are
+  // spares. Phase A funds one route, so there is nothing behind it.
+  const [primary, ...fallbacks] = profile.routes;
   return {
     taskId: PRO_TASK_ID,
     enabled: profile.enabled,
@@ -205,16 +214,15 @@ export function proTaskProfile(profile: ProProfile = proProfile()): TaskProfile 
     maxAttempts: profile.maxCallsPerGeneration,
     retryLimit: 1,
     routePolicy: {
-      primary: concept,
-      fallbacks: [interpret],
+      primary,
+      fallbacks,
       prices: profile.prices,
       gatewayProviders: profile.gatewayProviders,
       requireZdr: profile.requireZdr,
       structuredMode: 'json-schema',
       maxProviderCostUsd: profile.maxProviderCostUsd,
-      // The concept route generates an IMAGE. See TaskRoutePolicy.imageRoutes for which
-      // bound applies to it and why the per-token ceiling cannot.
-      imageRoutes: [concept],
+      // No `imageRoutes`: Phase A asks a text model for a design language and composes the
+      // graphic itself, so every route here is a text route and the ordinary rules apply.
     },
     ledger: { kind: 'ai_generations', profile: profile.id },
   };

@@ -90,11 +90,13 @@ collapsed at all until styles.css grew `details:not([open]) > *:not(summary) { d
 `toBeVisible()` is blind to it, so specs assert measured HEIGHT is 0, never `open`.
 
 **Browse** (steps/BrowseStep.tsx, mode 'template' only) is the FACETED template storefront
-(docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12 for the facets; re-design/handoff.md §2b and
-src/templates/AGENTS.md for what they are drawn as) replacing the old Category -> Template
-pair: search (alias-aware, src/templates/search.ts), optional programme family/format selects
-(RANKING — "Best for X" / "Also works" sections, never exclusion), ONE graphic-type dropdown
-with live counts, field-count buckets (range-intersection over the reachable visible range),
+(docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12 for the facets, §4c for the groups;
+re-design/handoff.md §2b and src/templates/AGENTS.md for what they are drawn as) replacing the
+old Category -> Template pair: search (alias-aware, src/templates/search.ts), optional
+programme family/format selects (RANKING — "Best for X" / "Also works" sections, never
+exclusion), ONE category-GROUP dropdown with live counts (ten shelves over the 27 graphic
+categories) whose selected group offers its member categories as chips (only when it has more
+than one), field-count buckets (range-intersection over the reachable visible range),
 style-family chips, and the specialist facets (structure / capabilities / placement-motion)
 behind the Filters disclosure. Filter state lives in
 CreationWizard (`browseFilters`) so Back returns with filters intact; the setter is passed as
@@ -289,6 +291,24 @@ and code repair are all hidden; an unsupported response shows the server's expla
 simplification. Creating or exporting records acceptance by generation id, which is transient
 and never enters the template or the saved graphic. Lite disabled = the BYO surface unchanged.
 
+**Pro makes a PACKAGE, and that is the one thing it asks the user** (docs/NOACG_PRO_PLAN.md
+§15.9). The ⚙ panel's checkbox list (`AiSettings.proPackage`, `pro-package`) picks which graphic
+types the design language is rendered as, **every box ticked by default** - the whole set costs
+one model call, so there is no cost argument for hiding it, and the LAST tick cannot be removed.
+The first member in package order is the PRIMARY: previewed, refined, and the one the
+single-graphic ending still handles. Members are composed the moment the result lands, each
+through the same gate the primary took; one the gate refuses is dropped and NAMED
+(`pro-package-dropped`), never shipped. The result card renders the set (`pro-package-built`),
+and a set of more than one FINISHES through `KitFinishStep` into a production - the branch is on
+the SIZE of the set, never the tier, because the single-graphic door's "open in the editor" would
+pick one member for the user and abandon the rest. Each member is renamed for its type ("<look>
+lower third"), since that name is the export slug and the playout folder an operator reads.
+**The two rules that are not about the door live OUTSIDE this step** - `namedPackage`
+(ai/pro/language/graphics.ts) and the `proPackage` normalizer (ai/settings.ts) - because the
+walk is pinned by `e2e/configured/pro-wizard.spec.ts`, a suite CI never runs, so anything
+reachable only from here ships its regressions silently. Both are mutation-checked in
+`e2e/pro-language.spec.ts`.
+
 **Pro** spends ONE model call, for the design LANGUAGE the platform then composes the graphic in
 (`src/ai/pro/language/pipeline.ts`; §15-16 of docs/NOACG_PRO_PLAN.md, and src/ai/AGENTS.md for the
 engine's rules). The result card reports that language - its name, its rationale, its palette, and
@@ -311,10 +331,10 @@ used to write an empty `validation_rule_codes` beside a `usable` status. Categor
 clamp to lower-third/auto, spec-field findings demote to warnings (`demoteSpecFields`: fixed
 contract, no repair loop), and refine/fix stand down because regenerate is the honest move.
 The step no longer carries a stub branch of its own - the tier is absent where a real
-generation cannot run - so `e2e/pro.spec.ts` stays token-free by driving the RETIRED engine's
-`pro/reconstruct/stub.ts` directly; the LIVE walk is `e2e/configured/pro-wizard.spec.ts`, which
-pins the engine by what it spends (one call, forcing `emit_design_language`, and an image request
-fails the spec). The step MEASURES the first "use it as it is" upload with `probeMark` before
+generation cannot run - so `e2e/pro.spec.ts` is now only the DOOR (whether the tier is offered),
+what a Pro graphic IS is pinned offline by `e2e/pro-language.spec.ts` against the composer the
+product runs, and the LIVE walk is `e2e/configured/pro-wizard.spec.ts`, which pins the engine by
+what it spends (one call, forcing `emit_design_language`, and an image request fails the spec). The step MEASURES the first "use it as it is" upload with `probeMark` before
 generating: its shape and ink go into the brief in content-free words, and the same probe is what
 lets the composer give the mark's column a field when its ink cannot read on the panel the
 language chose.

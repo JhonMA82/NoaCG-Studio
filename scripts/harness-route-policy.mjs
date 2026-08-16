@@ -17,12 +17,13 @@
 // for. The reason is not validated - it is a sentence for a human reading the round later.
 //
 // WHO CALLS THIS, AND WHO DOES NOT NEED TO. Every paid runner that lets an operator NAME a
-// provider goes through here: pro-bench (image + interpret), creative-route-bench,
-// creative-pilot-bench (all three of its routes - it can run its arms on different models, so
-// gating the headline one alone would leave the coder and the critique free to reach a
-// flagship), pro-machine-probe, pro-interpret-probe (positionally, so its reason rides
-// NOACG_FRONTIER_REASON), and ai-bench-compare - which names only a MODEL and resolves the
-// provider from the running app's saved settings, so it is checked on the RESOLVED pair.
+// provider goes through here: pro-spike, creative-route-bench, creative-pilot-bench (all three
+// of its routes - it can run its arms on different models, so gating the headline one alone
+// would leave the coder and the critique free to reach a flagship), pro-machine-probe, and
+// ai-bench-compare - which names only a MODEL and resolves the provider from the running app's
+// saved settings, so it is checked on the RESOLVED pair. (`pro-bench` and `pro-interpret-probe`
+// were on this list until 2026-08-15, when the concept-and-reconstruct engine they drove was
+// deleted - docs/NOACG_PRO_PLAN.md §16.)
 //
 // Three paid runners need no call, and that is a property of their design rather than an
 // oversight - check before "fixing" one:

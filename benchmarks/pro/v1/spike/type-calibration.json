@@ -1,0 +1,432 @@
+{
+  "sweptAt": null,
+  "results": [
+    {
+      "graphic": "lower-third",
+      "source": "catalog",
+      "id": "lt11",
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.41,
+      "markScale": 1.16,
+      "panelFill": 0.6,
+      "footprint": 0.06
+    },
+    {
+      "graphic": "lower-third",
+      "source": "catalog",
+      "id": "lt02",
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.41,
+      "markScale": 1.11,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "lower-third",
+      "source": "catalog",
+      "id": "lt05",
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.47,
+      "markScale": 1.08,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "lower-third",
+      "source": "catalog",
+      "id": "lt15",
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.5,
+      "markScale": 1.36,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "lower-third",
+      "source": "catalog",
+      "id": "lt25",
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.35,
+      "markScale": 1.09,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "lower-third",
+      "source": "catalog",
+      "id": "lt32",
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.37,
+      "markScale": 1.16,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "lower-third",
+      "source": "phase-a",
+      "id": "Harbour Nightly",
+      "plan": {
+        "padVPx": 25,
+        "padHPx": 33,
+        "lineGapPx": 11,
+        "headingPx": 54,
+        "supportingPx": 26,
+        "accentPx": 8,
+        "preset": "line-reveal"
+      },
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.48,
+      "markScale": 1.16,
+      "panelFill": 0.62,
+      "footprint": 0.06
+    },
+    {
+      "graphic": "lower-third",
+      "source": "phase-a",
+      "id": "Volt Matchday",
+      "plan": {
+        "padVPx": 18,
+        "padHPx": 25,
+        "lineGapPx": 8,
+        "headingPx": 54,
+        "supportingPx": 30,
+        "accentPx": 16,
+        "preset": "slide-up"
+      },
+      "adjustments": [
+        "palette_text_dim_lightness_clamped"
+      ],
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.56,
+      "markScale": 1.16,
+      "panelFill": 0.7,
+      "footprint": 0.05
+    },
+    {
+      "graphic": "lower-third",
+      "source": "phase-a",
+      "id": "Alder Quiet",
+      "plan": {
+        "padVPx": 33,
+        "padHPx": 46,
+        "lineGapPx": 16,
+        "headingPx": 54,
+        "supportingPx": 33,
+        "accentPx": 3,
+        "preset": "fade"
+      },
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.61,
+      "markScale": 1.16,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "lower-third",
+      "source": "phase-a",
+      "id": "Sunbeam Daytime",
+      "plan": {
+        "padVPx": 33,
+        "padHPx": 46,
+        "lineGapPx": 16,
+        "headingPx": 54,
+        "supportingPx": 26,
+        "accentPx": 8,
+        "preset": "mask-wipe"
+      },
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.48,
+      "markScale": 1.16,
+      "panelFill": 0.6,
+      "footprint": 0.08
+    },
+    {
+      "graphic": "sponsor-bug",
+      "source": "catalog",
+      "id": "bug02",
+      "l3Codes": [
+        "lines-crowded",
+        "mark-crowded"
+      ],
+      "typedCodes": [
+        "lines-crowded",
+        "mark-crowded"
+      ],
+      "typeRatio": 0.44,
+      "markScale": 1.67,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "sponsor-bug",
+      "source": "catalog",
+      "id": "bug01",
+      "l3Codes": [
+        "mark-oversized"
+      ],
+      "typedCodes": [],
+      "typeRatio": null,
+      "markScale": 5.25,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "sponsor-bug",
+      "source": "catalog",
+      "id": "bug03",
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": null,
+      "markScale": 2.17,
+      "panelFill": 0.56,
+      "footprint": 0.01
+    },
+    {
+      "graphic": "sponsor-bug",
+      "source": "catalog",
+      "id": "bug04",
+      "l3Codes": [
+        "mark-oversized"
+      ],
+      "typedCodes": [],
+      "typeRatio": null,
+      "markScale": 4.81,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "sponsor-bug",
+      "source": "phase-a",
+      "id": "Harbour Nightly",
+      "plan": {
+        "padVPx": 11,
+        "padHPx": 15,
+        "lineGapPx": 5,
+        "headingPx": 24,
+        "supportingPx": 24,
+        "accentPx": 8,
+        "preset": "blur-in"
+      },
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": null,
+      "markScale": 2.67,
+      "panelFill": 0.7,
+      "footprint": 0.02
+    },
+    {
+      "graphic": "sponsor-bug",
+      "source": "phase-a",
+      "id": "Volt Matchday",
+      "plan": {
+        "padVPx": 10,
+        "padHPx": 14,
+        "lineGapPx": 4,
+        "headingPx": 24,
+        "supportingPx": 30,
+        "accentPx": 16,
+        "preset": "pop-spring"
+      },
+      "adjustments": [
+        "palette_text_dim_lightness_clamped"
+      ],
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": null,
+      "markScale": 2.13,
+      "panelFill": 0.72,
+      "footprint": 0.02
+    },
+    {
+      "graphic": "sponsor-bug",
+      "source": "phase-a",
+      "id": "Alder Quiet",
+      "plan": {
+        "padVPx": 15,
+        "padHPx": 21,
+        "lineGapPx": 7,
+        "headingPx": 24,
+        "supportingPx": 24,
+        "accentPx": 3,
+        "preset": "fade"
+      },
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": null,
+      "markScale": 2.67,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "sponsor-bug",
+      "source": "phase-a",
+      "id": "Sunbeam Daytime",
+      "plan": {
+        "padVPx": 15,
+        "padHPx": 21,
+        "lineGapPx": 7,
+        "headingPx": 24,
+        "supportingPx": 24,
+        "accentPx": 8,
+        "preset": "slide-up"
+      },
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": null,
+      "markScale": 2.67,
+      "panelFill": 0.69,
+      "footprint": 0.02
+    },
+    {
+      "graphic": "countdown",
+      "source": "catalog",
+      "id": "gt01",
+      "l3Codes": [
+        "text-crowds-rule",
+        "type-ratio-thin"
+      ],
+      "typedCodes": [
+        "text-crowds-rule"
+      ],
+      "typeRatio": 0.2,
+      "markScale": null,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "countdown",
+      "source": "catalog",
+      "id": "gt02",
+      "l3Codes": [
+        "type-ratio-thin"
+      ],
+      "typedCodes": [],
+      "typeRatio": 0.25,
+      "markScale": null,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "countdown",
+      "source": "catalog",
+      "id": "gt05",
+      "l3Codes": [
+        "padding-tight",
+        "type-ratio-thin"
+      ],
+      "typedCodes": [],
+      "typeRatio": 0.25,
+      "markScale": null,
+      "panelFill": 0.5,
+      "footprint": 0.02
+    },
+    {
+      "graphic": "countdown",
+      "source": "catalog",
+      "id": "gt06",
+      "l3Codes": [
+        "lines-adrift"
+      ],
+      "typedCodes": [
+        "lines-adrift"
+      ],
+      "typeRatio": 0.34,
+      "markScale": null,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "countdown",
+      "source": "phase-a",
+      "id": "Harbour Nightly",
+      "plan": {
+        "padVPx": 37,
+        "padHPx": 50,
+        "lineGapPx": 16,
+        "headingPx": 80,
+        "supportingPx": 38,
+        "accentPx": 8,
+        "preset": "timer-line-reveal"
+      },
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.48,
+      "markScale": null,
+      "panelFill": 0.48,
+      "footprint": 0.04
+    },
+    {
+      "graphic": "countdown",
+      "source": "phase-a",
+      "id": "Volt Matchday",
+      "plan": {
+        "padVPx": 27,
+        "padHPx": 37,
+        "lineGapPx": 11,
+        "headingPx": 80,
+        "supportingPx": 30,
+        "accentPx": 16,
+        "preset": "timer-run"
+      },
+      "adjustments": [
+        "palette_text_dim_lightness_clamped"
+      ],
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.38,
+      "markScale": null,
+      "panelFill": 0.5,
+      "footprint": 0.02
+    },
+    {
+      "graphic": "countdown",
+      "source": "phase-a",
+      "id": "Alder Quiet",
+      "plan": {
+        "padVPx": 50,
+        "padHPx": 69,
+        "lineGapPx": 24,
+        "headingPx": 80,
+        "supportingPx": 50,
+        "accentPx": 3,
+        "preset": "timer-line-reveal"
+      },
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.63,
+      "markScale": null,
+      "panelFill": null,
+      "footprint": null
+    },
+    {
+      "graphic": "countdown",
+      "source": "phase-a",
+      "id": "Sunbeam Daytime",
+      "plan": {
+        "padVPx": 50,
+        "padHPx": 69,
+        "lineGapPx": 24,
+        "headingPx": 80,
+        "supportingPx": 38,
+        "accentPx": 8,
+        "preset": "timer-line-reveal"
+      },
+      "l3Codes": [],
+      "typedCodes": [],
+      "typeRatio": 0.48,
+      "markScale": null,
+      "panelFill": 0.43,
+      "footprint": 0.06
+    }
+  ]
+}

@@ -27,10 +27,11 @@ import type { ValidationResult } from '../../../validation/validateTemplate';
 import type { ModelRoute } from '../../modelTypes';
 import type { SpxValidator } from '../../provider';
 import type { ProSession } from '../session';
-import { composeFromLanguage, type ComposeOptions } from './compose';
-import type { DesignLanguage } from './contract';
+import type { ComposeOptions } from './compose';
+import type { DesignLanguage, LanguagePalette } from './contract';
 import { validateProLanguage } from './gate';
 import { generateDesignLanguage } from './generate';
+import { composeGraphic, type ProGraphicId } from './graphics';
 import type { LanguageBrief } from './prompt';
 
 /** The busy line's states. Three, because there are three things happening. */
@@ -54,6 +55,18 @@ export interface ProGenerateRequest {
   mark?: ProMark | null;
   resolution?: Resolution;
   fps?: number;
+  /**
+   * Which graphic of the package to compose. Default is the lower third, which is what the
+   * wizard asks for today; the engine renders the same language as a sponsor bug or a countdown
+   * (`PRO_GRAPHICS`, graphics.ts), and that is one argument away rather than a second pipeline.
+   */
+  graphic?: ProGraphicId;
+  /**
+   * The customer's OWN colours, when they stated any. Identity (accent, panel) is copied verbatim
+   * by the platform and the model gets no vote on it - the rule Lite has carried since
+   * 2026-08-13 and Pro did not (`proBrandPalette`, pro/brief.ts; `resolvePalette`, paint.ts).
+   */
+  brandPalette?: LanguagePalette | null;
 }
 
 export interface ProGenerateResult {
@@ -102,8 +115,12 @@ export async function generateProGraphic(
     ...(request.resolution ? { resolution: request.resolution } : {}),
     ...(request.fps ? { fps: request.fps } : {}),
     ...(request.mark ? { logo: request.mark } : {}),
+    ...(request.brandPalette ? { brandPalette: request.brandPalette } : {}),
   };
-  const composed = composeFromLanguage(generated.language, composeOptions);
+  // THE ONE COMPOSE SEAM for every graphic in the package (graphics.ts). A per-type branch here
+  // is how a second engine starts: the whole argument of this file is that there is one route
+  // from the wizard to a Pro graphic, and a package of three is still one route.
+  const composed = composeGraphic(request.graphic ?? 'lower-third', generated.language, composeOptions);
 
   options.onStage?.('validate');
   // THE ONE SEAM (gate.ts). There is no repair loop and there must not be one: nothing the model

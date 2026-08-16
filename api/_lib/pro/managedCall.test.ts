@@ -11,6 +11,7 @@ import { MemoryLiteGenerationStore, type LiteGenerationStore, type LiteReservati
 import { proCapacityRetryPlan, proProfile } from '../aiProProfile.js';
 import { proTaskProfile } from '../aiTaskRegistry.js';
 import { taskConfigured } from '../aiTaskRegistry.js';
+import { routeDisabled, type SystemSettings } from '../systemSettings.js';
 import { PRO_MAX_GENERATION_COST_USD, PRO_STANDARD_ROUTES } from '../../../src/ai/pro/contract.js';
 import type { AiGatewayRequestBody } from '../../../src/ai/modelTypes.js';
 
@@ -28,6 +29,18 @@ const ENV = [
   'IP_HASH_SALT',
 ] as const;
 const original = new Map(ENV.map((name) => [name, process.env[name]]));
+
+/**
+ * The RETIRED concept image route, written out rather than read from `PRO_STANDARD_ROUTES`.
+ *
+ * It was `PRO_STANDARD_ROUTES.concept` until the concept-and-reconstruct engine was deleted
+ * (docs/NOACG_PRO_PLAN.md §16), and it is still a catalogued, audited, approved entry - so it is
+ * exactly the shape of route that could be pointed at Pro again by an env edit or a well-meaning
+ * addition to the funded list. That is what these tests are for, which means the id has to come
+ * from somewhere that does NOT move when the constant does: a literal here fails loudly if the
+ * route is ever re-funded, where a reference would simply stop compiling and get deleted.
+ */
+const RETIRED_IMAGE_ROUTE = { provider: 'vercel' as const, model: 'google/gemini-3.1-flash-image' };
 
 beforeEach(() => {
   for (const name of ENV) delete process.env[name];
@@ -49,9 +62,10 @@ function configureBackend(): void {
   process.env.IP_HASH_SALT = 'a-salt-at-least-16-chars';
 }
 
+/** A real Phase A call: ONE text request on the one route the hosted profile funds. */
 const PRO_BODY: AiGatewayRequestBody = {
-  request: { system: 'You generate concepts.', messages: [{ role: 'user', content: 'a lower third' }], expect: 'image' },
-  route: PRO_STANDARD_ROUTES.concept,
+  request: { system: 'You decide a design language.', messages: [{ role: 'user', content: 'a lower third' }] },
+  route: PRO_STANDARD_ROUTES.language,
   surface: 'pro',
 };
 
@@ -111,6 +125,11 @@ test('a route the profile does not fund is refused before it is billed', async (
   );
   assert.equal(error.code, 'unavailable');
   assert.match(error.message, /not available for NoaCG Pro/i);
+  // …and the RETIRED image route is now one of those, which is the spend-seam half of the
+  // de-listing: a caller that still asks for a concept image is refused before it is billed,
+  // rather than served on NoaCG's key for an engine no user reaches.
+  const retired = await refusal({ ...PRO_BODY, route: RETIRED_IMAGE_ROUTE }, 'user-1');
+  assert.equal(retired.code, 'unavailable');
 });
 
 test('a managed Pro call with no reservation is refused', async () => {
@@ -277,20 +296,54 @@ test('the Pro task fails closed without an audited provider allowlist, and opens
   assert.equal(taskConfigured(proTaskProfile(proProfile())), true);
 });
 
-test('the concept IMAGE route is admitted as an image route and priced, not waved through', () => {
+test('hosted Pro funds exactly the route it spends on, and no image route at all', () => {
   process.env.AI_PRO_ENABLED = '1';
   process.env.AI_PRO_GATEWAY_PROVIDERS = 'vertex';
-  const task = proTaskProfile(proProfile());
-  // Declared, so the text-route rule does not refuse it...
-  assert.deepEqual(task.routePolicy.imageRoutes, [PRO_STANDARD_ROUTES.concept]);
-  // ...and still catalog-approved and priced, which is what the declaration does NOT waive.
-  assert.ok(task.routePolicy.prices[`${PRO_STANDARD_ROUTES.concept.provider}:${PRO_STANDARD_ROUTES.concept.model}`]);
-  // An UNDECLARED image route is still refused, so this cannot become a general exemption.
+  const profile = proProfile();
+  // The list `resolveProGate` ANDs over. Phase A makes ONE text call, so it holds one route.
+  assert.deepEqual(profile.routes, [PRO_STANDARD_ROUTES.language]);
+  const task = proTaskProfile(profile);
+  assert.deepEqual(task.routePolicy.primary, PRO_STANDARD_ROUTES.language);
+  assert.deepEqual(task.routePolicy.fallbacks, []);
+  // No image route is declared, because none is called. Absent rather than empty: `undefined`
+  // is what "this task sends only text" means in TaskRoutePolicy.
+  assert.equal(task.routePolicy.imageRoutes, undefined);
+  // An UNDECLARED image route is still refused - the guard that stops an env edit pointing a
+  // text task at an image model survives having no task behind it.
   const smuggled = {
     ...task,
-    routePolicy: { ...task.routePolicy, primary: PRO_STANDARD_ROUTES.concept, imageRoutes: [] },
+    routePolicy: { ...task.routePolicy, primary: RETIRED_IMAGE_ROUTE },
   };
   assert.equal(taskConfigured(smuggled), false);
+});
+
+test('disabling the retired IMAGE route from /admin leaves hosted Pro up', () => {
+  // THE DEFECT THIS CLOSES (docs/NOACG_PRO_PLAN.md §16, "Defect 2"). Availability requires every
+  // FUNDED route to be priced, catalog-approved and not switched off from the admin surface, and
+  // the funded list used to be `[concept, interpret]` - the two stages of the retired
+  // concept-and-reconstruct engine. So the one switch an operator would reach for to stop spend
+  // on a misbehaving image model took the whole tier down for a pipeline that never calls it.
+  //
+  // Asserted through `routeDisabled` over `profile.routes`, which is `resolveProGate`'s own
+  // expression rather than a restatement of it: put the image route back in the funded list and
+  // this test fails.
+  process.env.AI_PRO_ENABLED = '1';
+  process.env.AI_PRO_GATEWAY_PROVIDERS = 'vertex';
+  const profile = proProfile();
+  const imageOff: SystemSettings = {
+    disabledFeatures: [],
+    disabledRoutes: [`${RETIRED_IMAGE_ROUTE.provider}:${RETIRED_IMAGE_ROUTE.model}`],
+    maintenanceNotice: null,
+    betaUserIds: [],
+  };
+  assert.equal(profile.routes.some((route) => routeDisabled(imageOff, route)), false);
+  // …and the switch still works on the route Pro DOES spend on, so this is a narrower gate
+  // rather than a disabled one.
+  const languageOff: SystemSettings = {
+    ...imageOff,
+    disabledRoutes: [`${PRO_STANDARD_ROUTES.language.provider}:${PRO_STANDARD_ROUTES.language.model}`],
+  };
+  assert.equal(profile.routes.some((route) => routeDisabled(languageOff, route)), true);
 });
 
 test('the browser and the server hold a Pro generation to the SAME ceiling', () => {

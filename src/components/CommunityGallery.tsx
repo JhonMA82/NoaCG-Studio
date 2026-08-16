@@ -11,6 +11,7 @@ import {
   type CommunityKind,
 } from '../community/communityData';
 import { publishGate } from '../community/gate';
+import { CATEGORIES } from '../model/wizard';
 import type { SpxTemplate } from '../model/types';
 import { useModalGate } from './spaceKey';
 import { useMyEntitlement } from './useMyEntitlement';
@@ -119,12 +120,18 @@ export default function CommunityGallery({ onClose, initialSlug }: Props) {
     setNote(error ?? '✓ Reported — thanks. A moderator will take a look.');
   };
 
+  // The stored category is the ASSEMBLER id (`template.type` at publish — a routing id the
+  // root contract says is never rendered in UI). Show the human wizard label instead; an id
+  // no registry knows (an older build's, or a future one's) shows nothing rather than jargon.
+  const categoryLabel = (raw: string | null | undefined): string | null =>
+    raw ? (CATEGORIES.find((k) => k.id === raw)?.name ?? null) : null;
+
   const card = (c: CommunityCard, isFeatured = false) => (
     <div className="pk-graphic" key={c.id} style={isFeatured ? { outline: '2px solid var(--accent)', outlineOffset: 2 } : undefined}>
       <strong>{c.name}</strong>
       <span className="muted">
         {c.kind}
-        {c.category ? ` · ${c.category}` : ''} · {c.author_name || 'anonymous'}
+        {categoryLabel(c.category) ? ` · ${categoryLabel(c.category)}` : ''} · {c.author_name || 'anonymous'}
       </span>
       {c.summary && <span className="hint" style={{ flexBasis: '100%', order: 9 }}>{c.summary}</span>}
       <div className="spacer" />

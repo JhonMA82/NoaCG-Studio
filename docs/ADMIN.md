@@ -843,10 +843,12 @@ a menu and not a judgement.
 
 **READ THE DATE ON THIS SECTION.** Since 2026-08-15 a Pro generation is ONE text call for a design
 language and no image at all (`docs/NOACG_PRO_PLAN.md` §15-16), measured at **~$0.0055** on the
-2026-08-15 round. The account below describes the RETIRED concept-and-reconstruct engine
-(`src/ai/pro/reconstruct/`) and is kept because the ceiling, the funded routes and the image-route
-menu above were all sized against it - and because 86% of that bill being one flat image charge is
-the number that argued for replacing it.
+2026-08-15 round. The account below describes the concept-and-reconstruct engine, RETIRED and
+DELETED from the tree on 2026-08-15, and is kept because the ceiling and the image-route menu
+above were sized against it - and because 86% of that bill being one flat image charge is the
+number that argued for replacing it. **The funded route list no longer includes the image route**:
+every funded route is ANDed by the availability gate, so funding one nothing calls meant disabling
+it from this page would have taken the whole tier down.
 
 **What one Pro generation cost on the retired engine, measured** (`pro-baseline-2026-08-09` in the
 eval archive; 4 briefs, 4/4 pass, gateway routes `google/gemini-3.1-flash-image` +

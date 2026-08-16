@@ -685,6 +685,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     await runVerb([[{ graphic: selectedGraphic, msg: { t: 'update', data: cueView(editingCue).values } }]], 'Update');
   };
 
+  /**
+   * One press bumps a number field ON AIR: a PARTIAL update carrying just that field, plus the
+   * same value into the edited cue so the cue and the air cannot drift apart. Game-show points
+   * and match scores change constantly, and stepper-then-✎-Update was two presses under
+   * pressure — this is the one data write that airs immediately, which is why it renders with
+   * the on-air controls rather than in the cue editor above.
+   *
+   * PARTIAL on purpose: ✎ Update sends the cue's whole value set, so riding it here would also
+   * air every OTHER staged edit the operator has not sent yet — a bump must never publish a
+   * half-typed name. Receivers write exactly the fields a message carries, and the logs merge
+   * partial data, so recovery replays it correctly (docs/CONTROL_LAYER.md).
+   */
+  const bumpLive = async (fieldKey: string, delta: number) => {
+    if (!editingCue || !selectedGraphic || !editingIsLive) return;
+    const base = airedData[selectedGraphic]?.[fieldKey] ?? cueView(editingCue).values[fieldKey] ?? '0';
+    const next = String((parseInt(base, 10) || 0) + delta);
+    editDraft({ values: { [fieldKey]: next } });
+    await runVerb([[{ graphic: selectedGraphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
+  };
+
   const nextLive = async () => {
     if (!selectedGraphic || !selectedLayerLive) return;
     await runVerb([[{ graphic: selectedGraphic, msg: { t: 'next' } }]], 'Next');
@@ -722,6 +742,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     ? previewTemplate.assets.filter((a) => isImageAsset(a.path)).map((a) => ({ value: a.path }))
     : [];
   const canTake = !!selectedCue;
+
+  // The number fields the ± LIVE NUMBERS block bumps: operator-visible `number` fields that no
+  // ⚡ event carries as payload. A payload field (the spotlight index, a focused row) is set by
+  // its own action — a second road to it would air a value without the state that gives it
+  // meaning. Derived from the template alone, like everything else here: any graphic with a
+  // number field gets the block, and no category is ever consulted.
+  const eventPayloadKeys = new Set(events.flatMap((e) => e.payload ?? []));
+  const liveNumberFields = descriptors.filter((d) => d.kind === 'number' && !eventPayloadKeys.has(d.key));
 
   // THE SIDE GESTURE. A dataset row is ONE team, but a two-team board titles its fields
   // "Team A" / "Score A" / "Team B" / … — so a row can never match them directly and the whole
@@ -1327,6 +1355,57 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* LIVE NUMBERS — one press changes a figure on the live graphic (a score, a goal
+            total, a stock count). The same doctrine as the ⚡ actions above: fields in the
+            editor edit a CUE and air on ⟳ Take / ✎ Update, these act on AIR the moment they
+            are pressed — a partial update carrying just the bumped field, mirrored into the
+            cue so the two never drift. Derived from the template's own `number` fields, so
+            every scoreboard, podium board and goal meter gets it with no per-graphic code. */}
+        {liveNumberFields.length > 0 && selectedGraphic && (
+          <div className="pd-actions pd-live-numbers" data-testid="live-numbers">
+            <div className="pd-actions-head">
+              <span className="pd-actions-kicker">
+                ± LIVE NUMBERS <b className="pd-actions-air">act on air</b>
+              </span>
+            </div>
+            <p className="hint pd-actions-help">
+              One press changes the figure on the live graphic and keeps this cue in step — no
+              ✎ Update needed. Typing a value above still stages it for ✎ Update instead.
+            </p>
+            <div className="pd-actions-row">
+              {liveNumberFields.map((d) => {
+                const disabled = !selectedLayerLive || !editingIsLive;
+                const title = !selectedLayerLive
+                  ? 'The graphic is not on air — Take the cue first'
+                  : !editingIsLive
+                    ? 'Another cue is on air — select the live cue to bump its numbers'
+                    : `Changes "${d.label}" on air immediately`;
+                return (
+                  <span key={d.key} className="pd-live-number" data-testid={`live-number-${d.key}`}>
+                    <span className="pd-live-number-label">{d.label}</span>
+                    <button
+                      disabled={disabled}
+                      title={title}
+                      onClick={() => void bumpLive(d.key, -1)}
+                      data-testid={`live-number-${d.key}-down`}
+                    >
+                      −
+                    </button>
+                    <button
+                      disabled={disabled}
+                      title={title}
+                      onClick={() => void bumpLive(d.key, 1)}
+                      data-testid={`live-number-${d.key}-up`}
+                    >
+                      +
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
           </div>
         )}
 

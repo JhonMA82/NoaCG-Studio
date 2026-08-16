@@ -327,6 +327,88 @@ test.describe('hosted NoaCG Pro (configured)', () => {
     await expect(note).toContainText(/31\s+this month/);
   });
 
+  /**
+   * THE PACKAGE, end to end (docs/NOACG_PRO_PLAN.md §15.9).
+   *
+   * Pro's promise is a lower third, a sponsor bug and a countdown that visibly belong to each
+   * other, and the whole set costs ONE model call - only the design language is generated. This
+   * is the only surface where that claim is reachable, for the same reason the walk above is:
+   * the door exists on a configured deployment and nowhere else.
+   *
+   * It asserts the two things a package changes and nothing about how the graphics LOOK: that
+   * three graphics come out of one call, and that a set finishes into a PRODUCTION rather than
+   * opening one of them in the editor with the other two looking like they were never made.
+   */
+  test('one call makes the whole package, and a package finishes into a production', async ({ page }) => {
+    test.setTimeout(180_000);
+    let designCalls = 0;
+    await withHostedPro(page, () => ({ daily: 7, monthly: 41 }));
+    await page.route('**/api/ai/pro-generations', (route) => route.fulfill({
+      status: 200, contentType: 'application/json', body: JSON.stringify(RESERVATION),
+    }));
+    await page.route('**/api/ai/pro-outcome', (route) => route.fulfill({
+      status: 200, contentType: 'application/json', body: '{"recorded":true}',
+    }));
+    await page.route('**/api/ai/generate', (route) => {
+      designCalls += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          output: LANGUAGE, usage: USAGE, provider: 'vercel', model: 'stub-text', attempts: [],
+        }),
+      });
+    });
+
+    await openAiStep(page);
+    await openAiSettings(page);
+    await page.getByTestId('ai-tier').getByTestId('ai-tier-pro').click();
+
+    // THE PICKER: every graphic ticked by default, because the whole package costs one call and
+    // a differentiator behind an unticked box is one nobody meets.
+    const picker = page.getByTestId('pro-package');
+    await expect(picker).toBeVisible();
+    for (const id of ['lower-third', 'sponsor-bug', 'countdown']) {
+      await expect(picker.getByTestId(`pro-package-${id}`).getByRole('checkbox')).toBeChecked();
+    }
+
+    await page.locator('.wz-step textarea').fill(
+      'A calm public-broadcast election-night look: deep blue, a thin gold rule, authoritative.',
+    );
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(page.getByTestId('ai-readiness')).toBeVisible({ timeout: 120_000 });
+
+    // THREE GRAPHICS, ONE CALL. The count is the economic claim: composing is deterministic, so
+    // a package is what the one paid call already bought. A second call here would mean the
+    // members were being generated rather than composed.
+    await expect(page.getByTestId('pro-package-built').locator('.wz-kit-built-cell')).toHaveCount(3);
+    expect(designCalls, 'the package costs exactly one model call').toBe(1);
+    // …and nothing was quietly dropped by the platform's own gate.
+    await expect(page.getByTestId('pro-package-dropped')).toHaveCount(0);
+
+    // A SET FINISHES AS A SET. The single-graphic Finish would offer "open in the editor", which
+    // for a package means picking one member for the user and abandoning the other two - so the
+    // step is the kit's, and its doors save every graphic into one production.
+    await page.getByRole('button', { name: 'Next →' }).click();
+    const finish = page.getByTestId('kit-finish');
+    await expect(finish).toBeVisible();
+    await expect(finish.getByTestId('kit-built').locator('.wz-kit-built-cell')).toHaveCount(3);
+    await expect(finish).toContainText('one look');
+    // EVERY MEMBER IS NAMED FOR WHAT IT IS. A composed graphic takes the design LANGUAGE's name,
+    // so without this all three read "Harbour Nightly" - three identical thumbnails captions,
+    // three library rows, and three same-named folders inside one export. The name is the export
+    // slug and the folder an operator reads in the playout server, so it is not a caption.
+    for (const label of ['lower third', 'sponsor bug', 'countdown']) {
+      await expect(finish.getByTestId('kit-built')).toContainText(`${LANGUAGE.name} ${label}`);
+    }
+    // …and the step speaks the user's own word for what they asked for, not the catalog's.
+    await expect(finish).toContainText('Where this package goes');
+    await expect(finish.getByTestId('kit-finish-production')).toBeVisible();
+    // The single-graphic ending is NOT also on screen - two Finish steps would be two answers.
+    // (The kit step wears `.wz-finish` too, so the exclusion is what makes this assertion real.)
+    await expect(page.locator('.wz-finish:not(.wz-kit-finish)')).toHaveCount(0);
+  });
+
   test('a configured backend alone is not a door - the server still decides', async ({ page }) => {
     test.setTimeout(120_000);
     // The mirror of e2e/pro.spec.ts's first test, from the side only this suite can reach: the

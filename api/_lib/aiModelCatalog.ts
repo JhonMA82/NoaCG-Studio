@@ -89,8 +89,9 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
     capabilities: { vision: true, coding: false, structuredOutput: true, contextWindow: 1_000_000 },
     price: { inputPerMillion: 0.30, outputPerMillion: 2.50 },
     zdrAvailable: true,
-    notes: 'Lite skin vision judge route (docs/AI_LITE_BENCHMARK.md §6b), and the NoaCG Pro '
-      + 'INTERPRET route (PRO_STANDARD_ROUTES.interpret). Same model and price on the gateway; '
+    notes: 'Lite skin vision judge route (docs/AI_LITE_BENCHMARK.md §6b), and the ONE route '
+      + 'hosted NoaCG Pro spends on (PRO_STANDARD_ROUTES.language - Phase A\'s design-language '
+      + 'call; the retired interpret stage used the same model). Same model and price on the gateway; '
       + 'the context window is the listing\'s 1,000,000 rather than the 1,048,576 the OpenRouter '
       + 'entry recorded. The endpoint-level ZDR reasoning the old note carried no longer applies: '
       + 'the gateway decides which provider serves a ZDR request, not us. ZDR verified '
@@ -115,12 +116,16 @@ export const APPROVED_MODEL_CATALOG: readonly ApprovedModelEntry[] = [
     outputs: 'image',
     openWeights: false,
     // The gateway serves image output from a `type: 'language'` model through the ordinary
-    // chat-completions `modalities` field, and the concept call asks for no structured output,
-    // so nothing here depends on this flag.
+    // chat-completions `modalities` field, and the retired concept call asked for no structured
+    // output, so nothing here depends on this flag.
     capabilities: { vision: true, coding: false, structuredOutput: false, contextWindow: 131_072 },
     price: { inputPerMillion: 0.50, outputPerMillion: 3.00 },
     zdrAvailable: true,
-    notes: 'NoaCG Pro concept route (PRO_STANDARD_ROUTES.concept). Same slug and same token '
+    notes: 'NO TASK CALLS THIS ROUTE. It was NoaCG Pro\'s concept route '
+      + '(PRO_STANDARD_ROUTES.concept) until Phase A retired the concept-and-reconstruct engine '
+      + '(docs/NOACG_PRO_PLAN.md §16), and it is no longer on the hosted profile\'s funded list. '
+      + 'The entry stays because it is an AUDIT RECORD - deleting it would delete a verified ZDR '
+      + 'result and the only priced image row the admin page can show. Same slug and same token '
       + 'prices on the gateway. Its generated images bill through ordinary OUTPUT TOKENS here '
       + 'rather than a separate image-token meter, and are measured against NO ceiling - none '
       + 'has been decided for image work (docs/ADMIN.md §9). ZDR verified 2026-08-07 on a real '

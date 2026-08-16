@@ -292,3 +292,53 @@ test('an audience Q&A cue reveals its answer; switching to a plain cue swaps the
   await expect(actions).toBeVisible();
   await expect(page.getByTestId('cue-action-answer')).toBeVisible();
 });
+
+test('± LIVE NUMBERS bumps a figure on air without publishing other staged edits', async ({ page }) => {
+  // The podium board is the block's reason to exist: game-show points change on every
+  // question, and stepper-then-✎-Update was two presses under pressure. The block itself is
+  // generic — any graphic with a `number` field gets it — so this walk is also the podium
+  // type's playout proof: per-contestant scores, the spotlight machine beside them.
+  await createProject(page, { name: 'House Podiums' });
+  await productionFor(page, 'Game Night');
+
+  // Off air: the block renders (the template has number fields), every button waits for Take.
+  const block = page.getByTestId('live-numbers');
+  await expect(block).toBeVisible();
+  const up = page.getByTestId('live-number-f2-up');
+  await expect(up).toBeDisabled();
+  // The spotlight index is an ⚡ payload field, so it gets NO bump pair — it is set by its own
+  // action, and a second road to it would air a value without the state that gives it meaning.
+  await expect(page.getByTestId('live-number-f9-up')).toHaveCount(0);
+
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(program.locator('#f2')).toHaveText('0');
+
+  // Stage an edit that must NOT ride the bump: a half-typed name stays staged.
+  await page.getByTestId('cue-field-f1').fill('ZO');
+
+  await expect(up).toBeEnabled();
+  await up.click();
+  await up.click();
+
+  // The bump aired — just that field. The staged name did not.
+  await expect(program.locator('#f2')).toHaveText('2');
+  await expect(program.locator('#f1')).toHaveText('MAYA');
+  // …and the cue kept the new value, so the next ⟳ Take or ✎ Update cannot regress the score.
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('2');
+
+  // ✎ Update still publishes the whole cue — the staged name goes to air the normal way.
+  await page.getByTestId('verb-update').click();
+  await expect(program.locator('#f1')).toHaveText('ZO');
+  await expect(program.locator('#f2')).toHaveText('2');
+
+  // The podium machine drives beside it: spotlight podium 2, judged by the structural guard.
+  await page.getByTestId('cue-field-f9').fill('2');
+  await page.getByTestId('cue-action-spotlight').click();
+  await expect(page.getByTestId('machine-state-chip')).toContainText('spotlit', { ignoreCase: true });
+  await expect(program.locator('.scoreboard-podium-2')).toHaveClass(/scoreboard-podium-spot/);
+  // A cleared name collapses its podium — contestant count is content, not a state.
+  await page.getByTestId('cue-field-f7').fill('');
+  await page.getByTestId('verb-update').click();
+  await expect(program.locator('.scoreboard-podium-4')).toHaveClass(/scoreboard-podium-empty/);
+});

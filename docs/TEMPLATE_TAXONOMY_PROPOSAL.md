@@ -266,6 +266,48 @@ template); the graphic category becomes presentation metadata on top. No file mo
 renames - see §17. *(2026-08-11: the type was renamed `TemplateCategory` → `AssemblerId` in
 `src/model/wizard.ts` to make this split self-documenting; the ids themselves are unchanged.)*
 
+### 4c. Category groups — ADOPTED 2026-08-16
+
+By August 2026 every one of the 27 categories (26 + `notification`) had catalog content, so
+the Browse dropdown carried 27 rows — back at the wall the one-dropdown decision was already
+fleeing at 22, and this time no control survives it: a first-time user reads past two dozen
+functional labels to find "Lower thirds". The fix is a **user-facing GROUP layer**, ten
+shelves over the categories, derived from the catalog's real composition (counts of
+2026-08-16, 458 designs — every shelf holds 23-82):
+
+| Group id | Display name | Member categories |
+|---|---|---|
+| `lower-thirds` | Lower thirds | lower-third |
+| `bugs` | Bugs & corner logos | bug |
+| `cards` | Titles & cards | title, topic, info, quote |
+| `tickers` | Tickers & alerts | ticker, alert, caption, notification |
+| `scores` | Scores, results & reveals | scoreboard, results, reveal |
+| `audience` | Polls, quizzes & questions | poll-quiz, question |
+| `data` | Lists & data | list, stats, progress, map |
+| `breaks` | Timers, breaks & credits | timer, holding, credits |
+| `commerce` | Sponsors & commerce | sponsor, product, cta |
+| `frames` | Frames & stingers | frame, transition |
+
+The rules, in the spirit of §2:
+
+- **The categories stay the canonical vocabulary.** Aliases, declared meta, subtypes, the AI's
+  retrieval, the factory's assertions, the publish contract (§11) all keep speaking
+  `GraphicCategoryId`. A group is BROWSE FURNITURE: the dropdown offers groups, the selected
+  group's member categories render as chips (only when it has more than one), and the card
+  still prints `category · subtype`.
+- **One home each, total by type.** `CATEGORY_GROUP_OF` (`src/model/taxonomy.ts`) is a
+  `Record<GraphicCategoryId, CategoryGroupId>` — the `PRESET_MOTION` pattern — so a new
+  category without a shelf is a compile error, never a browse fallback; `CATEGORY_GROUPS`
+  derives its member lists from it, so the two cannot drift.
+- **Groups never touch behaviour.** Playout controls are GENERATED from the machine + fields
+  inside the template (`docs/CONTROL_LAYER.md`); nothing at playout reads a category, and
+  nothing anywhere reads a group but the Browse surfaces (`browsableGroups`, the `group`
+  strict facet in `search.ts`).
+- Two memberships lean on evidence already in §14's alias table: *countdown* resolves to
+  timer + holding (they share the `breaks` shelf), and *sponsor* fans across bug + sponsor
+  (the corner mark stays under `bugs`, the panel under `commerce` — search still reaches both
+  from the one word).
+
 ---
 
 ## 5. Facet C - graphic structure

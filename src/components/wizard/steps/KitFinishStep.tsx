@@ -28,6 +28,16 @@ interface Props {
   busy: boolean;
   /** A save that did not land, reported here rather than swallowed. */
   error: string | null;
+  /**
+   * What this SET is called, in the user's own words - 'kit' for the catalog path, 'package'
+   * for a NoaCG Pro generation (docs/NOACG_PRO_PLAN.md §15.9).
+   *
+   * The step is shared because the ending is genuinely the same one - N graphics that belong
+   * together, saved into a production, the editor never involved - but a Pro user never chose
+   * a kit and would be reading about something they have no word for. The TEST IDS stay
+   * `kit-*` whatever the noun: an id names the surface, never the copy.
+   */
+  noun?: string;
 }
 
 /**
@@ -55,6 +65,7 @@ export default function KitFinishStep({
   onExport,
   busy,
   error,
+  noun = 'kit',
 }: Props) {
   // A kit usually IS a show, so a NEW production is the default - unlike the single-graphic
   // Finish, which defaults to the most recent one. The exception is the wizard opened FOR a
@@ -75,7 +86,7 @@ export default function KitFinishStep({
   return (
     <div className="wz-finish wz-kit-finish" data-testid="kit-finish">
       <div className="panel-section">
-        <h3>Where this kit goes</h3>
+        <h3>Where this {noun} goes</h3>
         <div className="row" style={{ gap: 8 }}>
           <select
             className="grow"
@@ -156,7 +167,7 @@ export default function KitFinishStep({
               and handing over somebody else's graphics as well. */}
           <span className="wz-entry-head">
             <span className="wz-entry-icon">⬇</span>
-            <strong>{target ? `Export ${target.name} (.zip)` : 'Export the kit (.zip)'}</strong>
+            <strong>{target ? `Export ${target.name} (.zip)` : `Export the ${noun} (.zip)`}</strong>
           </span>
           <span className="hint">
             {target

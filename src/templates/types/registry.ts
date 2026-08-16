@@ -38,6 +38,7 @@ import { awardRevealType, nomineeRevealType, verdictCardType, winnerCardType } f
 import { quizBoardType } from './quizBoard';
 import { threeAnswerBoardType, twoAnswerBoardType } from './answerBoard';
 import { scoreboardType } from './scoreboard';
+import { podiumScoreType } from './podiumScore';
 import { fixturesType } from './sportsBoards';
 import { matchBoardType, matchEventType, matchStatusType, scorebugType } from './sportsBugs';
 import { tickerType } from './ticker';
@@ -67,6 +68,7 @@ export const TYPES: GraphicType[] = [
   signOffType,        // the closing card - one hold, no authored machine
   tickerType,         //  8/60
   scoreboardType,     //  5/60 — but the type that proves parallel groups
+  podiumScoreType,    // the game-show board: per-contestant steppers + the roster's spotlight arc
   quizBoardType,      // the flagship
   // ── The title / topic / information pack ──
   // These have no frequency count: the reference sheet asked "which graphics does this

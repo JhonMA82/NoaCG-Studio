@@ -17,8 +17,16 @@
 //
 // THE ENGINE IS NOT ASSUMED. Nothing here names a concept image, an interpretation or a
 // reconstruction step. `maxCallsPerGeneration` is the only shape this profile takes on Pro's
-// pipeline, and it is a bound rather than a description - docs/NOACG_PRO_PLAN.md §15 replaces
-// the current engine, and an allowance that had to be rewritten with it would be built wrong.
+// pipeline, and it is a bound rather than a description - docs/NOACG_PRO_PLAN.md §15 replaced
+// the engine, and an allowance that had to be rewritten with it would have been built wrong.
+//
+// FUNDING AN UNUSED ROUTE IS NOT FREE, which is the correction this file carries since
+// 2026-08-15 (plan §16, "Defect 2"). The list below is ANDed by `resolveProGate`: every funded
+// route must be priced, catalog-approved and not switched off from /admin, or hosted Pro is
+// unavailable to everyone. While it read `[concept, interpret]` - the two stages of the RETIRED
+// concept-and-reconstruct engine - disabling the image model from the admin surface would have
+// taken the whole tier down for a pipeline that never calls it. A funded route is therefore a
+// route the product SPENDS on, and today that is exactly one: Phase A's design-language call.
 
 import type { GatewayRoutingPolicy, ModelPrice } from './aiGateway.js';
 import { approvedModelPrices } from './aiModelCatalog.js';
@@ -90,7 +98,11 @@ export interface ProProfile {
   enabled: boolean;
   promptVersion: string;
   /** Every route a hosted Pro generation is allowed to spend on. The pipeline picks among
-   *  them; this profile only says which are funded, priced and audited. */
+   *  them; this profile only says which are funded, priced and audited.
+   *
+   *  It stays an ARRAY although Phase A spends one route: `resolveProGate`, `proTaskProfile`
+   *  and `proRouteFunded` all read it as a set, and a shape change to say "there is one now"
+   *  would have to be undone the first time a stage is added back. */
   routes: ModelRoute[];
   prices: Record<string, ModelPrice>;
   gatewayProviders: string[];
@@ -98,8 +110,8 @@ export interface ProProfile {
   /** The whole generation's ceiling, every model call together. Mirrors the browser's
    *  PRO_MAX_GENERATION_COST_USD so the two cannot disagree about what a Pro run may cost. */
   maxProviderCostUsd: number;
-  /** How many model calls ONE reservation may pay for. Today's pipeline makes two; the rest is
-   *  headroom for transient provider retries, and it is a hard bound rather than a guess -
+  /** How many model calls ONE reservation may pay for. Phase A's pipeline makes one; the rest
+   *  is headroom for transient provider retries, and it is a hard bound rather than a guess -
    *  without it a generation id is an unbounded spend handle, which is the lesson
    *  `judgeMaxPerGeneration` already paid for. */
   maxCallsPerGeneration: number;
@@ -117,15 +129,10 @@ export interface ProProfile {
 }
 
 export function proProfile(): ProProfile {
-  const concept = envRoute(
-    process.env.AI_PRO_CONCEPT_PROVIDER,
-    process.env.AI_PRO_CONCEPT_MODEL,
-    PRO_STANDARD_ROUTES.concept,
-  );
-  const interpret = envRoute(
-    process.env.AI_PRO_INTERPRET_PROVIDER,
-    process.env.AI_PRO_INTERPRET_MODEL,
-    PRO_STANDARD_ROUTES.interpret,
+  const language = envRoute(
+    process.env.AI_PRO_LANGUAGE_PROVIDER,
+    process.env.AI_PRO_LANGUAGE_MODEL,
+    PRO_STANDARD_ROUTES.language,
   );
   return {
     id: 'pro',
@@ -134,7 +141,7 @@ export function proProfile(): ProProfile {
     // stay attributable to the rules that produced them. Same single-source rule as Lite's:
     // the literal below IS the version and `.env.example` ships the variable commented out.
     promptVersion: (process.env.AI_PRO_PROMPT_VERSION ?? 'pro-hosted-v1').trim().slice(0, 64) || 'pro-hosted-v1',
-    routes: [concept, interpret],
+    routes: [language],
     // The base table IS the approved-route catalog's audited price snapshot; there is no env
     // price override for Pro, because approving a route is the task registry's job and a
     // per-deployment price edit on a funded surface is how a ceiling quietly stops binding.
@@ -143,10 +150,13 @@ export function proProfile(): ProProfile {
     requireZdr: boolEnv('AI_PRO_REQUIRE_ZDR', true),
     maxProviderCostUsd: numberEnv('AI_PRO_MAX_COST_USD', PRO_MAX_GENERATION_COST_USD, 0.001, 1),
     maxCallsPerGeneration: intEnv('AI_PRO_MAX_CALLS', 4, 1, 20),
-    // The default allowance is deliberately small. At the measured $0.0777 a generation, three
-    // starts a day is about €0.21 of NoaCG's money per user per day, and the target price is
-    // ~€0.10 a graphic (~€10 per 100) - so these numbers are what "hosted Pro is free while
-    // there is nothing to buy" costs, and they are the knob to move when that changes.
+    // The default allowance is deliberately small. It was set against the RETIRED engine's
+    // $0.0777 a generation, where three starts a day was about €0.21 of NoaCG's money per user
+    // per day; Phase A measured $0.0039 (plan §16), so the same three starts now cost about a
+    // cent. The numbers are left where they are rather than widened here - what a free tier
+    // hands out is an owner decision against the target price (~€0.10 a graphic), not a
+    // consequence of the engine getting cheaper - but they are the knob, and they are now
+    // twenty times more conservative than they read.
     dailyStarts: intEnv('AI_PRO_DAILY_STARTS', 3, 0, 500),
     monthlyStarts: intEnv('AI_PRO_MONTHLY_STARTS', 10, 0, 5000),
     dailySuccesses: intEnv('AI_PRO_DAILY_SUCCESSES', 2, 0, 500),
@@ -154,7 +164,8 @@ export function proProfile(): ProProfile {
     maxConcurrentPerUser: intEnv('AI_PRO_USER_CONCURRENCY', 1, 1, 10),
     maxConcurrentFleet: intEnv('AI_PRO_FLEET_CONCURRENCY', 4, 1, 200),
     dailyFleetSpendUsd: numberEnv('AI_PRO_FLEET_DAILY_SPEND_USD', 5, 0.01, 10_000),
-    // An image call is slow, and the whole generation shares one reservation lease.
+    // Generous on purpose: the whole generation shares one reservation lease, and this number
+    // is also half of `activeLeaseMs` below. Phase A's measured runtime is ~10 s.
     timeoutMs: intEnv('AI_PRO_TIMEOUT_MS', 120_000, 5000, 300_000),
     expiryMs: intEnv('AI_PRO_EXPIRY_MINUTES', 15, 5, 120) * 60_000,
     overrideUserIds: (process.env.AI_PRO_OVERRIDE_USER_IDS ?? '')

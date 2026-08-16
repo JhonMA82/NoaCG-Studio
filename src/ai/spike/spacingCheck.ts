@@ -57,13 +57,48 @@ export const RULE_GAP_FLOOR_RATIO = 0.12;
 /** At or under this the text is TOUCHING the rule on purpose, which is a composition the
  *  catalog ships (lt39). Crowding lives strictly between this and the floor above. */
 export const RULE_CONTACT_RATIO = 0.02;
-/** The mark's gap to the nearest text, as a ratio of the MARK's height: below is crowded,
- *  above is adrift. The brand manual's clear space is a quarter of the mark's height, so the
- *  floor sits at that and the ceiling is where a lockup stops reading as a lockup.
+/**
+ * The mark's gap to the nearest text, in TYPE SIZES: below is crowded, above is adrift.
  *
- *  Both numbers are read off the mark's INK rather than its box - see `markContentRect`. */
-export const MARK_GAP_FLOOR_RATIO = 0.25;
-export const MARK_GAP_CEILING_RATIO = 1.6;
+ * THE UNIT USED TO BE THE MARK'S OWN HEIGHT, and that is what this pair of numbers changed
+ * (2026-08-15). The brand manual's clear space is a quarter of a mark's height, so a
+ * mark-height unit looked like the principled choice - but a lower third's mark is not a
+ * free-standing mark, it is a member of a lockup, and expressing its clear space in its own
+ * height DIVIDES A DESIGN BY ITS OWN GENEROSITY. Measured over the 24 mark-capable lower thirds
+ * (`scripts/spike-mark-clearance-sweep.mjs`), that produced pairs no reader can defend: ls18
+ * was called crowded at **22px** of clear space while lt08 passed at exactly 22px, and ls25 was
+ * called crowded at **30px** while lt15 passed at 26px. In both pairs the flagged design has
+ * the same or a LARGER gap and a much taller mark (135px and 130px against 75px and 84px). The
+ * two designs the old unit flagged are the two that give their mark the most room.
+ *
+ * THE FIX IS THE UNIT THIS FILE ALREADY USES EVERYWHERE ELSE. Its own header states why:
+ * the primary type size is what a viewer's eye normalises against, and it is what "proportion"
+ * means. In type sizes the same 24 designs run 0.41 to 1.61 and neither flagged design is an
+ * outlier - ls18 is 8th of 24 at 0.51 and ls25 is 13th at 0.70, dead middle. The unit also
+ * clusters far more tightly: p95/p05 is 2.9x in type sizes against 4.3x in mark heights, and a
+ * distribution that spreads over four-fold has no floor to put under it.
+ *
+ * NOTHING IS LOST BY DROPPING THE MARK'S HEIGHT, because the other instrument still asks about
+ * it. `proportionCheck`'s `mark-oversized` measures the mark's height against the type size
+ * (ceiling 3.2, calibrated on the BORDER box), so a design cannot dodge this floor by growing
+ * its mark: it hits that ceiling instead. Two questions, two boxes, two instruments - and this
+ * one is now asking only about the GAP.
+ *
+ * THE NUMBERS ARE READ OFF THE CATALOG, never chosen (the `spike-spacing-calibrate.mjs`
+ * discipline, and the same rule PADDING_FLOOR_RATIO and RULE_GAP_FLOOR_RATIO already follow):
+ *
+ * - **Floor 0.35** sits under the catalog's own tightest shipped pairing, lt08 at 0.41, with
+ *   ~15% of margin and inside a real gap - the next reading up is 0.45. Phase A's composer
+ *   renders 0.48 seated and 0.72 with a painted mark band, so it clears by 1.4x and 2.1x.
+ * - **Ceiling 2.1** carries the same ~1.3x headroom over the catalog's widest shipped lockup
+ *   (lt54 at 1.61) that the old 1.6 ceiling carried over its own widest reading (1.2).
+ *
+ * The GAP is still measured from the mark's INK rather than its border box - see
+ * `markContentRect`. That question is about where the clear space is drawn and is untouched by
+ * which unit it is reported in.
+ */
+export const MARK_GAP_FLOOR_RATIO = 0.35;
+export const MARK_GAP_CEILING_RATIO = 2.1;
 /** An element spanning nearly the whole frame is a backdrop, not a composition member. */
 const BACKDROP_WIDTH_PX = 1728; // 90% of 1920, the same cut axisCheck makes
 /** How far past its panel a member may paint before it counts as ESCAPING. Sub-pixel layout,
@@ -99,8 +134,9 @@ export interface SpacingReport {
   escapes: SpacingEscape[];
   /** Gaps between consecutive stacked text lines, in type sizes. */
   lineGaps: number[];
-  /** The mark's gap to the nearest text, in mark heights, when a mark is present. Measured off
-   *  the mark's INK - see `markContentRect` for why the border box answered the wrong question. */
+  /** The mark's gap to the nearest text, in TYPE SIZES, when a mark is present - the same unit
+   *  as `padding` above, for the reason MARK_GAP_FLOOR_RATIO gives. Measured off the mark's INK
+   *  - see `markContentRect` for why the border box answered the wrong question. */
   markGap: number | null;
   findings: SpacingFinding[];
 }
@@ -290,9 +326,11 @@ function paddingRatios(
  * is worse than no instrument - the same argument this file already makes for the deliberate
  * bleed and for `LINE_GAP_FLOOR_RATIO` sitting at zero.
  *
- * BOTH HALVES OF THE RATIO MOVE, and they must move together: the gap is measured FROM the ink
- * and the unit IS the ink's height. Insetting one and not the other would answer a third
- * question that is neither the box's nor the mark's.
+ * THE UNIT IS NO LONGER THE MARK AT ALL. When this was written the gap was divided by the ink's
+ * own height, so both halves of the ratio had to move together. The unit is now the primary type
+ * size (MARK_GAP_FLOOR_RATIO says why), which leaves this function with exactly one job: say
+ * where the mark's clear space ENDS. The reading it fixes is unchanged - a design expressing that
+ * clear space as the image's own padding had it counted as zero either way.
  *
  * DELIBERATELY NOT SHARED WITH `proportionCheck`. Its `mark-oversized` finding asks how much ROOM
  * a mark takes in the composition, and a padded well takes all of it - the border box is the right
@@ -522,26 +560,24 @@ export function measureSpacing(doc: Document, options: SpacingOptions = {}): Spa
         return Math.max(dx, dy) || Math.min(dx, dy);
       });
       const nearest = Math.min(...gaps);
-      const ratio = round2(nearest / Math.max(1, markH));
+      const ratio = round2(nearest / typeSize);
       report.markGap = ratio;
-      // BOTH RAW NUMBERS RIDE ALONG, because the ratio alone cannot say which of two opposite
-      // things happened - a tight gap, or a tall mark. The unit is the mark's OWN height, so a
-      // design that gives its mark room divides by its own generosity: swept over the 24
-      // mark-capable lower thirds, ls18 is flagged at 22px of clear space while lt08 passes at
-      // exactly 22px, and ls25 is flagged at 30px while lt15 passes at 26px. In both pairs the
-      // flagged design has the BIGGER mark and the same or larger gap. A reader given only
-      // `0.17` cannot see that; given `22px from a 135px mark` they can.
-      const px = `${Math.round(nearest)}px from a ${Math.round(markH)}px mark`;
+      // ALL THREE RAW NUMBERS RIDE ALONG, because a ratio alone cannot say which of several
+      // things happened, and the mark's height is the one that used to be MISREAD as the answer
+      // (see MARK_GAP_FLOOR_RATIO). It is no longer the unit, but it is still the fact a reader
+      // wants next: `22px from 43px type, mark 135px` says at a glance that this is a tall mark
+      // with an ordinary gap, which is exactly what the old reading got backwards.
+      const px = `${Math.round(nearest)}px from ${Math.round(typeSize)}px type, mark ${Math.round(markH)}px`;
       if (ratio < markFloor) {
         report.findings.push({
           code: 'mark-crowded',
-          detail: `the mark sits ${ratio} of its own height from the nearest text `
+          detail: `the mark sits ${ratio} type sizes from the nearest text `
             + `(${px}; clear space floor ${markFloor})`,
         });
       } else if (ratio > markCeiling) {
         report.findings.push({
           code: 'mark-adrift',
-          detail: `the mark sits ${ratio} of its own height from the nearest text `
+          detail: `the mark sits ${ratio} type sizes from the nearest text `
             + `(${px}; ceiling ${markCeiling}) - it has stopped belonging to the lockup`,
         });
       }

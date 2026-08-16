@@ -804,7 +804,10 @@ test('a ZDR-verified claim in the catalog is backed by a written audit', () => {
     assert.ok(entry.notes.length > 0, `${entry.route.model} claims ZDR with no audit note`);
   }
   const concept = APPROVED_MODEL_CATALOG.find((entry) => entry.route.model === 'google/gemini-3.1-flash-image');
-  assert.ok(concept, 'the Pro concept route must stay catalogued - the admin page marks it in use');
+  // No task calls this route since Phase A retired the concept-and-reconstruct engine, and it
+  // is off the hosted profile's funded list. The ENTRY stays because it is an audit record: a
+  // real image generation was served under ZDR, and deleting the row would delete the evidence.
+  assert.ok(concept, 'the audited image route must stay catalogued - the entry IS the audit');
   // TRUE, and specifically because a real image generation was made under ZDR on 2026-08-07 -
   // not because the route looks like it ought to qualify. This assertion is what keeps the flag
   // a record of a call somebody made: the note beside it has to name the audit, and the audit

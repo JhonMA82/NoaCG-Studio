@@ -4,18 +4,26 @@
 // the user authors one brief and this file translates it; nothing here calls a model.
 // Dependency-light like contract.ts.
 //
-// The concept-and-reconstruct engine's own mapper (`standardProBrief` -> `ProBrief`) went with it
-// on 2026-08-15: it had no caller left, not even the bench, which builds its briefs from the
-// fixture bank. See `src/ai/pro/reconstruct/AGENTS.md`.
+// The concept-and-reconstruct engine's own mapper (`standardProBrief` -> `ProBrief`) went with
+// that engine on 2026-08-15, along with the engine itself: it had no caller left, not even the
+// bench, which built its briefs from the fixture bank (docs/NOACG_PRO_PLAN.md §16).
 
 import type { GenerationSpec } from '../../model/generationSpec';
 import type { LineSpec } from '../../model/wizard';
 import { markShapeFromAspect, type LiteMarkDescriptor } from '../liteTypes';
 import { PRO_LIMITS } from './contract';
+import type { LanguagePalette } from './language/contract';
 import type { LanguageBrief } from './language/prompt';
 
-/** The graphic types Pro composes (docs/NOACG_PRO_PLAN.md §15.5 - Phase B widens this by adding
- *  a brief bank and a calibration sweep per type, and this list is the UI's copy of it). */
+/**
+ * The graphic types the Pro WIZARD offers today.
+ *
+ * Deliberately NOT the same list as the engine's (`PRO_GRAPHICS`, pro/language/graphics.ts), which
+ * composes a sponsor bug and a countdown as well since Phase B. This constant is the UI's copy of
+ * what a user can actually reach, and a tier that names a graphic its own door cannot produce is
+ * exactly the failure `src/ai/AGENTS.md` records against Pro's shipped copy ("describing a
+ * pipeline that was retired"). Widen it in the same change that gives the wizard a way to ask.
+ */
 export const PRO_SUPPORTED_CATEGORIES = ['lower-third'] as const;
 
 /** The two lines a v1 Pro graphic carries, from the user's own field setup. Content, never
@@ -70,6 +78,26 @@ export function proBrandSection(
   if (face) lines.push('', `Their typeface is ${face}; pick the bundled face closest to it.`);
   if (mark) lines.push('', `Brand mark: ${proMarkFacts(mark)}`);
   return lines.join('\n');
+}
+
+/**
+ * THE CUSTOMER'S OWN COLOURS, as data the PLATFORM applies - never as prose the model echoes.
+ *
+ * Ratified on Lite 2026-08-13 (`docs/AI_LITE_BRAND_PLAN.md` §3.1) and missing from Pro until
+ * 2026-08-16: `proBrandSection` above states the four hexes to the model and the model returns a
+ * palette, so "exactly the brand's colours" rode on an echo - a near-miss hex, an omitted
+ * palette, or a legibility repair deleting the package are all silent failures of a promise
+ * nothing checked. The prompt STILL describes the brand, because a language decision needs to
+ * know what world it is in; what changed is that the identity is now copied over whatever comes
+ * back (`resolvePalette`, pro/language/paint.ts) and every divergence is recorded.
+ *
+ * The shape is deliberately `GenerationSpec.brandColors` unchanged: the wizard's own four roles,
+ * the same four `LanguagePalette` carries, so nothing is transcribed between them.
+ */
+export function proBrandPalette(spec: GenerationSpec | null): LanguagePalette | null {
+  const brand = spec?.brandColors;
+  if (!brand) return null;
+  return { accent: brand.accent, panel: brand.panel, text: brand.text, textDim: brand.textDim };
 }
 
 /** The mark in words, on the same cuts Lite and the bench already use. */

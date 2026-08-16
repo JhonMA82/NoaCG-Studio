@@ -2023,6 +2023,31 @@ kbd {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The Pro result card's own copy of that grid (docs/NOACG_PRO_PLAN.md §15.9): the package,
+   rendered small under the language it was composed from. It reuses `.wz-kit-built` because it
+   is the same question one surface earlier - do these belong to each other - and only needs the
+   room above it. */
+.wz-kit-built-wrap { margin-top: 8px; }
+
+/* WHICH GRAPHICS A PRO GENERATION MAKES. A fieldset rather than a bare stack of labels so the
+   group has one accessible name; the border is dropped because this sits INSIDE the settings
+   panel's own card and a second frame around three checkboxes reads as a nested dialog. */
+.ai-pro-package {
+  margin: 10px 0 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ai-pro-package legend {
+  padding: 0;
+  margin-bottom: 2px;
+}
+/* The shared `.dlg-check` grid already puts the box first and the label beside it; these two
+   only stack the strong name over its hint, which that rule does not assume. */
+.ai-pro-package .dlg-check > span { display: flex; flex-direction: column; gap: 1px; }
+.ai-pro-package .dlg-check .hint { margin: 0; }
 
 /* Step 1 (import mode): drop zone */
 .wz-drop {
@@ -2391,14 +2416,17 @@ kbd {
 .wz-browse-programme { margin-bottom: 12px; }
 .wz-browse-programme select { min-width: 200px; }
 /* NOT A CATEGORY WALL (re-design/handoff.md §2b) — ONE DROPDOWN.
-   The type facet has 22 answers, and 22 targets is a wall whatever their per-chip height is.
-   As 230px tiles it stacked eleven rows and pushed the designs off the step; as chips in a
-   scrolling box it still took three rows, and that box grew worse exactly when the step got
-   tighter (the column HALVES the moment a design is picked and the live preview takes its
-   half: measured at 1366x768, 142px of chips became 364px, 58% of the visible step, pushing
-   the first design card from 373px to 657px and out of sight).
-   A select spends ONE row at any width, states the current answer in words, and still carries
-   every type's catalog count — the fact the chips' badges carried. */
+   The category facet grew to 27 answers, and that many targets is a wall whatever their
+   per-chip height is. As 230px tiles it stacked eleven rows and pushed the designs off the
+   step; as chips in a scrolling box it still took three rows, and that box grew worse exactly
+   when the step got tighter (the column HALVES the moment a design is picked and the live
+   preview takes its half: measured at 1366x768, 142px of chips became 364px, 58% of the
+   visible step, pushing the first design card from 373px to 657px and out of sight).
+   A select spends ONE row at any width, states the current answer in words, and carries a
+   live catalog count per row. Since 2026-08-16 the select offers the TEN CATEGORY GROUPS
+   (model/taxonomy.ts CATEGORY_GROUPS) rather than the 27 categories — ten rows a first-time
+   user can actually read — and a selected group's member categories render as a chips row
+   (.wz-browse-cats) below it, at most four short answers. */
 .wz-browse-type select {
   width: auto;
   min-width: 190px;
@@ -2435,6 +2463,9 @@ details:not([open]) > *:not(summary) { display: none; }
 }
 .wz-browse-lead .wz-browse-drawer-btn { grid-column: 2; grid-row: 1; }
 .wz-browse-lead .wz-filter-row { grid-column: 1 / -1; margin: 0; flex-wrap: wrap; }
+/* The selected group's member categories — visually subordinate to the group select above
+   them: same chips, hairline lead-in so the row reads as "inside" the chosen shelf. */
+.wz-browse-lead .wz-browse-cats { padding-left: 10px; border-left: 2px solid var(--border); }
 /* ONE disclosure at EVERY width (handoff §2b), not a phone-only drawer wrapping a desktop
    `More filters` details. Collapsed by default: five rows of facets between the search box
    and the first design is the storefront asking questions before it shows anything. */
@@ -5793,6 +5824,25 @@ h2 + .lib-row,
 .pd-action { font-size: 12.5px; padding: 6px 11px; }
 .pd-action.destructive { border-color: #7a4a2a; }
 .pd-action.destructive:hover:not(:disabled) { border-color: var(--accent); }
+/* ± LIVE NUMBERS — one label + a −/+ pair per number field, reading as one control. The pair
+   shares the ⚡ actions' chrome (same block, same disabled logic) so "acts on air" reads the
+   same in both sections. */
+.pd-live-number {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-panel, rgba(255, 255, 255, 0.02));
+}
+.pd-live-number-label { font-size: 12px; color: var(--text-dim); }
+.pd-live-number button {
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 10px;
+  min-width: 32px; /* a press target under pressure, not a hairline glyph */
+}
 
 /* The production workspaces: Playout | Data (docs/INTERACTIVE_PLAYOUT_PLAN.md D6). */
 .pd-tabs { display: inline-flex; margin-left: 10px; }
