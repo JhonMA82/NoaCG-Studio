@@ -28,9 +28,14 @@ accepted by the owner) · Deferred.
 | 2 | Shared data foundation (datasets on Show + Data workspace) | Implemented |
 | 3 | Quiz pilot | Implemented |
 | 4 | Generic sports pilot | Implemented |
-| 5 | Audience questions/comments (join page, moderation → cue, presenter) | Part built (offline half; backend not built) |
-| 6 | Poll + audience quiz answers | Not started |
+| 5 | Audience questions/comments (join page, moderation → cue, presenter) | Implemented |
+| 6 | Poll + audience quiz answers | Implemented |
 | 7 | CSV/JSON import into the Data Hub | Implemented |
+
+**No phase has reached Verified.** Implemented is as far as any row has got: the owner's
+acceptance of a visual pack is still owed for every phase. The hands-on passes (real CasparCG
+2026-08-06; the workspaces and vote-to-air 2026-08-08) drove the flows and fixed what they
+found, but driving is not acceptance - the caveat stands until the owner signs a pack off.
 
 ## Verification contract (owner requirement, 2026-08-05)
 
@@ -381,9 +386,11 @@ running clock back"), with the existing correction test proving the guard did no
 thing it guards. The honest limit is written down in the runtime: re-sending an identical value
 is a no-op, so returning to a known time belongs to `clockReset`.
 
-### Phase 5 — Audience questions/comments. Status: PART BUILT (the offline half; backend NOT built)
+### Phase 5 — Audience questions/comments. Status: Implemented (awaiting owner Verified)
 
-**Built 2026-08-07 — the seam and the moderation surface, running on the local provider only.**
+**Built 2026-08-07 in two halves, both landed the same day: first the seam and the moderation
+surface on the local provider, then the backend and the public page** (the status blocks under
+"Audience backend design" below are the record of the second half).
 
 - `src/audience/audienceTypes.ts` — THE one `AudienceBackend` interface, plus the caps
   (`AUDIENCE_LIMITS`, question body 500 per the owner's ratified number) and `broadcastValues`,
@@ -408,11 +415,15 @@ is a no-op, so returning to a known time belongs to `clockReset`.
   because nothing enforces it yet and that set's own contract says a key joins it in the same
   change as its call site.
 
-**NOT built, and nothing pretends otherwise:** the Supabase backend (migration 0035, the three
-tables, the guard triggers, the eleven RPCs, the `control_shows` audience plane), the public
-`/join` MPA entry and `joinSurface.ts`, the presenter slug, and `Show.joinSlug`/`presenterSlug`.
-No SQL was written and nothing was applied to the live project. The workspace will not change
-when they land — it talks to the interface, which is the reason for building the seam first.
+**The second half is now BUILT and on `main`:** migration `0035_audience_participation.sql`
+(plus `0036_audience_open_round_fix.sql`, forced by a runtime failure the live test caught),
+the Supabase provider (`src/audience/audienceData.ts`), the public `/join` entry (`join.html`
+→ `src/join/main.ts`) with the shared `joinSurface.ts` renderer, the presenter slug and its
+read-only styled view, and `Show.joinSlug`/`presenterSlug` written by `publishControlShow`'s
+read-back. Applied to the live Supabase project 2026-08-07 and tested against it with the anon
+key — the detail lives in the status blocks under "Audience backend design" below. The
+workspace did not change when the backend landed, which was the point of building the seam
+first.
 
 **Owner decisions taken as ASSUMPTIONS for the work above** (the plan's six open questions,
 answered by the overnight brief and open to being overturned): standalone showchat kept
@@ -422,10 +433,12 @@ page NEVER shows tallies; **no per-IP abuse caps in v1** — device tokens, the 
 operator approval are the whole defence, which is a posture to ratify before a public join URL
 is real; question length 500.
 
-**Carried items (unchanged):** the `/join/<name>` path-form rewrite; vanity-slug lifecycle
-(unpublish frees a hand-picked name to squatting until republish); and the stale
-`src/community/showchat/` path in docs/PLAYOUT_DASHBOARD.md §8 and root `AGENTS.md` — showchat
-lives at `src/showchat/`.
+**Carried items, mostly closed since:** the `/join/<name>` path-form rewrite is DONE
+(`vercel.json` rewrite; the 404 the owner's first pass hit was fixed on `main`); the
+vanity-slug squatting window was closed by `0040_production_url_identity.sql` (a production
+keeps its URLs across unpublish/republish); root `AGENTS.md` no longer carries the stale
+showchat path. Still open: docs/PLAYOUT_DASHBOARD.md §8 still says `src/community/showchat/`
+(showchat lives at `src/showchat/`), and `presenterBySlug` has no e2e coverage.
 
 ### Phase 5 — original scope (design below)
 Migration 0035 + `/join` page (ask/comment modes) + the Audience workspace (inbox, immutable
@@ -439,10 +452,24 @@ only `?p=`); vanity-slug lifecycle (unpublish deletes the `control_shows` row, f
 hand-picked name to squatting until republish); fix `docs/PLAYOUT_DASHBOARD.md` §8's and root
 `AGENTS.md`'s stale `src/community/showchat/` path (showchat lives at `src/showchat/`).
 
-### Phase 6 — Poll + audience quiz answers. Status: Not started
-Join-page poll/quiz modes, vote intake + tally, the operator poll module (open/close/reveal/
-reset per D5), the audience-result feed into the quiz pilot. Results are never revealed
+### Phase 6 — Poll + audience quiz answers. Status: Implemented (awaiting owner Verified)
+Scope: join-page poll/quiz modes, vote intake + tally, the operator poll module (open/close/
+reveal/reset per D5), the audience-result feed into the quiz pilot. Results are never revealed
 merely because responses arrived.
+
+**Built 2026-08-07, alongside Phase 5's backend.** The join page renders a round in `poll` and
+`quiz` mode; `audience_vote` upserts on the `(round, device)` PK (change-your-vote); the round
+controls live in `ProductionAudienceWorkspace` — compose a poll or a quiz (with its correct
+option), open it, watch the ~2 s tally, stage the counts onto a vote board's `Label | count`
+fields matched BY TITLE (`pollFieldMap`), close to finalise before the reveal. The exit is an
+ordinary cue per D5 — the renderer never learns votes exist — and a quiz round stages through
+the same path; the quiz pilot's own audience-result chips still take their percentages as the
+`audience` event's payload, typed by the operator or staged from a tally. `simulateVotes` on
+the local provider lets the offline suite drive a vote all the way onto a cue
+(`e2e/production-audience.spec.ts`). Detail: the "PHASE 6's vote half is BUILT" and presenter
+blocks under "Audience backend design" below. The 2026-08-08 hands-on pass drove vote-to-air
+(the aired board showed 50/25/25 from staged counts) — driven and fixed where broken, but not
+owner-accepted.
 
 ### Phase 7 — CSV/JSON import. Status: Implemented (awaiting owner Verified)
 **Implemented (2026-08-07).** `src/model/csv.ts` is the shared reader — no new dependency, RFC
@@ -735,7 +762,7 @@ plane and its own `audience` kill switch.
 
 Both came out of the owner's first hands-on pass at the audience link. They are recorded here
 rather than started, because the pass also found the link itself 404ing and the presenter view
-rendering unstyled, and the scope that was agreed was "a viewer opens the link on a phone and can
+rendering unstyled (both fixed since, on `main`), and the scope that was agreed was "a viewer opens the link on a phone and can
 take part" - nothing per-show, nothing automatic.
 
 - **Customising the audience page per show.** Today `joinSurface.ts` renders ONE layout for every
