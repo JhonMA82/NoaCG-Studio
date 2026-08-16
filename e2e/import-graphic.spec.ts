@@ -675,6 +675,36 @@ test('import graphic: the exported SPX package validates', async ({ page }) => {
   await expect(page.locator('.panel-body')).not.toContainText('✗');
 });
 
+test('the Text step places fields in the artwork’s empty panel by itself', async ({ page }) => {
+  // An empty backplate is the common import: a strap drawn to hold words, exported with the
+  // words left out. assets/suggestFields.ts measures that panel (no model call, no network),
+  // so the step opens with Name and Title already inside it — the manual tools stay exactly
+  // where they were for artwork it cannot read.
+  await dropDesign(page);
+  await page.waitForTimeout(800);
+  await page.locator('.wz-next').click(); // Prepare
+  await page.locator('.wz-next').click(); // Text
+  await expect(page.getByTestId('place-stage')).toBeVisible();
+
+  await expect(page.getByTestId('place-field-Name')).toBeVisible();
+  await expect(page.getByTestId('place-field-Title')).toBeVisible();
+  await expect(page.getByTestId('suggest-note')).toBeVisible();
+
+  // And they land INSIDE the panel: lowerThirdPng draws its opaque block across 6–53% of the
+  // width and 70–86% of the height, so a field outside that range is on transparent nothing.
+  const stage = (await page.getByTestId('place-stage').boundingBox())!;
+  for (const title of ['Name', 'Title']) {
+    const box = (await page.getByTestId(`place-field-${title}`).boundingBox())!;
+    const left = (box.x - stage.x) / stage.width;
+    const top = (box.y - stage.y) / stage.height;
+    const bottom = (box.y + box.height - stage.y) / stage.height;
+    expect(left, `${title} left`).toBeGreaterThanOrEqual(0.06);
+    expect(left, `${title} left`).toBeLessThan(0.53);
+    expect(top, `${title} top`).toBeGreaterThanOrEqual(0.70);
+    expect(bottom, `${title} bottom`).toBeLessThanOrEqual(0.87);
+  }
+});
+
 test('the Text step gives the placement canvas more room than the passive preview', async ({ page }) => {
   // You PLACE fields on the left canvas; the right pane only shows the result. The working
   // surface used to be the smaller of the two (a fixed 520px against a ~700px preview), so

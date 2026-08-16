@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DesignArt } from '../../../model/wizard';
 import { FONTS, fontById, type CustomFont } from '../../../model/fonts';
 import { uuid } from '../../../model/id';
 import FontPicker, { ensureAppFontFace } from '../FontPicker';
 import AnalyzeProposalPanel from './AnalyzeProposalPanel';
+import { suggestFieldsForArtwork } from '../../../assets/suggestFields';
 import type { DesignFieldSpec, DraftPatch, WizardDraft } from '../draft';
 
 interface Props {
@@ -134,6 +135,70 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
 
   const defaultSize = Math.max(14, Math.round(art.width * 0.016));
 
+  /**
+   * AUTO-PLACEMENT (free, deterministic — assets/suggestFields.ts). An empty backplate is
+   * artwork with a large flat panel drawn to hold words, and that panel is measurable, so
+   * the common case needs no placement work at all: the step opens with Name and Title
+   * already sitting in the panel, ready to be dragged if the guess is off. It runs ONCE, and
+   * only into an empty step — a user who placed a field has said where text goes, and a
+   * suggestion arriving on top of that would be an edit, not an offer. Busy artwork refuses
+   * out loud and the manual tools stand exactly as they always have.
+   */
+  const artworkUrl = typeof draft.importedImages[0]?.data === 'string' ? draft.importedImages[0].data : null;
+  const [suggestNote, setSuggestNote] = useState<string | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const suggest = useCallback(
+    async (auto: boolean) => {
+      if (!artworkUrl || suggesting) return;
+      setSuggesting(true);
+      setSuggestNote(null);
+      try {
+        const result = await suggestFieldsForArtwork(artworkUrl, art.width, art.height);
+        if (result.refusal || result.fields.length === 0) {
+          setSuggestNote(result.refusal ?? 'Nothing obvious to suggest here.');
+          return;
+        }
+        const placed = result.fields.map((f) => ({
+          id: uuid(),
+          title: f.title,
+          text: f.text,
+          x: f.x,
+          y: f.y,
+          kind: 'point' as const,
+          fontId: null,
+          fontSize: f.fontSize,
+          weight: f.weight,
+          color: f.color,
+          align: 'left' as const,
+          lineHeight: null,
+          letterSpacing: null,
+        }));
+        onDraft({ designFields: [...fields, ...placed] });
+        setSelectedId(placed[0].id);
+        setTool('select');
+        setSuggestNote(
+          auto
+            ? 'Placed in the empty panel we found — drag to adjust, or delete what you don’t need.'
+            : `Added ${placed.length} field${placed.length === 1 ? '' : 's'} in the empty panel.`,
+        );
+      } finally {
+        setSuggesting(false);
+      }
+    },
+    // `fields` is read through the closure on purpose: the auto run is gated on there being
+    // none, and the manual button appends to whatever is there when it is pressed.
+    [artworkUrl, art.width, art.height, fields, onDraft, suggesting],
+  );
+
+  // The ref is the guard, not the dependency list: a re-render mid-suggestion must not
+  // re-fire it, and the effect still declares everything it reads.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (autoRan.current || !artworkUrl || draft.designFields.length > 0) return;
+    autoRan.current = true;
+    void suggest(true);
+  }, [artworkUrl, draft.designFields.length, suggest]);
+
   const onStageDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const p = designPoint(e);
@@ -236,9 +301,20 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
         <button className={tool === 'select' ? 'active' : ''} onClick={() => setTool('select')} title="Select / move fields" data-testid="tool-select">↖ Select</button>
         <button className={tool === 'text' ? 'active' : ''} onClick={() => setTool('text')} title="Click the artwork to place point text" data-testid="tool-text">T Text</button>
         <button className={tool === 'area' ? 'active' : ''} onClick={() => setTool('area')} title="Drag a box — text wraps inside its width" data-testid="tool-area">⬚ Area text</button>
+        <button
+          onClick={() => void suggest(false)}
+          disabled={suggesting || !artworkUrl}
+          title="Measure the artwork's empty panel and place Name and Title inside it"
+          data-testid="suggest-fields"
+        >
+          {suggesting ? 'Measuring…' : '✨ Suggest fields'}
+        </button>
         <div className="spacer" />
         <span className="hint">{fields.length} field{fields.length === 1 ? '' : 's'}</span>
       </div>
+      {suggestNote && (
+        <p className="hint" style={{ marginTop: -4, marginBottom: 8 }} data-testid="suggest-note">{suggestNote}</p>
+      )}
 
       {/* Optional, proposal-only AI assistance - renders nothing when the server task is
           off, offline, or before artwork lands. The manual tools above never depend on it. */}
