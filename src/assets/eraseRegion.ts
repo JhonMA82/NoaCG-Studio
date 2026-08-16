@@ -132,6 +132,46 @@ function ringPoints(rect: EraseRect): Array<{ x: number; y: number }> {
 }
 
 /**
+ * Sample the ring around a rectangle and turn it into the flatness verdict + the fill. One
+ * implementation, because the erase and the baked-text SCAN below must never disagree about
+ * whether a region's background is flat or what colour it is. Points off the image are
+ * skipped — a design cropped at the frame edge is legitimate, and the verdict comes from the
+ * points that exist.
+ */
+function sampleRing(
+  px: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  rect: EraseRect,
+): EraseSampling {
+  const lo = [255, 255, 255, 255];
+  const hi = [0, 0, 0, 0];
+  const sum = [0, 0, 0, 0];
+  let sampleCount = 0;
+  for (const p of ringPoints(rect)) {
+    if (p.x < 0 || p.y < 0 || p.x >= imageWidth || p.y >= imageHeight) continue;
+    const at = (p.y * imageWidth + p.x) * 4;
+    for (let c = 0; c < 4; c++) {
+      const v = px[at + c];
+      if (v < lo[c]) lo[c] = v;
+      if (v > hi[c]) hi[c] = v;
+      sum[c] += v;
+    }
+    sampleCount++;
+  }
+  const maxDeviation = sampleCount ? Math.max(...hi.map((v, c) => v - lo[c])) : 255;
+  const uniform = sampleCount > 0 && maxDeviation <= FLAT_BG_TOLERANCE;
+  const mean = sum.map((v) => (sampleCount ? Math.round(v / sampleCount) : 0));
+  // A near-invisible fill is really a transparent background (a PNG with the design floating
+  // on air) — write true transparency instead of a faintly tinted veil over it.
+  const fill =
+    mean[3] <= 8
+      ? { r: 0, g: 0, b: 0, a: 0 }
+      : { r: mean[0], g: mean[1], b: mean[2], a: mean[3] };
+  return { fill, maxDeviation, uniform, sampleCount };
+}
+
+/**
  * Flat-fill the rectangle with the background sampled around it. Always returns the filled
  * result, even when the samples disagree — "continue anyway" applies exactly what the
  * warning preview showed. Deterministic: same input + rect ⇒ the same output bytes.
@@ -158,33 +198,8 @@ export async function eraseRegionFlat(dataUrl: string, rect: EraseRect): Promise
   const image = ctx.getImageData(0, 0, w, h);
   const px = image.data;
 
-  // Sample the ring. Points off the image are skipped — a design cropped at the frame edge
-  // is legitimate, and the verdict comes from the points that exist.
-  const lo = [255, 255, 255, 255];
-  const hi = [0, 0, 0, 0];
-  const sum = [0, 0, 0, 0];
-  let sampleCount = 0;
-  for (const p of ringPoints(clamped)) {
-    if (p.x < 0 || p.y < 0 || p.x >= w || p.y >= h) continue;
-    const at = (p.y * w + p.x) * 4;
-    for (let c = 0; c < 4; c++) {
-      const v = px[at + c];
-      if (v < lo[c]) lo[c] = v;
-      if (v > hi[c]) hi[c] = v;
-      sum[c] += v;
-    }
-    sampleCount++;
-  }
-
-  const maxDeviation = sampleCount ? Math.max(...hi.map((v, c) => v - lo[c])) : 255;
-  const uniform = sampleCount > 0 && maxDeviation <= FLAT_BG_TOLERANCE;
-  const mean = sum.map((v) => (sampleCount ? Math.round(v / sampleCount) : 0));
-  // A near-invisible fill is really a transparent background (a PNG with the design floating
-  // on air) — write true transparency instead of a faintly tinted veil over it.
-  const fill =
-    mean[3] <= 8
-      ? { r: 0, g: 0, b: 0, a: 0 }
-      : { r: mean[0], g: mean[1], b: mean[2], a: mean[3] };
+  const sampling = sampleRing(px, w, h, clamped);
+  const fill = sampling.fill;
 
   // Measure the ink BEFORE the fill removes it (see RegionInk).
   const ink = measureInk(px, w, clamped, fill);
@@ -202,11 +217,7 @@ export async function eraseRegionFlat(dataUrl: string, rect: EraseRect): Promise
   }
   ctx.putImageData(image, 0, 0);
 
-  return {
-    dataUrl: canvas.toDataURL('image/png'),
-    sampling: { fill, maxDeviation, uniform, sampleCount },
-    ink,
-  };
+  return { dataUrl: canvas.toDataURL('image/png'), sampling, ink };
 }
 
 /** The pad band a padded crop keeps on each side of a design unit, in SOURCE pixels. */
@@ -396,4 +407,348 @@ function measureInk(
     height: yRange.last - yRange.first + 1,
     lines,
   };
+}
+
+// ───────────────────────────────────────────────────────────────────────────────────────────
+// The OPENING PROPOSAL: find the baked text before the user draws anything
+// ───────────────────────────────────────────────────────────────────────────────────────────
+//
+// The erase above is the workhorse of the Import Graphic flow — measured, not argued
+// (`scripts/import-suggest-audit.mjs`: it answers 9 of 10 designs, including panel-less
+// artwork and artwork over footage, where the empty-panel detector answers none). But it only
+// ever ran if a student thought to drag a box, so the strongest path in the flow was opt-in by
+// accident. This scans the whole artwork and hands the Prepare step a rectangle already drawn
+// around the words, which the student then drags, resizes, or accepts.
+//
+// No model call. That is not a preference: the audit measured the free path answering the
+// designs the AI route was proposed for, so paying a model to point at text a row of
+// arithmetic already finds would buy nothing.
+//
+// WHAT SEPARATES TYPE FROM ARTWORK: the count of horizontal STROKE EDGES on a row. A line of
+// set text crosses dozens of them — every stem, bowl and serif is two — while the furniture a
+// designer draws is made of solid shapes, and a solid shape contributes exactly two edges per
+// row however large it is. A strap, an accent bar, a rounded chip, a hairline rule and a
+// divider together give a row six or eight; "Alexandra Riva" alone gives forty. That gap is
+// the whole detector, and it is what makes it refuse a CLEAN export (nothing baked in) instead
+// of inventing a box on the panel.
+
+/** How far two horizontally adjacent pixels must sit apart, per 8-bit channel with alpha
+ *  included, to count as a stroke edge. The same order as INK_TOLERANCE — well above JPEG
+ *  ringing and glyph antialiasing ramps, far below the contrast legible type must have. */
+const EDGE_TOLERANCE = 40;
+
+/** How many stroke edges one row must carry to read as a row OF TYPE. A row crossing four
+ *  separate solid shapes carries eight, so the bar sits above that; a name or a title carries
+ *  two per glyph stem and clears it several times over. Below this the scan says nothing. */
+const MIN_ROW_EDGES = 12;
+
+/** The edge count per row at which the scan is fully confident it is looking at type — about
+ *  six glyphs' worth of stems. Confidence ramps linearly up to it and stops. */
+const CONFIDENT_ROW_EDGES = 24;
+
+/** How many blank rows may sit inside one line of type (a wide letter-spaced cap line can
+ *  drop a row between its strokes) before the line is treated as ended. */
+const ROW_GAP = 1;
+
+/** How many rows tall a run must be to count as a line — the same argument MIN_LINE_ROWS
+ *  makes for the ink measurement: below it, it is a rule or a clipped edge, not type. */
+const MIN_TEXT_ROWS = 5;
+
+/** How far apart two lines may sit, as a multiple of the taller one's height, and still be
+ *  ONE marked region. A name over its title is the shape of every lower third, and it wants
+ *  one box — the erase already measures the lines inside it and seeds a field per line. */
+const BLOCK_GAP = 1.2;
+
+/** A candidate wider than this fraction of the artwork, or taller than that one, is not
+ *  baked-in text: it is a photograph, a texture, or a whole busy composition, and the honest
+ *  answer there is to propose nothing. */
+const MAX_BLOCK_WIDTH = 0.85;
+const MAX_BLOCK_HEIGHT = 0.4;
+
+/** The air left around the measured type, as a multiple of the tallest line's height — the
+ *  loose lasso a person draws. It has to clear the glyphs' own antialiasing AND leave the
+ *  ring's probes (SAMPLE_OFFSET beyond it) on real background. */
+const PROPOSAL_PAD = 0.3;
+
+/** Below this the scan proposes NOTHING and names the rule instead. A rectangle drawn around
+ *  the wrong thing costs more than an empty canvas: the student has to notice it is wrong,
+ *  work out why, and undo it, where an empty canvas only asks them to drag. */
+const MIN_CONFIDENCE = 0.45;
+
+/** The scan raster's pixel budget. 1920×1080 is under it and is measured untouched; a 4K or
+ *  larger upload is scanned on a downscale and the answer mapped back, because type scales
+ *  with the export and its stroke edges survive the reduction. */
+const SCAN_MAX_PIXELS = 2_500_000;
+
+/** A rectangle the scan believes holds baked-in text, in the artwork's SOURCE pixels. */
+export interface EraseProposal {
+  rect: EraseRect;
+  /** 0–1: how sure the scan is that this is type rather than artwork. Never below
+   *  MIN_CONFIDENCE — a weaker candidate is refused instead of shown. */
+  confidence: number;
+  /** How many lines of type the region holds — the ink measurement's count, so it is the
+   *  number of fields accepting this rectangle would seed. */
+  lines: number;
+}
+
+export interface EraseProposalResult {
+  proposal: EraseProposal | null;
+  /** Which rule refused, in the words the UI says out loud. Null when a rectangle is offered. */
+  refusal: string | null;
+}
+
+/** The widest per-channel gap between a pixel and its right neighbour, alpha included. */
+function edgeAt(px: Uint8ClampedArray, a: number, b: number): number {
+  let d = 0;
+  for (let c = 0; c < 4; c++) {
+    const v = Math.abs(px[a + c] - px[b + c]);
+    if (v > d) d = v;
+  }
+  return d;
+}
+
+/** Stroke edges per ROW inside the window, indexed from `y0`. */
+function rowEdges(
+  px: Uint8ClampedArray,
+  imageWidth: number,
+  x0: number,
+  x1: number,
+  y0: number,
+  y1: number,
+): Int32Array {
+  const out = new Int32Array(Math.max(0, y1 - y0));
+  for (let y = y0; y < y1; y++) {
+    let n = 0;
+    let at = (y * imageWidth + x0) * 4;
+    for (let x = x0; x < x1 - 1; x++, at += 4) if (edgeAt(px, at, at + 4) > EDGE_TOLERANCE) n++;
+    out[y - y0] = n;
+  }
+  return out;
+}
+
+/** Stroke edges per COLUMN inside the window, indexed from `x0`. */
+function colEdges(
+  px: Uint8ClampedArray,
+  imageWidth: number,
+  x0: number,
+  x1: number,
+  y0: number,
+  y1: number,
+): Int32Array {
+  const out = new Int32Array(Math.max(0, x1 - x0));
+  for (let y = y0; y < y1; y++) {
+    let at = (y * imageWidth + x0) * 4;
+    for (let x = x0; x < x1 - 1; x++, at += 4) {
+      if (edgeAt(px, at, at + 4) > EDGE_TOLERANCE) out[x - x0]++;
+    }
+  }
+  return out;
+}
+
+/** One unbroken run of text rows: a LINE. */
+interface TextBand {
+  top: number;
+  height: number;
+  /** Total stroke edges the band carries — its mass, used to rank candidates. */
+  edges: number;
+}
+
+/** Split a row profile into the bands that read as lines of type. */
+function bandsOf(counts: Int32Array, offset: number): TextBand[] {
+  const bands: TextBand[] = [];
+  let top = -1;
+  let last = -1;
+  let edges = 0;
+  const close = () => {
+    if (top !== -1 && last - top + 1 >= MIN_TEXT_ROWS) {
+      bands.push({ top: offset + top, height: last - top + 1, edges });
+    }
+  };
+  for (let i = 0; i < counts.length; i++) {
+    if (counts[i] < MIN_ROW_EDGES) continue;
+    if (top === -1 || i - last > ROW_GAP + 1) {
+      close();
+      top = i;
+      edges = 0;
+    }
+    last = i;
+    edges += counts[i];
+  }
+  close();
+  return bands;
+}
+
+/** Group lines that sit close enough together to be one piece of baked text. */
+function blocksOf(bands: TextBand[]): TextBand[][] {
+  const blocks: TextBand[][] = [];
+  let current: TextBand[] = [];
+  for (const band of bands) {
+    const previous = current[current.length - 1];
+    if (previous) {
+      const gap = band.top - (previous.top + previous.height);
+      if (gap > Math.max(previous.height, band.height) * BLOCK_GAP) {
+        blocks.push(current);
+        current = [];
+      }
+    }
+    current.push(band);
+  }
+  if (current.length) blocks.push(current);
+  return blocks;
+}
+
+/** The widest contiguous span of columns carrying edges, allowing gaps up to `gap` (a word
+ *  space). Returns the span with the most edge mass, which is what separates a line of text
+ *  from unrelated furniture that happens to share its rows — a divider between two name
+ *  zones, a rule running past the words. */
+function widestSpan(counts: Int32Array, offset: number, gap: number): { x0: number; x1: number; mass: number } | null {
+  let best: { x0: number; x1: number; mass: number } | null = null;
+  let start = -1;
+  let last = -1;
+  let mass = 0;
+  const close = () => {
+    if (start === -1) return;
+    if (!best || mass > best.mass) best = { x0: offset + start, x1: offset + last, mass };
+  };
+  for (let i = 0; i < counts.length; i++) {
+    if (counts[i] === 0) continue;
+    if (start === -1 || i - last > gap) {
+      close();
+      start = i;
+      mass = 0;
+    }
+    last = i;
+    mass += counts[i];
+  }
+  close();
+  return best;
+}
+
+/**
+ * Scan the whole artwork for baked-in text and propose the rectangle to erase.
+ *
+ * Deterministic and offline: the same file always gives the same rectangle. It is a PROPOSAL,
+ * never an edit — nothing is filled until the user accepts it — and the Prepare step re-runs
+ * it after every applied erase, so a design carrying a name, a title and a scoreline offers
+ * them one at a time rather than guessing at all of them at once.
+ */
+export async function proposeEraseRect(dataUrl: string): Promise<EraseProposalResult> {
+  const refuse = (refusal: string): EraseProposalResult => ({ proposal: null, refusal });
+
+  let img: HTMLImageElement;
+  try {
+    img = await loadImage(dataUrl);
+  } catch {
+    return refuse('That artwork could not be read.');
+  }
+  const sourceW = img.naturalWidth;
+  const sourceH = img.naturalHeight;
+  const shrink = Math.min(1, Math.sqrt(SCAN_MAX_PIXELS / Math.max(1, sourceW * sourceH)));
+  const w = Math.max(1, Math.round(sourceW * shrink));
+  const h = Math.max(1, Math.round(sourceH * shrink));
+  /** Source px per scan px — 1 for anything under the budget. */
+  const k = sourceW / w;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return refuse('That artwork could not be measured in this browser.');
+  ctx.drawImage(img, 0, 0, w, h);
+  let px: Uint8ClampedArray;
+  try {
+    px = ctx.getImageData(0, 0, w, h).data;
+  } catch {
+    // A tainted canvas. The artwork always arrives as a data URL today, so this is defensive.
+    return refuse('That artwork could not be measured in this browser.');
+  }
+
+  const bands = bandsOf(rowEdges(px, w, 0, w, 0, h), 0);
+  if (bands.length === 0) {
+    return refuse(
+      'No row of this artwork carries the dense stroke edges set type makes, so nothing here reads as baked-in text.',
+    );
+  }
+
+  // The strongest piece of text on the artwork. A second one is not guessed at now: accepting
+  // this rectangle re-runs the scan against the cleaned artwork, which offers the next.
+  const blocks = blocksOf(bands);
+  const block = blocks.reduce((best, b) =>
+    b.reduce((n, x) => n + x.edges, 0) > best.reduce((n, x) => n + x.edges, 0) ? b : best,
+  );
+  const blockTop = block[0].top;
+  const blockBottom = block[block.length - 1].top + block[block.length - 1].height;
+  const lineHeight = Math.max(...block.map((b) => b.height));
+
+  // Which COLUMNS of those rows are the text. Taking the first and last edge on each row
+  // instead would stretch the box across anything sharing the line — the divider on a
+  // two-person strap sits 200 px past the name and would be swallowed with it.
+  const span = widestSpan(colEdges(px, w, 0, w, blockTop, blockBottom), 0, Math.max(8, Math.round(lineHeight * 0.6)));
+  if (!span) return refuse('The rows that looked like text carry no columns of ink.');
+
+  // Re-read the rows through that column span alone: a row that only qualified because of
+  // furniture beside the words drops out here, which is what keeps the box on the text.
+  const trimmed = bandsOf(rowEdges(px, w, span.x0, span.x1 + 1, blockTop, blockBottom), blockTop);
+  if (trimmed.length === 0) {
+    return refuse('The columns that looked like text hold no row dense enough to be a line.');
+  }
+  const top = trimmed[0].top;
+  const bottom = trimmed[trimmed.length - 1].top + trimmed[trimmed.length - 1].height;
+  const blockW = span.x1 - span.x0 + 1;
+  const blockH = bottom - top;
+
+  if (blockW > w * MAX_BLOCK_WIDTH || blockH > h * MAX_BLOCK_HEIGHT) {
+    return refuse(
+      'The busy area covers most of the artwork, which reads as a photograph or a texture rather than baked-in text.',
+    );
+  }
+
+  const pad = Math.max(4, Math.round(Math.max(...trimmed.map((b) => b.height)) * PROPOSAL_PAD));
+  const x0 = Math.max(0, span.x0 - pad);
+  const y0 = Math.max(0, top - pad);
+  const scan: EraseRect = {
+    x: x0,
+    y: y0,
+    width: Math.min(w, span.x1 + 1 + pad) - x0,
+    height: Math.min(h, bottom + pad) - y0,
+  };
+
+  // Cross-check against the OTHER measurement in this file — the ink the erase itself would
+  // remove, read against the background the ring samples. Two independent readings of the
+  // same pixels: one counts stroke edges, one counts occupancy. A candidate the ink cannot
+  // see at all is not a candidate, and a disagreement about how many lines are there is worth
+  // paying for in confidence rather than hiding.
+  const ink = measureInk(px, w, scan, sampleRing(px, w, h, scan).fill);
+  if (!ink) {
+    return refuse('That region measured no ink against its own background — there is nothing there to erase.');
+  }
+
+  const edgeMean = trimmed.reduce((n, b) => n + b.edges, 0) / Math.max(1, blockH);
+  const density = Math.min(1, edgeMean / CONFIDENT_ROW_EDGES);
+  const aspect = blockW / Math.max(1, blockH);
+  // Set text is wider than it is tall — one line always, a stacked pair usually. A candidate
+  // that is not is more likely a logo, an icon or a chart than a name.
+  const shape = aspect >= 1.5 ? 1 : aspect >= 1 ? 0.7 : 0.4;
+  const agree = ink.lines.length === trimmed.length ? 1 : 0.75;
+  const confidence = Math.round(density * shape * agree * 100) / 100;
+  if (confidence < MIN_CONFIDENCE) {
+    return refuse(
+      `The clearest candidate scored ${confidence.toFixed(2)} against a ${MIN_CONFIDENCE} bar ` +
+        `(${Math.round(edgeMean)} stroke edges per row across ${Math.round(blockW * k)}×${Math.round(blockH * k)} px), ` +
+        'which is too close to ordinary artwork to draw a box for you.',
+    );
+  }
+
+  // Back to the file's own pixels, rounded OUTWARD: a proposal that is a pixel tight leaves a
+  // rim of the old glyphs behind, while a pixel loose costs nothing.
+  const rect: EraseRect = {
+    x: Math.max(0, Math.floor(scan.x * k)),
+    y: Math.max(0, Math.floor(scan.y * k)),
+    width: 0,
+    height: 0,
+  };
+  rect.width = Math.min(sourceW, Math.ceil((scan.x + scan.width) * k)) - rect.x;
+  rect.height = Math.min(sourceH, Math.ceil((scan.y + scan.height) * k)) - rect.y;
+
+  return { proposal: { rect, confidence, lines: ink.lines.length }, refusal: null };
 }
