@@ -76,8 +76,15 @@ function measurementList(row) {
   const size = (s) => (s ? `${s.width}x${s.height}` : '-');
   const parts = row.markedParts ? `${row.markedParts.mark}px well / ${row.markedParts.words}px words` : '-';
   const items = [
-    ['ink gap ratio', row.inkRatio ?? '-'],
-    ['border-box ratio (the old instrument)', row.borderRatio ?? '-'],
+    // THE LIVE READING FIRST, and the two retired ones named as retired. Both of the ratios this
+    // list used to lead with are now superseded: the gap is measured from the mark's INK (not its
+    // border box) and expressed in TYPE SIZES (not in the mark's own height, which divided a
+    // design by its own generosity - `spacingCheck.ts` MARK_GAP_FLOOR_RATIO carries the account).
+    // Leading with a superseded number beside a picture is how a frame gets read against a rule
+    // nothing enforces any more.
+    ['mark gap, type sizes (the live instrument)', row.typeRatio ?? '-'],
+    ['…in mark heights (retired 2026-08-15)', row.inkRatio ?? '-'],
+    ['…off the border box (retired earlier the same day)', row.borderRatio ?? '-'],
     ['raw', px],
     ['strap bare -> marked', `${size(row.bareSize)} -> ${size(row.markedSize)}`],
     ['box children (marked)', parts],
