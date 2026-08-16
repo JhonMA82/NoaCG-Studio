@@ -43,8 +43,9 @@ sweeps and every spec already speak.
 no branches, no parallel groups and no event overrides compiles to **no `machine` key**, and
 its template comes out byte-identical to what it emitted before.
 
-Nineteen of the twenty-seven shipped types are in that class. That is the design working, not a
-shortcut — and it is what makes promoting an existing variant safe.
+Thirty of the sixty-five registered types are in that class (and among the founding twelve it
+was nineteen of twenty-seven at the time that count was first taken). That is the design
+working, not a shortcut — and it is what makes promoting an existing variant safe.
 
 ---
 
@@ -269,7 +270,7 @@ family a cell is in.
 | Poll result | 13 | ig11 House Poll | – |
 | Holding screen | 9 | ss04 House Hold | parallel `clock` |
 | Ticker | 8 | tk07 House Rotator | timer cycle + pause/resume/skip |
-| Scoreboard | 5 | sb03 House Score | parallel `flag` / `clock` / `result` |
+| Scoreboard | 5 | sb03 House Score | parallel `flag` / `result` (the clock group moved to the sports boards that draw a clock — see the note in `types/scoreboard.ts`) |
 | Quiz board | — | qz02 House Quiz | branches `selected` / `locked` |
 | Now / Next | — | card21 House Now Next | – |
 | Headline card | — | card25 House Headline | – |
@@ -422,8 +423,9 @@ recording, because it was not the one the first pass predicted:
 ### Which acceptance criterion each proves
 
 - **Simplicity guard** — lower third: one group, three states, no machine key at all.
-- **Scorebug** — scoreboard: scores are data that move no pointer; flag, clock and result are
-  three 2-state groups instead of eight combined states; simultaneous events resolve in order.
+- **Scorebug** — scoreboard: scores are data that move no pointer; flag and result are
+  independent 2-state groups instead of combined states (the clock group lives on the sports
+  boards that draw one); simultaneous events resolve in order.
 - **Ticker** — ticker: items cycle with no operator input, and pause holds them.
 - **Millionaire** — quiz board: one `selected` state plus a `selectedAnswer` field (never one
   state per answer); after `lock` there is no `select` arrow, so a late pick is dropped with its

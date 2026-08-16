@@ -12,28 +12,69 @@ import { expect, type Page } from '@playwright/test';
 // step is built around, and a spec that clicked a card only reachable by rendering the whole
 // catalog was exercising something no user did.
 //
-// `chooseType` is the other half: the 22-chip category strip is ONE dropdown now, so every
-// `.wz-cat` click by category name became a `selectOption`.
+// `chooseType` is the other half: the category strip became ONE dropdown, and since
+// 2026-08-16 that dropdown offers the ten CATEGORY GROUPS (model/taxonomy.ts) with the
+// selected group's member categories as chips below it - so "pick a category by name" is now
+// select-the-group, then click-the-chip.
+
+/** Resolve a human name to the dropdown's group id + the member chip to click (null when the
+ *  group has one member and renders no chips). Category names win over group names, so
+ *  "Tickers" keeps meaning the ticker CATEGORY (21 designs), not the whole shelf. */
+async function resolveBrowseTarget(
+  page: Page,
+  wanted: { name?: string; id?: string },
+): Promise<{ group: string; chip: string | null } | null> {
+  return page.evaluate(async (w) => {
+    const { GRAPHIC_CATEGORIES, CATEGORY_GROUPS, CATEGORY_GROUP_OF } = await import('/src/model/taxonomy.ts');
+    const q = w.name?.toLowerCase();
+    const cat = w.id
+      ? GRAPHIC_CATEGORIES.find((c) => c.id === w.id)
+      : GRAPHIC_CATEGORIES.find((c) => c.name.toLowerCase().includes(q!));
+    if (cat) {
+      const group = CATEGORY_GROUPS.find((g) => g.id === CATEGORY_GROUP_OF[cat.id])!;
+      return { group: group.id, chip: group.categories.length > 1 ? cat.name : null };
+    }
+    if (!q) return null;
+    const group = CATEGORY_GROUPS.find((g) => g.name.toLowerCase().includes(q));
+    return group ? { group: group.id, chip: null } : null;
+  }, wanted);
+}
+
+async function applyBrowseTarget(
+  page: Page,
+  target: { group: string; chip: string | null },
+): Promise<void> {
+  await page.getByTestId('wz-browse-type').selectOption(target.group);
+  if (target.chip) {
+    await page.locator('.wz-browse-cats .wz-filter', { hasText: target.chip }).click();
+  }
+}
 
 /**
- * Narrow Browse to one graphic TYPE by its human name ("Lower thirds", "Scoreboards").
+ * Narrow Browse to one graphic CATEGORY by its human name ("Lower thirds", "Scoreboards").
  *
- * Matches the option by SUBSTRING, because the option reads "Lower thirds · 82" - the count is
- * live catalog data and no spec should have to know it - and because the callers inherited
- * partial names from the chip strip they used to click ("Quiz" for "Polls, voting & quizzes",
- * "corner logos" for "Bugs & corner logos"). Every name in use resolves to exactly one option;
- * a spec picking a category by ARITHMETIC rather than by name should `selectOption` its id.
- * Passing null clears the filter.
+ * Matches by SUBSTRING, because the callers inherited partial names from the chip strip they
+ * used to click ("Quiz" for "Polls, voting & quizzes", "corner logos" for "Bugs & corner
+ * logos"). A name that only matches a GROUP ("Timers, breaks & credits") selects the group
+ * alone. Every name in use resolves to exactly one target; a spec picking a category by
+ * ARITHMETIC rather than by name uses `chooseCategory` with the id. Passing null clears both.
  */
 export async function chooseType(page: Page, name: string | null): Promise<void> {
-  const select = page.getByTestId('wz-browse-type');
   if (name === null) {
-    await select.selectOption('');
+    await page.getByTestId('wz-browse-type').selectOption('');
     return;
   }
-  const value = await select.locator('option', { hasText: name }).first().getAttribute('value');
-  expect(value, `no graphic type named "${name}" in the Browse dropdown`).toBeTruthy();
-  await select.selectOption(value!);
+  const target = await resolveBrowseTarget(page, { name });
+  expect(target, `no graphic category or group named "${name}"`).toBeTruthy();
+  await applyBrowseTarget(page, target!);
+}
+
+/** Narrow Browse to one graphic category by its ID ('map', 'scoreboard') - for specs that
+ *  choose a category by arithmetic over the taxonomy rather than by a written-down name. */
+export async function chooseCategory(page: Page, categoryId: string): Promise<void> {
+  const target = await resolveBrowseTarget(page, { id: categoryId });
+  expect(target, `no graphic category with id "${categoryId}"`).toBeTruthy();
+  await applyBrowseTarget(page, target!);
 }
 
 /**

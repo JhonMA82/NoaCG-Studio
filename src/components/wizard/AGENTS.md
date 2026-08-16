@@ -90,11 +90,13 @@ collapsed at all until styles.css grew `details:not([open]) > *:not(summary) { d
 `toBeVisible()` is blind to it, so specs assert measured HEIGHT is 0, never `open`.
 
 **Browse** (steps/BrowseStep.tsx, mode 'template' only) is the FACETED template storefront
-(docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12 for the facets; re-design/handoff.md §2b and
-src/templates/AGENTS.md for what they are drawn as) replacing the old Category -> Template
-pair: search (alias-aware, src/templates/search.ts), optional programme family/format selects
-(RANKING — "Best for X" / "Also works" sections, never exclusion), ONE graphic-type dropdown
-with live counts, field-count buckets (range-intersection over the reachable visible range),
+(docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12 for the facets, §4c for the groups;
+re-design/handoff.md §2b and src/templates/AGENTS.md for what they are drawn as) replacing the
+old Category -> Template pair: search (alias-aware, src/templates/search.ts), optional
+programme family/format selects (RANKING — "Best for X" / "Also works" sections, never
+exclusion), ONE category-GROUP dropdown with live counts (ten shelves over the 27 graphic
+categories) whose selected group offers its member categories as chips (only when it has more
+than one), field-count buckets (range-intersection over the reachable visible range),
 style-family chips, and the specialist facets (structure / capabilities / placement-motion)
 behind the Filters disclosure. Filter state lives in
 CreationWizard (`browseFilters`) so Back returns with filters intact; the setter is passed as

@@ -10,6 +10,27 @@ data field an input — per template, from one generator, with no per-template c
 is the binding contract for `src/control/`, the show model, and the hosted-control schema
 (supabase/migrations/0008_hosted_control.sql).
 
+## Where playout behaviour comes from (and where it does not)
+
+A template's playout behaviour travels INSIDE the template, and nowhere else:
+
+- **Fields → inputs.** `SpxField.ftype` picks each control (`fieldDescriptors`); a `number`
+  is steppers, a `textarea` is the rows editor, a `filelist` an image picker.
+- **Machine → buttons.** Specialized behaviour is a MACHINE SHAPE compiled into `NOACG_ANIM`
+  at create time (a GraphicType's branches, parallel groups, timers and `controls` —
+  docs/GRAPHIC_TYPES.md): score flags, quiz select/lock/judge, clock pause/resume, ticker
+  skip, poll close/call are all `machine.controls` entries plus arrows, never per-template
+  playout code. A template with NO explicit machine gets the derived linear machine: all its
+  fields, the lifecycle verbs, no ⚡ events — which is the correct, honest control surface
+  for every plain field-driven graphic.
+- **What NEVER selects behaviour: any category.** The browse taxonomy (graphic categories
+  and their groups, `src/model/taxonomy.ts`) and the `AssemblerId` routing id are invisible
+  to this layer — `graphicKindLabel` prints a word next to a cue and that is the whole
+  footprint. Catalog, imported and AI-generated templates therefore get identical treatment:
+  whatever their code declares is what every surface renders. Keep it that way — a switch on
+  a category id in `src/control/` or the production surfaces would fork catalog templates
+  from imported/AI ones, which is the divergence this design exists to prevent.
+
 ## The one generator, three surfaces
 
 - **`control/controlModel.ts`** is the vocabulary: `fieldDescriptors` (SPX fields → the shared
@@ -62,10 +83,11 @@ is the binding contract for `src/control/`, the show model, and the hosted-contr
 
 `ControlMessage` = `update | play | stop | next | event | snap | hello`; replies
 (`ControlReply`) = `state` (after every handled message, and on timer advances via a 1 s
-watcher) and `graphic-online` (once at boot). Three receivers forward commands to the
+watcher) and `graphic-online` (once at boot). Four receivers forward commands to the
 template globals (`update/play/stop/next` + `noacgDispatch`/`noacgSnap`) and must stay in
 agreement: `receiverScript.ts` (BroadcastChannel), `realtimeControl.ts` (Realtime Broadcast,
-send-only panel path), `hostedReceiver.ts` (the durable log path). An event's payload is
+send-only panel path), `hostedReceiver.ts` (the durable log path), and `localReceiver.ts`
+(the local relay — the production controller's wire, above). An event's payload is
 applied only if the machine accepts the event — that is the atomic multi-part change.
 
 ## The operator verbs (the one glossary)

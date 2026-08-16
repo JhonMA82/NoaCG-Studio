@@ -741,6 +741,28 @@
    ".scoreboard-mask:y"
   ]
  },
+ "sb21": {
+  "off": [],
+  "clip": [
+   ".scoreboard-mask:y",
+   ".scoreboard-mask:y",
+   ".scoreboard-mask:y",
+   ".scoreboard-mask:y",
+   ".scoreboard-mask:y",
+   ".scoreboard-mask:y",
+   ".scoreboard-mask:y",
+   ".scoreboard-mask:y"
+  ]
+ },
+ "sb22": {
+  "off": [],
+  "clip": [
+   ".scoreboard-mask:y",
+   ".scoreboard-mask:y",
+   ".scoreboard-mask:y",
+   ".scoreboard-mask:y"
+  ]
+ },
  "card05": {
   "off": [],
   "clip": [

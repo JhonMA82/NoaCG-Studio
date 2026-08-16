@@ -158,6 +158,32 @@ is a control that will not be used.
   the dashboard have got out of step — a renderer restart, a missed press. Normal operation is
   the ⚡ actions and » Next.
 
+## 7c. The ± LIVE NUMBERS block — the one data write that airs immediately
+
+Under the ⚡ actions, same doctrine, opposite direction: the ⚡ buttons are STATE that carries
+data, these are DATA with no state at all. One press bumps a `number` field on the live graphic
+— a score, a goal total, a stock count — as a **PARTIAL update carrying just that field**,
+mirrored into the edited cue so the cue and the air never drift. Partial is the load-bearing
+word: ✎ Update sends the cue's whole value set, so riding it would also publish every other
+staged edit, and a score bump must never air a half-typed name. Receivers write exactly the
+fields a message carries and the logs merge partial data, so recovery replays it correctly
+(`docs/CONTROL_LAYER.md`).
+
+Three derivation rules, all template-driven (no category is ever consulted):
+
+- Any graphic with an operator-visible `number` field gets the block — scoreboards, podium
+  boards, goal meters — with no per-graphic code.
+- A number field an ⚡ event carries as PAYLOAD is excluded (the podium's spotlight index, a
+  focused row): it is set by its own action, and a second road to it would air a value without
+  the state that gives it meaning.
+- The buttons enable only while the edited cue is the one on air — the same legality wording as
+  the ⚡ buttons ("Take the cue first").
+
+Both operator deployments carry it (`ProductionPage`, `HostedControlPage` — the cloud-first
+surface a class drives from a phone). The exported production controller does not yet; on that
+fallback surface a score changes through the field + ✎ Update, which stays correct, just two
+presses. Pinned by `e2e/production-controls.spec.ts` ("± LIVE NUMBERS bumps a figure on air").
+
 ## 8. Built to grow (interactive graphics)
 
 The area under the monitors is deliberately not full. Interactive graphics — polls, Q&A, chat
