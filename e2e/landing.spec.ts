@@ -7,7 +7,7 @@ import { createProject } from './_create';
 
 test('root shows the landing page, not the editor', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('h1')).toContainText('broadcast graphics');
+  await expect(page.locator('h1')).toContainText('run the show');
   // Every "Start creating" call to action lands on the CREATION WIZARD (`#/new`), not on
   // whatever document happened to be open last. Arriving from the marketing page means
   // "I want to make something"; dropping a returning visitor straight into an old project
