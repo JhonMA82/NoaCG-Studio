@@ -1848,3 +1848,88 @@ settle and the ledger row exactly as real as they would be for a student. The al
 therefore covered by the stubbed configured spec rather than by this run, which is the honest
 division: this one exists to answer "what does the product actually produce", and it now has a
 picture on the review page to answer it with.
+
+---
+
+## 17. The owner's first read of a Pro set - 2026-08-16
+
+The read §16 was owed. The verdict on the set as a whole: **acceptable, and happier than before** -
+"we can live with this", with continuous improvement expected rather than another premise change.
+That is the first time a Pro round has been read without a layout failure being named, which is
+what §15.5 predicted and what nothing until now had tested.
+
+Five findings, all specific. Each one was checked against the source before being written here, and
+each turned out to be the code doing exactly what was seen - none is taste against a defect that
+does not exist.
+
+### 17.1 The mark sits on a visible box, and it should not
+
+**Named twice** - as `Aldervale Evening News`'s "A in the white box", and as a general rule: *the
+background of a logo should always be transparent; the box should not be part of the graphic; the
+mark should sit on the banner itself and look integrated.*
+
+That white box is the platform's own repair - `pro-mark-field`, the field armed on 2026-08-14 after
+the blind read flagged a dark monogram at 1.00:1 on a dark navy panel. It fires on one cell in
+eighteen, and this is that cell. **So the objection is not to a bug; it is to the repair being
+visible.**
+
+The owner's own words carry the constraint that stops this being a simple removal: *"we can't have
+a dark logo on a dark background and not see it… this works if we have a dark logo and a dark
+background, so that's fine."* The field is accepted where it is the only thing making the mark
+readable. What is rejected is a mark that reads as pasted onto a chip.
+
+**Note what was NOT objected to:** `lt07`'s blue block and `ls10`'s red block, both of which put the
+mark in a coloured well, were called out as liked. A well that the DESIGN draws is part of the
+composition; a neutral field the PLATFORM paints is a patch. The distinction is the whole finding,
+and it is the same one `src/ai/AGENTS.md` already records as "a mark carries NO PLATE" - `ls12`'s
+fixed dark tile being the ratified exception because it is designed rather than repaired.
+
+Directions worth measuring, cheapest first, none yet chosen: knock the mark's ink to the panel's
+text colour instead of plating it (works only for a single-ink mark, which is exactly the case the
+`inkSpread` measurement already isolates); shrink the field to the mark's INK box so no edge is
+visible against the panel; or place the mark outside the panel entirely where the design allows.
+
+### 17.2 A panel-less super has no legibility instrument at all
+
+`Ledger Investigations` (`minimalist.ledger`) sets its words directly on the picture - the language
+returned `shape.panel: "none"`, which is a legitimate answer and produces the sparest graphic in the
+set. The composer's compensation is a text shadow (`0 2px 12px rgba(0,0,0,.75)` on the heading,
+`0 2px 10px` on the supporting line, both in the saved CSS). Over the review page's busy mid-tone
+backdrop the owner could not read the text at all.
+
+**This is the §16 hole in a new place.** `validation/markLegibility.ts` measures a MARK against the
+surfaces the design paints; a super with no surface has nothing to measure against, so no instrument
+in the tree asks whether those words survive a picture. Every gate passed this graphic, and the
+first busy plate defeated it.
+
+The ask is explicit and is a gate, not an opinion: **check that it works on real images.** A
+panel-less composition should be measured against a set of plates - at minimum a busy mid-tone and a
+high-key one - and the finding should reach the same seam every other Pro divergence does
+(`pro/language/gate.ts`). Whether the repair is a stronger shadow, a scrim, or refusing
+`panel: "none"` for small supporting text is a decision to take AFTER the measurement exists.
+
+### 17.3 `ls17` carries dead space under its accent
+
+The side-by-side name-and-title row was called out as good variation and worth keeping. The strap is
+too tall for what it holds: there is space under the yellow rule that reads as unnecessary.
+
+Confirmed in `src/templates/lowerThirds/specialist/ls17.ts`: `.lower-third-accent` is
+`margin: 15px 0 13px`, and its own comment says the bottom margin is kept deliberately so it "holds
+even when the rule closes the strap with no institution under it". With no institution line (`f3`)
+the render is exactly that case - 13px of accent margin plus the box's 26px bottom padding under a
+2px hairline. **The design chose this; the read says the choice is wrong when the rule is last.**
+Collapsing the bottom margin when the accent is the final child is the small version of the fix.
+
+### 17.4 Accepted as they are
+
+`lt07` (the mark's placement specifically called out as good, the blue "kind of out there but
+fine"), `ls10`, `lt49`, `lt53`. The portrait-crest change these frames exist to show drew no
+objection on any of them.
+
+### 17.5 What this settles about the round
+
+Nothing in the read named a palette, a typeface, a motion character or a composition as wrong -
+the four things §15.4 moved to the model. Three of the five findings are PLATFORM behaviour (the
+mark field, the missing plate instrument, a catalog design's margin), which is the same shape as
+§15.2's decomposition and the reason Phase A was built. The premise holds; the work is now
+ordinary improvement against named defects.
