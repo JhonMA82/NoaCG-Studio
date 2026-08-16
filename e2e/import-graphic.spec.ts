@@ -781,7 +781,7 @@ test('import graphic: the imported template exports as the code that was dropped
   // The export door saves first, so the working project IS the imported file — its own markup,
   // its own fields, under the name that slugs the package.
   const built = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return { name: t.name, fields: t.fields.map((f) => f.title), root: t.html.includes('id="root"') };
   });

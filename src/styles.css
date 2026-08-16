@@ -6647,6 +6647,28 @@ h2 + .lib-row,
 .font-option-name { font-size: 16px; }
 .font-picker-local { margin-top: 8px; }
 
+/* The Google Fonts search: a name box over a scrolling result list, each row previewing
+   nothing — the face is not loaded until it is picked, and a row claiming to show a typeface
+   in the fallback face would be a lie about the one thing the reader is choosing on. */
+.font-google { margin-top: 10px; }
+.font-google > input { width: 100%; }
+.font-google > .hint { margin: 6px 0; }
+.font-google-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow: auto;
+}
+.font-google-list button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+
 /* ══ Timeline/States segmented switch + timeline-kind badges + graph add-menu ═════════════ */
 
 .timeline-surface-switch {
