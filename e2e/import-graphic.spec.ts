@@ -675,6 +675,36 @@ test('import graphic: the exported SPX package validates', async ({ page }) => {
   await expect(page.locator('.panel-body')).not.toContainText('✗');
 });
 
+test('the Text step places fields in the artwork’s empty panel by itself', async ({ page }) => {
+  // An empty backplate is the common import: a strap drawn to hold words, exported with the
+  // words left out. assets/suggestFields.ts measures that panel (no model call, no network),
+  // so the step opens with Name and Title already inside it — the manual tools stay exactly
+  // where they were for artwork it cannot read.
+  await dropDesign(page);
+  await page.waitForTimeout(800);
+  await page.locator('.wz-next').click(); // Prepare
+  await page.locator('.wz-next').click(); // Text
+  await expect(page.getByTestId('place-stage')).toBeVisible();
+
+  await expect(page.getByTestId('place-field-Name')).toBeVisible();
+  await expect(page.getByTestId('place-field-Title')).toBeVisible();
+  await expect(page.getByTestId('suggest-note')).toBeVisible();
+
+  // And they land INSIDE the panel: lowerThirdPng draws its opaque block across 6–53% of the
+  // width and 70–86% of the height, so a field outside that range is on transparent nothing.
+  const stage = (await page.getByTestId('place-stage').boundingBox())!;
+  for (const title of ['Name', 'Title']) {
+    const box = (await page.getByTestId(`place-field-${title}`).boundingBox())!;
+    const left = (box.x - stage.x) / stage.width;
+    const top = (box.y - stage.y) / stage.height;
+    const bottom = (box.y + box.height - stage.y) / stage.height;
+    expect(left, `${title} left`).toBeGreaterThanOrEqual(0.06);
+    expect(left, `${title} left`).toBeLessThan(0.53);
+    expect(top, `${title} top`).toBeGreaterThanOrEqual(0.70);
+    expect(bottom, `${title} bottom`).toBeLessThanOrEqual(0.87);
+  }
+});
+
 test('the Text step gives the placement canvas more room than the passive preview', async ({ page }) => {
   // You PLACE fields on the left canvas; the right pane only shows the result. The working
   // surface used to be the smaller of the two (a fixed 520px against a ~700px preview), so
@@ -688,4 +718,163 @@ test('the Text step gives the placement canvas more room than the passive previe
   const preview = (await page.locator('.wz-stage').boundingBox())!;
   expect(working.width).toBeGreaterThan(preview.width);
   expect(working.width).toBeGreaterThan(700); // and it actually grew, not just won by shrinking the preview
+});
+
+/** A finished SPX template as a file — what a student who already has the graphic brings. */
+const FINISHED_TEMPLATE = `<!doctype html>
+<html><head><meta charset="utf-8"><title>Studio strap</title>
+<style>
+  body { margin: 0; background: transparent; }
+  #root { position: absolute; left: 120px; top: 760px; width: 900px; height: 190px;
+          background: #12203a; color: #fff; font: 700 54px/1 sans-serif; padding: 24px; box-sizing: border-box; }
+</style>
+<script>
+  window.SPXGCTemplateDefinition = { description: 'Studio strap', DataFields: [
+    { field: 'f0', ftype: 'textfield', title: 'Name', value: 'Alexandra Riva' },
+    { field: 'f1', ftype: 'textfield', title: 'Title', value: 'Correspondent' } ] };
+  function update(data) {}
+  function play() {}
+  function stop() {}
+  function next() {}
+</script></head>
+<body><div id="root"><span id="f0">Alexandra Riva</span><span id="f1">Correspondent</span></div></body></html>`;
+
+test('import graphic: a finished .html template comes in as itself, fields and all', async ({ page }) => {
+  // "I already have this graphic" is the same errand as "I already have this picture", so the
+  // same drop zone takes both and the FILE decides the walk. A template has nothing to erase,
+  // place or animate — it declares all three — so its rail is two stops, not six.
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles({
+    name: 'studio-strap.html',
+    mimeType: 'text/html',
+    buffer: Buffer.from(FINISHED_TEMPLATE, 'utf8'),
+  });
+
+  // What it FOUND — led by the operator fields, which are what make it usable on air rather
+  // than a picture that plays.
+  await expect(page.getByTestId('import-template-card')).toContainText('Studio strap');
+  await expect(page.getByTestId('import-template-fields')).toContainText('Name, Title');
+  await expect(page.locator('.wz-dots .wz-dot')).toHaveCount(3);
+
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('wz-finish-production-go')).toBeVisible();
+  await expect(page.getByTestId('wz-finish-export')).toBeVisible();
+  // The editor is never the way out of an import: the default studio hides that door.
+  await expect(page.getByTestId('wz-finish-editor')).toHaveCount(0);
+  await expect(page.locator('.wz-finish-summary')).toContainText('Kept exactly as written');
+});
+
+test('import graphic: the imported template exports as the code that was dropped', async ({ page }) => {
+  await page.goto('/app');
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles({
+    name: 'studio-strap.html',
+    mimeType: 'text/html',
+    buffer: Buffer.from(FINISHED_TEMPLATE, 'utf8'),
+  });
+  await page.locator('.wz-next').click();
+  await page.getByTestId('wz-finish-name').fill('Studio strap A');
+  await page.getByTestId('wz-finish-export').click();
+
+  // The export door saves first, so the working project IS the imported file — its own markup,
+  // its own fields, under the name that slugs the package.
+  const built = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const t = useTemplateStore.getState().template;
+    return { name: t.name, fields: t.fields.map((f) => f.title), root: t.html.includes('id="root"') };
+  });
+  expect(built).toMatchObject({ name: 'Studio strap A', fields: ['Name', 'Title'], root: true });
+});
+
+test('the Text step places a picture slot the operator fills from the control panel', async ({ page }) => {
+  // A crest, a headshot, a sponsor mark: the design reserves the box, the operator brings the
+  // file. It has to be reachable WITHOUT the editor, like every other field on this step.
+  await dropDesign(page);
+  await page.waitForTimeout(800);
+  await page.locator('.wz-next').click(); // Prepare
+  await page.locator('.wz-next').click(); // Text
+  const stage = page.getByTestId('place-stage');
+  await expect(stage).toBeVisible();
+
+  await page.getByTestId('tool-image').click();
+  const box = (await stage.boundingBox())!;
+  const x = box.x + box.width * 0.34;
+  const y = box.y + box.height * 0.73;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 80, y + 55, { steps: 6 });
+  await page.mouse.up();
+
+  // Named, sized, and typography-free: what an operator supplies here is a FILE.
+  await expect(page.getByTestId('place-field-Logo')).toBeVisible();
+  await expect(page.getByTestId('field-slot-width')).toBeVisible();
+  await expect(page.getByTestId('field-size')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 30_000 });
+
+  // A real SPX image field (filelist), a real <img> in the design, and a placed, sized box.
+  const built = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const t = useTemplateStore.getState().template;
+    const logo = t.fields.find((f) => f.title === 'Logo');
+    // Built with concatenation, not a template literal: `\s` and `\{` are NOT escapes inside
+    // one, so an inlined pattern silently becomes `#fw2s*{…` and matches nothing.
+    const wrapper = logo
+      ? t.css.match(new RegExp('#fw' + logo.field.slice(1) + '\\s*\\{[^}]*\\}'))?.[0] ?? ''
+      : '';
+    return {
+      ftype: logo?.ftype ?? null,
+      img: logo ? new RegExp('<img[^>]*id="' + logo.field + '"').test(t.html) : false,
+      sized: /width:\s*calc\(\d+px/.test(wrapper) && /height:\s*calc\(\d+px/.test(wrapper),
+    };
+  });
+  expect(built).toEqual({ ftype: 'filelist', img: true, sized: true });
+});
+
+test('import graphic: full-frame artwork with no transparency says it will cover the picture', async ({ page }) => {
+  // The commonest export mistake: the lower third saved with its mock-up background (or a
+  // frame of footage) still behind it. On air that covers the live picture completely. It is
+  // stated, never blocked — a full-screen card is a real graphic with the same pixels.
+  await page.goto('/app');
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920;
+    canvas.height = 1080;
+    const g = canvas.getContext('2d')!;
+    g.fillStyle = '#0b0f16';
+    g.fillRect(0, 0, 1920, 1080); // opaque, edge to edge
+    g.fillStyle = '#161d2a';
+    g.fillRect(120, 760, 900, 190);
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/png'));
+    const dt = new DataTransfer();
+    dt.items.add(new File([blob!], 'flattened.png', { type: 'image/png' }));
+    const input = document.querySelector('.wz-drop input[type=file]') as HTMLInputElement;
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(page.getByTestId('import-opaque-warning')).toBeVisible();
+
+  // The same design exported properly — a strap on transparency — says nothing.
+  await page.locator('.wz-drop').click({ position: { x: 10, y: 10 } });
+  await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920;
+    canvas.height = 1080;
+    const g = canvas.getContext('2d')!;
+    g.clearRect(0, 0, 1920, 1080);
+    g.fillStyle = '#161d2a';
+    g.fillRect(120, 760, 900, 190);
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/png'));
+    const dt = new DataTransfer();
+    dt.items.add(new File([blob!], 'strap.png', { type: 'image/png' }));
+    const input = document.querySelector('.wz-drop input[type=file]') as HTMLInputElement;
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(page.locator('.asset-card')).toContainText('strap.png');
+  await expect(page.getByTestId('import-opaque-warning')).toHaveCount(0);
 });

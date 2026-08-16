@@ -168,10 +168,12 @@ test('credential and flag mistakes are reported together, not one per run', () =
 // bind the same free checks the Lite benches have to the profile that round resolved
 // routes through - each with its mutation twin.
 
-/** The vision incumbent and an approved open-weight vision candidate - real catalog
- *  entries, so the tests measure the actual catalog. */
-const VISION_INCUMBENT = 'google/gemini-2.5-flash';
-const VISION_CANDIDATE = 'google/gemini-2.5-flash-lite';
+/** The vision incumbent and a second approved vision route to bench it against - real
+ *  catalog entries, so the tests measure the actual catalog. The incumbent moved to the
+ *  cheap tier on 2026-08-16 (aiImportAnalysisProfile.ts: a field proposal is not the design
+ *  call), which is why the dearer sibling is now the candidate rather than the default. */
+const VISION_INCUMBENT = 'google/gemini-2.5-flash-lite';
+const VISION_CANDIDATE = 'google/gemini-2.5-flash';
 
 /** What ai-vision-run.mjs actually injects per candidate (minus the network-resolved
  *  allowlist, which the runner adds as armEnvExtra). Mirroring that injection is the

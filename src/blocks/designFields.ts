@@ -9,7 +9,15 @@
 // come to disagree.
 
 import type { SpxTemplate } from '../model/types';
-import { addPlacedLine, setLineFit, setLineTextStyle } from './designLayout';
+import {
+  addPlacedImageSlot,
+  addPlacedLine,
+  placeLine,
+  placedLines,
+  setLineFit,
+  setLineTextStyle,
+  setSlotSize,
+} from './designLayout';
 
 /** ONE editable text field to place on a design, in DESIGN px (the artwork's own space -
  *  exactly what addPlacedLine speaks). Structurally the wizard's DesignFieldSpec minus its
@@ -22,10 +30,13 @@ export interface PlacedFieldSpec {
   /** The text anchor in design px (which edge depends on `align`, addPlacedLine's idiom). */
   x: number;
   y: number;
-  /** 'point' = free line; 'area' = a box whose width wraps the text. */
-  kind: 'point' | 'area';
-  /** The area box's slot width in design px (area only). */
+  /** 'point' = free line; 'area' = a box whose width wraps the text; 'image' = a picture
+   *  SLOT the operator drops a file into (a crest, a headshot, a sponsor mark). */
+  kind: 'point' | 'area' | 'image';
+  /** The box's slot width in design px (area and image). */
   width?: number;
+  /** The image slot's height in design px (image only). */
+  height?: number;
   /** How a long value meets the slot. 'wrap' (the wizard's dragged-box behaviour, the
    *  default) reflows within the width; 'shrink' keeps addPlacedLine's own single-line
    *  data-fit="shrink" - what a lower-third name wants, where a wrapped name is a failed
@@ -53,6 +64,22 @@ export function applyPlacedFieldSpecs(
 ): SpxTemplate {
   let next = template;
   for (const spec of specs) {
+    if (spec.kind === 'image') {
+      // The slot picks its own default corner, so placing it is a second patch in exactly
+      // the idiom the canvas drag writes - `scaled` read back off the design's own rules so
+      // a slot cannot be the one element that stops following --scale.
+      const slot = addPlacedImageSlot(next, { title: spec.title });
+      if (!slot) continue;
+      next = slot.template;
+      const wrapperId = `fw${slot.fieldId.slice(1)}`;
+      const placed = placedLines(next.html, next.css);
+      const scaled = placed[`#${slot.fieldId}`]?.scaled ?? true;
+      next = placeLine(next, wrapperId, Math.round(spec.x), Math.round(spec.y), scaled);
+      if (spec.width && spec.height) {
+        next = setSlotSize(next, wrapperId, Math.round(spec.width), Math.round(spec.height), scaled);
+      }
+      continue;
+    }
     const added = addPlacedLine(next, {
       title: spec.title,
       ftype: 'textfield',

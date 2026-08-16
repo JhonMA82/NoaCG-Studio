@@ -70,10 +70,13 @@ export interface DesignFieldSpec {
   /** The text anchor in design px (which edge depends on `align`, addPlacedLine's idiom). */
   x: number;
   y: number;
-  /** 'point' = click-placed free line; 'area' = dragged box whose width wraps the text. */
-  kind: 'point' | 'area';
-  /** The area box's slot width in design px (area only). */
+  /** 'point' = click-placed free line; 'area' = dragged box whose width wraps the text;
+   *  'image' = a dragged PICTURE SLOT the operator drops a file into. */
+  kind: 'point' | 'area' | 'image';
+  /** The box's slot width in design px (area and image). */
   width?: number;
+  /** The image slot's height in design px (image only). */
+  height?: number;
   /** A bundled font id, or null = the design's default font (--font-heading). */
   fontId: string | null;
   fontSize: number;

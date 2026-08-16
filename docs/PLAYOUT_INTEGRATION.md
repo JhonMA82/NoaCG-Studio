@@ -172,7 +172,32 @@ Two OBS-specific notes:
 
 ## 6. SPX Graphics
 
-SPX is the format NoaCG treats as canonical, so this is the most direct route of all.
+SPX is the format NoaCG treats as canonical, so this is the most direct route of all. There are two
+ways in, and they answer different questions.
+
+### 6a. The whole production, live (the SPX template file)
+
+An SPX rundown lists template **files** from `ASSETS/templates` - there is nowhere in it to paste a
+URL. So a production hands you the URL *as a file*:
+
+1. Open the production, **Links → SPX template → ⬇ Download**. You get one `.html`.
+2. Drop it into SPX's `ASSETS/templates/` (a folder of your own inside it is fine).
+3. Add it to a rundown like any template. **Play** puts the output frame up, **Stop** takes it down.
+4. Cue the graphics from the NoaCG production page, its control link, or a phone - that is what
+   drives which graphic is on air, on which layer. The SPX item is the frame, not the rundown.
+
+The file wraps the production's output URL, so it stays correct across re-publishes and needs no
+re-download when the graphics change. Two things worth knowing:
+
+- **It carries the output link**, which is a capability: anyone holding the file can render the
+  production. Keep it as private as the URL.
+- The rundown item's fields let you point it at **another production** (paste a different output
+  URL), turn on the `&debug=1` status overlay while setting up, and keep the frame dark until Play.
+
+The same file works in a CasparCG template folder, or as a local file in an OBS/vMix browser
+source, for the same reason - nothing in it is SPX-specific except the definition.
+
+### 6b. One graphic, packaged (the SPX export)
 
 1. Export with the **SPX export** target — you get a starter folder.
 2. Extract it into SPX's `ASSETS/templates/` directory.

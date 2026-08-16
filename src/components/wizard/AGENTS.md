@@ -175,13 +175,20 @@ decodes, rejecting only a file with no intrinsic pixel size, since every downstr
 comes from that measurement; live preview from the moment it lands; Create is available from
 here on - every later step is an optional stop) -> Prepare -> Text -> Animation -> Create.
 The **Text step** (PlaceFieldsStep) places editable fields ON the artwork: T = click point
-text, ⬚ = drag a wrapping area box; move/resize/Delete; per-field name, preview text, and
+text, ⬚ = drag a wrapping area box, 🖼 = drag a picture SLOT (a filelist field, both
+dimensions the user's - a slot's shape is a design decision); move/resize/Delete; per-field name, preview text, and
 typography (family / size / weight / color / align / line-height / tracking) with a live
-styled render on the placement canvas. Specs live in `draft.designFields` (DESIGN px) and
+styled render on the placement canvas. **It opens with the fields already placed** where the
+artwork has an empty panel (`assets/suggestFields.ts` - deterministic, no model call), ONCE
+and only into an empty step; `✨ Suggest fields` re-runs it. Artwork with no flat panel
+refuses out loud and the manual tools stand unchanged. Specs live in `draft.designFields` (DESIGN px) and
 become REAL placed fields at build - draft.ts `withDesignFieldSpecs` runs addPlacedLine +
 setLineTextStyle + setLineFit, so wizard placement, editor, preview, and export agree by
 construction (browser-verified pixel-exact). The **FontPicker** (wizard/FontPicker.tsx,
-searchable) offers the bundled OFL library, upload (woff2/woff/ttf/otf -> CustomFont,
+searchable) offers the bundled OFL library, **the ~1,900 Google Fonts families**
+(model/googleFonts.ts - searched by name, fetched at DESIGN time and embedded; the emitted
+code never references Google, and the panel says a download shows the browser's IP to Google
+before it happens), upload (woff2/woff/ttf/otf -> CustomFont,
 embedded in template.assets + every export), and - Chromium only, permission-gated - Local
 Font Access, where a picked installed font is EMBEDDED exactly like an upload so playout
 never depends on the machine's fonts. The **Animation step** is the standard one.
@@ -200,8 +207,14 @@ with the Data tab revealed
 (setActivePanel('data') + the store's panelRevealNonce). Fields, styling, and motion all live
 in the editor: the Data tab's placed add, the canvas gestures, the Inspector's Style/Animations
 tabs. FieldsStep/StyleStep carry NO imported-design branches any more - design mode never
-reaches them. Contract: docs/IMPORT_MVP.md; E2E: e2e/import-graphic.spec.ts +
-e2e/import-prepare.spec.ts + e2e/import-stretch.spec.ts.
+reaches them. **THE SAME DROP ZONE TAKES A FINISHED TEMPLATE** (`.html`/`.zip` -> `importTemplateFile`),
+which switches the wizard to mode **'file'**: a two-stop rail (Template file -> Finish), the
+imported template as its own preview, and the ordinary Finish doors. A template declares its
+own fields, canvas and motion, so it skips Prepare/Text/Animation by having a MODE rather
+than a branch. Its code is applied BYTE-FAITHFULLY (`applyTemplate`, never
+`applyGenerated`/Prettier) - the graphic's NAME is the only edit, because it slugs the zip and
+the playout folder. Contract: docs/IMPORT_MVP.md; E2E: e2e/import-graphic.spec.ts +
+e2e/import-prepare.spec.ts + e2e/import-stretch.spec.ts + e2e/google-fonts.spec.ts.
 
 The steps are driven by each variant's declared CAPABILITIES (model/wizard.ts): the Fields step
 offers up to `maxLines` text lines plus the logo toggle + custom upload on a `logo: 'optional'`

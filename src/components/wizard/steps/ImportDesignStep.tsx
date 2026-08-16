@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AssetFile, Resolution } from '../../../model/types';
 import type { ProjectFormatSelection } from '../../../model/projectFormat';
 import type { DesignArt } from '../../../model/wizard';
 import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
+import { probeAsset } from '../../../assets/assetInfo';
+import { isTemplateFile, type ImportedTemplateResult } from '../../../model/importTemplate';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
 
 interface Props {
@@ -13,6 +15,12 @@ interface Props {
   onFormat: (format: ProjectFormatSelection) => void;
   onArt: (art: DesignArt, images: AssetFile[]) => void;
   onClear: () => void;
+  /** A dropped .html/.zip TEMPLATE that was parsed, rather than artwork to place fields on. */
+  templateFile: ImportedTemplateResult | null;
+  onTemplateFile: (file: File) => void;
+  onClearTemplate: () => void;
+  /** Why the dropped template file could not be read (the parse is the wizard's). */
+  fileError: string | null;
 }
 
 /**
@@ -24,6 +32,13 @@ interface Props {
  * than assumed: it decides the graphic's size, whether the design covers the frame or floats
  * inside it, and where the text defaults land. Guessing any of that would put the user's
  * artwork somewhere they didn't draw it.
+ *
+ * THE SAME ZONE TAKES A FINISHED TEMPLATE (.html / .zip). "I already have this graphic" is
+ * the same errand as "I already have this picture" — both arrive here holding something made
+ * elsewhere and wanting it usable in a production — so the flow reads the file, not the
+ * user's route to it. A template file skips artwork preparation entirely (there is nothing to
+ * erase and no field to place: it already declares its own) and goes straight to Finish,
+ * where it joins a production or exports like anything else.
  */
 export default function ImportDesignStep({
   art,
@@ -33,6 +48,10 @@ export default function ImportDesignStep({
   onFormat,
   onArt,
   onClear,
+  templateFile,
+  onTemplateFile,
+  onClearTemplate,
+  fileError,
 }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -41,6 +60,33 @@ export default function ImportDesignStep({
   const preview = art ? images.find((a) => a.path === art.path) : null;
   const fullFrame = !!art && art.width === resolution.width && art.height === resolution.height;
   const scaled = !!art && art.sourceWidth != null;
+
+  /**
+   * Does this artwork carry transparency at all? A graphic that fills the frame with no
+   * transparent pixel anywhere COVERS THE LIVE PICTURE - correct for a full-screen card, and
+   * the commonest thing to get wrong when a lower third is exported with the footage or the
+   * mock-up background still behind it. Nothing here blocks: a full-frame card is a real
+   * graphic, so this states the fact and names both readings.
+   *
+   * `probeAsset` samples a 64x64 downscale, so it answers "any transparency anywhere" rather
+   * than a proportion - which is exactly the question. Unknown (a canvas readback the browser
+   * refused) says nothing at all, since a guess here would be a warning about someone's
+   * correct file.
+   */
+  const [opaque, setOpaque] = useState(false);
+  useEffect(() => {
+    if (!preview) {
+      setOpaque(false);
+      return;
+    }
+    let alive = true;
+    void probeAsset(preview)
+      .then((info) => alive && setOpaque(info.hasAlpha === false))
+      .catch(() => alive && setOpaque(false));
+    return () => {
+      alive = false;
+    };
+  }, [preview]);
 
   /** The artwork's real pixel size — an <img> is the only thing that actually knows it. */
   const measure = (dataUrl: string) =>
@@ -70,12 +116,20 @@ export default function ImportDesignStep({
 
   const take = async (files: FileList | File[]) => {
     setError(null);
+    // A finished template first: it is decided by the FILE, so dropping one here never has to
+    // be a different gesture from dropping the picture it was made from.
+    const dropped = Array.from(files);
+    const template = dropped.find(isTemplateFile);
+    if (template) {
+      onTemplateFile(template);
+      return;
+    }
     // Any image the browser can decode is welcome — the pipeline works off the decoded
     // pixels, never the container, so PNG, JPEG, WebP, GIF and AVIF all behave the same.
     // (Erasing baked-in text re-encodes to PNG, so a lossy original never loses more.)
-    const file = Array.from(files).find((f) => f.type.startsWith('image/'));
+    const file = dropped.find((f) => f.type.startsWith('image/'));
     if (!file) {
-      setError('That is not an image. Bring in your finished design as a PNG, JPEG, or WebP — any image your browser can open.');
+      setError('That is neither an image nor a template file. Bring in your finished design as a PNG, JPEG or WebP, or a graphic you already have as .html or .zip.');
       return;
     }
     try {
@@ -101,12 +155,14 @@ export default function ImportDesignStep({
       <ProjectFormatPicker
         value={format}
         onChange={onFormat}
-        disabled={!!art}
+        disabled={!!art || !!templateFile}
         idPrefix="import-design-format"
         description={
-          art
-            ? 'Remove the current artwork before changing its authored canvas.'
-            : 'Choose the canvas before artwork is measured and placed.'
+          templateFile
+            ? 'A finished template brings its own canvas — this is what it is read back against.'
+            : art
+              ? 'Remove the current artwork before changing its authored canvas.'
+              : 'Choose the canvas before artwork is measured and placed.'
         }
       />
 
@@ -114,7 +170,7 @@ export default function ImportDesignStep({
           at full height would give the loudest element on the step to an action the user has
           already finished, and push everything that still matters below the fold. */}
       <div
-        className={`wz-drop ${art ? 'compact' : ''} ${dragOver ? 'over' : ''}`}
+        className={`wz-drop ${art || templateFile ? 'compact' : ''} ${dragOver ? 'over' : ''}`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => { e.preventDefault(); setDragOver(false); void take(e.dataTransfer.files); }}
@@ -125,21 +181,60 @@ export default function ImportDesignStep({
         <input
           ref={fileInput}
           type="file"
-          accept="image/*"
+          accept="image/*,.html,.htm,.zip"
           style={{ display: 'none' }}
           onChange={(e) => { if (e.target.files) void take(e.target.files); e.target.value = ''; }}
         />
-        <strong>{art ? 'Drop another design to replace it' : 'Drop your finished design here'}</strong>
-        {!art && (
+        <strong>
+          {art || templateFile ? 'Drop another file to replace it' : 'Drop your finished design here'}
+        </strong>
+        {!art && !templateFile && (
           <span className="hint">
             The image you already made — PNG, JPEG, WebP, or anything else your browser opens.
             A format that carries transparency (PNG or WebP) keeps everything behind it visible
-            on air. It becomes the graphic itself; you add the fields in the editor.
+            on air. It becomes the graphic itself, and you place its text fields in the next steps.
+            <br />
+            Already have the finished graphic as an <strong>.html</strong> or <strong>.zip</strong>?
+            Drop that instead and it comes in as it is, with its own fields.
           </span>
         )}
       </div>
 
-      {error && <p className="status-bad" style={{ marginTop: 10 }}>✗ {error}</p>}
+      {(error || fileError) && (
+        <p className="status-bad" style={{ marginTop: 10 }}>✗ {error ?? fileError}</p>
+      )}
+
+      {templateFile && (
+        <div className="panel-section" style={{ marginTop: 16 }} data-testid="import-template-card">
+          <h3>Your template</h3>
+          <p>
+            <strong>{templateFile.template.name}</strong>{' '}
+            <span className="hint mono">
+              {templateFile.template.resolution.width} × {templateFile.template.resolution.height}
+              {templateFile.detection.fps ? ` · ${templateFile.detection.fps} fps` : ''}
+            </span>
+          </p>
+          {/* The FIELDS are the whole point of importing a template rather than a picture:
+              they are what an operator types into, on the control page and in playout. Naming
+              them here is what turns "it opened" into "it is usable". */}
+          {templateFile.template.fields.length > 0 ? (
+            <p className="hint" data-testid="import-template-fields">
+              {templateFile.template.fields.length} operator field
+              {templateFile.template.fields.length === 1 ? '' : 's'}:{' '}
+              {templateFile.template.fields.map((f) => f.title || f.field).join(', ')}
+            </p>
+          ) : (
+            <p className="status-bad" data-testid="import-template-nofields">
+              No operator fields were found in this file, so there is nothing to type into on
+              air. It can still be exported and played out as a fixed graphic.
+            </p>
+          )}
+          {templateFile.detection.messages.map((m) => (
+            <p className="hint" key={m}>{m}</p>
+          ))}
+          <button onClick={onClearTemplate}>✕ Use a different file</button>
+        </div>
+      )}
 
       {art && preview && (
         <div className="panel-section" style={{ marginTop: 16 }}>
@@ -163,6 +258,14 @@ export default function ImportDesignStep({
                   ? `Larger than the ${resolution.width} × ${resolution.height} frame, so it is scaled down to fit it (the extra resolution keeps it sharp) and placed as an object you can position.`
                   : `Smaller than the ${resolution.width} × ${resolution.height} frame, so it is placed as an object you can position and resize.`}
           </p>
+          {fullFrame && opaque && (
+            <p className="status-warn" data-testid="import-opaque-warning">
+              This artwork fills the frame and has no transparent areas, so on air it covers the
+              whole picture. That is right for a full-screen card — and wrong for a lower third
+              exported with its background or mock-up footage behind it. If the video should show
+              through, export it again as a PNG or WebP with a transparent background.
+            </p>
+          )}
           {!scaled &&
             art.width / art.height === resolution.width / resolution.height &&
             (art.width < resolution.width || art.height < resolution.height) && (
@@ -177,11 +280,9 @@ export default function ImportDesignStep({
       <div className="panel-section" style={{ marginTop: 14 }}>
         <h3>What happens next</h3>
         <p className="hint">
-          Create the project and you land in the real editor with the <strong>Data</strong> tab
-          open: add text, number, and image fields there — each appears on your design, ready to
-          drag into place, style, and animate as its own layer. Your artwork is never redrawn or
-          regenerated — NoaCG only adds the broadcast behaviour around it, and exports it as a
-          working template.
+          {templateFile
+            ? 'Name it, then send it to a production or export it — SPX, CasparCG, OGraf, LiveOS or an OBS/vMix overlay. The file is kept exactly as you wrote it; NoaCG adds nothing to it.'
+            : 'The next steps clean up the artwork if it needs it, place the text fields on it, and choose how it moves on and off air. Your artwork is never redrawn or regenerated — NoaCG only adds the broadcast behaviour around it, and exports it as a working template.'}
         </p>
       </div>
     </div>

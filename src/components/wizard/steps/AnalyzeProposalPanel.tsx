@@ -151,7 +151,9 @@ export default function AnalyzeProposalPanel({ art, draft, onDraft }: Props) {
             {busy ? 'Analyzing…' : '✨ Analyze graphic with AI'}
           </button>
           <span className="hint">
-            Proposes text fields and fonts from the artwork - you review every suggestion.
+            For artwork with text drawn INTO it: reads what it says, proposes a field per line
+            and a matching typeface. An empty panel needs none of this - ✨ Suggest fields
+            already measures that for free. You review every suggestion.
             {typeof remaining === 'number' ? ` ${remaining} analysis(es) left today.` : ''}
           </span>
         </div>

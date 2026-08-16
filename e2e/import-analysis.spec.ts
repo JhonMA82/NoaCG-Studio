@@ -90,6 +90,12 @@ test('analysis proposes fields; the user reviews, applies, and the outcome is re
   });
 
   await openTextStep(page);
+  // What the step placed for itself before any AI ran. The Text step measures the artwork's
+  // empty panel and seeds fields from it (assets/suggestFields.ts), so an accepted proposal
+  // ADDS to that rather than arriving on an empty canvas - and this test is about the
+  // proposal, so it counts the delta instead of pinning a total that belongs to the free
+  // measurement.
+  const placedBefore = await page.locator('.place-field').count();
   await page.getByTestId('import-analyze').click();
 
   // The vision upload leaves the machine, so the disclosure notice gates the first run.
@@ -111,8 +117,8 @@ test('analysis proposes fields; the user reviews, applies, and the outcome is re
 
   // The accepted suggestion is now an ordinary draft field on the placement canvas -
   // the same DesignFieldSpec the manual tools write.
-  await expect(page.locator('.place-field')).toHaveCount(1);
-  await expect(page.locator('.place-field')).toContainText('Alexandra Riva');
+  await expect(page.locator('.place-field')).toHaveCount(placedBefore + 1);
+  await expect(page.locator('.place-field').last()).toContainText('Alexandra Riva');
   await expect.poll(() => outcomes.length).toBe(1);
   expect(outcomes[0]).toMatchObject({
     analysisId: ANALYSIS.analysisId,

@@ -89,8 +89,8 @@ for (const category of categories) {
 await browser.close();
 
 const flagged = rows.filter((r) => r.findings.length);
-console.log(`\n${flagged.length} of ${rows.length} design(s) carry text with no surface of their own`
-  + ' that misses the floor on some plate.');
+console.log(`\n${flagged.length} of ${rows.length} design(s) have text whose legibility DEPENDS ON`
+  + ' THE SHOT - it clears the floor on at least one plate and misses it on another.');
 console.log(flagged.length ? `  ${flagged.map((r) => r.id).join(', ')}` : '  none');
 console.log('\nA design here is not a defect: a super over controlled footage is a real composition.');
 console.log('What the number decides is whether this instrument can REPORT usefully, and whether');

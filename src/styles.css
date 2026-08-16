@@ -6636,6 +6636,25 @@ h2 + .lib-row,
   cursor: ew-resize;
 }
 .place-draw { position: absolute; height: 2px; border: 1px dashed var(--amber); background: rgba(246, 166, 35, 0.12); min-height: 26px; }
+
+/* An empty picture slot: the reserved rectangle, named. Drawn like the built template's own
+   empty-slot mark rather than like text, because a slot holds a FILE. */
+.place-field-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 1px dashed rgba(255, 255, 255, 0.55);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  overflow: hidden;
+  white-space: nowrap;
+}
 .place-empty {
   position: absolute;
   inset: auto 0 10px 0;
@@ -6671,6 +6690,28 @@ h2 + .lib-row,
 .font-option.selected { border-color: var(--amber); background: rgba(246, 166, 35, 0.08); }
 .font-option-name { font-size: 16px; }
 .font-picker-local { margin-top: 8px; }
+
+/* The Google Fonts search: a name box over a scrolling result list, each row previewing
+   nothing — the face is not loaded until it is picked, and a row claiming to show a typeface
+   in the fallback face would be a lie about the one thing the reader is choosing on. */
+.font-google { margin-top: 10px; }
+.font-google > input { width: 100%; }
+.font-google > .hint { margin: 6px 0; }
+.font-google-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow: auto;
+}
+.font-google-list button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
 
 /* ══ Timeline/States segmented switch + timeline-kind badges + graph add-menu ═════════════ */
 

@@ -40,7 +40,13 @@ import AnimationStep from './steps/AnimationStep';
 import AiStep from './steps/AiStep';
 import VideoStep from './steps/VideoStep';
 import BlankStep from './steps/BlankStep';
-import FinishStep, { aiSummaryRows, catalogSummaryRows, type SummaryStepKey } from './steps/FinishStep';
+import FinishStep, {
+  aiSummaryRows,
+  catalogSummaryRows,
+  importedSummaryRows,
+  type SummaryStepKey,
+} from './steps/FinishStep';
+import { importTemplateFile, type ImportedTemplateResult } from '../../model/importTemplate';
 import { useExportUi } from '../ExportWindow';
 import { useMarkLegibility } from './useMarkLegibility';
 import type { SpxTemplate } from '../../model/types';
@@ -99,6 +105,11 @@ const STEP_TITLES_BLANK = ['Start', 'Blank project'];
 // works. Text and Animation are optional stops: Create is available from the Design step on
 // (docs/IMPORT_MVP.md).
 const STEP_TITLES_DESIGN = ['Start', 'Design', 'Prepare', 'Text', 'Animation', 'Finish'];
+// A finished template (.html / .zip) dropped on that same zone has nothing to prepare, place
+// or animate — it already declares all three — so its walk is two stops: the file, then where
+// it goes. A MODE rather than a branch inside design mode, so the rail never offers four steps
+// that cannot apply to it.
+const STEP_TITLES_FILE = ['Start', 'Template file', 'Finish'];
 
 /* What each step is FOR, in the reader's words — the second line of every rail entry
    (re-design/handoff.md §2). A title alone says where you are; the sub says what the step
@@ -111,6 +122,7 @@ const STEP_SUBS: Record<string, string[]> = {
   video: ['Choose mode', 'Brief & format'],
   blank: ['Choose mode', 'Format & name'],
   design: ['Choose mode', 'Your artwork', 'Erase & scale', 'Place fields', 'In & out motion', 'Name & save'],
+  file: ['Choose mode', 'Your graphic', 'Name & save'],
 };
 
 /* A KIT walks the SAME six steps as one graphic — that is the whole point of folding the two
@@ -138,7 +150,10 @@ export default function CreationWizard() {
 
   const isMobile = useIsMobile();
   const [step, setStep] = useState(0);
-  const [mode, setMode] = useState<'template' | 'import' | 'design' | 'ai' | 'video' | 'blank'>('template');
+  const [mode, setMode] = useState<'template' | 'import' | 'design' | 'file' | 'ai' | 'video' | 'blank'>('template');
+  /** A finished template file dropped on the Import graphic step — parsed, never rebuilt. */
+  const [importedFile, setImportedFile] = useState<ImportedTemplateResult | null>(null);
+  const [importedFileError, setImportedFileError] = useState<string | null>(null);
   const [draft, setDraft] = useState<WizardDraft>(initialDraft);
   // Browse-step facet state lives here (not in the step) so Back returns with the
   // filters intact for the wizard session; a fresh open starts clean.
@@ -350,7 +365,7 @@ export default function CreationWizard() {
   // AI has no configuring steps of its own — the result IS the configuration — so its
   // Finish sits right after the working step (index 2), not after an animation step it
   // never shows.
-  const finishStep = mode === 'ai' ? 2 : animStep + 1;
+  const finishStep = mode === 'ai' || mode === 'file' ? 2 : animStep + 1;
   // On the Animation step the preview demos the full lifecycle (in → hold → out → in)
   // so the exit is actually seen — unless the user is tuning the entrance only.
   const onAnimationStep = step === animStep && mode !== 'ai' && mode !== 'video';
@@ -945,6 +960,48 @@ export default function CreationWizard() {
     useRouter.getState().replace({ view: 'production', id: target.id });
   };
 
+  /* ── A finished template file: the three doors, over the file exactly as written ────────
+     BYTE-FAITHFUL, deliberately: `applyTemplate` rather than `applyGenerated`, so nothing
+     Prettier-formats somebody else's HTML on the way in. The name is the only edit — it slugs
+     the zip and, on the SPX and CasparCG packages, the template FOLDER an operator reads. */
+  const importedName = () => draft.name.trim() || importedFile?.template.name || 'Imported graphic';
+
+  const applyImportedFile = (skipNavigation?: boolean, keepGalleryOpen?: boolean): SpxTemplate | null => {
+    if (!importedFile) return null;
+    const template = { ...importedFile.template, name: importedName() };
+    if (!skipNavigation) landAt('editor');
+    applyTemplate(template, { resetSampleData: true, keepGalleryOpen });
+    setActiveTab('html');
+    trackEvent('activation', 'file');
+    return useTemplateStore.getState().template;
+  };
+
+  const createFromFile = () => {
+    if (!applyImportedFile()) return;
+    // The Export panel carries the validation verdict, which is the one thing an imported
+    // file's owner needs to see: what (if anything) stops it being SPX/CasparCG-ready.
+    setTimeout(() => useTemplateStore.getState().setActivePanel('export'), 0);
+  };
+
+  const createFromFileAndExport = () => {
+    if (!applyImportedFile(true, true)) return;
+    void (async () => {
+      const saved = await saveGraphicAs(importedName(), { kind: 'standalone' });
+      const s = useTemplateStore.getState();
+      if (!saved.ok) reportFailedCreateSave(importedName(), saved.error);
+      useExportUi.getState().openExport({
+        template: s.template,
+        sampleData: s.sampleData,
+        graphicId: s.saved.graphicId,
+      });
+    })();
+  };
+
+  const createFromFileAndAddToProduction = (dest: ProductionDest) => {
+    if (!applyImportedFile()) return;
+    void addToProduction(dest, importedName());
+  };
+
   const createAndAddToProduction = (dest: ProductionDest) => {
     void applyDraftProject().then((template) => {
       if (!template || !variant) return;
@@ -958,6 +1015,8 @@ export default function CreationWizard() {
   const nextDisabled =
     mode === 'template'
       ? step === 1 && (buildMode === 'kit' ? !kitBrowseReady : !draft.variantId)
+      : mode === 'file'
+      ? step === 1 && !importedFile
       : (step === 1 &&
           (mode === 'import'
             ? draft.importedImages.length === 0 || !draft.category
@@ -978,6 +1037,8 @@ export default function CreationWizard() {
     : mode === 'video' ? false
     : mode === 'blank' ? step === 1
     : mode === 'design' ? step >= 1 && !!previewTemplate
+    // A dropped template is previewed as itself: it is the graphic, already finished.
+    : mode === 'file' ? step >= 1 && !!importedFile
     : mode === 'template' ? (kit ? step >= 2 && step < finishStep : step >= 1) && !!previewTemplate
     : step >= 2 && !!previewTemplate) && !(isMobile && step === finishStep);
   const stepTitles =
@@ -985,6 +1046,7 @@ export default function CreationWizard() {
     : mode === 'video' ? STEP_TITLES_VIDEO
     : mode === 'blank' ? STEP_TITLES_BLANK
     : mode === 'design' ? STEP_TITLES_DESIGN
+    : mode === 'file' ? STEP_TITLES_FILE
     : mode === 'import' ? STEP_TITLES_IMPORT
     : kit || buildMode === 'kit' ? STEP_TITLES_KIT
     : STEP_TITLES;
@@ -1181,7 +1243,7 @@ export default function CreationWizard() {
             <span className="wz-title-step">
               {mode === 'ai' ? 'Create with AI'
                 : mode === 'video' ? 'Video with AI'
-                : mode === 'design' ? 'Import graphic'
+                : mode === 'design' || mode === 'file' ? 'Import graphic'
                 : kit ? `${kit.pack.name} kit`
                 : 'New graphic'}
             </span>
@@ -1298,7 +1360,15 @@ export default function CreationWizard() {
             {step === 0 && (
               <EntryStep
                 onTemplates={() => { setMode('template'); setStep(1); }}
-                onImportGraphic={() => { setMode('design'); setStep(1); }}
+                onImportGraphic={() => {
+                  // Entering the flow again starts it: a template file left over from a
+                  // previous pass would otherwise re-appear on a walk the user restarted,
+                  // with the artwork branch's steps around it.
+                  setImportedFile(null);
+                  setImportedFileError(null);
+                  setMode('design');
+                  setStep(1);
+                }}
                 onAi={() => { setMode('ai'); setStep(1); }}
                 onVideo={() => {
                   if (!draft.formatTouched) patch(DEFAULT_VIDEO_FORMAT);
@@ -1359,8 +1429,28 @@ export default function CreationWizard() {
                 />
               </div>
             )}
-            {step === 1 && mode === 'design' && (
+            {step === 1 && (mode === 'design' || mode === 'file') && (
               <ImportDesignStep
+                templateFile={importedFile}
+                onTemplateFile={(file) => {
+                  setImportedFileError(null);
+                  void importTemplateFile(file)
+                    .then((result) => {
+                      setImportedFile(result);
+                      // The walk changes shape the moment the file is read: a template has no
+                      // artwork to prepare and no field to place.
+                      setMode('file');
+                    })
+                    .catch((e: unknown) =>
+                      setImportedFileError(e instanceof Error ? e.message : String(e)),
+                    );
+                }}
+                onClearTemplate={() => {
+                  setImportedFile(null);
+                  setImportedFileError(null);
+                  setMode('design');
+                }}
+                fileError={importedFileError}
                 art={draft.designArt}
                 images={draft.importedImages}
                 resolution={draftResolution(draft)}
@@ -1559,8 +1649,24 @@ export default function CreationWizard() {
                 error={kitError}
               />
             )}
+            {/* A finished template file: the same three doors, over code we did not write. */}
+            {step === finishStep && mode === 'file' && importedFile && (
+              <FinishStep
+                name={draft.name}
+                namePlaceholder={importedFile.template.name}
+                onName={(name) => patch({ name })}
+                summary={importedSummaryRows(importedFile)}
+                productions={finishProductions}
+                defaultProductionId={contextProductionId}
+                onAddToProduction={createFromFileAndAddToProduction}
+                onOpenEditor={createFromFile}
+                showEditorDoor={advanced}
+                onExport={createFromFileAndExport}
+                busy={false}
+              />
+            )}
             {/* Finish — shared by every catalog-shaped mode, design included. */}
-            {step === finishStep && !kit && mode !== 'ai' && mode !== 'video' && variant && (
+            {step === finishStep && !kit && mode !== 'ai' && mode !== 'video' && mode !== 'file' && variant && (
               <FinishStep
                 name={draft.name}
                 namePlaceholder={variant.name}
@@ -1624,7 +1730,11 @@ export default function CreationWizard() {
           {wizardFooter}
           </div>
 
-          {showPreview && (mode === 'ai' ? aiResult : mode === 'blank' ? blankPreview : previewTemplate) && (
+          {showPreview &&
+            (mode === 'ai' ? aiResult
+            : mode === 'blank' ? blankPreview
+            : mode === 'file' ? importedFile
+            : previewTemplate) && (
             <aside className="wz-side">
               <WizardPreview
                 template={
@@ -1632,7 +1742,9 @@ export default function CreationWizard() {
                     ? aiResult!.template
                     : mode === 'blank'
                       ? blankPreview!
-                      : previewTemplate!
+                      : mode === 'file'
+                        ? importedFile!.template
+                        : previewTemplate!
                 }
                 replayKey={replayKey}
                 demoOut={demoOut}

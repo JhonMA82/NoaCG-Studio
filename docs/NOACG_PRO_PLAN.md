@@ -2391,3 +2391,54 @@ Worth noting for the next catalog change: the local affected plan ran the catalo
 TRIPWIRE (`catalog-bench`), which measures whether a graphic still passes its bench, and that is a
 different question from `catalog-baseline`, which pins the emitted bytes and the rendered geometry.
 CI caught the second one. A catalog edit wants both.
+
+### 17.10 Correcting §17.8 - the blind spot was not the blind spot
+
+§17.8 reported **48 of 90** lower thirds and blamed the residue on the instrument being unable to
+see a panel drawn as a positioned SIBLING, naming `lt49` as the example. **That diagnosis was
+wrong**, and the check that disproved it took two minutes: `lt49`'s panel is an ordinary ancestor
+background, `rgba(8, 10, 20, 0.94)`, which the walk finds perfectly.
+
+What was actually happening is a better bug. The instrument conflated two different failures:
+
+- **the picture shows through** - white text at 19.91:1 over a night exterior and **1.08:1**
+  against a blown-out sky (`lt01`). Legibility depends on the shot. This instrument's business.
+- **the design's own surface is too close to its ink** - `lt49` and `ls18` set a saturated blue on
+  a 94%-opaque panel and read 4.46 / 4.25 / 3.99, missing the 4.5 body floor on all three plates
+  and barely moving between them, because an almost-opaque panel hardly lets any plate through.
+  `lt55` sets a near-black ink on a near-black panel: 1.0 to 1.37 everywhere. **Not a plate
+  finding at all** - that is the ordinary contrast question the runtime bench already asks.
+
+Both instruments now require the picture to be what makes the difference: text that misses the
+floor on EVERY plate, including the friendliest, is not reported here. Putting this instrument's
+name on somebody else's finding is how an instrument stops meaning anything.
+
+**Corrected number: 43 of 90** - designs that clear the floor on at least one plate and miss it on
+another. 47 clear every plate; the five that failed all three (`lt49`, `lt55`, `ls11`, `ls18`,
+`ls22`) are now correctly silent here and belong to the contrast gate instead.
+
+**The sibling limitation is still real in principle and no longer claimed as a finding.** The
+ancestor walk cannot see a panel painted by a positioned sibling; no design in this catalog was
+shown to rely on one, and the case that was attributed to it turned out to be something else. If
+a design ever does, `document.elementsFromPoint` at the text's centre is the browser's own answer
+and the place to start.
+
+### 17.11 The round, recomposed - 2026-08-16
+
+The evidence page still showed the mark plate the owner rejected, because its frames were the
+paid round's and the composer had changed underneath them. `scripts/pro-spike.mjs --recompose`
+(free) rebuilds a finished round from each generation's saved `language.json` through TODAY's
+composer and re-shoots it transparent.
+
+**That is what makes a design ruling cheap to see across a whole round.** The language is the
+artefact the money bought; everything after it is deterministic, so 18 graphics were re-rendered
+for nothing after the knock landed. **One cell changed** - `news-public.aldervale`, from
+`mark_field_painted` to `mark_ink_knocked`, exactly the graphic the read named - and the other 17
+recomposed byte-for-byte in their adjustments.
+
+**The paid frame is kept beside the new one wherever the answer moved**, captioned "as the paid
+round produced it". A round's own record of what it produced is not something a later change gets
+to overwrite, and a platform change that is visible as a CHANGE is worth more than a page that
+quietly looks correct. For the same reason the validator rows on a recomposed cell are now
+labelled "(the paid round, before the composer changed)": the graphic is new, that verdict is
+not, and mixing the two eras silently is how a page starts lying.
