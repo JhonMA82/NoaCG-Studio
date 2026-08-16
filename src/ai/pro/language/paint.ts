@@ -313,6 +313,11 @@ export function platePlan(
       return { plate: id, ratio: contrastRatio(fg, under, under) };
     });
     const worst = ratios.reduce((a, b) => (b.ratio < a.ratio ? b : a));
+    // THE PICTURE HAS TO BE WHAT MAKES THE DIFFERENCE, or this is the wrong instrument speaking:
+    // ink that misses the floor on every plate is too close to the language's own surface, which
+    // is the ordinary contrast question. Same rule, same reason, as
+    // `validation/plateLegibility.ts` - stated in both because they are read separately.
+    if (ratios.every((r) => r.ratio < floor)) continue;
     // ANY plate under the floor is reported, and the first version of this got it wrong in a way
     // worth keeping. It required TWO, reasoning that one failure is an extreme a designer may
     // knowingly accept - calibrated on the catalog, where failures cluster on the blown-out

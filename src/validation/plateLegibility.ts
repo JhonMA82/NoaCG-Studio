@@ -155,7 +155,19 @@ export function measurePlateLegibility(doc: Document, win: Window): PlateLegibil
       ratio: contrastRatio(ink, backdropOn(el, win, plate.color), plate.color),
     }));
     const worst = ratios.reduce((a, b) => (b.ratio < a.ratio ? b : a));
+    const best = ratios.reduce((a, b) => (b.ratio > a.ratio ? b : a));
     if (worst.ratio >= floor) continue;
+    // IS THE PICTURE WHAT MAKES THE DIFFERENCE? Only then is this instrument the right one to
+    // speak. Text that misses the floor on EVERY plate - including the friendliest - is not
+    // failing because the shot showed through; it is too close to the design's OWN surface, and
+    // that is the ordinary contrast question `runtimeBench` already asks.
+    //
+    // Measured, and it is why this test exists: `lt49` and `ls18` set a saturated blue on a
+    // 94%-opaque panel and read 4.46 / 4.25 / 3.99 - under the 4.5 body floor on all three,
+    // barely moving, because an almost-opaque panel hardly lets the plate through at all.
+    // Reporting those as "does not separate from the picture" put this instrument's name on
+    // somebody else's finding, which is how an instrument loses its meaning.
+    if (best.ratio < floor) continue;
     out.push({
       where: el.id,
       ink: cs.color,

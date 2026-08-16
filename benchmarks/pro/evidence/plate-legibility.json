@@ -6,7 +6,6 @@
   "designs": 90,
   "flagged": [
     "lt12",
-    "lt55",
     "lt01",
     "lt02",
     "lt03",
@@ -39,17 +38,13 @@
     "lt46",
     "lt47",
     "lt48",
-    "lt49",
     "lt16",
     "lt56",
     "ls01",
     "ls02",
     "ls04",
     "ls10",
-    "ls11",
     "ls16",
-    "ls18",
-    "ls22",
     "ls24",
     "ls25",
     "ls30"
@@ -154,33 +149,7 @@
     {
       "id": "lt55",
       "category": "lower-third",
-      "findings": [
-        {
-          "where": "f0",
-          "ink": "rgba(10, 12, 16, 0.86)",
-          "worst": {
-            "plate": "dark",
-            "label": "a night exterior",
-            "ratio": 1
-          },
-          "ratios": [
-            {
-              "plate": "dark",
-              "ratio": 1
-            },
-            {
-              "plate": "mid",
-              "ratio": 1.13
-            },
-            {
-              "plate": "light",
-              "ratio": 1.37
-            }
-          ],
-          "floor": 3,
-          "carrier": "none"
-        }
-      ]
+      "findings": []
     },
     {
       "id": "lt01",
@@ -2117,33 +2086,7 @@
     {
       "id": "lt49",
       "category": "lower-third",
-      "findings": [
-        {
-          "where": "f3",
-          "ink": "rgb(61, 107, 255)",
-          "worst": {
-            "plate": "light",
-            "label": "a blown-out sky",
-            "ratio": 3.99
-          },
-          "ratios": [
-            {
-              "plate": "dark",
-              "ratio": 4.46
-            },
-            {
-              "plate": "mid",
-              "ratio": 4.25
-            },
-            {
-              "plate": "light",
-              "ratio": 3.99
-            }
-          ],
-          "floor": 4.5,
-          "carrier": "none"
-        }
-      ]
+      "findings": []
     },
     {
       "id": "lt16",
@@ -2664,33 +2607,7 @@
     {
       "id": "ls11",
       "category": "lower-third",
-      "findings": [
-        {
-          "where": "f0",
-          "ink": "rgba(8, 10, 14, 0.94)",
-          "worst": {
-            "plate": "dark",
-            "label": "a night exterior",
-            "ratio": 1
-          },
-          "ratios": [
-            {
-              "plate": "dark",
-              "ratio": 1
-            },
-            {
-              "plate": "mid",
-              "ratio": 1.05
-            },
-            {
-              "plate": "light",
-              "ratio": 1.11
-            }
-          ],
-          "floor": 3,
-          "carrier": "none"
-        }
-      ]
+      "findings": []
     },
     {
       "id": "ls12",
@@ -2801,33 +2718,7 @@
     {
       "id": "ls18",
       "category": "lower-third",
-      "findings": [
-        {
-          "where": "f2",
-          "ink": "rgb(61, 107, 255)",
-          "worst": {
-            "plate": "light",
-            "label": "a blown-out sky",
-            "ratio": 3.99
-          },
-          "ratios": [
-            {
-              "plate": "dark",
-              "ratio": 4.46
-            },
-            {
-              "plate": "mid",
-              "ratio": 4.25
-            },
-            {
-              "plate": "light",
-              "ratio": 3.99
-            }
-          ],
-          "floor": 4.5,
-          "carrier": "none"
-        }
-      ]
+      "findings": []
     },
     {
       "id": "ls19",
@@ -2847,33 +2738,7 @@
     {
       "id": "ls22",
       "category": "lower-third",
-      "findings": [
-        {
-          "where": "f2",
-          "ink": "rgba(10, 12, 16, 0.86)",
-          "worst": {
-            "plate": "dark",
-            "label": "a night exterior",
-            "ratio": 1
-          },
-          "ratios": [
-            {
-              "plate": "dark",
-              "ratio": 1
-            },
-            {
-              "plate": "mid",
-              "ratio": 1.13
-            },
-            {
-              "plate": "light",
-              "ratio": 1.37
-            }
-          ],
-          "floor": 4.5,
-          "carrier": "none"
-        }
-      ]
+      "findings": []
     },
     {
       "id": "ls23",
