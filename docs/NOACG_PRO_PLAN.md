@@ -2422,3 +2422,23 @@ ancestor walk cannot see a panel painted by a positioned sibling; no design in t
 shown to rely on one, and the case that was attributed to it turned out to be something else. If
 a design ever does, `document.elementsFromPoint` at the text's centre is the browser's own answer
 and the place to start.
+
+### 17.11 The round, recomposed - 2026-08-16
+
+The evidence page still showed the mark plate the owner rejected, because its frames were the
+paid round's and the composer had changed underneath them. `scripts/pro-spike.mjs --recompose`
+(free) rebuilds a finished round from each generation's saved `language.json` through TODAY's
+composer and re-shoots it transparent.
+
+**That is what makes a design ruling cheap to see across a whole round.** The language is the
+artefact the money bought; everything after it is deterministic, so 18 graphics were re-rendered
+for nothing after the knock landed. **One cell changed** - `news-public.aldervale`, from
+`mark_field_painted` to `mark_ink_knocked`, exactly the graphic the read named - and the other 17
+recomposed byte-for-byte in their adjustments.
+
+**The paid frame is kept beside the new one wherever the answer moved**, captioned "as the paid
+round produced it". A round's own record of what it produced is not something a later change gets
+to overwrite, and a platform change that is visible as a CHANGE is worth more than a page that
+quietly looks correct. For the same reason the validator rows on a recomposed cell are now
+labelled "(the paid round, before the composer changed)": the graphic is new, that verdict is
+not, and mixing the two eras silently is how a page starts lying.

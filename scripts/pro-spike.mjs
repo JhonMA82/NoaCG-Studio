@@ -123,7 +123,7 @@ const reveal = flag('reveal');
 // the sample the reviewer prefers, which is a different experiment.
 const resume = flag('resume');
 
-if (!control && !paid && !reveal && !flag('rebuild') && !flag('alpha')) {
+if (!control && !paid && !reveal && !flag('rebuild') && !flag('alpha') && !flag('recompose')) {
   console.error('Pick a mode: --control (free, run this first), --generate (PAID),'
     + ' --rebuild, --reveal or --alpha (free, re-shoots a finished round transparent).');
   process.exit(1);
@@ -299,6 +299,98 @@ await page.locator('.wz-modal').waitFor({ state: 'hidden', timeout: 10_000 }).ca
 // paid run derived them. The shot is taken on a page of its own parked on this origin - relative
 // `fonts/<file>` still resolves - with `omitBackground`, so everything the design does not paint
 // stays transparent.
+// ── --recompose: rebuild a finished round from its LANGUAGES, free ─────────────────────
+//
+// `--alpha` re-shoots the code the round SAVED, which is the right answer for "what did that
+// round produce". This is the other question: **what would the platform produce from the same
+// paid answers today?** The language is the artefact the money bought; everything downstream of
+// it is deterministic, so a composer change can be seen across a whole round for nothing.
+//
+// It exists because the 2026-08-16 read changed the composer: a single-ink mark is now knocked
+// rather than plated (§17.1), and every frame on the review page still showed the plate the owner
+// rejected. Re-running the round to see that would have cost real money for answers already on
+// disk.
+//
+// The frames land beside the originals rather than over them - a round's own record of what it
+// produced is not something a later change gets to overwrite.
+if (flag('recompose')) {
+  const file = path.join(OUT, 'results.json');
+  const ledger = JSON.parse(await readFile(file, 'utf8'));
+  const dir = path.join(OUT, 'recomposed');
+  await mkdir(dir, { recursive: true });
+  const shotPage = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+  await shotPage.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
+  let done = 0;
+  for (const record of ledger.results) {
+    if (!record.code || record.skipped || record.error) continue;
+    const saved = JSON.parse(await readFile(path.join(OUT, record.code, 'language.json'), 'utf8'));
+    const brand = rawBrands.find((b) => b.id === record.brand) ?? null;
+    const entry = bank.briefs.find((b) => b.id === String(record.slug).split('.')[0]);
+    if (!saved?.language || !entry) continue;
+    const composed = await page.evaluate(async (input) => {
+      const bust = '?t=' + Date.now();
+      const { composeFromLanguage } = await import('/src/ai/pro/language/compose.ts' + bust);
+      const { composeDocument } = await import('/src/preview/composeDocument.ts' + bust);
+      const { probeMark } = await import('/src/assets/assetInfo.ts' + bust);
+      const logo = input.mark
+        ? {
+          assetPath: input.mark.path,
+          images: [{ path: input.mark.path, data: input.mark.data }],
+          ...(await probeMark({ path: input.mark.path, data: input.mark.data })),
+        }
+        : null;
+      const result = composeFromLanguage(input.language, {
+        lines: [
+          { title: 'Name', sample: input.name },
+          { title: 'Role', sample: input.title },
+        ],
+        ...(logo ? { logo } : {}),
+      });
+      return {
+        html: composeDocument(result.template),
+        adjustments: result.adjustments,
+        notes: result.notes,
+        markFieldId: result.template.fields.find((f) => f.ftype === 'filelist')?.field ?? null,
+      };
+    }, {
+      language: saved.language,
+      name: entry.brief.name,
+      title: entry.brief.title,
+      mark: brand ? { path: `images/${brand.markFileName}`, data: brand.markDataUrl } : null,
+    });
+
+    for (const [suffix, values] of [
+      ['hold', { f0: entry.brief.name, f1: entry.brief.title }],
+      ['stress', {
+        f0: `${entry.brief.name} de la Cruz-Whittington`,
+        f1: `${entry.brief.title}, Southern Bureau and Election Desk`,
+      }],
+    ]) {
+      const data = { ...values };
+      if (composed.markFieldId && brand) data[composed.markFieldId] = `images/${brand.markFileName}`;
+      await shotPage.setContent(composed.html, { waitUntil: 'load' });
+      await shotPage.evaluate(async (payload) => {
+        try {
+          window.update(JSON.stringify(payload));
+          window.play();
+        } catch { /* a broken lifecycle still paints - shoot what is there */ }
+        await document.fonts.ready;
+        await new Promise((resolve) => setTimeout(resolve, 1800));
+      }, data);
+      const name = `${record.slug}.${suffix}.png`;
+      await shotPage.screenshot({ path: path.join(dir, name), omitBackground: true });
+      record[suffix === 'hold' ? 'recomposedHold' : 'recomposedStress'] = `recomposed/${name}`;
+    }
+    record.recomposedAdjustments = composed.adjustments;
+    done += 1;
+    console.log(`  ${record.slug} · ${composed.adjustments.join(', ') || 'no adjustments'}`);
+  }
+  await writeFile(file, `${JSON.stringify(ledger, null, 2)}\n`);
+  await browser.close();
+  console.log(`\n${done} generation(s) recomposed from their saved languages. No tokens spent.`);
+  process.exit(0);
+}
+
 if (flag('alpha')) {
   const file = path.join(OUT, 'results.json');
   const ledger = JSON.parse(await readFile(file, 'utf8'));

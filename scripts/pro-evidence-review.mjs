@@ -189,12 +189,24 @@ if (PRO_DIR) {
     // The TRANSPARENT re-shoot when the round has one (`pro-spike.mjs --alpha`), because that is
     // the frame the backdrop switch means something for; the runner's own hold carries the bench's
     // grey card and keeps its own ground.
-    const hold = r.alphaHold ?? r.hold;
-    const stress = r.alphaStressHold ?? r.stressHold;
-    const flat = !r.alphaHold;
+    // WHAT THE PLATFORM MAKES OF THAT LANGUAGE TODAY, when the round has been recomposed
+    // (`pro-spike.mjs --recompose`, free). The paid frames stay reachable below on any cell the
+    // composer has since changed, because "what that round produced" and "what it would produce
+    // now" are two different questions and the second must not quietly replace the first.
+    const hold = r.recomposedHold ?? r.alphaHold ?? r.hold;
+    const stress = r.recomposedStress ?? r.alphaStressHold ?? r.stressHold;
+    const flat = !r.alphaHold && !r.recomposedHold;
+    const changed = Boolean(r.recomposedHold && r.alphaHold
+      && (r.recomposedAdjustments ?? []).join() !== (r.languageAdjustments ?? []).join());
     const shots = [
       hold ? frameFigure(`${dir}/${hold}`, 'settled hold', flat ? 'on the bench card' : '', flat) : '',
       stress ? frameFigure(`${dir}/${stress}`, 'stress text', flat ? 'on the bench card' : '', flat) : '',
+      // The paid frame kept beside it wherever the composer's answer moved, so a change to the
+      // platform is visible as a change rather than as a different picture with no history.
+      ...(changed && r.alphaHold
+        ? [frameFigure(`${dir}/${r.alphaHold}`, 'as the paid round produced it',
+          (r.languageAdjustments ?? []).join(', ') || 'no adjustments')]
+        : []),
     ].join('');
     const errors = r.validation?.errors ?? [];
     const warnings = r.validation?.warnings ?? [];
@@ -206,12 +218,12 @@ if (PRO_DIR) {
       ['palette', r.language?.palette
         ? Object.entries(r.language.palette).map(([k, v]) => `${k} ${v}`).join('  ') : '-'],
       ['typeface', r.language?.typography?.fontId ?? '-'],
-      ['platform adjustments', (r.languageAdjustments ?? []).join(', ') || 'none'],
+      ['platform adjustments', (r.recomposedAdjustments ?? r.languageAdjustments ?? []).join(', ') || 'none'],
       ['model', r.model ?? r.route ?? '-'],
       ['cost', r.costUsd != null ? `$${r.costUsd.toFixed(4)}` : '-'],
       ['wall clock', r.ms != null ? `${(r.ms / 1000).toFixed(1)} s` : '-'],
-      ['validator errors', errors.length ? errors.join(' | ') : 'none'],
-      ['validator warnings', warnings.length ? warnings.join(' | ') : 'none'],
+      [r.recomposedHold ? 'validator errors (the paid round)' : 'validator errors', errors.length ? errors.join(' | ') : 'none'],
+      [r.recomposedHold ? 'validator warnings (the paid round, before the composer changed)' : 'validator warnings', warnings.length ? warnings.join(' | ') : 'none'],
       ['field contract', r.contract?.scaffoldOk ? 'ok' : 'FAILED'],
       ['play() threw', r.playError ? r.playError : 'no'],
     ];

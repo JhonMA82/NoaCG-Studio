@@ -14477,7 +14477,13 @@
       },
       "ms": 56993,
       "alphaHold": "alpha/news-public.aldervale.language.hold.png",
-      "alphaStressHold": "alpha/news-public.aldervale.language.stress.png"
+      "alphaStressHold": "alpha/news-public.aldervale.language.stress.png",
+      "recomposedHold": "recomposed/news-public.aldervale.language.hold.png",
+      "recomposedStress": "recomposed/news-public.aldervale.language.stress.png",
+      "recomposedAdjustments": [
+        "palette_text_dim_lightness_clamped",
+        "mark_ink_knocked"
+      ]
     },
     {
       "blindId": "B-14",
@@ -15543,7 +15549,12 @@
       },
       "ms": 31827,
       "alphaHold": "alpha/sports-live.kestrel.language.hold.png",
-      "alphaStressHold": "alpha/sports-live.kestrel.language.stress.png"
+      "alphaStressHold": "alpha/sports-live.kestrel.language.stress.png",
+      "recomposedHold": "recomposed/sports-live.kestrel.language.hold.png",
+      "recomposedStress": "recomposed/sports-live.kestrel.language.stress.png",
+      "recomposedAdjustments": [
+        "palette_text_dim_lightness_clamped"
+      ]
     },
     {
       "blindId": "B-15",
@@ -17025,7 +17036,10 @@
       },
       "ms": 47450,
       "alphaHold": "alpha/entertainment.sunbeam.language.hold.png",
-      "alphaStressHold": "alpha/entertainment.sunbeam.language.stress.png"
+      "alphaStressHold": "alpha/entertainment.sunbeam.language.stress.png",
+      "recomposedHold": "recomposed/entertainment.sunbeam.language.hold.png",
+      "recomposedStress": "recomposed/entertainment.sunbeam.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-16",
@@ -18320,7 +18334,10 @@
       },
       "ms": 37003,
       "alphaHold": "alpha/corporate.aldervale.language.hold.png",
-      "alphaStressHold": "alpha/corporate.aldervale.language.stress.png"
+      "alphaStressHold": "alpha/corporate.aldervale.language.stress.png",
+      "recomposedHold": "recomposed/corporate.aldervale.language.hold.png",
+      "recomposedStress": "recomposed/corporate.aldervale.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-17",
@@ -19806,7 +19823,12 @@
       },
       "ms": 49555,
       "alphaHold": "alpha/minimalist.ledger.language.hold.png",
-      "alphaStressHold": "alpha/minimalist.ledger.language.stress.png"
+      "alphaStressHold": "alpha/minimalist.ledger.language.stress.png",
+      "recomposedHold": "recomposed/minimalist.ledger.language.hold.png",
+      "recomposedStress": "recomposed/minimalist.ledger.language.stress.png",
+      "recomposedAdjustments": [
+        "palette_text_lightness_clamped"
+      ]
     },
     {
       "blindId": "B-18",
@@ -21102,7 +21124,10 @@
       },
       "ms": 43268,
       "alphaHold": "alpha/portrait-logo.sunbeam.language.hold.png",
-      "alphaStressHold": "alpha/portrait-logo.sunbeam.language.stress.png"
+      "alphaStressHold": "alpha/portrait-logo.sunbeam.language.stress.png",
+      "recomposedHold": "recomposed/portrait-logo.sunbeam.language.hold.png",
+      "recomposedStress": "recomposed/portrait-logo.sunbeam.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-19",
@@ -22163,7 +22188,10 @@
       },
       "ms": 37800,
       "alphaHold": "alpha/long-name.kestrel.language.hold.png",
-      "alphaStressHold": "alpha/long-name.kestrel.language.stress.png"
+      "alphaStressHold": "alpha/long-name.kestrel.language.stress.png",
+      "recomposedHold": "recomposed/long-name.kestrel.language.hold.png",
+      "recomposedStress": "recomposed/long-name.kestrel.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-20",
@@ -23644,7 +23672,10 @@
       },
       "ms": 44099,
       "alphaHold": "alpha/multiline-title.ledger.language.hold.png",
-      "alphaStressHold": "alpha/multiline-title.ledger.language.stress.png"
+      "alphaStressHold": "alpha/multiline-title.ledger.language.stress.png",
+      "recomposedHold": "recomposed/multiline-title.ledger.language.hold.png",
+      "recomposedStress": "recomposed/multiline-title.ledger.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-21",
@@ -24944,7 +24975,10 @@
       },
       "ms": 44460,
       "alphaHold": "alpha/empty-optional.sunbeam.language.hold.png",
-      "alphaStressHold": "alpha/empty-optional.sunbeam.language.stress.png"
+      "alphaStressHold": "alpha/empty-optional.sunbeam.language.stress.png",
+      "recomposedHold": "recomposed/empty-optional.sunbeam.language.hold.png",
+      "recomposedStress": "recomposed/empty-optional.sunbeam.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-22",
@@ -26239,7 +26273,10 @@
       },
       "ms": 38075,
       "alphaHold": "alpha/non-latin.aldervale.language.hold.png",
-      "alphaStressHold": "alpha/non-latin.aldervale.language.stress.png"
+      "alphaStressHold": "alpha/non-latin.aldervale.language.stress.png",
+      "recomposedHold": "recomposed/non-latin.aldervale.language.hold.png",
+      "recomposedStress": "recomposed/non-latin.aldervale.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-23",
@@ -27720,7 +27757,10 @@
       },
       "ms": 42647,
       "alphaHold": "alpha/high-contrast.ledger.language.hold.png",
-      "alphaStressHold": "alpha/high-contrast.ledger.language.stress.png"
+      "alphaStressHold": "alpha/high-contrast.ledger.language.stress.png",
+      "recomposedHold": "recomposed/high-contrast.ledger.language.hold.png",
+      "recomposedStress": "recomposed/high-contrast.ledger.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-24",
@@ -29201,7 +29241,10 @@
       },
       "ms": 49717,
       "alphaHold": "alpha/gradient-accent.kestrel.language.hold.png",
-      "alphaStressHold": "alpha/gradient-accent.kestrel.language.stress.png"
+      "alphaStressHold": "alpha/gradient-accent.kestrel.language.stress.png",
+      "recomposedHold": "recomposed/gradient-accent.kestrel.language.hold.png",
+      "recomposedStress": "recomposed/gradient-accent.kestrel.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-25",
@@ -30682,7 +30725,10 @@
       },
       "ms": 51985,
       "alphaHold": "alpha/news-public.kestrel.language.hold.png",
-      "alphaStressHold": "alpha/news-public.kestrel.language.stress.png"
+      "alphaStressHold": "alpha/news-public.kestrel.language.stress.png",
+      "recomposedHold": "recomposed/news-public.kestrel.language.hold.png",
+      "recomposedStress": "recomposed/news-public.kestrel.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-26",
@@ -31977,7 +32023,10 @@
       },
       "ms": 39316,
       "alphaHold": "alpha/news-public.sunbeam.language.hold.png",
-      "alphaStressHold": "alpha/news-public.sunbeam.language.stress.png"
+      "alphaStressHold": "alpha/news-public.sunbeam.language.stress.png",
+      "recomposedHold": "recomposed/news-public.sunbeam.language.hold.png",
+      "recomposedStress": "recomposed/news-public.sunbeam.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-27",
@@ -33458,7 +33507,10 @@
       },
       "ms": 38889,
       "alphaHold": "alpha/news-public.ledger.language.hold.png",
-      "alphaStressHold": "alpha/news-public.ledger.language.stress.png"
+      "alphaStressHold": "alpha/news-public.ledger.language.stress.png",
+      "recomposedHold": "recomposed/news-public.ledger.language.hold.png",
+      "recomposedStress": "recomposed/news-public.ledger.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-28",
@@ -34944,7 +34996,12 @@
       },
       "ms": 40330,
       "alphaHold": "alpha/entertainment.kestrel.language.hold.png",
-      "alphaStressHold": "alpha/entertainment.kestrel.language.stress.png"
+      "alphaStressHold": "alpha/entertainment.kestrel.language.stress.png",
+      "recomposedHold": "recomposed/entertainment.kestrel.language.hold.png",
+      "recomposedStress": "recomposed/entertainment.kestrel.language.stress.png",
+      "recomposedAdjustments": [
+        "palette_text_dim_lightness_clamped"
+      ]
     },
     {
       "blindId": "B-29",
@@ -36240,7 +36297,10 @@
       },
       "ms": 38430,
       "alphaHold": "alpha/entertainment.aldervale.language.hold.png",
-      "alphaStressHold": "alpha/entertainment.aldervale.language.stress.png"
+      "alphaStressHold": "alpha/entertainment.aldervale.language.stress.png",
+      "recomposedHold": "recomposed/entertainment.aldervale.language.hold.png",
+      "recomposedStress": "recomposed/entertainment.aldervale.language.stress.png",
+      "recomposedAdjustments": []
     },
     {
       "blindId": "B-30",
@@ -37535,7 +37595,10 @@
       },
       "ms": 48182,
       "alphaHold": "alpha/entertainment.ledger.language.hold.png",
-      "alphaStressHold": "alpha/entertainment.ledger.language.stress.png"
+      "alphaStressHold": "alpha/entertainment.ledger.language.stress.png",
+      "recomposedHold": "recomposed/entertainment.ledger.language.hold.png",
+      "recomposedStress": "recomposed/entertainment.ledger.language.stress.png",
+      "recomposedAdjustments": []
     }
   ]
 }
