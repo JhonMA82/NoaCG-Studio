@@ -46,6 +46,9 @@ export type TemplateType =
   | 'stream-notification'
   /** A design the user made elsewhere (a flat image) with text fields placed on top. */
   | 'imported-design'
+  /** A full-frame still, faded in and out — the production page's picture upload
+   *  (src/templates/picture.ts). Generated on demand, never a catalog design. */
+  | 'picture'
   | 'blank';
 
 /** The KIND word an operator reads at a glance beside a graphic's name — production pool
@@ -78,6 +81,7 @@ export const TEMPLATE_TYPE_LABELS: Record<TemplateType, string> = {
   'audience': 'Audience',
   'stream-notification': 'Notification',
   'imported-design': 'Imported',
+  'picture': 'Picture',
   'blank': 'Blank',
 };
 

@@ -390,6 +390,20 @@ answer: the log read back in the words an operator would use, newest first.
   **mode strip** (§4a) and the operator surface of §4. The stored pool stays in PAINT order — index 0 furthest back, which
   is what the payload and the stage read — and only the list is reversed, so there is one
   ordering in the data and one convention on screen.
+- **Pictures** (`src/templates/picture.ts`): "＋ Add pictures…" beside the pool uploads stills
+  straight into the rundown - one CUE per picture, all of them on ONE generated picture graphic,
+  so taking picture 3 replaces picture 1 on that layer instead of stacking a second still over
+  it. It is the cue model of §2 with no new architecture under it: no migration, no wire change,
+  no schema change. Four things are deliberate. The graphic is **pool-owned, never a library
+  record** - the production page may not write into a document it only references, which is the
+  rule the cue editor's image picker already states; its name is made unique against the library
+  because `resolveSavedGraphicDoc` falls back to a NAME match when there is no `graphicId`.
+  Uploads are **downscaled in the browser** (`importImageFile`, capped at the stage's long edge)
+  because every asset is base64'd into the published `output` row. That row is why
+  **`MAX_PICTURES` is 20** - a real ceiling, not taste; past it the answer is externalizing
+  assets to a bucket, not a bigger number. And assets are **pinned at publish**, so a picture
+  added to a published production reaches the renderer on the next publish - which the upload
+  says out loud rather than leaving to be discovered on air.
 - **The editor's Control tab**: its Rundowns block renames to Productions and links out to
   the production page; adding the current graphic to a production stays.
 - The wizard Finish step and Home rows keep their existing doors; a graphic's "add to

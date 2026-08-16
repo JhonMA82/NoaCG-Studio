@@ -642,3 +642,67 @@ test('a published production offers the SPX template file beside its output URL'
   expect(file).toContain('/output?production=demo-output');
   expect(file).not.toContain('demo-slug');
 });
+
+// ── Pictures in the rundown (src/templates/picture.ts) ───────────────────────────────────────
+// A production puts a still on air without anybody opening the editor: upload, and each picture
+// becomes a cue on ONE picture layer. Taking picture 2 therefore REPLACES picture 1 rather than
+// stacking a second still over it — which is the cue model (docs/CLOUD_PLAYOUT.md §2) doing
+// exactly what it was built to do, with no new architecture underneath it.
+
+/** A 1×1 PNG — small enough that the import leaves the bytes untouched, real enough to decode. */
+const PNG_1x1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+const pictureFile = (name: string) => ({ name, mimeType: 'image/png', buffer: PNG_1x1 });
+
+test('pictures upload straight into the rundown: one cue each, one layer, and they survive a reload', async ({
+  page,
+}) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-productions').click();
+  await page.getByTestId('new-production-name').fill('Picture Show');
+  await page.getByTestId('new-production').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('no-cues')).toBeVisible();
+
+  // Two pictures at once — the input takes multiple, because a rundown of stills is how this
+  // gets used and adding them one at a time would be the wrong shape of work.
+  await page.getByTestId('add-pictures-input').setInputFiles([
+    pictureFile('Opening slide.png'),
+    pictureFile('Sponsor board.png'),
+  ]);
+
+  // One cue per picture, each named after its own file — the name an operator scans for.
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText('Opening slide');
+  await expect(rows.nth(1)).toContainText('Sponsor board');
+
+  // ONE pool graphic holds both, so both cues air on the same layer and replace each other.
+  const pool = page.locator('[data-testid^="pool-"]');
+  await expect(pool).toHaveCount(1);
+  await expect(pool.first()).toContainText('Picture');
+
+  // A third upload joins the SAME graphic rather than minting a second picture layer.
+  await page.getByTestId('add-pictures-input').setInputFiles([pictureFile('Closing card.png')]);
+  await expect(rows).toHaveCount(3);
+  await expect(pool).toHaveCount(1);
+  await expect(rows.nth(2)).toContainText('Closing card');
+
+  // Taking a cue reaches the real renderer: the picture's path resolves to its uploaded bytes
+  // (composeDocument's asset shim), so what airs is the picture, not a broken image box.
+  await rows.nth(1).getByTestId('select-cue').click();
+  await page.getByTestId('verb-take').click();
+  const aired = page.frameLocator('[data-testid="program-stage"] iframe[title="Pictures"]');
+  await expect(aired.locator('#f0')).toHaveAttribute('src', /^data:image\/png/);
+
+  // Persisted on the Show record like every other cue.
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
+  await expect(page.locator('[data-testid^="pool-"]')).toHaveCount(1);
+});

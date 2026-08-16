@@ -70,6 +70,15 @@ import { useAuthUi } from '../auth/authUi';
 import ProductionExportDialog from './ProductionExportDialog';
 import { FieldRow } from '../fields/FieldControl';
 import { isImageAsset } from '../../assets/assetUtils';
+import { importImageFile } from '../../assets/imageImport';
+import {
+  addPictureToTemplate,
+  createPictureTemplate,
+  MAX_PICTURES,
+  PICTURE_FIELD,
+  PICTURE_GRAPHIC_NAME,
+  pictureLabel,
+} from '../../templates/picture';
 import BrandLogo from '../BrandLogo';
 import { copyLink } from './copyLink';
 import { IconDownload, IconLink, IconTv } from '../icons';
@@ -163,6 +172,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [nameNote, setNameNote] = useState<string | null>(null);
   const [selectedCueId, setSelectedCueId] = useState<string | null>(null);
   const [addPick, setAddPick] = useState('');
+  /** The hidden file input behind "＋ Add pictures…". */
+  const pictureInput = useRef<HTMLInputElement>(null);
   const [menuCueId, setMenuCueId] = useState<string | null>(null);
   /** Which cue the editor is pointed at: the one on PREVIEW (the default — edits air on Take),
    *  or the one already ON AIR on that layer, where ✎ Update pushes edits live (§2). */
@@ -581,6 +592,93 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const html = outputEmbedHtml({ production: show.name, outputUrl, resolution });
     saveAs(new Blob([html], { type: 'text/html' }), outputEmbedFileName(show.name));
     setNote('✓ Template file downloaded. Drop it into SPX ASSETS/templates (or your CasparCG template folder) and add it to a rundown.');
+  };
+
+  /**
+   * Upload pictures into the production (the PICTURE graphic — src/templates/picture.ts).
+   *
+   * ONE picture graphic per production, holding every uploaded still, with one CUE per picture.
+   * That is the cue model as designed: many cues over one pool graphic means taking picture 3
+   * replaces picture 1 on the same layer instead of stacking a second still over it.
+   *
+   * It is deliberately NOT a library graphic. The production page may not write into a document
+   * it only references (the rule the cue editor's image picker states), so the picture graphic
+   * belongs to the pool instead — which also means `templateForSavedGraphic` resolves the POOL
+   * copy, the one this handler updates. The name is made unique against the library because that
+   * fallback resolves by NAME when there is no `graphicId`, and an unrelated library graphic
+   * called "Pictures" would otherwise capture the production's own.
+   */
+  const uploadPictures = async (files: File[]) => {
+    if (files.length === 0) return;
+    const existing = show.graphics.find((g) => g.type === 'picture') ?? null;
+    // The stage the pictures are drawn on, derived the way the output payload derives it, so an
+    // upload into a 4K production keeps 4K pixels instead of being capped at 1080.
+    const stage = show.graphics.reduce<Resolution>((r, g) => {
+      const res = templateForSavedGraphic(g, library).resolution;
+      return { width: Math.max(r.width, res.width), height: Math.max(r.height, res.height), label: r.label };
+    }, DEFAULT_GRAPHICS_RESOLUTION);
+    let template = existing ? existing.template : createPictureTemplate('', stage);
+    if (!existing) {
+      const taken = new Set(library.map((d) => d.name));
+      let name = PICTURE_GRAPHIC_NAME;
+      for (let n = 2; taken.has(name); n += 1) name = `${PICTURE_GRAPHIC_NAME} ${n}`;
+      template = { ...template, name };
+    }
+    const room = MAX_PICTURES - template.assets.length;
+    if (room <= 0) {
+      setNote(`This production already holds ${MAX_PICTURES} pictures — remove one before adding another.`);
+      return;
+    }
+    const chosen = files.slice(0, room);
+    const added: { path: string; label: string }[] = [];
+    for (const file of chosen) {
+      // Downscaled here, in the browser, before the bytes ever leave the tab: every picture is
+      // base64'd into the published output row, so an untouched phone photo would cost megabytes
+      // on every renderer AND operator page load.
+      const { data } = await importImageFile(file, Math.max(stage.width, stage.height));
+      const result = addPictureToTemplate(template, { fileName: file.name, data });
+      template = result.template;
+      added.push({ path: result.path, label: pictureLabel(file.name, added.length) });
+    }
+    // Replacing by NAME keeps the pool id, the layer and every cue already prepared against it.
+    const { shows: afterPool, error } = addGraphicToShow(show.id, template, {});
+    setShows(afterPool);
+    if (error) {
+      setNote(error);
+      return;
+    }
+    const poolId = afterPool
+      .find((s) => s.id === show.id)
+      ?.graphics.find((g) => g.name === template.name)?.id;
+    if (poolId) {
+      // A NEW graphic arrives with one cue already seeded from its field defaults, and the first
+      // picture IS that default — so only the pictures after it need cues of their own.
+      const needCues = existing ? added : added.slice(1);
+      let next = afterPool;
+      if (!existing && added.length > 0) {
+        // That seeded cue is labelled after the GRAPHIC ("Pictures"), which is the right default
+        // for a lower third and the wrong one here: an operator scanning the rundown is looking
+        // for the picture's own name.
+        const seeded = next.find((s) => s.id === show.id)?.cues?.find((c) => c.sourceId === poolId);
+        if (seeded) next = updateShowCue(show.id, seeded.id, { label: added[0].label });
+      }
+      for (const picture of needCues) {
+        next = addShowCue(show.id, poolId, {
+          label: picture.label,
+          values: { [PICTURE_FIELD]: picture.path },
+        }).shows;
+      }
+      setShows(next);
+    }
+    const skipped = files.length - chosen.length;
+    setNote(
+      `✓ ${chosen.length} picture${chosen.length === 1 ? '' : 's'} added` +
+        (skipped > 0 ? `, ${skipped} skipped (${MAX_PICTURES} per production)` : '') +
+        // Assets are pinned at publish, so a picture does not reach a running renderer until
+        // the production is published again — said here rather than discovered on air. An
+        // unpublished production has nothing to re-publish, so it is not told to.
+        (show.outputSlug ? '. Publish again to put them on the output.' : '.'),
+    );
   };
 
   const copy = (kind: 'output' | 'control' | 'join' | 'presenter', text: string) => {
@@ -1233,7 +1331,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   onChange={(v) => editDraft({ values: { [d.key]: String(v) } })}
                   testIdPrefix="cue-field"
                   images={cueImages}
-                  imageHint="Pictures come from the graphic itself — add one in the editor's Assets tab."
+                  imageHint={
+                    poolGraphic.type === 'picture'
+                      ? 'Pictures come from this production — add more with ＋ Add pictures.'
+                      : "Pictures come from the graphic itself — add one in the editor's Assets tab."
+                  }
                 />
               ))}
               <label className="pd-field pd-field-note">
@@ -1653,6 +1755,34 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           >
             ＋ New graphic for this production…
           </button>
+          {/* Pictures, straight into the rundown — one still per cue, on the production's own
+              picture layer. The editor is never opened for this, which is the whole point.
+              A real <button> driving a hidden input, so it is the same control as its sibling
+              rather than a label wearing a button's clothes. */}
+          <button
+            className="pd-new-graphic"
+            onClick={() => pictureInput.current?.click()}
+            title={`Add pictures to this production — each one becomes a cue (up to ${MAX_PICTURES})`}
+            data-testid="add-pictures"
+          >
+            ＋ Add pictures…
+          </button>
+          <input
+            ref={pictureInput}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(e) => {
+              // COPIED out of the live FileList first: clearing `value` empties that list in
+              // place, so reading it afterwards hands the handler nothing at all.
+              const files = Array.from(e.target.files ?? []);
+              // Cleared so choosing the SAME file again still fires a change event.
+              e.target.value = '';
+              void uploadPictures(files);
+            }}
+            data-testid="add-pictures-input"
+          />
         </div>
       </aside>
       </>
