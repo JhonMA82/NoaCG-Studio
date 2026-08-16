@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AssetFile, Resolution } from '../../../model/types';
 import type { ProjectFormatSelection } from '../../../model/projectFormat';
 import type { DesignArt } from '../../../model/wizard';
 import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
+import { probeAsset } from '../../../assets/assetInfo';
 import { isTemplateFile, type ImportedTemplateResult } from '../../../model/importTemplate';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
 
@@ -59,6 +60,33 @@ export default function ImportDesignStep({
   const preview = art ? images.find((a) => a.path === art.path) : null;
   const fullFrame = !!art && art.width === resolution.width && art.height === resolution.height;
   const scaled = !!art && art.sourceWidth != null;
+
+  /**
+   * Does this artwork carry transparency at all? A graphic that fills the frame with no
+   * transparent pixel anywhere COVERS THE LIVE PICTURE - correct for a full-screen card, and
+   * the commonest thing to get wrong when a lower third is exported with the footage or the
+   * mock-up background still behind it. Nothing here blocks: a full-frame card is a real
+   * graphic, so this states the fact and names both readings.
+   *
+   * `probeAsset` samples a 64x64 downscale, so it answers "any transparency anywhere" rather
+   * than a proportion - which is exactly the question. Unknown (a canvas readback the browser
+   * refused) says nothing at all, since a guess here would be a warning about someone's
+   * correct file.
+   */
+  const [opaque, setOpaque] = useState(false);
+  useEffect(() => {
+    if (!preview) {
+      setOpaque(false);
+      return;
+    }
+    let alive = true;
+    void probeAsset(preview)
+      .then((info) => alive && setOpaque(info.hasAlpha === false))
+      .catch(() => alive && setOpaque(false));
+    return () => {
+      alive = false;
+    };
+  }, [preview]);
 
   /** The artwork's real pixel size — an <img> is the only thing that actually knows it. */
   const measure = (dataUrl: string) =>
@@ -230,6 +258,14 @@ export default function ImportDesignStep({
                   ? `Larger than the ${resolution.width} × ${resolution.height} frame, so it is scaled down to fit it (the extra resolution keeps it sharp) and placed as an object you can position.`
                   : `Smaller than the ${resolution.width} × ${resolution.height} frame, so it is placed as an object you can position and resize.`}
           </p>
+          {fullFrame && opaque && (
+            <p className="status-warn" data-testid="import-opaque-warning">
+              This artwork fills the frame and has no transparent areas, so on air it covers the
+              whole picture. That is right for a full-screen card — and wrong for a lower third
+              exported with its background or mock-up footage behind it. If the video should show
+              through, export it again as a PNG or WebP with a transparent background.
+            </p>
+          )}
           {!scaled &&
             art.width / art.height === resolution.width / resolution.height &&
             (art.width < resolution.width || art.height < resolution.height) && (

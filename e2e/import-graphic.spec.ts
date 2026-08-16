@@ -833,3 +833,48 @@ test('the Text step places a picture slot the operator fills from the control pa
   });
   expect(built).toEqual({ ftype: 'filelist', img: true, sized: true });
 });
+
+test('import graphic: full-frame artwork with no transparency says it will cover the picture', async ({ page }) => {
+  // The commonest export mistake: the lower third saved with its mock-up background (or a
+  // frame of footage) still behind it. On air that covers the live picture completely. It is
+  // stated, never blocked — a full-screen card is a real graphic with the same pixels.
+  await page.goto('/app');
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920;
+    canvas.height = 1080;
+    const g = canvas.getContext('2d')!;
+    g.fillStyle = '#0b0f16';
+    g.fillRect(0, 0, 1920, 1080); // opaque, edge to edge
+    g.fillStyle = '#161d2a';
+    g.fillRect(120, 760, 900, 190);
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/png'));
+    const dt = new DataTransfer();
+    dt.items.add(new File([blob!], 'flattened.png', { type: 'image/png' }));
+    const input = document.querySelector('.wz-drop input[type=file]') as HTMLInputElement;
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(page.getByTestId('import-opaque-warning')).toBeVisible();
+
+  // The same design exported properly — a strap on transparency — says nothing.
+  await page.locator('.wz-drop').click({ position: { x: 10, y: 10 } });
+  await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920;
+    canvas.height = 1080;
+    const g = canvas.getContext('2d')!;
+    g.clearRect(0, 0, 1920, 1080);
+    g.fillStyle = '#161d2a';
+    g.fillRect(120, 760, 900, 190);
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/png'));
+    const dt = new DataTransfer();
+    dt.items.add(new File([blob!], 'strap.png', { type: 'image/png' }));
+    const input = document.querySelector('.wz-drop input[type=file]') as HTMLInputElement;
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(page.locator('.asset-card')).toContainText('strap.png');
+  await expect(page.getByTestId('import-opaque-warning')).toHaveCount(0);
+});
