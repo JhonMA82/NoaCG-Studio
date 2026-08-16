@@ -153,7 +153,7 @@ export async function suggestFieldsForArtwork(
   designHeight: number,
 ): Promise<SuggestResult> {
   const none = (refusal: string): SuggestResult => ({ fields: [], plate: null, refusal });
-  let raster: Raster | null = null;
+  let raster: Raster | null;
   try {
     raster = rasterize(await loadImage(dataUrl));
   } catch {

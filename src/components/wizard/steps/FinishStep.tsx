@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ALL_PRESETS } from '../../../blocks/presetRegistry';
 import { FONTS } from '../../../model/fonts';
 import type { SpxTemplate } from '../../../model/types';
+import type { ImportedTemplateResult } from '../../../model/importTemplate';
 import type { Show } from '../../../model/shows';
 import { paletteById, type TemplateVariant } from '../../../model/wizard';
 import { isRenderConfigured } from '../../../render/config';
@@ -112,6 +113,29 @@ export function aiSummaryRows(template: SpxTemplate, valid: boolean): SummaryRow
   // otherwise), so this states what happened rather than claiming a bench that never ran.
   rows.push({ label: 'Checks', value: valid ? 'Passed validation' : 'Some checks are failing' });
   return rows;
+}
+
+/**
+ * Imported-file read-back: a template somebody else's tool wrote. It reports what was FOUND,
+ * never what was configured — nothing here was chosen in this wizard — and leads with the
+ * operator fields, because those are what decides whether the file is usable on air or just
+ * a picture that plays.
+ */
+export function importedSummaryRows(imported: ImportedTemplateResult): SummaryRow[] {
+  const { template, detection } = imported;
+  const count = template.fields.length;
+  return [
+    { label: 'Template', value: template.name },
+    {
+      label: 'Project format',
+      value: `${formatProjectSummary(template.resolution, template.fps)}${detection.certain ? '' : ' (assumed)'}`,
+    },
+    {
+      label: 'Operator fields',
+      value: count > 0 ? `${count} — ${template.fields.map((f) => f.title || f.field).join(', ')}` : 'None found',
+    },
+    { label: 'Code', value: 'Kept exactly as written' },
+  ];
 }
 
 /**
@@ -269,11 +293,17 @@ export default function FinishStep({
           >
             <span className="wz-entry-head">
               <span className="wz-entry-icon">‹›</span>
-              <strong>Open in the editor</strong>
+              {/* Named ALPHA on the door itself, not in a note somebody reads afterwards: the
+                  editor is real and useful, and it is also the surface most likely to behave
+                  in ways a student did not expect. Saying so here is what keeps that a known
+                  trade rather than a broken promise. */}
+              {/* `.wz-beta-tag` is the shared MATURITY-TAG style (the video strip's Beta chip
+                  wears it too); the word in it is what says which stage this is. */}
+              <strong>Open in the editor <span className="wz-beta-tag">Alpha</span></strong>
             </span>
             <span className="hint">
-              Fine-tune fields, motion and code on the canvas and timeline. Nothing is written
-              to your library until you press Save.
+              Fine-tune fields, motion and code on the canvas and timeline. Still rough — expect
+              sharp edges. Nothing is written to your library until you press Save.
             </span>
           </button>
         )}

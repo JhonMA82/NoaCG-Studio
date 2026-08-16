@@ -719,3 +719,71 @@ test('the Text step gives the placement canvas more room than the passive previe
   expect(working.width).toBeGreaterThan(preview.width);
   expect(working.width).toBeGreaterThan(700); // and it actually grew, not just won by shrinking the preview
 });
+
+/** A finished SPX template as a file — what a student who already has the graphic brings. */
+const FINISHED_TEMPLATE = `<!doctype html>
+<html><head><meta charset="utf-8"><title>Studio strap</title>
+<style>
+  body { margin: 0; background: transparent; }
+  #root { position: absolute; left: 120px; top: 760px; width: 900px; height: 190px;
+          background: #12203a; color: #fff; font: 700 54px/1 sans-serif; padding: 24px; box-sizing: border-box; }
+</style>
+<script>
+  window.SPXGCTemplateDefinition = { description: 'Studio strap', DataFields: [
+    { field: 'f0', ftype: 'textfield', title: 'Name', value: 'Alexandra Riva' },
+    { field: 'f1', ftype: 'textfield', title: 'Title', value: 'Correspondent' } ] };
+  function update(data) {}
+  function play() {}
+  function stop() {}
+  function next() {}
+</script></head>
+<body><div id="root"><span id="f0">Alexandra Riva</span><span id="f1">Correspondent</span></div></body></html>`;
+
+test('import graphic: a finished .html template comes in as itself, fields and all', async ({ page }) => {
+  // "I already have this graphic" is the same errand as "I already have this picture", so the
+  // same drop zone takes both and the FILE decides the walk. A template has nothing to erase,
+  // place or animate — it declares all three — so its rail is two stops, not six.
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles({
+    name: 'studio-strap.html',
+    mimeType: 'text/html',
+    buffer: Buffer.from(FINISHED_TEMPLATE, 'utf8'),
+  });
+
+  // What it FOUND — led by the operator fields, which are what make it usable on air rather
+  // than a picture that plays.
+  await expect(page.getByTestId('import-template-card')).toContainText('Studio strap');
+  await expect(page.getByTestId('import-template-fields')).toContainText('Name, Title');
+  await expect(page.locator('.wz-dots .wz-dot')).toHaveCount(3);
+
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('wz-finish-production-go')).toBeVisible();
+  await expect(page.getByTestId('wz-finish-export')).toBeVisible();
+  // The editor is never the way out of an import: the default studio hides that door.
+  await expect(page.getByTestId('wz-finish-editor')).toHaveCount(0);
+  await expect(page.locator('.wz-finish-summary')).toContainText('Kept exactly as written');
+});
+
+test('import graphic: the imported template exports as the code that was dropped', async ({ page }) => {
+  await page.goto('/app');
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles({
+    name: 'studio-strap.html',
+    mimeType: 'text/html',
+    buffer: Buffer.from(FINISHED_TEMPLATE, 'utf8'),
+  });
+  await page.locator('.wz-next').click();
+  await page.getByTestId('wz-finish-name').fill('Studio strap A');
+  await page.getByTestId('wz-finish-export').click();
+
+  // The export door saves first, so the working project IS the imported file — its own markup,
+  // its own fields, under the name that slugs the package.
+  const built = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore');
+    const t = useTemplateStore.getState().template;
+    return { name: t.name, fields: t.fields.map((f) => f.title), root: t.html.includes('id="root"') };
+  });
+  expect(built).toMatchObject({ name: 'Studio strap A', fields: ['Name', 'Title'], root: true });
+});
