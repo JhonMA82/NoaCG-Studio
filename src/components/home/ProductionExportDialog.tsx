@@ -96,6 +96,14 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
             Every package also carries <strong>FIELDS.md</strong> — each graphic's fields with the
             ID a playout client sends them under (<code>f0</code>, <code>f1</code>, …).
           </p>
+          {/* A package is an OFFLINE copy, and SPX is the target most likely to be picked while
+              actually wanting the live production - the two arrive as folders of HTML and look
+              alike. Naming the other door here is cheaper than discovering the difference on air. */}
+          <p className="hint">
+            A package is a self-contained copy, driven by the playout host. To put this
+            <strong> live</strong> production into SPX instead - cued from here, from the control
+            page or from a phone - use <strong>Links → SPX template</strong> on the production page.
+          </p>
 
           {blocked.length > 0 && (
             <div className="status-bad" data-testid="prod-export-blocked">
