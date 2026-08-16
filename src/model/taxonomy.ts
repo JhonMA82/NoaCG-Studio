@@ -172,7 +172,10 @@ export const GRAPHIC_CATEGORIES: GraphicCategory[] = [
   { id: 'info',        name: 'Information cards',       subtypes: ['explainer', 'spec', 'key-term', 'step', 'checklist', 'fact', 'disclaimer'], coverage: 'panel' },
   { id: 'question',    name: 'Questions & chat',        subtypes: ['viewer-question', 'qa-card', 'chat-highlight', 'queue'], coverage: 'panel' },
   { id: 'quote',       name: 'Quotes & statements',     subtypes: ['quote', 'scripture', 'excerpt', 'headline', 'fact-check'], coverage: 'panel' },
-  { id: 'scoreboard',  name: 'Scoreboards',             subtypes: ['match-score', 'simple-score', 'round-indicator'], coverage: 'overlay' },
+  // 'podium' joined with the podium board (types/podiumScore.ts): a game show's contestant
+  // scores are not a two-team duel and not a retyped list — up to four name-over-points
+  // columns with per-player steppers is its own graphic an operator reaches for by name.
+  { id: 'scoreboard',  name: 'Scoreboards',             subtypes: ['match-score', 'simple-score', 'podium', 'round-indicator'], coverage: 'overlay' },
   // 'timing-tower' is its own subtype rather than one more leaderboard: a leaderboard is a
   // claim about a finished set of results and a tower is the session happening, which is a
   // different graphic in shape, in placement and in how long it stays on air. Filing it under

@@ -5824,6 +5824,25 @@ h2 + .lib-row,
 .pd-action { font-size: 12.5px; padding: 6px 11px; }
 .pd-action.destructive { border-color: #7a4a2a; }
 .pd-action.destructive:hover:not(:disabled) { border-color: var(--accent); }
+/* ± LIVE NUMBERS — one label + a −/+ pair per number field, reading as one control. The pair
+   shares the ⚡ actions' chrome (same block, same disabled logic) so "acts on air" reads the
+   same in both sections. */
+.pd-live-number {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-panel, rgba(255, 255, 255, 0.02));
+}
+.pd-live-number-label { font-size: 12px; color: var(--text-dim); }
+.pd-live-number button {
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 10px;
+  min-width: 32px; /* a press target under pressure, not a hairline glyph */
+}
 
 /* The production workspaces: Playout | Data (docs/INTERACTIVE_PLAYOUT_PLAN.md D6). */
 .pd-tabs { display: inline-flex; margin-left: 10px; }
