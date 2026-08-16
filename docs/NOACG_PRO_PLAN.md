@@ -2291,3 +2291,31 @@ sibling-panel blind spot above rather than real. **A large part of the catalog q
 the footage being dark**, which is a fact nobody had measured and not, by itself, a defect: glass
 and panel-less designs are deliberate compositions. Nothing is gated on this. The number that
 would justify gating does not exist yet.
+
+### 17.9 ls17's dead space - 2026-08-16
+
+Measured before touching anything, which is what made the fix a one-liner instead of a redesign.
+`.lower-third-accent` carried `margin: 15px 0 13px`, and its own source comment defended the
+bottom half: it "holds even when the rule closes the strap with no institution under it". With no
+institution line (`f3` is emitted only when the design is created with four lines) the rule IS the
+last child, so those 13px sat on top of the panel's own 26px of padding - **39px of nothing under
+a 2px hairline.**
+
+**The gap now belongs to the line it separates.** The rule keeps its air above; the 13px moved to
+`.lower-third-extra`'s `margin-top`. A space owned by the element it sets apart cannot outlive it,
+so no selector trick is needed - no `:last-child`, no `:has`, nothing an older CasparCG build
+would have to support.
+
+| | before | after |
+|---|---|---|
+| two lines (no institution) | strap 130px, 13px under the rule | **strap 117px, 0px under the rule** |
+| four lines | strap 196px, 38px under the rule | **strap 196px, 38px** - byte-identical |
+
+The rule is emitted unconditionally and stays that way: the animation data keyframes that node by
+selector, so an element that came and went with a field would leave the timeline and the
+line-reveal preset addressing something that is not there. That was already the right call and the
+comment defending it is kept; only the margin moved.
+
+**Catalog gates, all green after the change**: `type-floor`, `numerals`, `field-coverage`,
+`overflow-sweep --baseline` and the lower-third `l3-sweep` (whose ls17 frame shows the four-line
+composition unchanged).
