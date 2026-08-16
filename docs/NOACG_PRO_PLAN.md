@@ -2487,7 +2487,7 @@ Three decisions in it are worth carrying to the next sweep of this shape:
 | claim | threshold | stated | MEASURED (worst, whole package) | where |
 | --- | --- | --- | --- | --- |
 | `padding-tight` | floor 0.28 | 0.34 | **0.33** | strap, compact |
-| `padding-lopsided` | limit 2.6x | "exactly 1.0x" | **1.00** on 580 of 582 cells, **1.06** worst | a bug in Oswald |
+| `padding-lopsided` | limit 2.6x | "exactly 1.0x" | **1.00** on 790 of the 792 readings that have one, **1.06** worst | one bug in Oswald |
 | `lines-adrift` | ceiling 1.4 | 0.83 | **1.20** | countdown, airy + block accent |
 | `text-crowds-rule` | band 0.02-0.12 | 0.45 | **0.14** | countdown, compact + block accent |
 | `type-ratio-thin` | floor 0.28 | 0.36 | **0.35** | strap, compact + strong step |
@@ -2496,7 +2496,7 @@ Three decisions in it are worth carrying to the next sweep of this shape:
 | `footprint-large` | ceiling 0.10 | ~0.071 | **0.08** control words, **0.14 stress - BREACHED** | strap, airy |
 | `mark-oversized` | ceiling 3.2 | 1.2 | **1.56** strap, **2.67** bug (ceiling 5.5 there) | square crest at the slot's cap |
 | `mark-crowded` | band 0.35-2.1 | 0.48 seated / 0.72 banded | **0.48** strap (confirmed), **0.83-0.87** bug | - |
-| `text-escapes-panel` | - | "structurally impossible" | **zero escapes in 1164 readings** (confirmed) | - |
+| `text-escapes-panel` | - | "structurally impossible" | **zero escapes in the 792 readings that have a panel** (confirmed) | - |
 
 **Two survived and nine moved.** What survived is the structural claim and the one reading anybody
 had ever rendered. Two of the nine are worth more than their arithmetic:
@@ -2519,8 +2519,9 @@ had ever rendered. Two of the nine are worth more than their arithmetic:
 `footprint-large` **is breached**, and it is recorded as a breach rather than retuned.
 
 A long name and a 60-character role at airy density widen the fit-content panel to the auto-fit
-cap, and the strap then covers **14% of the frame against a 10% ceiling** - on **59 of 254 strap
-readings**, 46 of them airy. For scale: the instrument's ceiling was calibrated where the
+cap, and the strap then covers **14% of the frame against a 10% ceiling** - on **59 of the 162
+strap stress readings that produce a footprint at all** (36%; a panel-free super has none), 46 of
+them airy, and **zero at the control's words**. For scale: the instrument's ceiling was calibrated where the
 catalog's largest shipped design is 0.09 and the owner's own *"the box is way too big"* sat at
 0.12. At the control's words nothing fires and the strap measures 0.07, which is why every
 previous look at this number agreed with the claim.

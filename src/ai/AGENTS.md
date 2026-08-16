@@ -744,11 +744,12 @@ Five rules bind anyone editing it:
   browser painted, and leading, the mask idiom, a size floor firing above its anchor and a
   fit-content panel all move it. `text-crowds-rule` was stated at 0.45 and measures 0.14 - the
   `block` accent's slab is a rule too, and the gap to it is the LINE gap, not `RULE_GAP_RATIO`.
-  **`footprint-large` is BREACHED** at the stress words (0.14 against a 0.10 ceiling, 59 of 254
-  strap readings); the instrument reports and does not gate, so what changed is that the file no
+  **`footprint-large` is BREACHED** at the stress words (0.14 against a 0.10 ceiling, on 59 of the
+  162 strap stress readings that have a footprint, and none at the control's words); the
+  instrument reports and does not gate, so what changed is that the file no
   longer claims a margin it does not have. `padding-lopsided` and `text-escapes-panel` are the two
   that hold - opposite sides are equal in every declaration, and no text escaped its panel in any
-  of the 1164 readings. **State a margin only with the frame that produced it.**
+  of the 792 readings that have one. **State a margin only with the frame that produced it.**
 - **IT COMPOSES THROUGH THE CATALOG'S OWN ASSEMBLER.** `compose.ts` builds a real `TemplateVariant`
   through `defineVariant`, so a Phase A graphic inherits the `:root` contract, the auto-fit
   `width: fit-content` box (**which is why text can never escape its panel**), the mask idiom, the

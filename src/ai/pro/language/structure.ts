@@ -17,9 +17,10 @@
 // the WORST the whole package produced, with the cell that produced it:
 //
 //   padding-tight        floor 0.28 type sizes  · tightest 0.33   (strap, compact)
-//   padding-lopsided     limit 2.6x             · 1.00 on every grid cell; 1.06 worst, and that
-//                                                 is a FACE's line box (a bug in Oswald), never
-//                                                 a padding - the CSS sides stay equal
+//   padding-lopsided     limit 2.6x             · 1.00 on 790 of the 792 readings that have one;
+//                                                 1.06 worst, and that is a FACE's line box (one
+//                                                 bug in Oswald), never a padding - the CSS
+//                                                 sides stay equal
 //   lines-adrift         ceiling 1.4            · widest 1.20    (countdown, airy + block accent:
 //                                                 the block's own padding rides on the line gap)
 //   text-crowds-rule     band 0.02-0.12         · nearest 0.14    (countdown, compact + block).
@@ -32,15 +33,18 @@
 //   panel-oversized      fill floor 0.18        · lowest 0.34     (countdown, airy + strong step)
 //   footprint-large      ceiling 0.10 of frame  · 0.08 at the control's words - and 0.14 at the
 //                                                 STRESS words, which BREACHES the ceiling on 59
-//                                                 of 254 strap readings, 46 of them airy. THE ONE
-//                                                 MARGIN THIS FILE DOES NOT HAVE; see below
+//                                                 of the 162 strap stress readings that produce a
+//                                                 footprint, 46 of them airy, and none at the
+//                                                 control's words. THE ONE MARGIN THIS FILE DOES
+//                                                 NOT HAVE; see below
 //   mark-oversized       ceiling 3.2 type sizes · 1.56 on the strap, 2.13-2.67 on the bug (whose
 //                                                 own ceiling is 5.5). NOT 1.2: the shared slot
 //                                                 caps a mark at 84px (`MARK_MAX_HEIGHT_PX`) and
 //                                                 a square crest reaches it, so 84/54 = 1.56
 //   mark-crowded/adrift  band 0.35-2.1          · 0.48 on the strap, 0.83-0.87 on the bug
-//   text-escapes-panel   -                      · ZERO in 1164 readings - the box is
-//                                                 `width: fit-content` with the category's
+//   text-escapes-panel   -                      · ZERO in the 792 readings that HAVE a panel to
+//                                                 escape (a panel-free super has none) - the box
+//                                                 is `width: fit-content` with the category's
 //                                                 auto-fit cap, so it is SIZED BY its text
 //
 // OF THE ELEVEN LINES, TWO SURVIVED AND NINE MOVED. What survived is the structural claim (no
@@ -63,9 +67,9 @@
 //
 // The five failures §15.2 decomposed were all panel layout, and four of them are gone here by
 // construction rather than by a check: a panel sized by its own text cannot be overflowed (now
-// measured, 1164 readings, zero escapes), a rule placed by the platform cannot be sat on, a
-// graphic anchored in the type's own zone cannot be stranded in a corner, and a mark column
-// capped against the type size cannot inflate the composition.
+// measured over the 792 readings that have a panel at all, zero escapes), a rule placed by the
+// platform cannot be sat on, a graphic anchored in the type's own zone cannot be stranded in a
+// corner, and a mark column capped against the type size cannot inflate the composition.
 //
 // WHAT THE MODEL DECIDES is which of these arrangements to use and what it looks like - see
 // contract.ts. Nothing in this file is reachable from the model's answer except by picking one of
@@ -223,8 +227,9 @@ const STEP_RATIO: Record<TypeStep, number> = { subtle: 0.62, clear: 0.48, strong
  *
  * OPPOSITE SIDES ARE ALWAYS EQUAL, which is what retires `padding-lopsided` structurally - and
  * the 2026-08-16 sweep is the first thing to check that in a browser rather than in this table.
- * Rendered, 580 of 582 cells read exactly 1.00; the two that do not are a sponsor bug set in
- * Oswald, at 1.06. **That is a FACE's line box, not a padding**: the instrument measures from the
+ * Rendered, 790 of the 792 readings that HAVE a skew (a panel-free super has none) come back at
+ * exactly 1.00; the two that do not are one sponsor bug set in Oswald, read at both content
+ * shapes, at 1.06. **That is a FACE's line box, not a padding**: the instrument measures from the
  * panel's edge to the bounding box of what it holds, and a face whose ascent and descent sit
  * asymmetrically inside its line box moves that bounding box without moving a single declaration
  * here. 1.06 against a 2.6x limit, so it costs nothing - but "exactly 1.0" was a claim about CSS
