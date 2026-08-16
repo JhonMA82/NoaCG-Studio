@@ -263,3 +263,117 @@ export function clockSpanHtml(id: string, direction: 'up' | 'down', start: strin
   const cls = extraClass === '' ? 'scoreboard-clock' : `scoreboard-clock ${extraClass}`;
   return `<span id="${id}" class="${cls}" data-count="${direction}" data-start="${esc(start)}">${esc(start)}</span>`;
 }
+
+// ── The podium board (game shows) ────────────────────────────────────────────
+
+/** One design's starting values for the podium contract. */
+export interface PodiumSamples {
+  heading?: string;
+  names?: [string, string, string, string];
+  scores?: [string, string, string, string];
+}
+
+const PODIUM_NAMES: [string, string, string, string] = ['MAYA', 'JONAS', 'PRIYA', 'SAM'];
+
+/**
+ * The PODIUM BOARD contract — up to four contestants, each a name and a score, for the game
+ * show a two-team scorebug cannot serve. f0 heading · f1/f3/f5/f7 names · f2/f4/f6/f8 scores ·
+ * f9 the spotlight index (DATA — the machine's `spotlight` payload names a podium, so one
+ * state carries any of the four; see types/podiumScore.ts).
+ *
+ * FOUR PODIUMS IS THE CONTRACT, THREE OR TWO IS CONTENT: a cleared name hides that podium
+ * (the runtime toggles `scoreboard-podium-empty`), the same rule that lets a lower third drop
+ * its role line. A quiz with three contestants is a smaller podium board, not a different
+ * graphic — "parameterize with data, not states", applied to people.
+ *
+ * The scores are `number` for the scorebug's reason, doubled: game-show points change every
+ * question, so they must be one press on every control surface.
+ */
+export function podiumFields(s: PodiumSamples = {}): SpxField[] {
+  const names = s.names ?? PODIUM_NAMES;
+  const scores = s.scores ?? ['0', '0', '0', '0'];
+  const out: SpxField[] = [
+    { field: 'f0', ftype: 'textfield', title: 'Heading', value: s.heading ?? 'SCORES' },
+  ];
+  for (let i = 0; i < 4; i += 1) {
+    out.push({ field: `f${i * 2 + 1}`, ftype: 'textfield', title: `Player ${i + 1}`, value: names[i] });
+    out.push({ field: `f${i * 2 + 2}`, ftype: 'number', title: `Score ${i + 1}`, value: scores[i] });
+  }
+  out.push({ field: 'f9', ftype: 'number', title: 'Spotlit podium (1-4, 0 = none)', value: '0' });
+  return out;
+}
+
+/** The four podium columns — shared markup so every design pairs the same ids the same way.
+ *  The design's CSS draws the columns; this fixes only the id ↔ podium pairing. */
+export function podiumColumnsHtml(names: readonly string[], scores: readonly string[]): string {
+  return [0, 1, 2, 3].map((i) => `        <!-- Podium ${i + 1}: name over score. An empty name hides the whole column. -->
+        <div class="scoreboard-podium scoreboard-podium-${i + 1}">
+          <div class="scoreboard-mask"><span id="f${i * 2 + 1}" class="scoreboard-team">${esc(names[i])}</span></div>
+          <div class="scoreboard-chip">
+            <div class="scoreboard-mask"><span id="f${i * 2 + 2}" class="scoreboard-score">${esc(scores[i])}</span></div>
+          </div>
+        </div>`).join('\n');
+}
+
+/** The hidden spotlight holder — the `spotlight` event's payload field. */
+export function spotlightHolderHtml(id: string, value = '0'): string {
+  return `      <!-- Spotlight index — a hidden holder; the machine's spotlight payload writes it. -->
+      <div id="${id}" class="scoreboard-spotlight-src ${DATA_SOURCE_CLASS}">${esc(value)}</div>`;
+}
+
+/**
+ * The podium runtime — design-owned JS outside the marked region (the boardRuntimes rule).
+ *
+ * `rebuildScoreboard` is the name the assembler's update() already calls, so empty-podium
+ * collapse and the spotlight repaint ride every data write with no extra wiring. The spotlight
+ * CLASS is repainted from the MACHINE plus the field, never toggled imperatively alone — a
+ * class is what a visual reset does not touch, so a board recovered mid-show would otherwise
+ * come back spotlit while its machine says level (the paintMatchState recovery rule).
+ */
+export function podiumRuntimeJs(): string {
+  return `// ── Podium runtime: empty-podium collapse + the spotlight state's painter. ──
+
+// rebuildScoreboard(): called by update() after every data write, and at load.
+// A podium whose NAME is empty disappears whole — three contestants is content, not a state.
+function rebuildScoreboard() {
+  for (var i = 1; i <= 4; i += 1) {
+    var name = document.getElementById('f' + (i * 2 - 1));
+    var podium = document.querySelector('.scoreboard-podium-' + i);
+    if (!name || !podium) continue;
+    var empty = String(name.textContent || '').trim() === '';
+    podium.classList.toggle('scoreboard-podium-empty', empty);
+  }
+  paintSpotlight();
+}
+
+// paintSpotlight(): make the columns agree with the MACHINE + the index field. Repainted
+// rather than toggled so recovery (snap suppresses state callbacks) still lands right.
+function paintSpotlight() {
+  var idx = 0;
+  var inSpotlight = false;
+  if (typeof noacgMachineState === 'function') {
+    var groups = (noacgMachineState() || {}).groups || {};
+    for (var id in groups) if (groups[id] === 'spotlight') inSpotlight = true;
+  }
+  var src = document.getElementById('f9');
+  if (inSpotlight && src) idx = parseInt(src.textContent || '0', 10) || 0;
+  for (var i = 1; i <= 4; i += 1) {
+    var podium = document.querySelector('.scoreboard-podium-' + i);
+    if (!podium) continue;
+    podium.classList.toggle('scoreboard-podium-spot', idx === i);
+    podium.classList.toggle('scoreboard-podium-dim', idx !== 0 && idx !== i);
+  }
+}
+
+// applySpotlight() / clearSpotlight(): the state effects the machine's timelines name.
+// One state carries any podium — re-entering spotlight with a new payload moves it.
+function applySpotlight() { paintSpotlight(); }
+function clearSpotlight() { paintSpotlight(); }
+
+// First paint: collapse any podium the design ships empty, before the entrance runs.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', rebuildScoreboard);
+} else {
+  rebuildScoreboard();
+}`;
+}

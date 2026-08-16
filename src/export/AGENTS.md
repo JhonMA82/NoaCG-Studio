@@ -36,6 +36,20 @@ export-time reflow, stretching, or cropping.
   index.html-per-folder package listed every NoaCG template as "index" (real SPX packs name
   every template file - see example_projects/). The show export passes `fileName` so a
   collision-suffixed folder and its file agree (`ticker_2/ticker_2.html`).
+- **outputEmbed.ts** - the OUTPUT EMBED: one standalone .html that frames a published production's
+  `/output?production=<slug>` URL, downloaded from the production page's Links block beside the URL
+  itself (never from the export dialog - it packages no graphics, it IS that link in another
+  shape). It exists because an SPX rundown lists template FILES out of ASSETS/templates and has
+  nowhere to paste a URL, so the cloud output reached every playout host except the canonical one.
+  It is a legal SPX template (definition + the classic play/stop/update/next globals) whose verbs
+  move the FRAME only: Play shows it, Stop hides it, and cues stay with the NoaCG operator, because
+  the file carries the OUTPUT capability alone - a template that could air a cue would have to
+  carry the control slug onto every playout machine. The emitted script is **ES5 with a
+  color-scheme meta**, for the two failure modes docs/CLOUD_PLAYOUT.md §3 records: CasparCG 2.3.x's
+  ~Chromium 65 CEF rejects the whole file on a `?.`, and Chromium paints a framed page opaque when
+  the schemes disagree. `update()` re-points the frame at another production and only reloads on a
+  REAL change - a repeat would throw the connection away and rebuild what is on air. Pinned by the
+  two embed cases in e2e/productions.spec.ts, which run the generated file for real.
 - **onAirGuide.ts** - GETTING-ON-AIR.md, the playout-side quick guide bundled into the SPX,
   CasparCG, HTML-overlay and show packages (condensed from docs/PLAYOUT_INTEGRATION.md - keep
   them in agreement). It carries the control panel's connectivity truth: BroadcastChannel is

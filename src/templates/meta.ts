@@ -141,6 +141,19 @@ export const TYPE_META: Record<string, DeclaredTemplateMeta> = {
     semantics: { teamA: 'team', scoreA: 'score', teamB: 'team', scoreB: 'score' },
     extraCapabilities: ['score-controls', 'clock', 'pause-resume', 'operator-states'],
   },
+  'podium-score': {
+    category: 'scoreboard', subtype: 'podium', structures: ['strip', 'multi-person'],
+    // Positional over the type's field order (heading, then name/score × 4); the trailing
+    // spotlight index has no honest semantic and falls through to the default.
+    semantics: {
+      heading: 'headline',
+      name1: 'name', score1: 'score',
+      name2: 'name', score2: 'score',
+      name3: 'name', score3: 'score',
+      name4: 'name', score4: 'score',
+    },
+    extraCapabilities: ['score-controls', 'operator-states'],
+  },
   'quiz-board': {
     category: 'poll-quiz', subtype: 'quiz-question', structures: ['rows', 'full-panel'],
     coverage: 'panel',

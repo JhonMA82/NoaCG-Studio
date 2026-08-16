@@ -22,6 +22,8 @@ import { sb17 } from './sb17';
 import { sb18 } from './sb18';
 import { sb19 } from './sb19';
 import { sb20 } from './sb20';
+import { sb21 } from './sb21';
+import { sb22 } from './sb22';
 
 export const SCOREBOARDS: TemplateVariant[] = [
   sb01, // Match Strip — sport leaning slab (sibling lt05/lt06)
@@ -48,6 +50,9 @@ export const SCOREBOARDS: TemplateVariant[] = [
   sb18, // Volt Event Card — sport strap, colour minute block (sibling sb06)
   sb19, // Frost Event Card — glass card, soft minute chip (sibling sb07)
   sb20, // Club Event Card — minimal flat card, the local/amateur event (sibling sb08)
+  // ── The podium board: game-show contestant scores (types/podiumScore.ts) ──
+  sb21, // Volt Podiums — sport slab, four name-over-points columns, spotlight (sibling sb01)
+  sb22, // House Podiums — noacg void strip, amber chip columns, spotlight (sibling sb03)
 ];
 
 export function scoreboardById(id: string): TemplateVariant | undefined {

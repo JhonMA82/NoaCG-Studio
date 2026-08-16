@@ -9,12 +9,14 @@ import type { TemplateVariant } from '../model/wizard';
 import {
   ALIASES,
   CAPABILITIES,
+  CATEGORY_GROUP_OF,
   FAMILIES,
   FORMATS,
   graphicCategoryById,
   SEMANTIC_LABELS,
   STRUCTURE_LABELS,
   type CapabilityId,
+  type CategoryGroupId,
   type GraphicCategoryId,
   type MotionIntensity,
   type PlacementId,
@@ -33,7 +35,11 @@ export interface BrowseFilters {
   /** Ranking facet — never hides (proposal §13.1). */
   family: ProgrammeFamilyId | null;
   format: ProgrammeFormatId | null;
-  /** Strict facets. */
+  /** Strict facets. `group` is the lead dropdown's shelf (model/taxonomy.ts
+   *  CATEGORY_GROUPS); `category` narrows further to one member category via the group's
+   *  refinement chips. A set category always implies its group's result or narrower, so the
+   *  two compose without ordering rules. */
+  group: CategoryGroupId | null;
   category: GraphicCategoryId | null;
   fieldBucket: FieldBucket | null;
   style: StyleTag | null;
@@ -47,6 +53,7 @@ export const NO_BROWSE_FILTERS: BrowseFilters = {
   query: '',
   family: null,
   format: null,
+  group: null,
   category: null,
   fieldBucket: null,
   style: null,
@@ -74,6 +81,7 @@ function bucketMatches(bucket: FieldBucket, meta: TemplateMeta): boolean {
 }
 
 function passesStrictFilters(meta: TemplateMeta, f: BrowseFilters): boolean {
+  if (f.group && CATEGORY_GROUP_OF[meta.category] !== f.group) return false;
   if (f.category && meta.category !== f.category) return false;
   if (f.fieldBucket && !bucketMatches(f.fieldBucket, meta)) return false;
   if (f.style && meta.styleFamily !== f.style) return false;
@@ -292,7 +300,7 @@ export function browseTemplates(filters: BrowseFilters, context: BrowseContext =
  *  hatch (proposal §13.2). Returns null when no single strict filter is set. */
 export function mostRestrictiveFilter(filters: BrowseFilters): keyof BrowseFilters | null {
   const strictKeys: (keyof BrowseFilters)[] = [
-    'category', 'fieldBucket', 'style', 'structures', 'capabilities', 'placement', 'intensity',
+    'group', 'category', 'fieldBucket', 'style', 'structures', 'capabilities', 'placement', 'intensity',
   ];
   let bestKey: keyof BrowseFilters | null = null;
   let bestCount = -1;

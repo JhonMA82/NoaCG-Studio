@@ -588,6 +588,55 @@ function HostedCueEditor({
           ))}
         </div>
       )}
+
+      {/* ± LIVE NUMBERS — the production page's quick-bump, on the surface a class actually
+          operates from (the cloud-first door): one press sends a PARTIAL update carrying just
+          the bumped field, stages the same value into the shared buffer (so every open page
+          follows), and never touches the other staged edits — a bump must not publish a
+          half-typed name. Number fields an ⚡ event carries as payload are excluded: those are
+          set by their own action. */}
+      {(() => {
+        const payloadKeys = new Set(events.flatMap((e) => e.payload ?? []));
+        const numberFields = descriptors.filter((d) => d.kind === 'number' && !payloadKeys.has(d.key));
+        if (numberFields.length === 0) return null;
+        const bump = (key: string, delta: number) => {
+          const next = String((parseInt(valueOf(key), 10) || 0) + delta);
+          setEcho((v) => ({ ...v, [key]: next }));
+          setEntryId('');
+          // Immediate, not the typing debounce: the value just aired, so the shared buffer
+          // must say so now (the loadEntry precedent).
+          if (timer.current) clearTimeout(timer.current);
+          void stageHostedData(slug, cue.graphic, { [key]: next }).catch((e: Error) => onError(e.message));
+          onPreview({ ...currentValues(), [key]: next });
+          void sendHostedControl(slug, cue.graphic, { t: 'update', data: { [key]: next } })
+            .catch((err: Error) => onError(err.message));
+        };
+        return (
+          <div className="pd-editor-events pd-live-numbers" data-testid="hosted-live-numbers">
+            {numberFields.map((d) => (
+              <span key={d.key} className="pd-live-number" data-testid={`hosted-live-number-${d.key}`}>
+                <span className="pd-live-number-label">{d.label}</span>
+                <button
+                  disabled={!live}
+                  title={live ? `Changes "${d.label}" on air immediately` : 'This cue is not on air — Take it first'}
+                  onClick={() => bump(d.key, -1)}
+                  data-testid={`hosted-live-number-${d.key}-down`}
+                >
+                  −
+                </button>
+                <button
+                  disabled={!live}
+                  title={live ? `Changes "${d.label}" on air immediately` : 'This cue is not on air — Take it first'}
+                  onClick={() => bump(d.key, 1)}
+                  data-testid={`hosted-live-number-${d.key}-up`}
+                >
+                  +
+                </button>
+              </span>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }

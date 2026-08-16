@@ -3,6 +3,8 @@ import type { StyleTag } from '../../../model/fonts';
 import type { TemplateVariant } from '../../../model/wizard';
 import {
   CAPABILITIES,
+  CATEGORY_GROUP_OF,
+  categoryGroupById,
   COMPLEXITY_LABELS,
   FAMILIES,
   FORMATS,
@@ -13,7 +15,7 @@ import {
   STRUCTURE_LABELS,
   STYLE_FAMILY_LABELS,
   type CapabilityId,
-  type GraphicCategoryId,
+  type CategoryGroupId,
   type MotionIntensity,
   type ProgrammeFamilyId,
   type ProgrammeFormatId,
@@ -30,7 +32,7 @@ import {
   type BrowseResult,
   type FieldBucket,
 } from '../../../templates/search';
-import { browsableCategories, type TemplateMeta } from '../../../templates/templateMeta';
+import { browsableCategories, browsableGroups, type TemplateMeta } from '../../../templates/templateMeta';
 import type { TemplatePack } from '../../../templates/packs';
 import MiniPreview from '../MiniPreview';
 import KitPicker from './KitPicker';
@@ -221,15 +223,18 @@ function ResultCard({
 
 /**
  * The Browse step — the faceted Start-from-template storefront
- * (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12): search + ONE graphic-type dropdown with live
- * counts + style families + programme format (ranking, optional) + field buckets, with the
- * specialist facets behind one Filters disclosure. Replaces the Category → Template pair for
- * the catalog flow; filter state lives in the wizard so Back returns with filters intact.
+ * (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12, groups in §4c): search + ONE category-GROUP
+ * dropdown with live counts (ten shelves over the 27 graphic categories) + the selected
+ * shelf's member-category chips + style families + programme format (ranking, optional) +
+ * field buckets, with the specialist facets behind one Filters disclosure. Replaces the
+ * Category → Template pair for the catalog flow; filter state lives in the wizard so Back
+ * returns with filters intact.
  *
  * IT SHOWS A PAGE, NOT THE CATALOG (re-design/handoff.md §2b). The facets are unchanged and
  * still narrow the whole catalog — what changed is that the RESULT is a first page plus
- * "Show N more", and that the 22-chip type strip became a select. Both are the same fix: the
- * step's own chrome must not be the thing between a person and a design.
+ * "Show N more", and that the chip strip became a select (then a shelf select over the grown
+ * catalog). All the same fix: the step's own chrome must not be the thing between a person
+ * and a design.
  *
  * IT IS ALSO THE ONE DOOR TO A KIT. There is no separate "Start from a kit" entry card any
  * more (which reverses docs/TEMPLATE_TAXONOMY_PROPOSAL.md §18's 2026-07-23 ratification — the
@@ -272,10 +277,18 @@ export default function BrowseStep({
   // Removed before scoring rather than greyed - a card nobody can use is noise, and it would
   // otherwise inflate every category count and the "remove the most limiting filter" hint.
   const hiddenIds = useMyEntitlement().hiddenTemplates;
-  // …which is why the TYPE options are derived from the same set: the dropdown prints each
+  // …which is why the GROUP options are derived from the same set: the dropdown prints each
   // count, so one that counted a design the visitor cannot pick would not match the result.
+  const groups = useMemo(() => browsableGroups(hiddenIds), [hiddenIds]);
   const tiles = useMemo(() => browsableCategories(hiddenIds), [hiddenIds]);
-  const catalogTotal = useMemo(() => tiles.reduce((n, t) => n + t.count, 0), [tiles]);
+  const catalogTotal = useMemo(() => groups.reduce((n, g) => n + g.count, 0), [groups]);
+  // The selected shelf's member categories — the second, optional narrowing. A one-member
+  // shelf (Lower thirds, Bugs) renders no chips: a lone chip restating the dropdown's answer
+  // would be a control that changes nothing.
+  const memberTiles = useMemo(
+    () => (filters.group ? tiles.filter((t) => CATEGORY_GROUP_OF[t.category] === filters.group) : []),
+    [tiles, filters.group],
+  );
   const outcome = useMemo(
     () => browseTemplates(filters, { brandFamily, hiddenIds }),
     [filters, brandFamily, hiddenIds],
@@ -308,6 +321,14 @@ export default function BrowseStep({
     ?? FAMILIES.find((f) => f.id === filters.family)?.name;
 
   const activeStrict: { label: string; clear: () => void }[] = [];
+  if (filters.group) {
+    activeStrict.push({
+      label: categoryGroupById(filters.group).name,
+      // Clearing the shelf clears its narrowing too — a member category with no shelf has
+      // no chips row to be re-picked from.
+      clear: () => set({ group: null, category: null }),
+    });
+  }
   if (filters.category) {
     activeStrict.push({
       label: graphicCategoryById(filters.category).name,
@@ -418,15 +439,16 @@ export default function BrowseStep({
         />
       ) : (
         <>
-      {/* THE LEAD ROW (re-design/handoff.md §2b): ONE type dropdown, the style families, and
-          ONE way in to everything else.
+      {/* THE LEAD ROW (re-design/handoff.md §2b): ONE category-group dropdown, the style
+          families, and ONE way in to everything else.
 
-          THE TYPE IS A SELECT, NOT A STRIP OF CHIPS. "What kind of graphic" is the step's
-          first question and stays out of the disclosure — but it has 22 answers, and 22 of
-          anything laid out as targets is a wall whatever its per-chip height is: as cards it
-          stacked eleven rows, as chips it still took a scrolling three-row box on the step
-          whose job is showing designs. A select spends one row, states the current answer in
-          words, and carries each type's catalog count exactly as the chips did.
+          THE GROUP IS A SELECT, NOT A STRIP OF CHIPS — and it offers the TEN SHELVES
+          (model/taxonomy.ts CATEGORY_GROUPS), not the 27 graphic categories. The categories
+          stayed one dropdown for a while, but 27 answers is a wall in any control: a select
+          survives it mechanically and still buries "Lower thirds" between rows a first-time
+          user has to read past. Ten shelves each state a broadcast job in the operator's own
+          words; the precise categories remain reachable as the selected shelf's chips below,
+          and search still lands on them directly through the alias table.
 
           The style families stay CHIPS: six short answers a designer picks by feel and
           re-picks often, which is the case a chip row is for and a second dropdown is not. */}
@@ -434,16 +456,21 @@ export default function BrowseStep({
         <label className="wz-browse-type">
           {/* Hidden wording, real label — same device the format picker uses: the select's own
               text already says "Lower thirds · 82", so a visible caption would repeat it. */}
-          <span className="project-format-label">Category</span>
+          <span className="project-format-label">Graphic type</span>
           <select
             data-testid="wz-browse-type"
-            value={filters.category ?? ''}
-            onChange={(e) => set({ category: (e.target.value || null) as GraphicCategoryId | null })}
+            value={filters.group ?? ''}
+            onChange={(e) => {
+              const group = (e.target.value || null) as CategoryGroupId | null;
+              // A change of shelf drops the member-category narrowing with it — the chips
+              // below belong to the shelf they narrow.
+              set({ group, category: null });
+            }}
           >
-            <option value="">All categories · {catalogTotal}</option>
-            {tiles.map((tile) => (
-              <option key={tile.category} value={tile.category}>
-                {tile.name} · {tile.count}
+            <option value="">All graphics · {catalogTotal}</option>
+            {groups.map((g) => (
+              <option key={g.group} value={g.group}>
+                {g.name} · {g.count}
               </option>
             ))}
           </select>
@@ -451,6 +478,23 @@ export default function BrowseStep({
         {/* Second line of the lead grid, full width — see the CSS for why the row is a grid
             rather than one wrapping flex line (the step's column halves on a pick, and the
             chips collapsed into a vertical stack there). */}
+        {/* The selected shelf's member categories, only when there is a real choice to make.
+            Chips, not a second select: at most four short answers, re-picked freely. */}
+        {memberTiles.length > 1 && (
+          <div className="wz-filter-row wz-browse-cats" role="group" aria-label="Narrow the group">
+            {memberTiles.map((tile) => (
+              <button
+                key={tile.category}
+                className={`wz-filter ${filters.category === tile.category ? 'active' : ''}`}
+                onClick={() =>
+                  set({ category: filters.category === tile.category ? null : tile.category })
+                }
+              >
+                {tile.name} · {tile.count}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="wz-filter-row" role="group" aria-label="Filter by style">
           {(Object.keys(STYLE_FAMILY_LABELS) as StyleTag[]).map((t) => (
             <button

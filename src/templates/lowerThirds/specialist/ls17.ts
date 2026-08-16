@@ -231,14 +231,18 @@ ${
   width: calc(47px * var(--scale));  /* a short mark, not a rule across the panel */
   height: calc(2px * var(--scale));  /* a hairline */
   background: var(--accent);        /* the one accent surface */
-  margin: calc(15px * var(--scale)) 0 calc(13px * var(--scale));  /* air on both sides — the
-                                             bottom margin holds even when the rule closes
-                                             the strap with no institution under it */
+  margin: calc(15px * var(--scale)) 0 0;  /* air ABOVE only. The gap under the rule belongs to
+                                             the institution line and is declared there, so a
+                                             strap with no institution ends at the rule instead
+                                             of carrying 13px of nothing above the panel's own
+                                             26px of padding (owner's read, 2026-08-16) */
   transform-origin: left center;    /* line-reveal draws it from this end */
 }
 
 /* The institution (f3) — the authority line, in the accent and set in caps. */
 .lower-third-extra {
+  margin-top: calc(13px * var(--scale));  /* the rule's clear space, owned by the line it sets
+                                             apart - so it cannot outlive it */
   font-size: calc(20px * var(--scale) * var(--type-scale));  /* small, but the sharpest voice */
   font-weight: 600;                 /* semibold — small tracked caps need the weight */
   line-height: 1.25;                /* room if a long institution wraps */

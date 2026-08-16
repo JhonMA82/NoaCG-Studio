@@ -616,11 +616,23 @@ Three things this shape changed, all of them consequences rather than choices:
   are filtered because the runtime bench is chatty by design and the wire caps the list at 30, so
   bench noise would evict the Pro-owned codes. Sending errors alone is what let a repaired graphic
   write an EMPTY `validation_rule_codes` beside `usable` (§16).
-- **The mark field is ON** (`composeFromLanguage`'s `markField`, default true). What the owner
-  ruled on is the TRIGGER, not the no-plate policy: it fires only on a single-ink mark whose
-  measured `inkSpread` says it is one ink AND whose contrast on the chosen panel is under the
-  floor - once in 18 cells, on the monogram the blind read named as unfinished. Pinned as a band
-  on each side by `e2e/pro-language.spec.ts`.
+- **THE MARK IS KNOCKED, NEVER PLATED** (owner, 2026-08-16, after reading the first accepted Pro
+  set - `docs/NOACG_PRO_PLAN.md` §17.1). A single-ink mark that measures under the contrast floor
+  on the chosen panel has its ONE INK recoloured to white or black, whichever reads, and sits on
+  the panel itself; a full-colour mark keeps its colours and waits for a well the DESIGN provides.
+  **The platform paints no repair field at all any more.** The read that produced the rule is
+  subtler than "no boxes": lt07's blue well and ls10's red well were both liked, because a well a
+  design DRAWS is composition while a neutral field the platform paints around the artwork is a
+  patch. `markTreatmentFor` still fires only on a measured single ink (`MarkProbe.inkSpread`), and
+  a knock that cannot clear the floor is NOT applied - the mark is left exactly as supplied and
+  `pro-mark-unreadable` says so, because recolouring somebody's logo to something still unreadable
+  spends the alteration and buys nothing.
+  **A knock is a `filter`, and the as-is screen refuses every filter on a protected picture** - so
+  `assetIntegrity.ts` admits exactly one shape on exactly one platform-owned class
+  (`…-logo--knocked`), with nothing else in the rule. Mutation-checked: a blur, a partial
+  brightness, a drop-shadow, the same filter on another selector, and the knock smuggling a
+  `clip-path`, `border-radius` or `object-fit: cover` beside it are all still blocking errors.
+  Pinned by `e2e/pro-language.spec.ts`, which measures the emit through the REAL screen.
 
 **The concept-and-reconstruct engine is DELETED (2026-08-15).** `pro/reconstruct/` held it behind
 a build-time import boundary for one day, and both went in the same change once the last thing

@@ -10,12 +10,15 @@ import { CATEGORIES } from '../model/wizard';
 import type { StyleTag } from '../model/fonts';
 import {
   ALIASES,
+  CATEGORY_GROUP_OF,
+  CATEGORY_GROUPS,
   COVERAGE_PLACEMENTS,
   FORMATS,
   GRAPHIC_CATEGORIES,
   graphicCategoryById,
   PRESET_MOTION,
   type CapabilityId,
+  type CategoryGroupId,
   type Complexity,
   type CoverageClass,
   type FieldSemantic,
@@ -281,6 +284,12 @@ export function allTemplateMeta(): { variant: TemplateVariant; meta: TemplateMet
 export function validateTaxonomy(): string[] {
   const problems: string[] = [];
 
+  // Category groups: CATEGORY_GROUP_OF is total by type (a category without a shelf is a
+  // compile error), so the only runtime failure left is a group id nothing maps to.
+  for (const group of CATEGORY_GROUPS) {
+    if (group.categories.length === 0) problems.push(`category group "${group.id}" has no member categories`);
+  }
+
   // Format-id ↔ verbatim-sheet bijection against the pack config.
   const bySheet = formatsBySheetName();
   const packSheets = new Set(PACKS.flatMap((p) => p.formats));
@@ -341,5 +350,28 @@ export function browsableCategories(
     category: c.id,
     name: c.name,
     count: counts.get(c.id) ?? 0,
+  }));
+}
+
+/**
+ * The Browse step's lead dropdown: the category GROUPS (the ten user-facing shelves over the
+ * 27 categories — model/taxonomy.ts CATEGORY_GROUPS), each with its live catalog count. Same
+ * rules as `browsableCategories`: entitlement-hidden designs are excluded so the printed
+ * count always matches the result the option produces, and a group whose members have no
+ * content renders no row. The member categories themselves become the group's refinement
+ * chips, filtered from `browsableCategories` by CATEGORY_GROUP_OF.
+ */
+export function browsableGroups(
+  hiddenIds: readonly string[] = [],
+): { group: CategoryGroupId; name: string; count: number }[] {
+  const counts = new Map<CategoryGroupId, number>();
+  for (const tile of browsableCategories(hiddenIds)) {
+    const group = CATEGORY_GROUP_OF[tile.category];
+    counts.set(group, (counts.get(group) ?? 0) + tile.count);
+  }
+  return CATEGORY_GROUPS.filter((g) => counts.has(g.id)).map((g) => ({
+    group: g.id,
+    name: g.name,
+    count: counts.get(g.id) ?? 0,
   }));
 }

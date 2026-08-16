@@ -1,6 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { createProject } from './_create';
 import { settleDurableWrites } from './_durable';
+import { outputEmbedFileName, outputEmbedHtml } from '../src/export/outputEmbed';
 
 /** Drag cue row `from` onto row `to` — the rundown reorders by DRAG now, not by ↑/↓ buttons
  *  (docs/PLAYOUT_DASHBOARD.md §4). Playwright's dragTo drives real HTML5 drag events, which is
@@ -527,4 +529,116 @@ test('a cue is live per LAYER, not per production', async ({ page }) => {
   expect(result.afterTake).toEqual({ Bug: 'cue-a', 'Lower third': 'cue-b', Ticker: 'cue-c' });
   expect(result.afterOut).toEqual({ 'Lower third': 'cue-b' });
   expect(result.idempotent).toBe(true);
+});
+
+test('the output embed is a legal SPX template whose frame IS the production output', async ({ page }) => {
+  // The file an SPX rundown lists (src/export/outputEmbed.ts). Two things have to hold at once:
+  // SPX must accept it as a template, and an OLD CEF must be able to parse it - CasparCG 2.3.x
+  // shows a dead layer with no clue when it cannot (docs/CLOUD_PLAYOUT.md §3).
+  const outputUrl = 'https://studio.example/output?production=cap-slug';
+  const html = outputEmbedHtml({
+    production: 'Evening News',
+    outputUrl,
+    resolution: { width: 1920, height: 1080, label: 'HD' },
+  });
+
+  expect(outputEmbedFileName('Evening News')).toBe('evening_news_output.html');
+  // The SPX contract: a definition, one phase (Continue disabled - stepping a graphic is the
+  // NoaCG operator's Next), JSON data, and the URL as the first field so the rundown previews it.
+  expect(html).toContain('window.SPXGCTemplateDefinition');
+  const definition = JSON.parse(html.match(/window\.SPXGCTemplateDefinition = (\{[\s\S]*?\});/)![1]);
+  expect(definition.steps).toBe('1');
+  expect(definition.dataformat).toBe('json');
+  expect(definition.playlayer).toBe(definition.webplayout);
+  expect(definition.DataFields.find((f: { field?: string }) => f.field === 'f0').value).toBe(outputUrl);
+  // The pair Chromium needs, or it paints the framed page opaque - a white card over the video.
+  expect(html).toContain('<meta name="color-scheme" content="dark" />');
+  expect(html).toContain('background: transparent');
+  // ES5 only, measured on the emitted script rather than trusted: `?.`, `??` and arrow functions
+  // all kill the whole file on CasparCG 2.3.x's engine.
+  const script = html.slice(html.lastIndexOf('<script type="text/javascript">'));
+  expect(script).not.toMatch(/\?\.|\?\?|=>|\b(const|let)\s/);
+
+  // Now RUN it, with the output URL stubbed by a page that reports it was framed.
+  await page.route('**/embed-under-test.html', (route) =>
+    route.fulfill({ contentType: 'text/html', body: html }),
+  );
+  await page.route('https://studio.example/**', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<html><body>output</body></html>' }),
+  );
+  await page.goto('/embed-under-test.html');
+  const frame = page.locator('#noacg-frame');
+  const box = page.locator('#noacg-output');
+
+  // PRELOADED and up: the renderer connects while the item is still only loaded, and the frame
+  // shows whatever the production has on air, exactly as a browser source does.
+  await expect(frame).toHaveAttribute('src', outputUrl);
+  await expect(box).not.toHaveClass(/noacg-hidden/);
+
+  // The host's verbs move the FRAME, never the production: Stop hides, Play shows.
+  await page.evaluate(() => (window as unknown as { stop: () => void }).stop());
+  await expect(box).toHaveClass(/noacg-hidden/);
+  await page.evaluate(() => (window as unknown as { play: () => void }).play());
+  await expect(box).not.toHaveClass(/noacg-hidden/);
+
+  // The debug overlay is a field, and re-sending the SAME url must not reload the frame - a
+  // reload costs the connection and a rebuild of whatever is on air.
+  await page.evaluate((url) => {
+    (window as unknown as { update: (d: string) => void }).update(JSON.stringify({ f0: url, f1: '1' }));
+  }, outputUrl);
+  await expect(frame).toHaveAttribute('src', `${outputUrl}&debug=1`);
+  // Let that load finish before counting, or the load being counted is this one.
+  await expect(page.frameLocator('#noacg-frame').locator('body')).toContainText('output');
+  await page.evaluate(() => {
+    (window as unknown as { noacgLoads: number }).noacgLoads = 0;
+    document.getElementById('noacg-frame')!.addEventListener('load', () => {
+      (window as unknown as { noacgLoads: number }).noacgLoads += 1;
+    });
+  });
+  await page.evaluate((url) => {
+    (window as unknown as { update: (d: string) => void }).update(JSON.stringify({ f0: url, f1: '1' }));
+  }, outputUrl);
+  await page.waitForTimeout(300); // KEEP as a sleep: this asserts a reload never comes
+  expect(await page.evaluate(() => (window as unknown as { noacgLoads: number }).noacgLoads)).toBe(0);
+
+  // CasparCG sends missing values as the literal string "undefined" - the baked URL survives it.
+  await page.evaluate(() => {
+    (window as unknown as { update: (d: string) => void }).update(JSON.stringify({ f0: 'undefined', f1: '0' }));
+  });
+  await expect(frame).toHaveAttribute('src', outputUrl);
+});
+
+test('a published production offers the SPX template file beside its output URL', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await page.getByTestId('dock-tab-control').click();
+  const section = page.locator('.panel-section', { hasText: 'Productions' });
+  await section.getByPlaceholder('New production name').fill('Evening News');
+  await section.getByRole('button', { name: 'Create', exact: true }).click();
+  await section.getByRole('button', { name: '+ Add current' }).click();
+  await section.getByTestId('open-production-page').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+
+  // Fake the published record - publishing itself is backend-gated and lives on the live
+  // checklist; what this spec is about is the door the two capabilities open in the UI.
+  await page.evaluate(async () => {
+    const { loadShows, setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
+    const id = loadShows()[0].id;
+    setShowHostedSlug(id, 'demo-slug');
+    setShowOutputSlug(id, 'demo-output');
+  });
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+
+  await page.getByTestId('production-links-toggle').click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('download-output-embed').click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('evening_news_output.html');
+  const file = readFileSync(await download.path(), 'utf8');
+  // It carries THIS production's output capability, and nothing that could operate the show:
+  // the control slug is what airs a cue, and this file is copied onto playout machines.
+  expect(file).toContain('/output?production=demo-output');
+  expect(file).not.toContain('demo-slug');
 });

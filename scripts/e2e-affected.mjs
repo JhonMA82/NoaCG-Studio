@@ -93,6 +93,9 @@ const MAP = [
   // other AI spec mocks at the network level, which is why an allowlist hid three surfaces.
   [/^scripts\/(aiDevPlugin|apiRouteTable)/, ['ai-dev-routes.spec.ts', 'ai.spec.ts', 'ai-depth.spec.ts', 'ai-more-control.spec.ts']],
   [/^src\/export\//, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'template-pack-10.spec.ts']],
+  // The OUTPUT EMBED is an export file about the cloud output, so it belongs to the production
+  // suite rather than to the package specs the rule above lists (rules union, never shadow).
+  [/^src\/export\/outputEmbed/, ['productions.spec.ts']],
   [/^src\/control\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'exports.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'snap-recovery.spec.ts']],
   // The readable audience name is minted by the publish path but READ on the audience surfaces,
   // and rules union rather than shadowing - so this adds to the src/control/ list above.
