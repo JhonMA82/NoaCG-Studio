@@ -209,6 +209,97 @@ export function graphicCategoryById(id: GraphicCategoryId): GraphicCategory {
 // single-valued mapping lives as real declared meta in templates/meta.ts
 // `CATEGORY_DEFAULT_META`, which is total over `AssemblerId` — this copy had no consumers.
 
+// ── Category groups — the browse SHELF over facet B ─────────────────────────
+//
+// Ten user-facing shelves over the 27 graphic categories. The categories stay the precise
+// vocabulary everything machine-facing speaks — declared meta, search aliases, the AI's
+// retrieval, the factory's assertions — but 27 rows is a wall to browse, so the Browse step
+// leads with these and offers the member categories as a second, optional narrowing.
+//
+// The grouping is derived from what the CATALOG actually holds (counts as of 2026-08-16,
+// 458 browsable designs), not from taxonomy symmetry: every shelf holds 23-82 designs.
+// Two memberships lean on evidence already in this file's alias table: "countdown" resolves
+// to timer + holding (so those share a shelf), and a stream notification is an alert-shaped
+// popup, not a persistent mark (so it shelves with alerts, not bugs).
+//
+// A group NEVER selects behaviour: playout controls are generated from the machine and the
+// fields inside the template (docs/CONTROL_LAYER.md), and nothing at playout reads a category
+// or a group. This is browse furniture only.
+
+export type CategoryGroupId =
+  | 'lower-thirds' | 'bugs' | 'cards' | 'tickers' | 'scores'
+  | 'audience' | 'data' | 'breaks' | 'commerce' | 'frames';
+
+export interface CategoryGroup {
+  id: CategoryGroupId;
+  name: string;
+  /** Member categories, in GRAPHIC_CATEGORIES order — derived from CATEGORY_GROUP_OF. */
+  categories: GraphicCategoryId[];
+}
+
+const CATEGORY_GROUP_LABELS: Record<CategoryGroupId, string> = {
+  'lower-thirds': 'Lower thirds',
+  bugs: 'Bugs & corner logos',
+  cards: 'Titles & cards',
+  tickers: 'Tickers & alerts',
+  scores: 'Scores, results & reveals',
+  audience: 'Polls, quizzes & questions',
+  data: 'Lists & data',
+  breaks: 'Timers, breaks & credits',
+  commerce: 'Sponsors & commerce',
+  frames: 'Frames & stingers',
+};
+
+/** Which shelf each category sits on — TOTAL over GraphicCategoryId (the PRESET_MOTION
+ *  pattern), so a new category cannot ship without a browse home: leaving it out of this
+ *  record is a type error, not a runtime fallback. One home each, by construction. */
+export const CATEGORY_GROUP_OF: Record<GraphicCategoryId, CategoryGroupId> = {
+  'lower-third': 'lower-thirds',
+  bug: 'bugs',
+  title: 'cards',
+  topic: 'cards',
+  info: 'cards',
+  quote: 'cards',
+  ticker: 'tickers',
+  alert: 'tickers',
+  caption: 'tickers',
+  notification: 'tickers',
+  scoreboard: 'scores',
+  results: 'scores',
+  reveal: 'scores',
+  'poll-quiz': 'audience',
+  question: 'audience',
+  list: 'data',
+  stats: 'data',
+  progress: 'data',
+  map: 'data',
+  timer: 'breaks',
+  holding: 'breaks',
+  credits: 'breaks',
+  sponsor: 'commerce',
+  product: 'commerce',
+  cta: 'commerce',
+  frame: 'frames',
+  transition: 'frames',
+};
+
+const CATEGORY_GROUP_ORDER: CategoryGroupId[] = [
+  'lower-thirds', 'bugs', 'cards', 'tickers', 'scores',
+  'audience', 'data', 'breaks', 'commerce', 'frames',
+];
+
+export const CATEGORY_GROUPS: CategoryGroup[] = CATEGORY_GROUP_ORDER.map((id) => ({
+  id,
+  name: CATEGORY_GROUP_LABELS[id],
+  categories: GRAPHIC_CATEGORIES.filter((c) => CATEGORY_GROUP_OF[c.id] === id).map((c) => c.id),
+}));
+
+export function categoryGroupById(id: CategoryGroupId): CategoryGroup {
+  const found = CATEGORY_GROUPS.find((g) => g.id === id);
+  if (!found) throw new Error(`Unknown category group "${id}"`);
+  return found;
+}
+
 // ── Facet C: structures ─────────────────────────────────────────────────────
 
 export type StructureId =

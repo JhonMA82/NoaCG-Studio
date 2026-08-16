@@ -48,8 +48,11 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   counting the host's only.
 - **taxonomy.ts** - the DISCOVERY facet registries (docs/TEMPLATE_TAXONOMY_PROPOSAL.md): stable
   kebab-case ids + display labels for programme families/formats (each format carries the
-  VERBATIM workbook `sheetName` packs.ts uses), the 26 graphic categories (controlled
-  subtypes, coverage class, `relevance: 'all'`), structures, field semantics, capabilities,
+  VERBATIM workbook `sheetName` packs.ts uses), the 27 graphic categories (controlled
+  subtypes, coverage class, `relevance: 'all'`) and their TEN CATEGORY GROUPS (the browse
+  shelves — `CATEGORY_GROUP_OF` is total over GraphicCategoryId, the PRESET_MOTION pattern,
+  so a new category cannot ship without a browse home; groups are browse furniture ONLY and
+  never select playout behaviour), structures, field semantics, capabilities,
   placements, the per-preset motion intensity/style table (total over AnimPresetId — a new
   preset without a row is a type error), style-family labels, and the search alias table
   (aliases resolve to SETS of facet values). Pure data; derivation lives in

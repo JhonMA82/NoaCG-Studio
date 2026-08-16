@@ -1,11 +1,12 @@
 import { test, expect, type Page } from '@playwright/test';
 import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';
-import { chooseType, pickDesign, resultTotal, revealDesign, shownCount } from './_browse';
+import { chooseCategory, chooseType, pickDesign, resultTotal, revealDesign, shownCount } from './_browse';
 
-// The Browse step's faceted discovery (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12-13): ONE type
-// dropdown + field buckets + style chips narrow the result (facets AND together), programme
-// selection RANKS into "Best for" / "Also works" without hiding anything, search reaches
-// templates through aliases, and the zero-result state offers its own escape hatches.
+// The Browse step's faceted discovery (docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12-13, groups
+// §4c): ONE category-group dropdown (+ the selected group's member-category chips) + field
+// buckets + style chips narrow the result (facets AND together), programme selection RANKS
+// into "Best for" / "Also works" without hiding anything, search reaches templates through
+// aliases, and the zero-result state offers its own escape hatches.
 // Counts derive from the live metadata so the assertions track catalog growth; the
 // RELATIONSHIPS are what this spec guards, never absolute totals.
 //
@@ -75,9 +76,9 @@ test('the last page has no "Show more" button at all', async ({ page }) => {
     return browsableCategories().sort((a, b) => a.count - b.count)[0];
   });
   test.skip(small.count > 12, 'no category small enough to fit one page');
-  // By VALUE here, not by name: this one is chosen by arithmetic rather than written down, so
+  // By ID here, not by name: this one is chosen by arithmetic rather than written down, so
   // whichever category it lands on must resolve exactly - a name match is a substring match.
-  await page.getByTestId('wz-browse-type').selectOption(small.category);
+  await chooseCategory(page, small.category);
   await expect(page.locator('.wz-variant')).toHaveCount(small.count);
   // Gone, not disabled: the button's absence is what says "that is all of them".
   await expect(page.getByTestId('wz-browse-more')).toHaveCount(0);
@@ -88,8 +89,8 @@ test('type, style, and capability facets AND together; clear-all restores the ca
   const n = await catalogCounts(page);
   expect(await resultTotal(page)).toBe(n.total);
 
-  // The type dropdown narrows to that category's templates - the 22-chip strip is one select
-  // now (handoff §2b), and it carries the same live per-type counts the chips did.
+  // The group dropdown narrows to that shelf's templates - Lower thirds is a one-category
+  // shelf, so its count is exactly the category's.
   await chooseType(page, 'Lower thirds');
   expect(await resultTotal(page)).toBe(n.lowerThirds);
 
@@ -115,28 +116,46 @@ test('type, style, and capability facets AND together; clear-all restores the ca
   expect(await resultTotal(page)).toBe(n.repeating);
 });
 
-test('the type dropdown offers exactly the categories the catalog has designs for', async ({ page }) => {
+test('the dropdown offers the category groups, and a group\'s chips narrow to its categories', async ({ page }) => {
   await toBrowseStep(page);
-  // This used to name the one category that was empty - Products, then Captions - and each
-  // naming rotted the moment a pack filled it. So assert the RULE: the options are exactly
-  // the graphic categories with content, plus the "All categories" default.
+  // Assert the RULE, not a list that rots: the options are exactly the category GROUPS with
+  // catalog content (ten shelves over the 27 categories - model/taxonomy.ts), each counting
+  // its members' designs, plus the "All graphics" default.
   const expected = await page.evaluate(async () => {
-    const { allTemplateMeta } = await import('/src/templates/templateMeta.ts');
-    const { GRAPHIC_CATEGORIES } = await import('/src/model/taxonomy.ts');
-    const filled = new Set(allTemplateMeta().map(({ meta }) => meta.category));
-    return GRAPHIC_CATEGORIES.filter((c) => filled.has(c.id)).map((c) => c.name).sort();
+    const { browsableGroups } = await import('/src/templates/templateMeta.ts');
+    return browsableGroups().map((g) => g.name).sort();
   });
   const options = await page.getByTestId('wz-browse-type').locator('option').allInnerTexts();
-  expect(options[0]).toMatch(/^All categories · \d+$/);
+  expect(options[0]).toMatch(/^All graphics · \d+$/);
   // Each option reads "Name · count"; the count is live data, so only the name is compared.
   const rendered = options.slice(1).map((t) => t.split(' · ')[0].trim()).sort();
   expect(rendered).toEqual(expected);
 
-  // And the counts are real: the option's number is that category's whole catalog, which is
+  // And the counts are real: the option's number is that shelf's whole catalog, which is
   // what the result total becomes once it is picked.
-  const lowerThirds = options.find((t) => t.startsWith('Lower thirds'))!;
+  const scores = options.find((t) => t.startsWith('Scores'))!;
+  await page.getByTestId('wz-browse-type').selectOption('scores');
+  expect(await resultTotal(page)).toBe(Number(scores.split(' · ')[1]));
+
+  // A multi-category shelf offers its member categories as chips - exactly the ones with
+  // content - and a chip narrows the result to that one category.
+  const members = await page.evaluate(async () => {
+    const { browsableCategories } = await import('/src/templates/templateMeta.ts');
+    const { CATEGORY_GROUP_OF } = await import('/src/model/taxonomy.ts');
+    return browsableCategories().filter((t) => CATEGORY_GROUP_OF[t.category] === 'scores');
+  });
+  const chips = page.locator('.wz-browse-cats .wz-filter');
+  await expect(chips).toHaveCount(members.length);
+  await chips.first().click();
+  expect(await resultTotal(page)).toBe(members[0].count);
+  // Re-clicking the chip clears the narrowing back to the shelf.
+  await chips.first().click();
+  expect(await resultTotal(page)).toBe(Number(scores.split(' · ')[1]));
+
+  // A one-category shelf renders no chips - a lone chip restating the dropdown would be a
+  // control that changes nothing.
   await chooseType(page, 'Lower thirds');
-  expect(await resultTotal(page)).toBe(Number(lowerThirds.split(' · ')[1]));
+  await expect(chips).toHaveCount(0);
 });
 
 test('programme selection ranks into Best for / Also works without hiding anything', async ({ page }) => {
@@ -175,7 +194,7 @@ test('programme selection ranks into Best for / Also works without hiding anythi
     return null;
   });
   expect(narrow, 'no graphic type splits across both sections for a church service').not.toBeNull();
-  await page.getByTestId('wz-browse-type').selectOption(narrow!.category);
+  await chooseCategory(page, narrow!.category);
   await expect(page.locator('.wz-browse-section', { hasText: 'Best for church service' })).toBeVisible();
   await expect(page.locator('.wz-browse-section', { hasText: 'Also works' })).toBeVisible();
   // Nothing was hidden by the split: the two sections plus the rest add up to the total.

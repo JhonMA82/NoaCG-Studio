@@ -86,10 +86,15 @@ was not drawn in.
 facets are DRAWN as - the taxonomy proposal §12 describes the same facets in their original
 tile-wall presentation, which no longer ships):
 
-- **The graphic type is ONE DROPDOWN** carrying each type's live catalog count
-  (`browsableCategories`), not a strip of chips. It has 22 answers, and 22 targets is a wall
-  whatever their per-chip height: as 230px tiles it stacked eleven rows, and as chips in a
-  scrolling box it still took three rows of the step whose job is showing designs.
+- **The lead dropdown offers the TEN CATEGORY GROUPS** (`browsableGroups` over
+  `CATEGORY_GROUPS`, model/taxonomy.ts — user-facing shelves derived from the catalog's real
+  composition), each with its live count; the selected group's MEMBER CATEGORIES render as a
+  chips row (`.wz-browse-cats`) below it, at most four, only when the group has more than one.
+  The categories themselves grew to 27 and stayed the machine vocabulary (search aliases, meta,
+  AI retrieval, the factory) — 27 rows was the wall the original one-category-dropdown decision
+  was already fleeing at 22, so the user-facing list is the group now. A group NEVER selects
+  behaviour — playout controls generate from the machine + fields inside the template
+  (docs/CONTROL_LAYER.md), and nothing at playout reads a category or group.
 - **The style families stay CHIPS** and stay in the lead row - six short answers picked by
   feel and re-picked often. Everything else (programme, field counts, structures,
   capabilities, motion) is behind ONE Filters disclosure, closed by default, with the active
@@ -101,9 +106,10 @@ tile-wall presentation, which no longer ships):
   helpers `pickDesign` / `chooseType` (`e2e/_browse.ts`) encode, and why facet specs assert
   the count line (`data-testid="wz-browse-count"`) rather than counting cards: a card count
   measures the page size and would read 12 for every filter leaving twelve or more.
-- The id registries (families/formats with verbatim sheet names, 26 graphic categories,
-  structures, semantics, capabilities, placements, motion intensity/styles, style aliases)
-  live in **src/model/taxonomy.ts**; display labels there, never in stored ids.
+- The id registries (families/formats with verbatim sheet names, the 27 graphic categories
+  and their ten groups, structures, semantics, capabilities, placements, motion
+  intensity/styles, style aliases) live in **src/model/taxonomy.ts**; display labels there,
+  never in stored ids.
 
 ## Shared assemblers (every category builds on these)
 
