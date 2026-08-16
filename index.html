@@ -658,7 +658,7 @@
               <img src="/landing/shot-wizard-ai.png" alt="The Create with AI step: a brief box, example prompts and the included NoaCG Lite tier" loading="lazy" />
             </div>
             <div class="way-body">
-              <h3>Create with AI</h3>
+              <h3>Create with AI <span class="tag">Beta</span></h3>
               <p>
                 Describe the graphic you need. The result is checked and exercised in a live
                 playout test before you can create it, and it lands as clean, editable code —
@@ -871,6 +871,56 @@
           <span class="chip on">Browser output</span>
         </div>
         <p class="note" data-reveal>Every package is validated before it leaves — it just works.</p>
+      </section>
+
+      <!-- The differentiator that is hardest to see from outside, so it gets its own section
+           rather than a bullet: a traditional template steps forward and the operator carries
+           the logic in their head. These graphics carry it themselves. Every button named below
+           is a real authored event in src/templates/types/ - do not invent examples here. -->
+      <section id="states">
+        <p class="kicker" data-reveal>Beyond play and stop</p>
+        <h2 data-reveal>Graphics that hold a state, not just an animation.</h2>
+        <p class="sub" data-reveal>
+          A lower third plays and stops. A quiz board has to know which question is up, which
+          answer the contestant locked in, and whether it has been revealed yet. Traditional
+          playout gives you one Continue button and an operator remembering what comes next —
+          these graphics carry that logic themselves, as named states and real operator events.
+          The control panel is generated from them, so a move that would be wrong is greyed out
+          instead of being wrong.
+        </p>
+        <div class="feats" data-reveal-group>
+          <div class="feat">
+            <h4>Quiz &amp; answer boards</h4>
+            <p>Select answer · Lock it in · Reveal choice · Reveal correct · Show audience result.</p>
+          </div>
+          <div class="feat">
+            <h4>Sports bugs &amp; clocks</h4>
+            <p>Start and stop the clock · Interval · Back to live · Full time · cards held on air.</p>
+          </div>
+          <div class="feat">
+            <h4>Esports match bugs</h4>
+            <p>Go live · Map final · Next map · Technical pause · Resume.</p>
+          </div>
+          <div class="feat">
+            <h4>Reveals &amp; verdicts</h4>
+            <p>Hold for suspense, reveal the winner, rule on it, clear the ruling.</p>
+          </div>
+          <div class="feat">
+            <h4>Competition boards</h4>
+            <p>Focus one row of the standings, then show them all again.</p>
+          </div>
+          <div class="feat">
+            <h4>Live polls &amp; audience votes</h4>
+            <p>Open the vote, close it, put the result on air when you are ready.</p>
+          </div>
+        </div>
+        <p class="sub" data-reveal style="margin-top: 26px; max-width: 700px;">
+          16 graphic types ship with their own operator buttons today, and every pack adds more.
+          Hand any of them to SPX or CasparCG and they still step through in order like an
+          ordinary template — the extra states are what you get when you drive them from NoaCG,
+          never a reason they won't play somewhere else.
+        </p>
+        <p class="note" data-reveal>Export a graphic and its buttons come with it.</p>
 
         <!-- The last beat is the headline again, on purpose: the page opens on the promise and
              closes on it, with everything proving it in between. -->
@@ -935,9 +985,9 @@
         <h2 data-reveal>Solid today, sharper every week.</h2>
         <p class="sub" data-reveal>
           NoaCG Studio is in beta. The smoothest ways to make a graphic right now are the
-          template library, importing your own artwork, and AI generation — advanced custom
-          editing works, and we're still polishing it. If something feels rough, we want to
-          hear about it.
+          template library and importing your own artwork; AI generation and the video workspace
+          are newer and still moving, and advanced custom editing works while we keep polishing
+          it. If something feels rough, we want to hear about it.
         </p>
         <p class="sub beta-contact" data-reveal>
           Questions, feedback, or business inquiries:&nbsp;
