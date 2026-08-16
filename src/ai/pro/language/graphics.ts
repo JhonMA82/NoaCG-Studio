@@ -106,15 +106,18 @@ export const PRO_GRAPHICS: Record<ProGraphicId, ProGraphicSpec> = {
     frequency: 37,
     takesMark: true,
     instruments: {
-      spacing: {
-        // MEASURED: the shared clear-space floor flags HALF the shipped bugs - bug01 sits 0.12 of
-        // its mark's height from the caption (10px under an 84px mark) and bug02 0.20 (12px under
-        // 60px). Both are the design being right rather than crowded: a corner mark is a compact
-        // lockup where a strap is a horizontal one, and 0.25 of an 84px mark is 21px of air
-        // inside a tile a fifth of the frame wide. Set under the catalog with a margin, not on
-        // its tightest design; Phase A's own bug sits at 0.31, three times this floor.
-        markGapFloorRatio: 0.1,
-      },
+      // THE MARK-GAP OVERRIDE IS GONE, AND WHAT REMOVED IT WAS THE UNIT CHANGING UNDER IT.
+      //
+      // A `markGapFloorRatio: 0.1` stood here, derived when the instrument divided the gap by the
+      // MARK's own height: half the shipped bugs failed a 0.25 floor that way, because a design
+      // giving its mark room was divided by its own generosity. `spacingCheck` now reports the
+      // gap in PRIMARY TYPE SIZES (floor 0.35), which fixes that class at the source - and
+      // re-measured on the new unit the shipped bugs read well clear of it, so the override was
+      // both unnecessary and stating a reason that had stopped being true.
+      //
+      // Kept as a note rather than deleted silently: a threshold whose justification outlives its
+      // unit is the failure mode this whole per-type calibration exists to avoid, and this file
+      // has now hit it once.
       proportion: {
         // A BUG'S MARK IS THE GRAPHIC, and 3.2 primary type sizes is a strap's answer to "is the
         // logo taking over". MEASURED over the four shipped bugs the mark runs 1.67x to 5.25x the

@@ -1537,13 +1537,22 @@ Three thresholds moved, each read off the catalog rather than chosen:
   caption; bug01 (5.25) and bug04 (4.81) are a small caption UNDER a mark, not a mark beside a
   headline. Phase A's own bugs come in at 2.1x-2.7x, so the ceiling bounds the catalog and never
   binds the composer.
-- **`markGapFloorRatio` 0.25 → 0.10 (sponsor bug).** The strap's clear space flagged HALF the
-  shipped bugs (bug01 0.12, bug02 0.20) - a corner mark is a compact lockup, and 0.25 of an 84px
-  mark is 21px of air inside a tile a fifth of the frame wide.
 - **`typeRatioThin` 0.28 → 0.18 and `paddingFloorRatio` 0.28 → 0.24 (countdown).** Three of four
   shipped timers step their label further down than a strap ever steps its role line (gt01 0.20,
   gt02/gt05 0.25), and gt05 - the HOUSE countdown - reads 0.26 of top padding against a 0.28
   floor. Phase A's step never goes below 0.36 and its tightest padding is 0.34.
+
+**A FOURTH OVERRIDE EXISTED AND THE UNIT CHANGING UNDER IT REMOVED IT** - which is the honest
+argument for re-running this sweep after every integration rather than trusting a threshold once.
+`markGapFloorRatio: 0.10` was derived while `spacingCheck` divided the mark's gap by the MARK's
+own height, where half the shipped bugs failed a 0.25 floor because a design giving its mark room
+was divided by its own generosity. `claude/measured-debt-three-closures-d9ce04` then landed the
+fix at the source: the gap is now reported in PRIMARY TYPE SIZES (floor 0.35). Re-measured on the
+new unit, bug01 clears it outright and only bug02 is still flagged - by 0.02 (0.33 against 0.35),
+which is one design and therefore not a calibration, exactly as gt01 and gt06 are not. **The
+override was both unnecessary and stating a reason that had stopped being true**, so it is gone
+and the reasoning is kept as a note in `graphics.ts`. Post-merge readings: catalog 3/14 flagged
+under the type thresholds (all three deliberate), Phase A **0/12**.
 
 **Two shipped readings are left flagged on purpose** (gt01's clock 0.11 type sizes from its accent,
 inside the almost-touch band; gt06's label-to-clock gap 1.5 against 1.4) plus bug02's own layered
