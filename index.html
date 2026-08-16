@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NoaCG Studio — Make broadcast graphics. Put them on air.</title>
+  <title>NoaCG Studio — Create live graphics. Run the show.</title>
+  <!-- The description opens with the plain category label the headline deliberately does not
+       carry: a search result has no screenshots under it, so the first four words have to say
+       what kind of product this is. -->
   <meta
     name="description"
-    content="NoaCG Studio is a free browser tool for making premium broadcast graphics — from a template, with AI, or from your own artwork — and running them live from an online playout dashboard or exporting them to whatever system you already use."
+    content="Live graphics, made simple. NoaCG Studio is a free browser tool for making premium broadcast graphics — from a template, with AI, or from your own artwork — and running them live from an online playout dashboard or exporting them to whatever system you already use."
   />
   <meta name="theme-color" content="#0a0c10" />
   <link rel="canonical" href="https://noacg.studio/" />
@@ -15,8 +18,8 @@
   <link rel="apple-touch-icon" href="/noacg-icon-256.png" />
   <link rel="preload" href="/fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossorigin />
-  <meta property="og:title" content="NoaCG Studio — Make broadcast graphics. Put them on air." />
-  <meta property="og:description" content="Make premium on-air graphics in your browser, run the show from a live playout dashboard, and export to whatever you already use. Free, no sign-up to try." />
+  <meta property="og:title" content="NoaCG Studio — Create live graphics. Run the show." />
+  <meta property="og:description" content="Live graphics, made simple. Make premium on-air graphics in your browser, run the show from a live playout dashboard, and export to whatever you already use. Free, no sign-up to try." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://noacg.studio/" />
   <meta property="og:image" content="https://noacg.studio/landing/shot-title.png" />
@@ -511,8 +514,8 @@
       <a href="/" class="wordmark">Noa<span>CG</span><small>Studio</small></a>
       <nav>
         <a class="gh" href="#how">How it works</a>
+        <a class="gh" href="#live">Going live</a>
         <a class="gh" href="mailto:contact.noacg@gmail.com">Contact</a>
-        <a class="gh" href="https://github.com/miwco/NoaCG-Studio">GitHub</a>
         <a class="btn btn-amber" href="/app#/new">Start creating</a>
       </nav>
     </header>
@@ -522,14 +525,16 @@
         <p class="kicker"><span class="beta-chip">Beta</span> Free · Browser-based · No sign-up to try</p>
         <!-- Each .hl is an overflow mask; the entrance slides .hl-in up through it. -->
         <h1>
-          <span class="hl"><span class="hl-in">Make broadcast graphics.</span></span>
-          <span class="hl"><span class="hl-in"><em>Put them on air.</em></span></span>
+          <span class="hl"><span class="hl-in">Create live graphics.</span></span>
+          <span class="hl"><span class="hl-in"><em>Run the show.</em></span></span>
         </h1>
+        <!-- The headline names two verbs, not the category, so the lede has to say plainly what
+             this makes - it is the first line under a name nobody knows yet. -->
         <p class="lede">
-          A guided wizard builds the whole graphic — lower thirds, tickers, scoreboards, timers,
-          title cards — from a template, from a description, or from artwork you already have.
-          Collect them into a production, then run the show live from your browser or export a
-          package for whatever system your studio already uses.
+          NoaCG Studio makes broadcast graphics — lower thirds, tickers, scoreboards, timers,
+          title cards — through a guided wizard, from a template, a description, or artwork you
+          already have. Collect them into a production, then drive it live from your browser or
+          export a package for whatever system your studio already uses.
         </p>
         <div class="cta-row">
           <a class="btn btn-amber" href="/app#/new">Start creating — it's free<span class="arr" aria-hidden="true">→</span></a>
@@ -653,7 +658,7 @@
               <img src="/landing/shot-wizard-ai.png" alt="The Create with AI step: a brief box, example prompts and the included NoaCG Lite tier" loading="lazy" />
             </div>
             <div class="way-body">
-              <h3>Create with AI</h3>
+              <h3>Create with AI <span class="tag">Beta</span></h3>
               <p>
                 Describe the graphic you need. The result is checked and exercised in a live
                 playout test before you can create it, and it lands as clean, editable code —
@@ -684,8 +689,8 @@
               <h3>Make a video or animation <span class="tag">Beta</span></h3>
               <p>
                 Stingers, opening titles, logo reveals. Built with Remotion or HyperFrames as a
-                real composition you can edit, then rendered to a file. Its own workspace,
-                because nobody cues a file live.
+                real composition you can edit, then rendered to a file you hand off. Its own
+                workspace, separate from the live side.
               </p>
             </div>
           </article>
@@ -698,7 +703,7 @@
         <h2 data-reveal>From nothing to on air, in one sitting.</h2>
         <p class="sub" data-reveal>
           Every picture below is the real app — no mockups. Choose, customise, collect into a
-          production, then export it or run the show straight from the browser.
+          production, then export it or take it on air straight from the browser.
         </p>
 
         <div class="walk-grid">
@@ -866,19 +871,94 @@
           <span class="chip on">Browser output</span>
         </div>
         <p class="note" data-reveal>Every package is validated before it leaves — it just works.</p>
+      </section>
 
-        <p class="closer" data-reveal-group aria-label="Make it. Brand it. Animate it. Export it. Put it on air.">
+      <!-- The differentiator that is hardest to see from outside, so it gets its own section
+           rather than a bullet: a traditional template steps forward and the operator carries
+           the logic in their head. These graphics carry it themselves. Every button named below
+           is a real authored event in src/templates/types/ - do not invent examples here. -->
+      <section id="states">
+        <p class="kicker" data-reveal>Beyond play and stop</p>
+        <h2 data-reveal>Graphics that hold a state, not just an animation.</h2>
+        <p class="sub" data-reveal>
+          A lower third plays and stops. A quiz board has to know which question is up, which
+          answer the contestant locked in, and whether it has been revealed yet. Traditional
+          playout gives you one Continue button and an operator remembering what comes next —
+          these graphics carry that logic themselves, as named states and real operator events.
+          The control panel is generated from them, so a move that would be wrong is greyed out
+          instead of being wrong.
+        </p>
+        <div class="feats" data-reveal-group>
+          <div class="feat">
+            <h4>Quiz &amp; answer boards</h4>
+            <p>Select answer · Lock it in · Reveal choice · Reveal correct · Show audience result.</p>
+          </div>
+          <div class="feat">
+            <h4>Sports bugs &amp; clocks</h4>
+            <p>Start and stop the clock · Interval · Back to live · Full time · cards held on air.</p>
+          </div>
+          <div class="feat">
+            <h4>Esports match bugs</h4>
+            <p>Go live · Map final · Next map · Technical pause · Resume.</p>
+          </div>
+          <div class="feat">
+            <h4>Reveals &amp; verdicts</h4>
+            <p>Hold for suspense, reveal the winner, rule on it, clear the ruling.</p>
+          </div>
+          <div class="feat">
+            <h4>Competition boards</h4>
+            <p>Focus one row of the standings, then show them all again.</p>
+          </div>
+          <div class="feat">
+            <h4>Live polls &amp; audience votes</h4>
+            <p>Open the vote, close it, put the result on air when you are ready.</p>
+          </div>
+        </div>
+        <p class="sub" data-reveal style="margin-top: 26px; max-width: 700px;">
+          16 graphic types ship with their own operator buttons today, and every pack adds more.
+          Hand any of them to SPX or CasparCG and they still step through in order like an
+          ordinary template — the extra states are what you get when you drive them from NoaCG,
+          never a reason they won't play somewhere else.
+        </p>
+        <p class="note" data-reveal>Export a graphic and its buttons come with it.</p>
+
+        <!-- The last beat is the headline again, on purpose: the page opens on the promise and
+             closes on it, with everything proving it in between. -->
+        <p class="closer" data-reveal-group aria-label="Make it. Brand it. Animate it. Export it. Run the show.">
           <span aria-hidden="true">Make it.</span>
           <span aria-hidden="true">Brand it.</span>
           <span aria-hidden="true">Animate it.</span>
           <span aria-hidden="true">Export it.</span>
-          <span class="x" aria-hidden="true">Put it on air.</span>
+          <span class="x" aria-hidden="true">Run the show.</span>
         </p>
       </section>
 
-      <!-- The studio's second workspace. It sits after the whole live-graphics story and
-           before the engineering note on purpose: a visitor should finish the on-air story
-           first, then learn there is a separate place for rendered video. -->
+      <!-- Directly after the operating story, and ahead of the video aside, because this is the
+           objection a visitor forms the moment they picture running a real show on it: what
+           happens to my graphics if this company, or my subscription, goes away. Every rival
+           worth naming is a cloud platform where the honest answer is "they stop". -->
+      <section id="yours">
+        <p class="kicker" data-reveal>No lock-in</p>
+        <h2 data-reveal>Stop using NoaCG, and your graphics keep working.</h2>
+        <p class="sub" data-reveal>
+          Your graphics are not tenants in our cloud. Every one is real HTML, CSS and JavaScript —
+          clean, commented, and yours to edit — and every export is a self-contained package:
+          relative paths, fonts and images bundled, nothing phoning home. It runs from a local
+          file, on your own machine, with no account and no internet. A show you built here keeps
+          going out whether or not we are still in the picture — and creating, editing and
+          exporting are free, always.
+        </p>
+        <div class="walk-facts" data-reveal-group style="margin-top: 22px;">
+          <span>Runs from a local file</span>
+          <span>No account</span>
+          <span>No internet</span>
+          <span>No dependency on us</span>
+        </div>
+      </section>
+
+      <!-- The studio's second workspace. It sits after the whole live-graphics story on purpose:
+           a visitor should finish the on-air story first, then learn there is a separate place
+           for rendered video. -->
       <section class="video-note" id="video">
         <p class="kicker" data-reveal><span class="beta-chip">Beta</span> Also in the studio</p>
         <h2 data-reveal>Need a video, not a live graphic?</h2>
@@ -900,25 +980,14 @@
         </p>
       </section>
 
-      <section>
-        <p class="kicker" data-reveal>Honest engineering</p>
-        <h2 data-reveal>The code is yours. Forever.</h2>
-        <p class="sub" data-reveal>
-          Nothing hides behind a visual-only scene model: every graphic is real HTML, CSS, and
-          JavaScript — clean, commented, and editable. The app is open source (AGPL), self-hostable,
-          and works fully offline. Creating, editing, and exporting are free, always; an account
-          only adds cloud sync, community templates, and AI.
-        </p>
-      </section>
-
       <section class="beta-note">
         <p class="kicker" data-reveal>Currently in beta</p>
         <h2 data-reveal>Solid today, sharper every week.</h2>
         <p class="sub" data-reveal>
           NoaCG Studio is in beta. The smoothest ways to make a graphic right now are the
-          template library, importing your own artwork, and AI generation — advanced custom
-          editing works, and we're still polishing it. If something feels rough, we want to
-          hear about it.
+          template library and importing your own artwork; AI generation and the video workspace
+          are newer and still moving, and advanced custom editing works while we keep polishing
+          it. If something feels rough, we want to hear about it.
         </p>
         <p class="sub beta-contact" data-reveal>
           Questions, feedback, or business inquiries:&nbsp;
@@ -937,13 +1006,11 @@
 
   <div class="wrap">
     <footer>
-      <span class="fm">NoaCG Studio · Broadcast graphics, made and aired in the browser</span>
+      <span class="fm">NoaCG Studio · Live graphics, made simple</span>
       <span>
         <a href="mailto:contact.noacg@gmail.com">contact.noacg@gmail.com</a> ·
         <a href="/terms">Terms</a> ·
         <a href="/privacy">Privacy</a> ·
-        <a href="https://github.com/miwco/NoaCG-Studio">GitHub</a> ·
-        <a href="https://github.com/miwco/NoaCG-Studio/blob/main/LICENSE">AGPL-3.0</a> ·
         Free forever for the core
       </span>
     </footer>
