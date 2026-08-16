@@ -86,13 +86,16 @@ function rasterize(img: HTMLImageElement): Raster | null {
   }
 }
 
-/** The dominant OPAQUE colour, quantised into 32-per-channel buckets. That is the panel on a
- *  transparent lower third and the background on a full-frame card - both are where a
- *  designer leaves room for words. */
-function dominantColor(r: Raster): { r: number; g: number; b: number } | null {
+/** The most common OPAQUE colours, quantised into 32-per-channel buckets and returned in
+ *  descending mass. Several, not one: on a transparent strap the biggest colour IS the panel,
+ *  but on a full-frame card it is the BACKDROP the panel sits on, and a design's words go on
+ *  the panel. Which candidate is which is decided by where its rectangle lands, below. */
+function dominantColors(r: Raster, limit = 5): Array<{ r: number; g: number; b: number }> {
   const buckets = new Map<number, { n: number; r: number; g: number; b: number }>();
+  let opaque = 0;
   for (let i = 0; i < r.data.length; i += 4) {
     if (r.data[i + 3] < 200) continue; // translucent edges and the empty frame around a strap
+    opaque += 1;
     const key = ((r.data[i] >> 5) << 10) | ((r.data[i + 1] >> 5) << 5) | (r.data[i + 2] >> 5);
     const slot = buckets.get(key) ?? { n: 0, r: 0, g: 0, b: 0 };
     slot.n += 1;
@@ -101,10 +104,18 @@ function dominantColor(r: Raster): { r: number; g: number; b: number } | null {
     slot.b += r.data[i + 2];
     buckets.set(key, slot);
   }
-  let best: { n: number; r: number; g: number; b: number } | null = null;
-  for (const slot of buckets.values()) if (!best || slot.n > best.n) best = slot;
-  if (!best || best.n < 16) return null;
-  return { r: Math.round(best.r / best.n), g: Math.round(best.g / best.n), b: Math.round(best.b / best.n) };
+  // A candidate has to be a real surface: at least a fiftieth of the opaque artwork. Below
+  // that it is a rule, a chip or an antialiasing halo, and its "panel" would be furniture.
+  const floor = Math.max(16, opaque / 50);
+  return [...buckets.values()]
+    .filter((slot) => slot.n >= floor)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, limit)
+    .map((slot) => ({
+      r: Math.round(slot.r / slot.n),
+      g: Math.round(slot.g / slot.n),
+      b: Math.round(slot.b / slot.n),
+    }));
 }
 
 /** Largest all-true axis-aligned rectangle in a binary mask (the classic histogram walk,
@@ -161,27 +172,66 @@ export async function suggestFieldsForArtwork(
   }
   if (!raster) return none('That artwork could not be measured in this browser.');
 
-  const plateColor = dominantColor(raster);
-  if (!plateColor) return none('No panel colour stood out in this artwork.');
+  const candidates = dominantColors(raster);
+  if (candidates.length === 0) return none('No panel colour stood out in this artwork.');
 
-  const mask = new Uint8Array(raster.width * raster.height);
-  for (let i = 0, p = 0; i < raster.data.length; i += 4, p++) {
-    if (raster.data[i + 3] < 200) continue;
-    mask[p] =
-      Math.abs(raster.data[i] - plateColor.r) <= FLAT_TOLERANCE &&
-      Math.abs(raster.data[i + 1] - plateColor.g) <= FLAT_TOLERANCE &&
-      Math.abs(raster.data[i + 2] - plateColor.b) <= FLAT_TOLERANCE
-        ? 1
-        : 0;
+  // Measure EVERY candidate surface, then choose. A rectangle that reaches three or four
+  // frame edges is the backdrop the design sits on, not the place its words go - full-frame
+  // artwork (a title card, a strap composited over footage) is exactly the case where the
+  // biggest flat area is the thing to ignore. A backdrop is taken only when nothing else
+  // qualifies, because on a transparent strap the panel legitimately touches nothing.
+  const EDGE = 2; // px of slack: an exported panel rarely lands on the exact pixel column
+  type Candidate = { rect: ReturnType<typeof largestRect>; color: { r: number; g: number; b: number } };
+  let chosen: Candidate | null = null;
+  let fallback: Candidate | null = null;
+  for (const color of candidates) {
+    // The tolerance is generous so a gently graded or noised panel still reads as one
+    // surface - but it must never be so generous that two candidates absorb each other. A
+    // dark panel on a dark backdrop is the common case (a title card, a strap over graded
+    // footage) and they sit well inside 24 counts of each other, so the widest tolerance
+    // claimed the whole frame for whichever it measured first. Half the distance to the
+    // nearest other candidate is the widest value that cannot do that.
+    const nearest = candidates.reduce((best, other) => {
+      if (other === color) return best;
+      const d = Math.max(
+        Math.abs(other.r - color.r),
+        Math.abs(other.g - color.g),
+        Math.abs(other.b - color.b),
+      );
+      return Math.min(best, d);
+    }, Number.POSITIVE_INFINITY);
+    const tol = Math.min(FLAT_TOLERANCE, Math.max(4, Math.floor(nearest / 2)));
+    const mask = new Uint8Array(raster.width * raster.height);
+    for (let i = 0, p = 0; i < raster.data.length; i += 4, p++) {
+      if (raster.data[i + 3] < 200) continue;
+      mask[p] =
+        Math.abs(raster.data[i] - color.r) <= tol &&
+        Math.abs(raster.data[i + 1] - color.g) <= tol &&
+        Math.abs(raster.data[i + 2] - color.b) <= tol
+          ? 1
+          : 0;
+    }
+    const rect = largestRect(mask, raster.width, raster.height);
+    if (rect.width < raster.width * MIN_PLATE_WIDTH || rect.height < raster.height * MIN_PLATE_HEIGHT) {
+      continue;
+    }
+    const edges =
+      (rect.x <= EDGE ? 1 : 0) +
+      (rect.y <= EDGE ? 1 : 0) +
+      (rect.x + rect.width >= raster.width - EDGE ? 1 : 0) +
+      (rect.y + rect.height >= raster.height - EDGE ? 1 : 0);
+    const entry = { rect, color };
+    if (edges >= 3) {
+      if (!fallback || rect.area > fallback.rect.area) fallback = entry;
+    } else if (!chosen || rect.area > chosen.rect.area) {
+      chosen = entry;
+    }
   }
-
-  const rect = largestRect(mask, raster.width, raster.height);
-  if (
-    rect.width < raster.width * MIN_PLATE_WIDTH ||
-    rect.height < raster.height * MIN_PLATE_HEIGHT
-  ) {
+  const picked = chosen ?? fallback;
+  if (!picked) {
     return none('No clear empty panel was found — place the fields where you want them.');
   }
+  const { rect, color: plateColor } = picked;
 
   // Back to design px. Rounding out would push a field over the panel's edge, so the plate
   // is rounded IN: every suggestion has to sit inside room that really is empty.
