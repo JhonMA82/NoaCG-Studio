@@ -187,7 +187,9 @@ src/                     (* = has its own AGENTS.md; read it, this line is only 
                PEOPLE by default (the ScopePicker excludes internal accounts)
   output/      the browser-output RENDERER - one persistent transparent capability URL per
                production, following the hosted-control log with boot recovery (docs/CLOUD_PLAYOUT.md)
-public/fonts/  the 7 bundled woff2 fonts (served at /fonts, copied into exports)
+public/fonts/  the 17 bundled woff2 fonts (served at /fonts, copied into exports). A picked
+               GOOGLE family (model/googleFonts.ts) is fetched at design time and embedded in
+               template.assets like an upload - never referenced by the emitted code
 src/assets/    bundled gsap.min.js, lottie.min.js, OFL.txt (the ONE licence source) + asset helpers
 src/teach/     the Monaco tooltips
 scripts/       dev-port + port-registry (the per-worktree RESERVATION), the catalog quality gates,
