@@ -268,6 +268,74 @@ export function markKnockCss(prefix: string, knock: MarkTreatment & { kind: 'kno
 }
 
 /**
+ * DOES THE PACKAGE SURVIVE THE PICTURE? - measured at compose time, where the answer is exact.
+ *
+ * §17.2: the owner read `minimalist.ledger` (`panel: none`) as unreadable over a busy plate while
+ * every gate passed it, because `BROADCAST_BACKDROP` is a single near-black card and a near-white
+ * super measures 14:1 against it. `validation/plateLegibility.ts` asks the same question of an
+ * arbitrary rendered graphic and has to INFER the surface from the DOM, which under-detects a
+ * panel drawn as a positioned sibling.
+ *
+ * **Here nothing is inferred.** The composer chose the surface, so it can compose the language's
+ * own ink over its own surface over each plate and report the truth. That is the whole argument
+ * for the platform owning the composition, arriving on a legibility question.
+ */
+export function platePlan(
+  language: DesignLanguage,
+  palette: LanguagePalette,
+  surface: PanelSurface,
+  spacing: ResolvedSpacing,
+): { role: string; ink: string; worst: { plate: string; ratio: number }; floor: number }[] {
+  const panel = parseCssColor(surface.value);
+  const roles: { role: string; ink: string; px: number; bold: boolean }[] = [
+    { role: 'the heading', ink: palette.text, px: spacing.headingPx, bold: true },
+    { role: 'the supporting line', ink: palette.textDim, px: spacing.supportingPx, bold: false },
+  ];
+  const out = [];
+  for (const { role, ink, px, bold } of roles) {
+    const fg = parseCssColor(ink);
+    if (!fg) continue;
+    const floor = px >= 24 || (bold && px >= 18.66) ? 3 : 4.5;
+    const ratios = PLATE_COLORS.map(({ id, value }) => {
+      const plate = parseCssColor(value);
+      if (!plate) return { plate: id, ratio: 21 };
+      // The design's own surface composited over the plate - transparent panels fold to the
+      // plate itself, translucent ones to exactly the mix the browser will paint.
+      const under = !panel || panel.a <= 0
+        ? plate
+        : {
+          r: panel.r * panel.a + plate.r * (1 - panel.a),
+          g: panel.g * panel.a + plate.g * (1 - panel.a),
+          b: panel.b * panel.a + plate.b * (1 - panel.a),
+          a: 1,
+          form: 'rgb' as const,
+        };
+      return { plate: id, ratio: contrastRatio(fg, under, under) };
+    });
+    const worst = ratios.reduce((a, b) => (b.ratio < a.ratio ? b : a));
+    // ANY plate under the floor is reported, and the first version of this got it wrong in a way
+    // worth keeping. It required TWO, reasoning that one failure is an extreme a designer may
+    // knowingly accept - calibrated on the catalog, where failures cluster on the blown-out
+    // plate. **It then silenced the exact graphic this instrument was built for.**
+    // `minimalist.ledger` sets a MID-GREY supporting line (#8a8a85): 5.7:1 on the night
+    // exterior, 3.2:1 on the blown-out sky, and 1.14:1 in the middle - it fails the MIDDLE and
+    // passes both extremes, which is precisely the shape a single dark stand-in can never see.
+    // One plate is a class of footage the graphic will meet. The finding names which.
+    if (worst.ratio >= floor) continue;
+    out.push({ role: `${role} (${language.name})`, ink, worst, floor });
+  }
+  return out;
+}
+
+/** The three plates `validation/plateLegibility.ts` measures against, as CSS values - one list,
+ *  so a number computed at compose time and a number measured on a rendered frame cannot drift. */
+const PLATE_COLORS = [
+  { id: 'a night exterior', value: 'rgb(8, 9, 12)' },
+  { id: 'a mid-tone shot', value: 'rgb(128, 128, 128)' },
+  { id: 'a blown-out sky', value: 'rgb(244, 246, 248)' },
+];
+
+/**
  * WHAT THE PLATFORM DECIDED, said out loud - the same four sentences for every graphic in the
  * package, plus whatever it had to repair.
  *
@@ -283,6 +351,8 @@ export function platformNotes(input: {
   prefix: string;
   adjustments: string[];
   mark: MarkTreatment;
+  /** What `platePlan` found, when the caller ran it. */
+  plates?: { role: string; worst: { plate: string; ratio: number }; floor: number }[];
 }): string[] {
   const { language, spacing, surface, prefix, adjustments, mark } = input;
   const plan = accentPlan(language.accent.form);
@@ -302,5 +372,9 @@ export function platformNotes(input: {
   // refusal to knock is a mark left unreadable. Neither may be silent.
   if (mark.kind === 'knock') notes.push(`mark ink knocked: ${mark.reason}`);
   else if (mark.reason) notes.push(`mark left as supplied: ${mark.reason}`);
+  for (const plate of input.plates ?? []) {
+    notes.push(`over the picture: ${plate.role} reads ${plate.worst.ratio}:1 over`
+      + ` ${plate.worst.plate} (floor ${plate.floor}) - this graphic depends on the shot being kind`);
+  }
   return notes;
 }

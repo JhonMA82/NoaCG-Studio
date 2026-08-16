@@ -31,6 +31,7 @@ import type { ResolvedOptions, TemplateVariant } from '../../../model/wizard';
 import type { LanguagePalette, DesignLanguage } from './contract';
 import {
   markKnockCss,
+  platePlan,
   markTreatmentFor,
   panelSurface,
   platformNotes,
@@ -281,7 +282,10 @@ export function composeBugFromLanguage(
     options.brandPalette,
   );
   const adjustments = [...paletteAdjustments, ...(mark.kind === 'knock' ? ['mark_ink_knocked'] : [])];
-  const notes = platformNotes({ language, spacing: s, surface, prefix: PREFIX, adjustments, mark });
+  const notes = platformNotes({
+    language, spacing: s, surface, prefix: PREFIX, adjustments, mark,
+    plates: platePlan(language, palette, surface, s),
+  });
   const template = variant.create({
     lines: options.lines,
     ...(options.resolution ? { resolution: options.resolution } : {}),

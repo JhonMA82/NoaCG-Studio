@@ -31,6 +31,7 @@ import {
   markKnockCss,
   markTreatmentFor,
   panelSurface,
+  platePlan,
   platformNotes,
   readableInkOn,
   resolvePalette,
@@ -298,6 +299,7 @@ export function composeFromLanguage(language: DesignLanguage, options: ComposeOp
   const adjustments = [...paletteAdjustments, ...(mark.kind === 'knock' ? ['mark_ink_knocked'] : [])];
   const notes = platformNotes({
     language, spacing: s, surface, prefix: 'lower-third', adjustments, mark,
+    plates: platePlan(language, palette, surface, s),
   });
   const template = variant.create({
     lines: options.lines,

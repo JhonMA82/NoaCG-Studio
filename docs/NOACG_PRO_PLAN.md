@@ -2239,3 +2239,55 @@ what a brand manual protects a mark from is being cropped, squashed, masked or s
 one of those is still refused. A single-ink mark supplied as a mono knockout is what broadcast has
 always used, and the alternative on a dark panel is a mark nobody can see or a box the owner has
 now twice objected to.
+
+### 17.8 The plate instrument - 2026-08-16, and the constant that hid the defect
+
+**The hole was one constant.** `BROADCAST_BACKDROP` (`blocks/cssVars.ts`) is a single near-black
+card, `rgb(16, 18, 22)`, and every contrast number this repo computes is computed against it. A
+near-white super measures 14:1 there and 1.1:1 over a bright sky. Nothing in the tree was asking
+the second question, which is why `minimalist.ledger` passed every gate and lost to the first busy
+plate a human put behind it. The file itself already said the stand-in was a stand-in; what was
+missing was anything that measured the other end.
+
+**Two instruments, because there are two situations.**
+
+`src/validation/plateLegibility.ts` measures an ARBITRARY rendered graphic: it composites every
+painted ancestor over each of three plates - a night exterior, a mid-tone shot, a blown-out sky -
+and reports text that misses its WCAG floor. It has to infer the surface from the DOM, and it
+under-detects: a panel drawn as a positioned SIBLING is invisible to an ancestor walk, which is
+why `lt49` reads as surface-less when its frame plainly is not. **Its numbers are an upper bound
+on findings, and it reports rather than gates.**
+
+`platePlan` (`pro/language/paint.ts`) measures a PRO graphic, where nothing is inferred: the
+composer chose the surface, so it composites its own ink over its own surface over the same three
+plates. Exact. It reaches the ledger as `pro-plate-legibility`, a warning.
+
+**Both mistakes I made building it are worth more than the instrument.**
+
+- **A threshold invented instead of measured.** The first version asked whether an ancestor's
+  background was opaque "enough" - a 0.92 floor this file made up - and called **62 of 90** lower
+  thirds surface-less. `ls29`'s panel is `rgba(10, 12, 16, 0.86)`: plainly a panel, a tenth of a
+  point under a number nothing supported. A translucent panel is not the absence of a surface; it
+  is a surface that lets a computable amount of the picture through. Compositing replaced the
+  threshold and there is now no floor to argue about.
+- **A rule calibrated on the wrong distribution silenced the motivating case.** The second version
+  required TWO failing plates, on the reasoning that one is an extreme a designer may accept -
+  calibrated on the catalog, where failures cluster on the blown-out plate. `minimalist.ledger`
+  sets a MID-GREY supporting line: **5.7:1 on a night exterior, 3.2:1 on a blown-out sky, 1.14:1 in
+  the middle.** It fails the MIDDLE and passes both extremes - precisely the shape a single dark
+  stand-in can never see - so the two-plate rule silenced the one graphic the instrument existed
+  for. Any plate under the floor is now reported, and the finding names which one.
+
+**Measured, after the fixes.** The graphic that produced the complaint: heading **1.22:1** and
+supporting line **1.14:1** over a mid-tone shot, both reported. The two solid-panel graphics from
+the same round that the owner accepted (`news-public.aldervale`, `sports-live.kestrel`): silent.
+That pairing is the test - it fires on what a person could not read and stays quiet on what they
+kept.
+
+**What the catalog sweep says, as a REPORT and nothing more**
+(`node scripts/plate-legibility-sweep.mjs`, free): of 90 lower thirds, 42 clear every plate, 9
+miss only the blown-out extreme, 34 miss two, 5 miss all three - some of those five being the
+sibling-panel blind spot above rather than real. **A large part of the catalog quietly depends on
+the footage being dark**, which is a fact nobody had measured and not, by itself, a defect: glass
+and panel-less designs are deliberate compositions. Nothing is gated on this. The number that
+would justify gating does not exist yet.

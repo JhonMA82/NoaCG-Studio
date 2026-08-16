@@ -321,6 +321,54 @@ test.describe('the platform owns the Phase A panel', () => {
   });
 
   /**
+   * DOES IT SURVIVE THE PICTURE (§17.2)?
+   *
+   * The defect this closes is one constant: `BROADCAST_BACKDROP` is a single near-black card, so
+   * every contrast number in the repo was computed against the friendliest possible plate. The
+   * owner read a panel-less super as unreadable over a busy mid-tone while every gate passed it.
+   *
+   * The MID-TONE case is the one pinned hardest, because it is the one a dark stand-in can never
+   * see: a mid-grey ink passes on a night exterior AND on a blown-out sky, and vanishes in the
+   * middle. An earlier version of this instrument required two failing plates and silenced
+   * exactly this graphic; that is why the assertion below names the plate.
+   */
+  test('a graphic that only reads over kind footage says so, and a panelled one stays quiet', async ({ page }) => {
+    const out = await page.evaluate(async () => {
+      const { composeFromLanguage } = await import('/src/ai/pro/language/compose.ts');
+      const { HOUSE_LANGUAGE } = await import('/src/ai/pro/language/contract.ts');
+      const lines = [{ title: 'Name', sample: 'Alexandra Riva' }, { title: 'Role', sample: 'Host' }];
+      const notes = (language: Parameters<typeof composeFromLanguage>[0]) =>
+        composeFromLanguage(language, { lines }).notes.filter((n) => n.startsWith('over the picture: '));
+      return {
+        // A mid-grey ink with NO surface under it - the shape that defeats a single dark stand-in.
+        super: notes({
+          ...HOUSE_LANGUAGE,
+          palette: { ...HOUSE_LANGUAGE.palette, text: '#747453', textDim: '#8a8a85' },
+          shape: { ...HOUSE_LANGUAGE.shape, panel: 'none' as const },
+        }),
+        // The same inks on a solid panel: the design knows its own backdrop, so nothing is owed.
+        panelled: notes({
+          ...HOUSE_LANGUAGE,
+          palette: { ...HOUSE_LANGUAGE.palette, text: '#747453', textDim: '#8a8a85', panel: '#0d1117' },
+          shape: { ...HOUSE_LANGUAGE.shape, panel: 'solid' as const },
+        }),
+        // A white super with no surface: fine on a night exterior, gone against a bright sky.
+        whiteSuper: notes({
+          ...HOUSE_LANGUAGE,
+          palette: { ...HOUSE_LANGUAGE.palette, text: '#ffffff', textDim: '#f2f2f2' },
+          shape: { ...HOUSE_LANGUAGE.shape, panel: 'none' as const },
+        }),
+      };
+    });
+    expect(out.super.join(' '), 'the mid-grey super names the MIDDLE plate')
+      .toContain('a mid-tone shot');
+    expect(out.super.length, 'both the heading and the supporting line are reported').toBe(2);
+    expect(out.panelled, 'a solid panel is its own backdrop - nothing to report').toEqual([]);
+    expect(out.whiteSuper.join(' '), 'a white super fails the bright plate, not the dark one')
+      .toContain('a blown-out sky');
+  });
+
+  /**
    * THE LEDGER ROW CAN TELL A CLEAN GENERATION FROM A RESCUED ONE (§16, `gate.ts`).
    *
    * The defect this closes: the outcome report sent ERRORS only, so a graphic the platform had

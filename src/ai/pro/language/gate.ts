@@ -57,6 +57,16 @@ export function proLanguageFindings(
         : 'The brand mark\'s single ink was recoloured so it reads on this panel, with no field behind it.',
     });
   }
+  // DOES IT SURVIVE THE PICTURE (§17.2). The composer measured its own ink over its own surface
+  // over three plates, so this reads the note rather than recomputing - one number, one place.
+  for (const note of composed.notes.filter((n) => n.startsWith('over the picture: '))) {
+    out.push({
+      rule: 'pro-plate-legibility',
+      message: `This graphic is hard to read over some pictures - ${note.slice('over the picture: '.length)}.`
+        + ' A panel, a scrim or a darker ink is what fixes it; a blurred text shadow paints around'
+        + ' the glyph rather than under it and cannot.',
+    });
+  }
   // A mark left UNREADABLE is the more serious of the two and was previously invisible: the old
   // field always went on, so there was nothing to report. Now that the platform can decline to
   // alter a customer's artwork, declining has to be as loud as acting.
