@@ -13,7 +13,7 @@ interface Props {
   onDraft: (patch: DraftPatch) => void;
 }
 
-type Tool = 'select' | 'text' | 'area';
+type Tool = 'select' | 'text' | 'area' | 'image';
 
 /** What a new field is called, matching the erase seeds: the lower-third words first. */
 function nextTitle(existing: number): string {
@@ -40,11 +40,11 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
   // A live drag: move (dx/dy from the pressed field's origin), area-draw, or width-resize.
   const drag = useRef<
     | { kind: 'move'; id: string; startX: number; startY: number; origX: number; origY: number }
-    | { kind: 'draw'; startX: number; startY: number; x: number; y: number; w: number }
+    | { kind: 'draw'; startX: number; startY: number; x: number; y: number; w: number; h: number }
     | { kind: 'resize'; id: string; startX: number; origW: number }
     | null
   >(null);
-  const [drawRect, setDrawRect] = useState<{ x: number; y: number; w: number } | null>(null);
+  const [drawRect, setDrawRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
   const fields = draft.designFields;
   const selected = fields.find((f) => f.id === selectedId) ?? null;
@@ -219,9 +219,9 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
         lineHeight: null,
         letterSpacing: null,
       });
-    } else if (tool === 'area') {
-      drag.current = { kind: 'draw', startX: p.x, startY: p.y, x: p.x, y: p.y, w: 0 };
-      setDrawRect({ x: p.x, y: p.y, w: 0 });
+    } else if (tool === 'area' || tool === 'image') {
+      drag.current = { kind: 'draw', startX: p.x, startY: p.y, x: p.x, y: p.y, w: 0, h: 0 };
+      setDrawRect({ x: p.x, y: p.y, w: 0, h: 0 });
     } else {
       setSelectedId(null);
     }
@@ -252,8 +252,8 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
     } else if (d.kind === 'draw') {
       const x = Math.min(d.startX, p.x);
       const w = Math.abs(p.x - d.startX);
-      d.x = x; d.y = Math.min(d.startY, p.y); d.w = w;
-      setDrawRect({ x, y: d.y, w });
+      d.x = x; d.y = Math.min(d.startY, p.y); d.w = w; d.h = Math.abs(p.y - d.startY);
+      setDrawRect({ x, y: d.y, w, h: d.h });
     } else {
       patchField(d.id, { width: Math.max(60, Math.round(d.origW + p.x - d.startX)) });
     }
@@ -264,8 +264,31 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
     drag.current = null;
     if (d?.kind === 'draw') {
       setDrawRect(null);
+      // A picture SLOT: a box the operator drops a crest, a headshot or a sponsor mark into.
+      // Both dimensions are the user's, because a slot's shape is a design decision the
+      // artwork was drawn around — unlike a text box, where only the width means anything.
+      if (tool === 'image' && d.w >= 24 && d.h >= 24) {
+        const count = fields.filter((f) => f.kind === 'image').length;
+        addField({
+          title: count === 0 ? 'Logo' : `Image ${count + 1}`,
+          text: '',
+          x: Math.round(d.x),
+          y: Math.round(d.y),
+          kind: 'image',
+          width: Math.round(d.w),
+          height: Math.round(d.h),
+          fontId: null,
+          fontSize: defaultSize,
+          weight: null,
+          color: '#ffffff',
+          align: 'left',
+          lineHeight: null,
+          letterSpacing: null,
+        });
+        return;
+      }
       // A real drag becomes an area box; a bare click in area mode does nothing.
-      if (d.w >= 40) {
+      if (tool === 'area' && d.w >= 40) {
         const title = nextTitle(fields.length);
         addField({
           title,
@@ -301,6 +324,7 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
         <button className={tool === 'select' ? 'active' : ''} onClick={() => setTool('select')} title="Select / move fields" data-testid="tool-select">↖ Select</button>
         <button className={tool === 'text' ? 'active' : ''} onClick={() => setTool('text')} title="Click the artwork to place point text" data-testid="tool-text">T Text</button>
         <button className={tool === 'area' ? 'active' : ''} onClick={() => setTool('area')} title="Drag a box — text wraps inside its width" data-testid="tool-area">⬚ Area text</button>
+        <button className={tool === 'image' ? 'active' : ''} onClick={() => setTool('image')} title="Drag a box the operator drops a picture into (a crest, a headshot, a sponsor mark)" data-testid="tool-image">🖼 Image slot</button>
         <button
           onClick={() => void suggest(false)}
           disabled={suggesting || !artworkUrl}
@@ -337,13 +361,18 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
             style={{
               left: f.x * s,
               top: f.y * s,
-              width: f.kind === 'area' && f.width ? f.width * s : undefined,
-              transform: anchorTransform(f.align),
+              width: f.kind !== 'point' && f.width ? f.width * s : undefined,
+              height: f.kind === 'image' && f.height ? f.height * s : undefined,
+              transform: f.kind === 'image' ? 'none' : anchorTransform(f.align),
             }}
             onPointerDown={(e) => onFieldDown(e, f)}
             data-testid={`place-field-${f.title}`}
           >
-            <span
+            {/* An empty slot is drawn as what it IS — a reserved rectangle with its operator
+                name in it — which is exactly what the built template shows before a file
+                lands in it. */}
+            {f.kind === 'image' && <span className="place-field-slot">{f.title}</span>}
+            {f.kind !== 'image' && <span
               className="place-field-text"
               style={{
                 fontFamily: familyOf(f),
@@ -358,17 +387,28 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
               }}
             >
               {f.text || f.title}
-            </span>
+            </span>}
             {f.id === selectedId && f.kind === 'area' && (
               <span className="place-field-resize" onPointerDown={(e) => onResizeDown(e, f)} title="Drag to set the wrap width" />
             )}
           </div>
         ))}
         {drawRect && (
-          <div className="place-draw" style={{ left: drawRect.x * s, top: drawRect.y * s, width: drawRect.w * s }} />
+          <div
+            className="place-draw"
+            style={{
+              left: drawRect.x * s,
+              top: drawRect.y * s,
+              width: drawRect.w * s,
+              height: tool === 'image' ? drawRect.h * s : undefined,
+            }}
+          />
         )}
         {fields.length === 0 && !drawRect && (
-          <div className="place-empty hint">Click the artwork to place text — drag with ⬚ for a wrapping box.</div>
+          <div className="place-empty hint">
+            Click the artwork to place text — drag with ⬚ for a wrapping box, or 🖼 for a
+            picture slot.
+          </div>
         )}
       </div>
 
@@ -389,13 +429,53 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
               <span>Field name <span className="muted">(shown to the operator)</span></span>
               <input value={selected.title} onChange={(e) => patchField(selected.id, { title: e.target.value })} data-testid="field-title" />
             </label>
-            <label className="save-field grow">
-              <span>Preview text</span>
-              <input value={selected.text} onChange={(e) => patchField(selected.id, { text: e.target.value })} data-testid="field-text" />
-            </label>
+            {/* A picture slot has no preview text: what the operator types is a FILE. */}
+            {selected.kind !== 'image' && (
+              <label className="save-field grow">
+                <span>Preview text</span>
+                <input value={selected.text} onChange={(e) => patchField(selected.id, { text: e.target.value })} data-testid="field-text" />
+              </label>
+            )}
+            {selected.kind === 'image' && (
+              <>
+                <label className="save-field">
+                  <span>Slot width</span>
+                  <input
+                    type="number"
+                    min={16}
+                    value={selected.width ?? 0}
+                    onChange={(e) => patchField(selected.id, { width: Math.max(16, parseInt(e.target.value, 10) || 16) })}
+                    style={{ width: 90 }}
+                    data-testid="field-slot-width"
+                  />
+                </label>
+                <label className="save-field">
+                  <span>Slot height</span>
+                  <input
+                    type="number"
+                    min={16}
+                    value={selected.height ?? 0}
+                    onChange={(e) => patchField(selected.id, { height: Math.max(16, parseInt(e.target.value, 10) || 16) })}
+                    style={{ width: 90 }}
+                    data-testid="field-slot-height"
+                  />
+                </label>
+              </>
+            )}
             <button onClick={() => removeField(selected.id)} title="Remove this field (Delete)" style={{ alignSelf: 'flex-end' }}>🗑</button>
           </div>
 
+          {selected.kind === 'image' && (
+            <p className="hint" style={{ marginTop: 8 }}>
+              The operator picks a file for this slot from the control panel; the picture is
+              fitted inside the box without being cropped. Nothing is baked into the design.
+            </p>
+          )}
+
+          {/* CONDITIONAL, never `hidden`: `.row` declares `display: flex`, and an author rule
+              setting display beats the attribute's UA rule - the same trap a closed
+              `<details>` has here (wizard/AGENTS.md). */}
+          {selected.kind !== 'image' && (
           <div className="row" style={{ gap: 10, marginTop: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label className="save-field">
               <span>Typeface</span>
@@ -480,8 +560,9 @@ export default function PlaceFieldsStep({ art, draft, onDraft }: Props) {
               />
             </label>
           </div>
+          )}
 
-          {fontOpen === 'field' && (
+          {fontOpen === 'field' && selected.kind !== 'image' && (
             <div className="place-font-pop">
               <FontPicker
                 value={selected.fontId}

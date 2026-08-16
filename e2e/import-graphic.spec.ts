@@ -787,3 +787,49 @@ test('import graphic: the imported template exports as the code that was dropped
   });
   expect(built).toMatchObject({ name: 'Studio strap A', fields: ['Name', 'Title'], root: true });
 });
+
+test('the Text step places a picture slot the operator fills from the control panel', async ({ page }) => {
+  // A crest, a headshot, a sponsor mark: the design reserves the box, the operator brings the
+  // file. It has to be reachable WITHOUT the editor, like every other field on this step.
+  await dropDesign(page);
+  await page.waitForTimeout(800);
+  await page.locator('.wz-next').click(); // Prepare
+  await page.locator('.wz-next').click(); // Text
+  const stage = page.getByTestId('place-stage');
+  await expect(stage).toBeVisible();
+
+  await page.getByTestId('tool-image').click();
+  const box = (await stage.boundingBox())!;
+  const x = box.x + box.width * 0.34;
+  const y = box.y + box.height * 0.73;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 80, y + 55, { steps: 6 });
+  await page.mouse.up();
+
+  // Named, sized, and typography-free: what an operator supplies here is a FILE.
+  await expect(page.getByTestId('place-field-Logo')).toBeVisible();
+  await expect(page.getByTestId('field-slot-width')).toBeVisible();
+  await expect(page.getByTestId('field-size')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 30_000 });
+
+  // A real SPX image field (filelist), a real <img> in the design, and a placed, sized box.
+  const built = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const t = useTemplateStore.getState().template;
+    const logo = t.fields.find((f) => f.title === 'Logo');
+    // Built with concatenation, not a template literal: `\s` and `\{` are NOT escapes inside
+    // one, so an inlined pattern silently becomes `#fw2s*{…` and matches nothing.
+    const wrapper = logo
+      ? t.css.match(new RegExp('#fw' + logo.field.slice(1) + '\\s*\\{[^}]*\\}'))?.[0] ?? ''
+      : '';
+    return {
+      ftype: logo?.ftype ?? null,
+      img: logo ? new RegExp('<img[^>]*id="' + logo.field + '"').test(t.html) : false,
+      sized: /width:\s*calc\(\d+px/.test(wrapper) && /height:\s*calc\(\d+px/.test(wrapper),
+    };
+  });
+  expect(built).toEqual({ ftype: 'filelist', img: true, sized: true });
+});
