@@ -1662,9 +1662,68 @@ it has. It is on the lower-third path and predates Phase B.
 Archived at `noacg-lite-eval-archive/pro-phaseb-package-gemini25flash-2026-08-15` (1012 files,
 copy proven).
 
-**The human read is owed and nothing here is a substitute for it.** The machine measured that the
-composer works; whether four channels' worth of graphics look like four channels' packages is the
-question `set-gallery.html` exists to be asked.
+#### THE OWNER'S BLIND READ - 2026-08-16: 4 of 4 packages read as unified
+
+**The Phase B claim holds on the only measure that counts.** Asked to judge the ROW rather than
+the graphics, the owner called every one of the four paid packages coherent: *"the blue background
+is clear; it looks like one graphic packet"*, *"also fine"*, *"solid. Same colors; it looks
+unified"*, *"white and black - this is really easy; it's unified"*. No package was called a
+mismatched set, and no palette, typeface or motion was called wrong.
+
+Five classes came out of it. **Three are the PLATFORM's, one is the RIG's, and none is the
+model's** - which is the same shape as §15.8's read and is worth noticing twice.
+
+- **1. The accent bar is identical and does not READ that way** (on the countdown of a package
+  otherwise called good). MEASURED on the saved code rather than argued: the bar is `16px` on all
+  three members - the package constant doing exactly what it was built to do - but against each
+  panel's own height it lands at 0.106 (strap), 0.110 (bug) and **0.073 (countdown)**, because the
+  clock's panel is 219px tall where the strap's is 151px. Identical absolute weight is not
+  identical perceived weight once panel heights differ by 45%. **`e2e/pro-language.spec.ts` asserts
+  the three `accentPx` values are EQUAL, so the guard pins precisely the wrong invariant** - it
+  would pass through the defect the eye caught.
+  **RULED 2026-08-16 (owner): record it, change nothing.** One observation on one graphic is not
+  enough to move a design-language rule, and the alternative - a bar whose px value differs per
+  graphic - contradicts DESIGN_LANGUAGE §8's "reuse the exact token values across categories",
+  which the catalog follows with a single `--accent-weight`.
+- **2. One label voice, three sizes.** The countdown's label measures **1.46-1.53x the strap's
+  supporting line at every type step** (26 vs 38px on a clear step; 33 vs 50px on a subtle one),
+  because `supportingPx` is the per-graphic anchor times the step. The voice is consistent by
+  RATIO and not by size, and at ~50px a label stops reading as a label - which is what
+  *"the starting text also feels like it's different from the other texts"* is. Not ruled on;
+  recorded with its measurement so a later round can decide whether the label voice should carry
+  a size band across the package the way the accent carries a weight.
+- **3. Same typeface, different voice** - *"the name typeface and bug typeface are quite
+  different, but that's not so bad"*. Both are Anton; `--font-heading` is identical. What differs
+  is 700 / no tracking / CAPS on the strap's name against 500 / 0.08em / sentence case on the
+  bug's caption, which is the LABEL voice doing its job. Called acceptable, recorded not fixed.
+- **4. The countdown carries no mark while the strap and bug do** - *"the timer does not have
+  anything to do with the KSTRL logo, so it looks a bit different"*. Structural rather than a
+  defect: `countdownType` declares `logo: 'none'`, so there is no slot to fill, and giving it one
+  changes a catalog contract every shipped `gt0x` design compiles from.
+  **RULED 2026-08-16 (owner): leave it - a clock is not a branded card.** The channel's mark lives
+  on the persistent bug and on the strap.
+- **5. A mark that does not suit its package - THE RIG's, not the design's.** Two CONTROL rows were
+  called out for carrying a mark that fits neither (*"the KSTRL logo does not fit with this
+  graphic"*, on the scholarly serif package and again on the warm daytime one). The control seats
+  ONE mark - the volt sport wordmark, `brands[0]` - on all four hand-written languages, so those
+  pairings are the harness's doing; the paid rows each carry their own brand's mark and drew no
+  such note. **Stated rather than fixed, because this repo has twice read a rig fault as a model
+  fault** (docs/AI_ATTEMPTS.md).
+  It does leave a REAL question behind it, unanswered and not a patch: nothing checks whether a
+  customer's mark suits the language the model chose. The model sees only the mark's shape,
+  backing and ink - content-free by design - so a sport wordmark on a documentary package is
+  invisible to it.
+
+**THE GALLERY WAS LEAKING THE ANSWER, and the owner found it at the moment of reading.**
+`setGalleryHtml` printed the language's NAME beside each blind id (`B-21 "Aldervale Nightly"`),
+and a design language is named by the model after the brand it was designed for - so the one
+artifact whose whole job is withholding which brand produced which row was announcing it in every
+heading. `blindTheFrames` had already been copying the images to blind filenames for exactly this
+reason; the row's own title was the last thing left. Fixed (the heading is the blind id alone) and
+verified by rebuilding the real round for zero tokens. The read above was taken on a copy with the
+names stripped, and is sound; **what it is not is a clean-room read** - this session had already
+named the languages in conversation before the gallery was opened, which is the same leak class
+recorded against the 2026-08-13 round.
 
 **The deliverable is `set-gallery.html`**: one row per design language, three graphic types side by
 side, so the coherence claim is read in one glance. It is BLIND like the main gallery - rows keyed

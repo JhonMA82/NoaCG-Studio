@@ -1997,7 +1997,19 @@ function setGalleryHtml(all, round = {}) {
         findings: findingCodes(m),
       })),
     ];
-    rows.push({ key: r.blindId, sub: r.language?.name ? `“${r.language.name}”` : '', cells });
+    // THE LANGUAGE'S NAME IS NOT BLIND, and printing it here defeated the whole file.
+    //
+    // A design language is NAMED BY THE MODEL after the brand it was designed for - "Aldervale
+    // Nightly", "Kestrel Newsline" - so a heading reading `B-21 "Aldervale Nightly"` announces
+    // which of the four brands produced that row, in the one artifact whose entire job is to
+    // withhold it until the notes are written. Found by the owner at the moment of reading
+    // (2026-08-16), which is the worst possible moment: every earlier reader of this file saw
+    // the same leak and it looked like a caption.
+    //
+    // The blind id alone is the heading now. The name is in key.html with everything else that
+    // waits for the reveal, and `blindTheFrames` was already doing the equivalent job for the
+    // image filenames - this row's own title was the one thing left announcing it.
+    rows.push({ key: r.blindId, sub: '', cells });
   }
   // Control rows: `language-<graphic>-<slug>` records, grouped by the language slug.
   const byLanguage = new Map();
