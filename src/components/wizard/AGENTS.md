@@ -22,10 +22,13 @@ door - NoaCG Pro is an execution TIER inside it, never a second card; there is n
 either — see the kit path below.
 
 **THE ENTRY STEP'S CONTENT** (steps/EntryStep.tsx, handoff §2a; reasoning in that file's
-comments). Hero = headline + two lines, no second brand mark and no export-target chip row -
-the targets belong in the SENTENCE. Home = a full-width ROW whose Graphics / Productions
+comments). Hero = the LANDING PAGE's headline verbatim plus a subtitle naming BOTH routes to
+air - the cloud control panel and EVERY export target, never a sample of three - with no second
+brand mark and no export-target chip row: the targets belong in the SENTENCE, and a new export
+target updates this copy too. Home = a full-width ROW whose Graphics / Productions
 shortcuts are SIBLINGS of the body button, shown only when there is saved work. The video strip
-is ONE LINE. **THREE DIVERGENCES ARE DELIBERATE**, pinned by `e2e/wizard-entry-fit.spec.ts`: no
+is ONE LINE, carries no label of its own, and is FLUSH with the card grid. Both AI doors
+(Create with AI, video) wear the Beta tag INSIDE the title. **THREE DIVERGENCES ARE DELIBERATE**, pinned by `e2e/wizard-entry-fit.spec.ts`: no
 kit card, cards act on CLICK not radio-plus-Continue, Blank stays behind Advanced mode.
 
 **THE FEEDBACK DOOR IS ON THE WIZARD HEADER** (`BetaFeedbackButton area="wizard"`; Home carries

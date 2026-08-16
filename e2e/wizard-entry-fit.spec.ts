@@ -223,13 +223,24 @@ test('the mode cards stack into one column on a phone', async ({ page }) => {
 // differences that were closed - and, just as importantly, the three divergences from the
 // reference that are DELIBERATE, so nobody restores the picture over the decision.
 
-test('the hero names the export targets in the sentence, not as chips', async ({ page }) => {
+test('the hero names both routes to air and EVERY export target, in the sentence', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
   const hero = page.locator('.wz-hero');
-  await expect(hero.locator('.wz-hero-title')).toContainText('Broadcast graphics');
+  // The landing page's headline, verbatim - the app repeating the promise word for word is
+  // what makes the two surfaces read as one product.
+  await expect(hero.locator('.wz-hero-title')).toHaveText('Create live graphics. Run the show.');
+  const sub = hero.locator('.wz-hero-sub');
+  // THE CLOUD ROUTE IS NAMED. Running the show from NoaCG's own control panel is the half a
+  // browser tool is not assumed to have, and the step used to promise export alone.
+  await expect(sub).toContainText('live in the cloud from NoaCG’s own control panel');
+  // EVERY TARGET, not a sample of three: naming SPX, CasparCG and OGraf alone read as the whole
+  // list, and told an OBS, vMix, H2R or LiveOS user this was not for them. The list here is the
+  // export registry's six targets (src/export/targets/), so a NEW target updates both.
+  for (const target of ['SPX Graphics', 'CasparCG', 'OGraf', 'H2R Graphics', 'LiveOS', 'OBS', 'vMix']) {
+    await expect(sub, `the hero names ${target}`).toContainText(target);
+  }
   // The targets are a PROMISE in the subtitle. As a row of small bordered pills they read as
   // filters or as status, which is what a row of pills means everywhere else in this app.
-  await expect(hero.locator('.wz-hero-sub')).toContainText('SPX, CasparCG and OGraf');
   await expect(hero.locator('.wz-hero-tags')).toHaveCount(0);
   // And no second brand mark: the wizard's own topbar already wears one, two inches higher.
   await expect(hero.locator('svg, img')).toHaveCount(0);
@@ -304,6 +315,47 @@ test('the video strip is one line, quieter than any shipped mode', async ({ page
   const modeHeight = await page.locator('.wz-entry .wz-entry-card').first()
     .evaluate((el) => el.getBoundingClientRect().height);
   expect(shape.height).toBeLessThan(modeHeight);
+
+  // FLUSH WITH THE GRID, and no label outside the card. "Not a live graphic?" used to lead the
+  // strip and indented the card 160px, so the one row that is not aligned with the cards above
+  // was the row already set apart by a dashed rule - the offset read as a layout fault. The
+  // distinction it carried is the first words of the card's own hint instead.
+  await expect(page.locator('.wz-video-strip-label')).toHaveCount(0);
+  await expect(card.locator('.hint')).toContainText('Not a live graphic');
+  const edges = await page.evaluate(() => {
+    const video = document.querySelector('[data-entry="video"]')!.getBoundingClientRect();
+    const grid = document.querySelector('.wz-entry')!.getBoundingClientRect();
+    return { videoLeft: Math.round(video.left), gridLeft: Math.round(grid.left),
+             videoWidth: Math.round(video.width), gridWidth: Math.round(grid.width) };
+  });
+  expect(edges.videoLeft).toBe(edges.gridLeft);
+  expect(edges.videoWidth).toBe(edges.gridWidth);
+});
+
+test('both AI doors are marked Beta', async ({ page }) => {
+  await entryStepAt(page, 1366, 768);
+  // The video door has said Beta since it shipped; "Create with AI" is the same kind of
+  // promise and was the only unmarked one. The tag lives INSIDE the title, so the card's
+  // fixed-height title row is what has to absorb it - a tag that wrapped the title would
+  // push this card's copy off the y its row-mate's sits at.
+  for (const entry of ['ai', 'video']) {
+    await expect(page.locator(`[data-entry="${entry}"] .wz-beta-tag`)).toHaveText('Beta');
+  }
+  const rows = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) =>
+    els.map((el) => {
+      const strong = el.querySelector('strong')!;
+      return {
+        entry: (el as HTMLElement).dataset.entry,
+        titleHeight: strong.getBoundingClientRect().height,
+        lineHeight: parseFloat(getComputedStyle(strong).lineHeight),
+        hintTop: Math.round(el.querySelector('.hint')!.getBoundingClientRect().top - el.getBoundingClientRect().top),
+      };
+    }),
+  );
+  for (const row of rows) {
+    expect(row.titleHeight, `${row.entry}: title wrapped`).toBeLessThan(row.lineHeight * 1.6);
+    expect(row.hintTop, `${row.entry}: description offset`).toBe(rows[0].hintTop);
+  }
 });
 
 test('the deliberate divergences from the reference hold', async ({ page }) => {

@@ -75,12 +75,22 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
           app. The targets belong in the sentence, where they are a promise rather than
           furniture — which is exactly where the reference puts them. */}
       <div className="wz-hero">
+        {/* THE HEADLINE IS THE LANDING PAGE'S, VERBATIM. A visitor arrives here seconds after
+            reading it, and the app repeating the promise word for word is what makes the two
+            surfaces one product. It also names the half most tools stop short of: creating a
+            graphic is not the job, putting it on air is. */}
         <h1 className="wz-hero-title">
-          Broadcast graphics, <span>built in minutes.</span>
+          Create live graphics. <span>Run the show.</span>
         </h1>
+        {/* THE SUBTITLE CARRIES BOTH ROUTES TO AIR, and every export target rather than a
+            sample of three: naming SPX, CasparCG and OGraf alone read as the whole list, which
+            told an OBS, vMix, H2R or LiveOS user this was not for them. The CLOUD route leads,
+            because it is the one nobody expects from a browser tool and the one the student
+            release is built around. */}
         <p className="wz-hero-sub">
-          Lower thirds, tickers, scoreboards and more — made by choosing, not coding. Exports
-          for SPX, CasparCG and OGraf.
+          Lower thirds, tickers, scoreboards and more, made by choosing rather than coding.
+          Run them live in the cloud from NoaCG’s own control panel, or export a validated
+          package for SPX Graphics, CasparCG, OGraf, H2R Graphics, LiveOS, OBS and vMix.
         </p>
       </div>
 
@@ -137,7 +147,12 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
         <button className="wz-entry-card" onClick={onAi} data-entry="ai">
           <span className="wz-entry-head">
             <span className="wz-entry-icon">✦</span>
-            <strong>Create with AI</strong>
+            {/* BETA, like the video door: the adapt-first pipeline is shipped and metered, but
+                it is the least settled surface in the studio, and a card that promises the same
+                polish as the catalog sets the wrong expectation for what comes back. */}
+            <strong>
+              Create with AI <span className="wz-beta-tag">Beta</span>
+            </strong>
           </span>
           <span className="hint">Describe the graphic you need and NoaCG turns a proven broadcast design into a customized one — drop in a logo, brand stills, or an existing .html / SPX template.</span>
         </button>
@@ -167,15 +182,21 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
              mode — and spent the entry step's tightest resource on the option fewest people
              want. What the line has to say is what makes it different from everything above
              it: it renders to a FILE, and it opens the other workspace. The rest was
-             examples, and a mode nobody has chosen yet does not need examples. ── */}
+             examples, and a mode nobody has chosen yet does not need examples.
+
+             THE STRIP HAS NO LEADING LABEL. "Not a live graphic?" sat outside the card and
+             indented it 160px, so the one row on the step that is not flush with the grid was
+             the row already marked as the odd one out — the offset read as a layout fault
+             rather than as separation, which the dashed rule above it already provides. The
+             distinction the label carried is now the first words of the card's own hint,
+             where it belongs to the thing it describes. ── */}
       <div className="wz-video-strip" data-testid="wz-video-strip">
-        <span className="wz-video-strip-label mono">Not a live graphic?</span>
         <button className="wz-entry-card wz-entry-card--video" onClick={onVideo} data-entry="video">
           <span className="wz-entry-icon">▶</span>
           <strong>
             Video or animation with AI <span className="wz-beta-tag">Beta</span>
           </strong>
-          <span className="hint">Renders to a file. Opens the separate Video workspace.</span>
+          <span className="hint">Not a live graphic: it renders to a file, in the separate Video workspace.</span>
           <span className="wz-video-strip-go" aria-hidden="true">→</span>
         </button>
       </div>

@@ -6523,15 +6523,11 @@ h2 + .lib-row,
   width: 100%;
   max-width: 1180px;
 }
-.wz-video-strip-label {
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  flex: 0 0 auto;
-}
+/* FLUSH WITH THE GRID. The strip used to lead with a "Not a live graphic?" label, which
+   pushed the card 160px right of every card above it; the dashed rule already says the row is
+   apart, and the offset only read as a card that failed to line up. */
 .wz-video-strip .wz-entry-card--video {
-  flex: 1 1 320px;
+  flex: 1 1 100%;
   flex-direction: row;
   align-items: center;
   gap: 12px;
@@ -6554,6 +6550,13 @@ h2 + .lib-row,
 .wz-video-strip-go { flex: 0 0 auto; color: var(--text-faint); }
 
 @media (max-width: 768px) {
+  /* THE HERO IS DESKTOP-SIZED (42/18, `.wz-wizard` above) and a phone cannot afford it: at
+     390px that title runs three lines and the subtitle seven, so the first card starts below
+     the fold and the step opens on nothing but copy. The same words at 28/15 cost half that
+     and still lead the screen. Sized here rather than by shortening the sentence, because the
+     sentence is the only place the export targets and the cloud control panel are named. */
+  .wz-wizard .wz-hero-title { font-size: 28px; }
+  .wz-wizard .wz-hero-sub { font-size: 15px; }
   /* On a phone the title and the hint cannot share a row — "Video or animation with AI" plus
      the Beta tag is already most of 390px. Two lines, the icon spanning both, and the arrow
      drops out: it pointed at a row that no longer reads as one. */
