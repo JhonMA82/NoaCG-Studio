@@ -281,7 +281,9 @@ export default function PrepareDesignStep({
         <p className="hint">
           Text that is part of the image file can't be edited on air. If your design has a name
           or title baked in, mark it — the box is filled with the surrounding background, and a
-          real, editable text field takes its place when the project is created.
+          real, editable text field takes its place when the project is created. Erasing only
+          works cleanly over a FLAT background, and it says so when it can't: the honest fix
+          then is to export the design again with the text left out.
         </p>
         {marking === null && (
           <div className="row" style={{ gap: 8, marginTop: 10 }}>
@@ -366,8 +368,9 @@ export default function PrepareDesignStep({
       <div className="panel-section" style={{ marginTop: 14 }}>
         <h3>What happens next</h3>
         <p className="hint">
-          Create the project and you land in the editor with the <strong>Data</strong> tab open —
-          add more text, number, and image fields there, style them, and animate the graphic.
+          The next step places the editable fields on your artwork — text and picture slots —
+          and finds the empty panel for you when there is one. Nothing here is required: a
+          design with nothing baked in and no long values can go straight on.
         </p>
       </div>
     </div>

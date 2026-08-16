@@ -1360,7 +1360,15 @@ export default function CreationWizard() {
             {step === 0 && (
               <EntryStep
                 onTemplates={() => { setMode('template'); setStep(1); }}
-                onImportGraphic={() => { setMode('design'); setStep(1); }}
+                onImportGraphic={() => {
+                  // Entering the flow again starts it: a template file left over from a
+                  // previous pass would otherwise re-appear on a walk the user restarted,
+                  // with the artwork branch's steps around it.
+                  setImportedFile(null);
+                  setImportedFileError(null);
+                  setMode('design');
+                  setStep(1);
+                }}
                 onAi={() => { setMode('ai'); setStep(1); }}
                 onVideo={() => {
                   if (!draft.formatTouched) patch(DEFAULT_VIDEO_FORMAT);
