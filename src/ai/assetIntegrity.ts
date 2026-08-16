@@ -97,6 +97,40 @@ function targetsOf(html: string, paths: string[]): { ids: string[]; classes: str
 }
 
 /**
+ * THE ONE ALTERATION THE PLATFORM MAY MAKE TO A PROTECTED MARK, and the narrowest expression of
+ * it this screen can hold.
+ *
+ * Two owner rulings meet here. "Use it as it is" protects an uploaded picture from a model
+ * helpfully filtering, cropping or stretching it. The 2026-08-16 ruling
+ * (docs/NOACG_PRO_PLAN.md §17) says a SINGLE-INK mark that cannot be read on the panel is
+ * recoloured - knocked to one ink - rather than plated onto a box, because a box the platform
+ * paints reads as a patch. A knock is a `filter`, and this screen refuses every filter, so
+ * without an allowance the ruling is unimplementable.
+ *
+ * It is admitted on THREE conditions at once, and each one is doing work:
+ *
+ * - the selector is the platform's own knock class (`…-logo--knocked`), which only
+ *   `markKnockCss` emits and which no model-written CSS reaches;
+ * - the declaration is exactly one of the two knock shapes - `brightness(0)`, optionally lifted
+ *   by `invert(1)`. A blur, a drop-shadow, a hue-rotate or a `brightness(0.4)` all fail it;
+ * - the rule declares NOTHING ELSE. A knock smuggling a `clip-path` in beside it is not a knock.
+ *
+ * So the recolour is legal and every geometric protection is untouched - which is the honest
+ * shape of the exception, since the alteration a brand manual cares about is the mark being
+ * cropped, squashed or masked, not being supplied as the mono knockout broadcast has always used.
+ * The divergence is never silent: it lands as `mark_ink_knocked` in the ledger's adjustments and
+ * as a `pro-mark-knocked` warning on the row.
+ */
+const KNOCK_SELECTOR = /\.[a-z][a-z0-9-]*-logo--knocked\b/i;
+const KNOCK_DECLARATION = /^(?:-webkit-)?filter\s*:\s*brightness\(0\)(?:\s+invert\(1\))?$/i;
+
+function isPlatformInkKnock(selector: string, body: string): boolean {
+  if (!KNOCK_SELECTOR.test(selector)) return false;
+  const declarations = body.split(';').map((d) => d.trim()).filter(Boolean);
+  return declarations.length > 0 && declarations.every((d) => KNOCK_DECLARATION.test(d));
+}
+
+/**
  * Findings for every forbidden declaration aimed at an as-is picture.
  *
  * `paths` is the subset of the uploaded assets the user marked "Use it as it is". An empty list
@@ -116,6 +150,7 @@ export function assetIntegrityFindings(template: SpxTemplate, paths: string[]): 
   const found = new Map<string, ValidationIssue>();
   for (const { selector, body } of rules(template.css)) {
     if (!reaches(selector)) continue;
+    if (isPlatformInkKnock(selector, body)) continue;
     for (const f of FORBIDDEN) {
       if (found.has(f.rule) || !f.test(body)) continue;
       found.set(f.rule, {

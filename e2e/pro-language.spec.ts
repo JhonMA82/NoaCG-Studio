@@ -244,15 +244,22 @@ test.describe('the platform owns the Phase A panel', () => {
   });
 
   /**
-   * THE MARK FIELD IS ON, AND THE TRIGGER IS WHAT WAS RULED ON (owner, 2026-08-15, §15.8).
+   * THE MARK IS KNOCKED, NEVER PLATED (owner, 2026-08-16, §17.1).
+   *
+   * The read of the first accepted Pro set objected to the BOX, not to the repair: *"the
+   * background of a logo should always be transparent… the logo could be on top of the banner
+   * itself"*, while lt07's blue well and ls10's red well were both liked. A well the DESIGN draws
+   * is composition; a neutral field the PLATFORM paints is a patch. So a single-ink mark that
+   * cannot be read is recoloured to the one ink that can, and a full-colour mark keeps its
+   * colours and waits for a design that offers it a well.
    *
    * The three probes below are the three cases the ruling turns on, and the middle one is the
-   * whole reason the field can be trusted: an older MEAN-luminance signal flagged the coloured
-   * roundel, a rendered A/B showed the field made it worse, and the owner's blind read had
-   * passed it. `inkSpread` separates the two by two orders of magnitude, so a drift that widens
-   * the single-ink band fails HERE rather than quietly restoring the false positive.
+   * whole reason the trigger can be trusted: an older MEAN-luminance signal flagged the coloured
+   * roundel, a rendered A/B showed a field made it worse, and the owner's blind read had passed
+   * it. `inkSpread` separates the two by two orders of magnitude, so a drift that widens the
+   * single-ink band fails HERE rather than quietly knocking the colour out of somebody's logo.
    */
-  test('the mark field fires on the ink that vanishes and leaves a coloured mark alone', async ({ page }) => {
+  test('the mark ink is knocked on the ink that vanishes, and a coloured mark is left alone', async ({ page }) => {
     const cases = await page.evaluate(async () => {
       const { composeFromLanguage } = await import('/src/ai/pro/language/compose.ts');
       const { HOUSE_LANGUAGE } = await import('/src/ai/pro/language/contract.ts');
@@ -286,18 +293,79 @@ test.describe('the platform owns the Phase A panel', () => {
         // …and the option is still an option, for an A/B or a re-ruling.
         monogramOptedOut: codes(compose({ inkLuminance: 0.02, inkSpread: 0.0004 }, false)),
         css: compose({ inkLuminance: 0.02, inkSpread: 0.0004 }).template.css,
+        // The as-is screen's verdict on the knocked graphic, measured through the REAL screen on
+        // the REAL emit rather than against a copy of the pattern kept here.
+        integrity: await (async () => {
+          const { assetIntegrityFindings } = await import('/src/ai/assetIntegrity.ts');
+          const knocked = compose({ inkLuminance: 0.02, inkSpread: 0.0004 }).template;
+          return assetIntegrityFindings(knocked, ['images/mark.svg']).map((f) => f.rule);
+        })(),
       };
     });
 
-    expect(cases.monogram, 'a single dark ink on a dark panel takes its field').toContain('mark_field_painted');
-    expect(cases.roundel, 'a coloured mark is left alone').not.toContain('mark_field_painted');
+    expect(cases.monogram, 'a single dark ink on a dark panel is knocked').toContain('mark_ink_knocked');
+    expect(cases.roundel, 'a coloured mark keeps its colours').not.toContain('mark_ink_knocked');
     expect(cases.older, 'no spread means cannot tell, and cannot tell means do not touch it')
-      .not.toContain('mark_field_painted');
+      .not.toContain('mark_ink_knocked');
     expect(cases.monogramOptedOut, 'markField:false still composes the un-repaired graphic')
-      .not.toContain('mark_field_painted');
-    // A BAND, not a box: the field is the mark's own column stretched to the words beside it.
-    expect(cases.css).toContain('align-self: stretch');
-    expect(cases.css).toContain('object-fit: contain');
+      .not.toContain('mark_ink_knocked');
+    // THE MARK SITS ON THE PANEL. Both halves are pinned, because the objection was to the box:
+    // the recolour is emitted, and nothing paints a surface behind the artwork.
+    expect(cases.css, 'the one ink that reads').toContain('filter: brightness(0) invert(1)');
+    expect(cases.css, 'no plate, no band, no column of its own')
+      .not.toMatch(/\.lower-third-logo[^{]*\{[^}]*background:/);
+    // …and the exact shape the as-is screen admits. A knock that screen would refuse is a knock
+    // that ships a blocking validation error on every branded Pro graphic - the two rules are
+    // written in different files and only meet here.
+    expect(cases.integrity, 'the platform\'s own knock passes the as-is screen').toEqual([]);
+  });
+
+  /**
+   * DOES IT SURVIVE THE PICTURE (§17.2)?
+   *
+   * The defect this closes is one constant: `BROADCAST_BACKDROP` is a single near-black card, so
+   * every contrast number in the repo was computed against the friendliest possible plate. The
+   * owner read a panel-less super as unreadable over a busy mid-tone while every gate passed it.
+   *
+   * The MID-TONE case is the one pinned hardest, because it is the one a dark stand-in can never
+   * see: a mid-grey ink passes on a night exterior AND on a blown-out sky, and vanishes in the
+   * middle. An earlier version of this instrument required two failing plates and silenced
+   * exactly this graphic; that is why the assertion below names the plate.
+   */
+  test('a graphic that only reads over kind footage says so, and a panelled one stays quiet', async ({ page }) => {
+    const out = await page.evaluate(async () => {
+      const { composeFromLanguage } = await import('/src/ai/pro/language/compose.ts');
+      const { HOUSE_LANGUAGE } = await import('/src/ai/pro/language/contract.ts');
+      const lines = [{ title: 'Name', sample: 'Alexandra Riva' }, { title: 'Role', sample: 'Host' }];
+      const notes = (language: Parameters<typeof composeFromLanguage>[0]) =>
+        composeFromLanguage(language, { lines }).notes.filter((n) => n.startsWith('over the picture: '));
+      return {
+        // A mid-grey ink with NO surface under it - the shape that defeats a single dark stand-in.
+        super: notes({
+          ...HOUSE_LANGUAGE,
+          palette: { ...HOUSE_LANGUAGE.palette, text: '#747453', textDim: '#8a8a85' },
+          shape: { ...HOUSE_LANGUAGE.shape, panel: 'none' as const },
+        }),
+        // The same inks on a solid panel: the design knows its own backdrop, so nothing is owed.
+        panelled: notes({
+          ...HOUSE_LANGUAGE,
+          palette: { ...HOUSE_LANGUAGE.palette, text: '#747453', textDim: '#8a8a85', panel: '#0d1117' },
+          shape: { ...HOUSE_LANGUAGE.shape, panel: 'solid' as const },
+        }),
+        // A white super with no surface: fine on a night exterior, gone against a bright sky.
+        whiteSuper: notes({
+          ...HOUSE_LANGUAGE,
+          palette: { ...HOUSE_LANGUAGE.palette, text: '#ffffff', textDim: '#f2f2f2' },
+          shape: { ...HOUSE_LANGUAGE.shape, panel: 'none' as const },
+        }),
+      };
+    });
+    expect(out.super.join(' '), 'the mid-grey super names the MIDDLE plate')
+      .toContain('a mid-tone shot');
+    expect(out.super.length, 'both the heading and the supporting line are reported').toBe(2);
+    expect(out.panelled, 'a solid panel is its own backdrop - nothing to report').toEqual([]);
+    expect(out.whiteSuper.join(' '), 'a white super fails the bright plate, not the dark one')
+      .toContain('a blown-out sky');
   });
 
   /**
@@ -323,8 +391,8 @@ test.describe('the platform owns the Phase A panel', () => {
       });
       const findings = proLanguageFindings(
         {
-          adjustments: ['palette_text_dim_lightness_clamped', 'mark_field_painted'],
-          notes: ['mark field: the mark reads 1.01:1 on this panel'],
+          adjustments: ['palette_text_dim_lightness_clamped', 'mark_ink_knocked'],
+          notes: ['mark ink knocked: the mark reads 1.01:1 on this panel'],
         },
         ['typography.fontId→space-grotesk'],
       );
@@ -341,7 +409,7 @@ test.describe('the platform owns the Phase A panel', () => {
     expect(result.codes).not.toContain('bench-line-wrap');
     // …and every platform divergence the composer records becomes one of those codes.
     expect(result.findings).toEqual(
-      expect.arrayContaining(['pro-palette-repaired', 'pro-mark-field', 'pro-language-fallback']),
+      expect.arrayContaining(['pro-palette-repaired', 'pro-mark-knocked', 'pro-language-fallback']),
     );
   });
 });

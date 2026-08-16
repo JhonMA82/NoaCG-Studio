@@ -254,7 +254,7 @@ export function composeTimerFromLanguage(
   const surface = panelSurface(language, palette);
   const variant = timerVariantForLanguage(language, options.brandPalette);
   const notes = platformNotes({
-    language, spacing: s, surface, prefix: 'game-timer', adjustments, field: null,
+    language, spacing: s, surface, prefix: 'game-timer', adjustments, mark: { kind: 'none', reason: null },
   });
   const template = variant.create({
     lines: options.lines,

@@ -2154,3 +2154,240 @@ settle and the ledger row exactly as real as they would be for a student. The al
 therefore covered by the stubbed configured spec rather than by this run, which is the honest
 division: this one exists to answer "what does the product actually produce", and it now has a
 picture on the review page to answer it with.
+
+---
+
+## 17. The owner's first read of a Pro set - 2026-08-16
+
+The read §16 was owed. The verdict on the set as a whole: **acceptable, and happier than before** -
+"we can live with this", with continuous improvement expected rather than another premise change.
+That is the first time a Pro round has been read without a layout failure being named, which is
+what §15.5 predicted and what nothing until now had tested.
+
+Five findings, all specific. Each one was checked against the source before being written here, and
+each turned out to be the code doing exactly what was seen - none is taste against a defect that
+does not exist.
+
+### 17.1 The mark sits on a visible box, and it should not
+
+**Named twice** - as `Aldervale Evening News`'s "A in the white box", and as a general rule: *the
+background of a logo should always be transparent; the box should not be part of the graphic; the
+mark should sit on the banner itself and look integrated.*
+
+That white box is the platform's own repair - `pro-mark-field`, the field armed on 2026-08-14 after
+the blind read flagged a dark monogram at 1.00:1 on a dark navy panel. It fires on one cell in
+eighteen, and this is that cell. **So the objection is not to a bug; it is to the repair being
+visible.**
+
+The owner's own words carry the constraint that stops this being a simple removal: *"we can't have
+a dark logo on a dark background and not see it… this works if we have a dark logo and a dark
+background, so that's fine."* The field is accepted where it is the only thing making the mark
+readable. What is rejected is a mark that reads as pasted onto a chip.
+
+**Note what was NOT objected to:** `lt07`'s blue block and `ls10`'s red block, both of which put the
+mark in a coloured well, were called out as liked. A well that the DESIGN draws is part of the
+composition; a neutral field the PLATFORM paints is a patch. The distinction is the whole finding,
+and it is the same one `src/ai/AGENTS.md` already records as "a mark carries NO PLATE" - `ls12`'s
+fixed dark tile being the ratified exception because it is designed rather than repaired.
+
+Directions worth measuring, cheapest first, none yet chosen: knock the mark's ink to the panel's
+text colour instead of plating it (works only for a single-ink mark, which is exactly the case the
+`inkSpread` measurement already isolates); shrink the field to the mark's INK box so no edge is
+visible against the panel; or place the mark outside the panel entirely where the design allows.
+
+### 17.2 A panel-less super has no legibility instrument at all
+
+`Ledger Investigations` (`minimalist.ledger`) sets its words directly on the picture - the language
+returned `shape.panel: "none"`, which is a legitimate answer and produces the sparest graphic in the
+set. The composer's compensation is a text shadow (`0 2px 12px rgba(0,0,0,.75)` on the heading,
+`0 2px 10px` on the supporting line, both in the saved CSS). Over the review page's busy mid-tone
+backdrop the owner could not read the text at all.
+
+**This is the §16 hole in a new place.** `validation/markLegibility.ts` measures a MARK against the
+surfaces the design paints; a super with no surface has nothing to measure against, so no instrument
+in the tree asks whether those words survive a picture. Every gate passed this graphic, and the
+first busy plate defeated it.
+
+The ask is explicit and is a gate, not an opinion: **check that it works on real images.** A
+panel-less composition should be measured against a set of plates - at minimum a busy mid-tone and a
+high-key one - and the finding should reach the same seam every other Pro divergence does
+(`pro/language/gate.ts`). Whether the repair is a stronger shadow, a scrim, or refusing
+`panel: "none"` for small supporting text is a decision to take AFTER the measurement exists.
+
+### 17.3 `ls17` carries dead space under its accent
+
+The side-by-side name-and-title row was called out as good variation and worth keeping. The strap is
+too tall for what it holds: there is space under the yellow rule that reads as unnecessary.
+
+Confirmed in `src/templates/lowerThirds/specialist/ls17.ts`: `.lower-third-accent` is
+`margin: 15px 0 13px`, and its own comment says the bottom margin is kept deliberately so it "holds
+even when the rule closes the strap with no institution under it". With no institution line (`f3`)
+the render is exactly that case - 13px of accent margin plus the box's 26px bottom padding under a
+2px hairline. **The design chose this; the read says the choice is wrong when the rule is last.**
+Collapsing the bottom margin when the accent is the final child is the small version of the fix.
+
+### 17.4 Accepted as they are
+
+`lt07` (the mark's placement specifically called out as good, the blue "kind of out there but
+fine"), `ls10`, `lt49`, `lt53`. The portrait-crest change these frames exist to show drew no
+objection on any of them.
+
+### 17.5 What this settles about the round
+
+Nothing in the read named a palette, a typeface, a motion character or a composition as wrong -
+the four things §15.4 moved to the model. Three of the five findings are PLATFORM behaviour (the
+mark field, the missing plate instrument, a catalog design's margin), which is the same shape as
+§15.2's decomposition and the reason Phase A was built. The premise holds; the work is now
+ordinary improvement against named defects.
+
+### 17.6 The mark ruling, implemented - 2026-08-16
+
+**The owner's chain, verbatim:** try the ink knock first for single-ink marks; do not automatically
+plate them; if a knock cannot preserve the mark, use a design-supported alternate placement where
+one is available; full-colour marks keep their colours and are served by an intentional well the
+DESIGN provides, never by the platform painting a generic repair field.
+
+`markFieldFor` is gone. `markTreatmentFor` (`pro/language/paint.ts`) returns a `knock` or a
+`none`, and there is no third answer that paints anything:
+
+| the mark | what happens |
+|---|---|
+| single ink, reads on the panel | nothing |
+| single ink, under the floor | its one ink is knocked to white or black, whichever measures better on that panel, and it sits ON the panel |
+| single ink, under the floor, and no knock clears it either | **left exactly as supplied**, with `pro-mark-unreadable` naming the number |
+| full colour (`inkSpread` over the single-ink band) | nothing - the colours are the identity |
+| brings its own field | nothing |
+
+**The third rung is honest rather than implemented.** The composed Pro graphic draws no second
+placement for a mark today, so "a design-supported alternate placement" has nothing to select; the
+code declines to alter the artwork and says why instead. When a Pro composition grows a second
+mark position, that is where it plugs in.
+
+**Measured on the exact graphic that produced the finding** (`news-public.aldervale`, recomposed
+free from its own saved `language.json`): the monogram probes at ink luminance 0.0200 and
+`inkSpread` 0.00038 - single ink by two orders of magnitude - and read **1.01:1** on the `#14264a`
+panel. Knocked to white it reads **14.89:1 on the panel itself, with no field behind it**. The
+ledger row carries `mark_ink_knocked` and `pro-mark-knocked`.
+
+**It also fixed the other half of §17.1 for free.** The field was what set the mark's column to
+`align-self: stretch`, so removing it returns the crest to the shared slot's own vertical
+centring - the "not really centered on anything, aligned with the top line row" complaint. One
+change, both halves.
+
+### 17.7 The as-is screen now admits exactly one alteration
+
+A knock is a CSS `filter`, and `assetIntegrity.ts` refuses every filter on a picture the user
+marked "use it as it is" - so this ruling and that one collide, and the collision is real rather
+than a technicality. Both are the owner's, and the resolution is to make the exception the
+narrowest thing the screen can express rather than to loosen the screen:
+
+- the selector must be the platform's own knock class (`.{prefix}-logo--knocked`), which only
+  `markKnockCss` emits and which the shared slot only writes when the composer asks for it;
+- the declaration must be exactly `brightness(0)`, optionally `invert(1)` - the two shapes that
+  are pure recolours;
+- the rule must declare NOTHING ELSE.
+
+**Mutation-checked, 9 cases** (`local` runner, reproducible): both legal knocks admitted; a blur,
+a `brightness(0.4)`, a drop-shadow, the knock on a non-knock selector, and the knock beside a
+`clip-path`, a `border-radius` or an `object-fit: cover` all still raise their blocking errors.
+The e2e spec runs the REAL screen over the REAL emit, so the two rules - written in different
+files, for different reasons - are proven to meet.
+
+**Why this is a recolour and not a distortion**, stated because it is the part worth arguing with:
+what a brand manual protects a mark from is being cropped, squashed, masked or shadowed, and every
+one of those is still refused. A single-ink mark supplied as a mono knockout is what broadcast has
+always used, and the alternative on a dark panel is a mark nobody can see or a box the owner has
+now twice objected to.
+
+### 17.8 The plate instrument - 2026-08-16, and the constant that hid the defect
+
+**The hole was one constant.** `BROADCAST_BACKDROP` (`blocks/cssVars.ts`) is a single near-black
+card, `rgb(16, 18, 22)`, and every contrast number this repo computes is computed against it. A
+near-white super measures 14:1 there and 1.1:1 over a bright sky. Nothing in the tree was asking
+the second question, which is why `minimalist.ledger` passed every gate and lost to the first busy
+plate a human put behind it. The file itself already said the stand-in was a stand-in; what was
+missing was anything that measured the other end.
+
+**Two instruments, because there are two situations.**
+
+`src/validation/plateLegibility.ts` measures an ARBITRARY rendered graphic: it composites every
+painted ancestor over each of three plates - a night exterior, a mid-tone shot, a blown-out sky -
+and reports text that misses its WCAG floor. It has to infer the surface from the DOM, and it
+under-detects: a panel drawn as a positioned SIBLING is invisible to an ancestor walk, which is
+why `lt49` reads as surface-less when its frame plainly is not. **Its numbers are an upper bound
+on findings, and it reports rather than gates.**
+
+`platePlan` (`pro/language/paint.ts`) measures a PRO graphic, where nothing is inferred: the
+composer chose the surface, so it composites its own ink over its own surface over the same three
+plates. Exact. It reaches the ledger as `pro-plate-legibility`, a warning.
+
+**Both mistakes I made building it are worth more than the instrument.**
+
+- **A threshold invented instead of measured.** The first version asked whether an ancestor's
+  background was opaque "enough" - a 0.92 floor this file made up - and called **62 of 90** lower
+  thirds surface-less. `ls29`'s panel is `rgba(10, 12, 16, 0.86)`: plainly a panel, a tenth of a
+  point under a number nothing supported. A translucent panel is not the absence of a surface; it
+  is a surface that lets a computable amount of the picture through. Compositing replaced the
+  threshold and there is now no floor to argue about.
+- **A rule calibrated on the wrong distribution silenced the motivating case.** The second version
+  required TWO failing plates, on the reasoning that one is an extreme a designer may accept -
+  calibrated on the catalog, where failures cluster on the blown-out plate. `minimalist.ledger`
+  sets a MID-GREY supporting line: **5.7:1 on a night exterior, 3.2:1 on a blown-out sky, 1.14:1 in
+  the middle.** It fails the MIDDLE and passes both extremes - precisely the shape a single dark
+  stand-in can never see - so the two-plate rule silenced the one graphic the instrument existed
+  for. Any plate under the floor is now reported, and the finding names which one.
+
+**Measured, after the fixes.** The graphic that produced the complaint: heading **1.22:1** and
+supporting line **1.14:1** over a mid-tone shot, both reported. The two solid-panel graphics from
+the same round that the owner accepted (`news-public.aldervale`, `sports-live.kestrel`): silent.
+That pairing is the test - it fires on what a person could not read and stays quiet on what they
+kept.
+
+**What the catalog sweep says, as a REPORT and nothing more**
+(`node scripts/plate-legibility-sweep.mjs`, free): of 90 lower thirds, 42 clear every plate, 9
+miss only the blown-out extreme, 34 miss two, 5 miss all three - some of those five being the
+sibling-panel blind spot above rather than real. **A large part of the catalog quietly depends on
+the footage being dark**, which is a fact nobody had measured and not, by itself, a defect: glass
+and panel-less designs are deliberate compositions. Nothing is gated on this. The number that
+would justify gating does not exist yet.
+
+### 17.9 ls17's dead space - 2026-08-16
+
+Measured before touching anything, which is what made the fix a one-liner instead of a redesign.
+`.lower-third-accent` carried `margin: 15px 0 13px`, and its own source comment defended the
+bottom half: it "holds even when the rule closes the strap with no institution under it". With no
+institution line (`f3` is emitted only when the design is created with four lines) the rule IS the
+last child, so those 13px sat on top of the panel's own 26px of padding - **39px of nothing under
+a 2px hairline.**
+
+**The gap now belongs to the line it separates.** The rule keeps its air above; the 13px moved to
+`.lower-third-extra`'s `margin-top`. A space owned by the element it sets apart cannot outlive it,
+so no selector trick is needed - no `:last-child`, no `:has`, nothing an older CasparCG build
+would have to support.
+
+| | before | after |
+|---|---|---|
+| two lines (no institution) | strap 130px, 13px under the rule | **strap 117px, 0px under the rule** |
+| four lines | strap 196px, 38px under the rule | **strap 196px, 38px** - byte-identical |
+
+The rule is emitted unconditionally and stays that way: the animation data keyframes that node by
+selector, so an element that came and went with a field would leave the timeline and the
+line-reveal preset addressing something that is not there. That was already the right call and the
+comment defending it is kept; only the margin moved.
+
+**Catalog gates, all green after the change**: `type-floor`, `numerals`, `field-coverage`,
+`overflow-sweep --baseline` and the lower-third `l3-sweep` (whose ls17 frame shows the four-line
+composition unchanged).
+
+**The baselines moved with it, and that is the point of them.** `e2e/catalog-baseline.spec.ts`
+holds two: a SOURCE hash per emitted pane, expected to move when a design's CSS deliberately
+changes, and a RENDER fingerprint of the settled graphic's computed styles and geometry, which is
+the one that "must NOT move". Here it moved on purpose and the diff proves the scope: **two hashes
+in the whole 460-variant catalog** - ls17's `css`, and the single element
+`div.lower-third-mask[2]` whose box the margin left. Re-recorded with the documented flags
+(`UPDATE_CATALOG_BASELINE=1 UPDATE_RENDER_BASELINE=1`).
+
+Worth noting for the next catalog change: the local affected plan ran the catalog calibration
+TRIPWIRE (`catalog-bench`), which measures whether a graphic still passes its bench, and that is a
+different question from `catalog-baseline`, which pins the emitted bytes and the rendered geometry.
+CI caught the second one. A catalog edit wants both.
