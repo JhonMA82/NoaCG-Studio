@@ -413,7 +413,12 @@ a published production still bakes the hosted receiver into exported graphics �
 self-hosted/offline path is the same production operated over the same log, with the renderer
 swapped from `/output` to the user's own hosting. The long-term output model:
 
-1. **NoaCG Cloud Output** — the `/output` URL (this doc).
+1. **NoaCG Cloud Output** — the `/output` URL (this doc), plus the **output embed**
+   (`src/export/outputEmbed.ts`) for a host that loads template FILES and has nowhere to paste a
+   URL. It is downloaded from the Links block beside the URL, and it is that same live output:
+   one SPX-legal `.html` framing it, whose Play/Stop move the FRAME while cues stay with the
+   operator. It carries the output capability only — a template able to air a cue would have to
+   carry the control slug onto a playout machine.
 2. **Self-hosted NoaCG Output** — the exported package + hosted receiver (existing).
 3. **Portable package export** — the six targets (existing; offline, archival, restricted
    networks).

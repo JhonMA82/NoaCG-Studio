@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { saveAs } from 'file-saver';
 import { useRouter, type ProductionSub } from '../../app/router';
 import { useTemplateStore } from '../../store/templateStore';
 import {
@@ -22,7 +23,9 @@ import {
   type Show,
   type ShowCue,
 } from '../../model/shows';
-import { graphicKindLabel } from '../../model/types';
+import { graphicKindLabel, type Resolution } from '../../model/types';
+import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
+import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
 import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
@@ -560,6 +563,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
   };
 
+  /**
+   * The OUTPUT EMBED (export/outputEmbed.ts) - the output URL packaged as a template FILE.
+   * It lives beside the URL rather than in the production's export dialog because it is not a
+   * package of the graphics at all: it is the same live output the URL addresses, in the one
+   * shape a host that lists template files (SPX, and CasparCG's own template folder) can load.
+   * The resolution is the stage's, derived exactly as `buildOutputPayload` derives it, so the
+   * size the file quotes to the operator is the size the renderer actually paints.
+   */
+  const downloadEmbed = () => {
+    if (!outputUrl) return;
+    const library = loadGraphics();
+    const resolution = show.graphics.reduce<Resolution>((r, g) => {
+      const res = templateForSavedGraphic(g, library).resolution;
+      return { width: Math.max(r.width, res.width), height: Math.max(r.height, res.height), label: r.label };
+    }, DEFAULT_GRAPHICS_RESOLUTION);
+    const html = outputEmbedHtml({ production: show.name, outputUrl, resolution });
+    saveAs(new Blob([html], { type: 'text/html' }), outputEmbedFileName(show.name));
+    setNote('✓ Template file downloaded. Drop it into SPX ASSETS/templates (or your CasparCG template folder) and add it to a rundown.');
+  };
+
   const copy = (kind: 'output' | 'control' | 'join' | 'presenter', text: string) => {
     void copyLink(text).then((ok) => {
       if (!ok) return;
@@ -928,6 +951,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           copied={copied}
           unpublishedChanges={unpublishedChanges}
           onCopy={copy}
+          embedFileName={outputEmbedFileName(show.name)}
+          onDownloadEmbed={downloadEmbed}
           onPublish={() => void publish()}
           onUnpublish={() => void unpublish()}
         />
@@ -1784,6 +1809,8 @@ function ProductionLinks({
   copied,
   unpublishedChanges,
   onCopy,
+  embedFileName,
+  onDownloadEmbed,
   onPublish,
   onUnpublish,
 }: {
@@ -1803,6 +1830,8 @@ function ProductionLinks({
   copied: 'output' | 'control' | 'join' | 'presenter' | null;
   unpublishedChanges: boolean;
   onCopy: (kind: 'output' | 'control' | 'join' | 'presenter', text: string) => void;
+  embedFileName: string;
+  onDownloadEmbed: () => void;
   onPublish: () => void;
   onUnpublish: () => void;
 }) {
@@ -1842,6 +1871,27 @@ function ProductionLinks({
             <p className="hint">
               Add this once as a browser source (OBS / vMix) or a CasparCG HTML template. It keeps working
               across re-publishes; graphics and cues update in place.
+            </p>
+            {/* THE SAME OUTPUT, AS A FILE. An SPX rundown lists template files out of
+                ASSETS/templates and has nowhere to paste a URL, so the row above reaches every
+                playout host except the one this project treats as canonical. The file wraps this
+                production's output URL in a full-frame iframe (export/outputEmbed.ts): SPX plays
+                the item, NoaCG cues what is inside it. It sits under the URL rather than in the
+                export dialog because it is not a package of the graphics - it is this link. */}
+            <div className="prod-link-row">
+              <span className="mono muted">SPX template</span>
+              <code className="prod-url">{embedFileName}</code>
+              {/* "Download", not "⬇ Download": it sits in a column with two Copy buttons, and the
+                  glyph made this one row a pixel taller than its neighbours. */}
+              <button onClick={onDownloadEmbed} data-testid="download-output-embed">
+                Download
+              </button>
+            </div>
+            <p className="hint">
+              For playout that loads template <em>files</em> instead of URLs - SPX, or a CasparCG template
+              folder. Drop it into SPX&rsquo;s <code>ASSETS/templates</code> and add it to a rundown: Play puts the
+              output up, Stop takes it down, and you cue the graphics from here or the control page. It carries
+              the output link, so keep it as private as the link itself.
             </p>
             <div className="prod-link-row">
               <span className="mono muted">Control page</span>
