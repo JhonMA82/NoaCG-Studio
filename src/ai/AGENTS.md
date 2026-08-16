@@ -622,144 +622,84 @@ Three things this shape changed, all of them consequences rather than choices:
   floor - once in 18 cells, on the monogram the blind read named as unfinished. Pinned as a band
   on each side by `e2e/pro-language.spec.ts`.
 
-**The concept-and-reconstruct engine is RETIRED and lives in `pro/reconstruct/`**, behind a
-build-time import boundary (`eslint.config.js`), bench-only. Read
-`src/ai/pro/reconstruct/AGENTS.md` before touching it - including for why it was not deleted. The
-account below is kept because it is the measurement Phase A rests on.
+**The concept-and-reconstruct engine is DELETED (2026-08-15).** `pro/reconstruct/` held it behind
+a build-time import boundary for one day, and both went in the same change once the last thing
+reading it - a fixture bank, four `scripts/pro-*` runners and nine `e2e/pro.spec.ts` tests - had
+somewhere else to be. The fixture bank was archived outside the repo first; the paid rounds that
+produced it stay in `benchmarks/pro/round-2026-08-0{8,9,10}/` and in `docs/AI_ATTEMPTS.md`,
+because they are the measurement Phase A rests on.
 
-### The retired engine's record (`pro/reconstruct/`)
+### What the retired engine measured, kept because Phase A rests on it
 
-**RETIRED - the reconstruction path was PARKED on measurement (2026-08-08) and replaced
-(2026-08-15).** The concept stage works
-and the compiler cannot keep what it designs: visibly broken on 5 of 12 while the gates reported 11 of 12
-passing. **Read `docs/NOACG_PRO_PLAN.md` before proposing further work.** What measured well is the
-concept itself, whose live reuse is as a `layout` REFERENCE into the grounded adapt path.
+**RETIRED - the reconstruction path was PARKED on measurement (2026-08-08), replaced
+(2026-08-15) and deleted the same day.** The concept stage worked and the compiler could not keep
+what it designed: visibly broken on 5 of 12 while the gates reported 11 of 12 passing. The three
+findings worth carrying forward, none of them about images:
 
-**Re-measured 2026-08-09 over the whole bank (`benchmarks/pro/round-2026-08-09/ROUND.md`, $0.940,
-10 fixtures saved): the bench said 10/10 pass at `editability 1.00`, and of five frames read by
-eye two were usable, one degraded and two BROKEN - one printing the artwork's baked name a second
-time above the rebuilt panel. `editability` is a real measurement of a different question; NO gate
-here asks whether the compiled graphic resembles the concept, which is why a wrong graphic scores
-1.00. Every concept image was good, so the compiler is what loses them.**
-
-**The sharp-placement gate now EXISTS and `pro-bench` counts both halves in `pass`.** The
-interpretation carries a separate `canvasPlacement`; `resolveProCanvasPlacement`
-(`pro/contract.ts`) clamps it to a useful lower-third size and safe canvas position, applies at
-most a 1.00 scale, and says when the source lacks enough pixels to fulfil the requested size.
-`api/_lib/proGeometry.test.ts` pins the arithmetic free. The pre-change fixture bank is expected
-to keep source-limited failures because those concepts spent their pixels on full-frame scenery;
-only a fresh tight-concept round can measure whether the prompt fixed that input.
-
-**THE CAUSE IS THE CONCEPT PROMPT, and the direction is decided (owner, 2026-08-09).**
-`proConceptPrompt` asks for the graphic inside a "full 1920x1080 frame" over a "softly blurred
-studio backdrop", so a fixed ~1376x768 output spends most of its pixels on scenery the compiler
-then crops away - `minimalist` kept 23% of the width and binned the rest. Ask for the GRAPHIC
-ALONE, tightly framed, and decide its canvas size and placement separately instead of inheriting
-them from the model's framing: a strap drawn at 1376px and placed at ~1150px is a downscale, so
-correct size and sharpness stop competing. Root `--scale` alone (a pure stretch) is RULED OUT; a
-larger model output is unavailable (the gateway image call has no size parameter). Expect it to
-clear most of the baked-text ghosting too - four of five broken frames show it, and a tight
-concept has no backdrop to show through. A prompt change invalidates the fixtures: budget a fresh
-paid round (~$0.95). Detail: `benchmarks/pro/round-2026-08-09/ROUND.md`.
-
-**IMPLEMENTED 2026-08-09 and paid-verified 2026-08-10.** `proConceptPrompt` now asks for the
-graphic alone with tight framing and no environment. The same interpretation call independently
-chooses normalized canvas width and top-left placement. Normalization clamps that decision;
-compile keeps the native crop and sends artwork, live fields, rebuilt panels, and the logo slot
-through one downscale-only imported-design `--scale`, expressed with the normal editable zone and
-nudge contract. Contract version: `pro-interpret-v3`. The fresh 12-brief round spent $1.014569 and
-verified the placement contract: 9/12 requested sizes were fulfilled by downscaling, three stayed
-at native scale and were reported `SOURCE-LIMITED`, and none upscaled. The overall product result
-was 8/12 usable or degraded and 4/12 broken. Tight concepts therefore fixed the canvas arithmetic,
-not reconstruction: baked-text ghosts remain on three frames and `portrait-logo` loses its portrait.
-Full record: `benchmarks/pro/round-2026-08-10/ROUND.md`.
-
-**Re-diagnosed 2026-08-09 (`benchmarks/pro/round-2026-08-08/DIAGNOSIS.md`): the approach has not been
-fairly tested, so do not carry "image-led reconstruction cannot work" as a finding.** The compiler
-renders every design at 0.72x the size it was drawn (a 1376x768 concept's pixels used as DESIGN pixels
-in a 1920x1080 frame), places live text at 0.59x the baked text it replaces, paints panels in colours
-the pixels do not contain, and re-buckets the designed position into one of nine zones. `ProPanelGeometry`
-carries no polygon, so an angled design is rebuilt as rectangles - which is a schema limit, not a
-model one: on `sports-live` the interpretation SAW the angles and warned about them. Free re-measurement:
-`node scripts/pro-geometry-audit.mjs`. And the house rule below was misapplied here - the compiler's own
-`ProCompileReport.warnings` separates broken from usable on 11 of 12, and `pro-bench.mjs` records them
-and computes `pass` without reading them. **A gate that measures the right dimension and discards the
-answer is a scoring bug, not a blind spot.**
+- **A gate that measures the right dimension and DISCARDS the answer is a scoring bug.** The
+  compiler's own `ProCompileReport.warnings` separated broken from usable on 11 of 12, and the
+  bench computed `pass` without reading them. The same bug reached production a layer nearer the
+  student: the first real hosted generation shipped a graphic printing its own words twice with
+  `validation_rule_codes` EMPTY and the ledger row saying `usable`. That is why `pro/language/`
+  has exactly ONE scoring seam (`gate.ts`) and why the ledger row now carries `pro-` warnings as
+  well as errors.
+- **No gate asked whether the compiled graphic RESEMBLED the concept**, so a wrong graphic scored
+  `editability 1.00`. A deterministic gate cannot catch a defect in a dimension it does not
+  measure - the doctrine at the top of this file, paid for here.
+- **A control that does not execute the product path is not a control.** Two paid rounds were
+  mis-read as model failure while the platform was at fault (`docs/AI_ATTEMPTS.md`), and for two
+  months the product ran an engine the plan had already replaced while the composer nobody could
+  reach scored 26 of 30.
 
 **Lite and Pro are SEPARATE PROJECTS with different purposes and constraints (owner decision,
-2026-08-09).** Pro is not the continuation of Lite and Lite is not a reduced Pro. Lite is a managed,
-free, catalog-grounded profile whose constraints are cost per generation, quota safety and
-control-panel operability, and whose open problem is SAMENESS. Pro is a paid image-guided experiment
-whose constraint is whether a generated appearance can survive becoming code at all, and whose open
-problem is CORRECTNESS. A change that serves one is not evidence for the other, they do not share a
-quality bar, and neither's benchmark scores the other. What they DO share is deliberate and narrow:
-one Create-with-AI entry point (`AiSettings.tier` picks lite/pro/custom), one user-facing brief, and
-one deterministic mapping seam - `pro/brief.ts` maps that shared brief onto the v1 `ProBrief` so there
-is no parallel brief vocabulary. That is a UI and contract economy, not a shared strategy.
+2026-08-09).** Pro is not the continuation of Lite and Lite is not a reduced Pro. Lite is a
+managed, free, catalog-grounded profile whose constraints are cost per generation, quota safety
+and control-panel operability, and whose open problem is SAMENESS. Pro's open problem is
+CORRECTNESS. A change that serves one is not evidence for the other, they do not share a quality
+bar, and neither's benchmark scores the other. What they DO share is deliberate and narrow: one
+Create-with-AI entry point (`AiSettings.tier` picks lite/pro/custom), one user-facing brief, and
+one deterministic mapping seam - `pro/brief.ts` maps that shared brief onto the design-language
+call so there is no parallel brief vocabulary. That is a UI and contract economy, not a shared
+strategy.
 
-**A Pro generation is capped at `PRO_MAX_GENERATION_COST_USD` = $0.15, counting BOTH calls**
-(`pro/contract.ts`; measured $0.0777, of which the concept image is a flat $0.0671 - `docs/ADMIN.md`
-§9). `compileProConcept` refuses before the interpretation when the concept alone spent it, and
-again on the total. `generateProConcept` deliberately does NOT throw on a breach: the image is
-already billed, so it returns with its cost and only the next call is stopped - the 2026-08-08
-lesson about early returns destroying paid concepts. An unreported cost counts as zero.
+**A Pro generation is capped at `PRO_MAX_GENERATION_COST_USD` = $0.15** (`pro/contract.ts`),
+booked by the server's `pro-generate` reservation. The number was sized against the retired
+engine's measured $0.0777; Phase A measures $0.0039, so it is now loose by roughly 38x and
+catches only a runaway - stated in the constant's own note rather than quietly retuned, because
+too low a ceiling destroys a finished graphic somebody was already billed for. There is no
+browser ceiling any more: with one call the money is spent before a browser could refuse.
 
-**HOSTED Pro is now a server BOOKING as well, against the same number** (`AI_PRO_ENABLED`, default
-off; `docs/AI_TASK_REGISTRY.md`). The browser ceiling was for a long time "the only thing standing
-between a route change and an open tap", because Pro rode the general model surface with no
-registered task; `pro-generate` is that task. `src/ai/pro/session.ts` opens ONE reservation per
-generation (`POST /api/ai/pro-generations`) and the pipeline forwards `proGenerationId` on every
-model call; `/api/ai/generate` admits each call against it and settles the provider's real cost
-into `ai_generations` (migration 0044). So the two enforcement points are deliberately the same
-constant: the browser's is a cost control, the ledger's is the bound. **A `session` of null is the
-bring-your-own-key and offline-stub path, unchanged** - a caller spending their own key is never
-metered, and neither `e2e/pro.spec.ts` nor the bench changes.
-
-**Nothing in the hosted route knows what the pipeline DOES**, and that is deliberate: §15 of the
-plan replaces the concept-and-reconstruct engine, and an allowance that encoded its stages would
-have to be rewritten with it. The route's only shape-assumption is `AI_PRO_MAX_CALLS`, a bound
-rather than a description.
+**HOSTED Pro is a server BOOKING** (`AI_PRO_ENABLED`, default off; `docs/AI_TASK_REGISTRY.md`).
+`src/ai/pro/session.ts` opens ONE reservation per generation (`POST /api/ai/pro-generations`) and
+the pipeline forwards `proGenerationId` on every model call; `/api/ai/generate` admits each call
+against it and settles the provider's real cost into `ai_generations` (migration 0044). **A
+`session` of null is the bring-your-own-key and offline-stub path, unchanged** - a caller
+spending their own key is never metered.
 
 **A FLEET SLOT FOLLOWS THE WORK, NOT THE CLOCK, and that is what makes Pro usable by a class.**
 Thirty students press Create within seconds of each other. Two things were wrong together: the
 reservation answered `shared_capacity` on its first observation, and it booked the slot for the
 profile's whole 15-minute expiry - so most of the room got an error, waiting on slots that did
 not turn over. Now the admission RETRIES the shared slot with jitter (`reserveProCapacity`,
-Lite's shape), and the reservation is taken on a lease covering ONE call which every settled
-call renews (`proCapacityRetryPlan`, migration 0046). A live generation keeps its seat; an
-abandoned tab frees it within a lease instead of a quarter of an hour. **Only the fleet slot is
-retried** - a quota, the user's own overlap, the spend ceiling and a duplicate are durable
-answers, and re-asking them would just spend the classroom's request budget.
+Lite's shape), and the reservation is taken on a lease covering ONE call which every settled call
+renews (`proCapacityRetryPlan`, migration 0046). A live generation keeps its seat; an abandoned
+tab frees it within a lease instead of a quarter of an hour. **Only the fleet slot is retried** -
+a quota, the user's own overlap, the spend ceiling and a duplicate are durable answers, and
+re-asking them would just spend the classroom's request budget.
 
-**The retry SPACING is not measured, and says so.** Lite's 17.8 s came from 18 timed
-generations; Pro has produced none through this route and the telemetry ring is browser-local.
-`AI_PRO_RETRY_SPACING_MS` is a starting value, and `/api/ai/pro-outcome` now records
-`runtime_ms` so it can be replaced by a real turnover the way Lite's was.
+**The retry SPACING is not measured, and says so.** Lite's 17.8 s came from 18 timed generations;
+Pro has produced few through this route and the telemetry ring is browser-local.
+`AI_PRO_RETRY_SPACING_MS` is a starting value, and `/api/ai/pro-outcome` records `runtime_ms` so
+it can be replaced by a real turnover the way Lite's was.
 
-**A REFUSED ERASE IS A BLOCKING CODE, and `validateProCompile` is the one seam it arrives
-through** (2026-08-15, `docs/NOACG_PRO_PLAN.md` §16). The first real hosted generation shipped
-the baked-text ghost with `validation_rule_codes` EMPTY and the ledger row saying `usable`: the
-compiler recorded the refusal in `ProCompileReport.warnings` and NOTHING READ IT - the same
-scoring bug §14 recorded for the benchmark, one layer nearer the student. The refusal is now
-structured (`bakedTextRefused`, `ringRefused`) and `compile.ts` `validateProCompile` folds it
-into the injected gate's verdict: `pro-baked-text` is an ERROR per refused region (the graphic
-prints its words twice), `pro-artwork-ring` a warning (a thin band over live video). The
-pipeline, the offline stub and `pro-bench.mjs` all validate through that one function, because
-a second call site is how an engine ships a compile whose refusals were never scored. Measured
-free on the fixture bank: `corporate` went from `pass` to failing on its two refusals, and the
-nine clean fixtures are unchanged.
-
-`PRO_STANDARD_ROUTES` (`pro/contract.ts`) is pinned so a normal Pro user never picks models. Its
-`language` entry is what the product spends today and is deliberately the SAME route the retired
-`interpret` stage used: the §15.8 round that produced the 26/30 blind read ran on exactly that
-model, and the server's funded list already carries it, so the live call needs no server change.
-Its `concept` entry is the retired image route, kept only because `api/_lib/aiProProfile.ts` funds
-from it - **do not change either without re-running `npm run bench:pro` paid stages**, and pass
-`--save-fixtures`, because the 2026-08-08 round did not and its twelve interpretations are gone.
-Offline the deterministic stub (`pro/reconstruct/stub.ts`) runs the retired flow, keeping
-`e2e/pro.spec.ts` token-free. `fillProLogoSlot` bundles an as-is upload into the slot it asked for,
-deterministically and writing no CSS, and runs BETWEEN the compile and the injected validator -
-that order is load-bearing (see the as-is screen above).
+**`PRO_STANDARD_ROUTES` (`pro/contract.ts`) is ONE route, pinned so a normal Pro user never picks
+models**, and `api/_lib/aiProProfile.ts` funds exactly that one. **The funded list is ANDed by
+`resolveProGate`** - every entry must be priced, catalog-approved and not switched off from
+`/admin`, or hosted Pro is unavailable to everyone - so a route the product does not spend on is
+a live foot-gun rather than a harmless leftover. It carried the retired image route until
+2026-08-15, where disabling a model nothing called would have taken the whole tier down. Do not
+add a route Pro does not spend on. The audited image entry stays in `aiModelCatalog.ts` as an
+audit record and is marked in use by nothing.
 
 ## NoaCG Pro PHASE A - the design language (`pro/language/`)
 
@@ -813,17 +753,25 @@ Five rules bind anyone editing it:
   three pad the image itself. lt07 was the only reading the artifact was pushing under the 0.25
   floor. **The absolute ratios depend on the MARK**, since a slot that sizes itself from the
   artwork's aspect paints a different height for each one; the set that MOVES does not.
-- **THE MARK-GAP UNIT IS THE MARK'S OWN HEIGHT, so a design is divided by its own generosity -
-  and that, not the bleed, is what still flags ls18 and ls25.** Same sweep: ls18 is called crowded
-  at **22px** of clear space while lt08 passes at exactly 22px, and ls25 at **30px** while lt15
-  passes at 26px. In both pairs the flagged design has the same or a LARGER gap and a much taller
-  mark (135px and 130px against 75px and 84px). Neither is a spacing defect: ls25 is a `picture`
-  well holding square cover art `object-fit: cover` by design - the brand audit already excludes
-  picture wells from mark rules for exactly this reason - and ls18 stretches an institution's mark
-  to the height of the card. **Not repaired, and deliberately not recalibrated**: the 0.25 floor is
-  the brand manual's clear space for a free-standing mark, and moving the unit unmeasured would
-  trade a known artifact for an unknown one. What changed is that both findings now carry the RAW
-  px beside the ratio, so a tight gap can be told from a tall mark by reading the finding.
+- **THE MARK-GAP UNIT IS THE PRIMARY TYPE SIZE, and it used to be the mark's own height - which
+  divided a design by its own generosity.** Under the old unit ls18 was called crowded at
+  **22px** of clear space while lt08 passed at exactly 22px, and ls25 at **30px** while lt15
+  passed at 26px; in both pairs the flagged design had the same or a LARGER gap and a much taller
+  mark (135px and 130px against 75px and 84px). Neither was a spacing defect - ls25 is a
+  `picture` well holding square cover art, ls18 stretches an institution's mark to the height of
+  the card - and this file's own doctrine is that an instrument whose false positives are the
+  good designs is one authors learn to ignore. **Recalibrated 2026-08-15 against the catalog**,
+  the way `spike-spacing-calibrate.mjs` requires and the way every OTHER ratio in `spacingCheck`
+  already worked: floor **0.35** type sizes (under the catalog's tightest shipped pairing, lt08
+  at 0.41, and inside a real gap - the next reading is 0.45), ceiling **2.1** (the same ~1.3x
+  headroom over the widest shipped lockup, lt54 at 1.61, that the old ceiling carried). In type
+  sizes the 24 mark-capable lower thirds run 0.41-1.61 and neither previously-flagged design is
+  an outlier: ls18 is 8th of 24, ls25 is 13th. The unit also clusters far tighter - p95/p05 is
+  **2.9x** against the mark-height unit's **4.3x**, and a distribution spread four-fold has no
+  floor to put under it. **Nothing is lost by dropping the mark's height as the unit**, because
+  `proportionCheck`'s `mark-oversized` still measures it (ceiling 3.2, on the BORDER box), so a
+  design cannot dodge the gap floor by growing its mark - it hits that ceiling instead. The
+  finding now carries all three raw numbers (`22px from 43px type, mark 135px`).
 
 ## Phase-C creative pilot (`creative/`)
 

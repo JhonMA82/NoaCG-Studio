@@ -3,8 +3,9 @@
 //
 //   node scripts/lite-on-pro-bank.mjs [--max-cost=0.1] [id,id,…]
 //
-// Runs the SAME twelve briefs scripts/pro-bench.mjs runs, through the Lite tier, in the same
-// page, through the same production validator, photographed the same way at the same hold.
+// Runs the SAME twelve briefs the Pro bank carries (benchmarks/pro/v1/briefs.json), through the
+// Lite tier, in the same page, through the same production validator, photographed the same way
+// at the same hold.
 // That sameness is the whole point: a Pro-vs-Lite comparison assembled from two rigs measures
 // the rigs as much as the tiers.
 //

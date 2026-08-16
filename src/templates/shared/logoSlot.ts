@@ -36,13 +36,18 @@ import type { StandardDesign } from './standard';
  * What the sweep DID find has nothing to do with detection, and both are by design: a design
  * whose slot sits in a WELL reserves that well's width while the slot is empty (lt08 97px,
  * lt41 107px, lt53 124px, lt49 133px — and lt30, ls12, ls17, ls18, ls29 up to 188px), which
- * every one of them states in its own source; and lt07 read as `mark-crowded` only because the
- * instrument measured the `<img>`'s BORDER box, which swallows the padding a well-drawing design
- * expresses the clear space as. **The reading belonged to `ai/spike/spacingCheck.ts`, not to any
- * design here, and that is where it was fixed** (`markContentRect`, 2026-08-15). Re-measurable
- * free with `node scripts/spike-mark-clearance-sweep.mjs`: of the 24, only lt07, lt41 and ls10
- * move at all (0.22 → 0.36, 0.31 → 0.52, 0.25 → 0.56 against a 0.25 floor), because only those
- * three pad the image itself; the remaining 21 are unchanged.
+ * every one of them states in its own source; and three designs read as `mark-crowded` for
+ * reasons that had nothing to do with them. **Both readings belonged to
+ * `ai/spike/spacingCheck.ts`, not to any design here, and that is where both were fixed**
+ * (2026-08-15). Re-measurable free with `node scripts/spike-mark-clearance-sweep.mjs`:
+ *
+ * - lt07 was measured on the `<img>`'s BORDER box, which swallows the padding a well-drawing
+ *   design expresses its clear space as (`markContentRect`). Only lt07, lt41 and ls10 pad the
+ *   image itself, so only those three moved; the remaining 21 were unchanged.
+ * - ls18 and ls25 were divided by their own generosity: the unit was the MARK's height, so
+ *   ls18 was called crowded at 22px of clear space while lt08 passed at exactly 22px, on
+ *   nothing but a taller mark. The unit is now the primary TYPE SIZE, like every other ratio
+ *   in that instrument (`MARK_GAP_FLOOR_RATIO`).
  */
 export function designHasLogoSlot(design: StandardDesign, prefix: string): boolean {
   return (

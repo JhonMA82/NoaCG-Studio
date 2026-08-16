@@ -43,10 +43,30 @@ test('sweeps and benches are recognised - they cost the same memory as a suite',
     'node scripts/numerals.mjs --fonts',
     'node scripts/factory.mjs --json factory-report.json',
     'node scripts/render-smoke-video.mjs',
-    'node scripts/pro-bench.mjs',
+    'node scripts/creative-pilot-bench.mjs',
     'node C:/claude/NoaCG-Studio/scripts/l3-sweep.mjs shots quiz',
     'npm run bench:lite',
     'npm run video:bench:run',
+  ]) {
+    assert.ok(invokesSweep(cmd), cmd);
+  }
+});
+
+test('the SPIKE family counts too - it renders the catalog at 1920x1080 like any sweep', () => {
+  // The hole this closes, found by falling into it: `spike-mark-clearance-sweep` renders 24
+  // designs for about four minutes and was started three times beside a live configured suite,
+  // because no entry in the alternation matched its name. Every member is listed rather than
+  // one representative, because what is being pinned is that a name-shaped rule covers the whole
+  // rig - the runner, the sweeps and the calibrators alike.
+  for (const cmd of [
+    'node scripts/pro-spike.mjs --control',
+    'node scripts/spike-mark-clearance-sweep.mjs',
+    'node scripts/spike-spacing-calibrate.mjs',
+    'node scripts/spike-proportion-calibrate.mjs',
+    'node scripts/spike-axis-calibrate.mjs',
+    'node scripts/spike-well-calibrate.mjs',
+    'node scripts/spike-checkpoint-probe.mjs',
+    'node C:\\claude\\NoaCG-Studio\\scripts\\spike-mark-clearance-sweep.mjs --mark=shield-tall',
   ]) {
     assert.ok(invokesSweep(cmd), cmd);
   }
@@ -111,6 +131,13 @@ test('a similarly-named script is not a sweep', () => {
     'node scripts/worktree-activity.mjs',
     'node scripts/merge-order.mjs --branch x',
     'node scripts/check-shared-instructions.mjs',
+    // …and the two substring families do not reach past their own scripts. `[\w-]*spike[\w-]*`
+    // and `[\w-]*bench[\w-]*` are convenient because a new sibling is covered by its NAME, and
+    // the price of that convenience is that they must still be anchored to `scripts/<name>.mjs`
+    // - a word in an argument or a path is not an invocation.
+    'node scripts/dev-port.mjs --spike',
+    'grep -rn spike-mark-clearance-sweep docs/',
+    'cat benchmarks/pro/v1/spike/mark-clearance-sweep.json',
   ]) {
     assert.ok(!invokesSweep(cmd), cmd);
   }

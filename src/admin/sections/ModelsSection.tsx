@@ -310,10 +310,15 @@ function imagePrice(value: number | null): string {
 }
 
 /**
- * The image listing, for NoaCG Pro's concept call. It carries NO verdict on purpose: the
- * funded-route rules are per-million TOKENS and say nothing about a model billed per image,
- * so applying them here would mark usable models ineligible against a rule nobody has written.
- * Until a per-image ceiling exists this is a menu, not a judgement.
+ * The image listing. It carries NO verdict on purpose: the funded-route rules are per-million
+ * TOKENS and say nothing about a model billed per image, so applying them here would mark
+ * usable models ineligible against a rule nobody has written. Until a per-image ceiling exists
+ * this is a menu, not a judgement.
+ *
+ * NOTHING IN THE PRODUCT IS ON THIS TAB since Phase A (docs/NOACG_PRO_PLAN.md §16): Pro used to
+ * draw a concept image and reconstruct it, and now asks a text model for a design language and
+ * composes the graphic itself. So no row here is marked in use, and the note says that outright
+ * rather than leaving an empty column to be read as a listing that failed to load.
  */
 function ImageModels() {
   const state = useAdminData<AdminImageModelsResponse>('models?output=image');
@@ -336,15 +341,16 @@ function ImageModels() {
   return (
     <>
       <p className="admin-note">
-        What the provider lists for <strong>image output</strong> — the call NoaCG Pro makes to draw a concept. The
-        route the tier actually draws with is marked <em>in use</em>; it is pinned in the code
-        (<span className="admin-mono">PRO_STANDARD_ROUTES</span>), not chosen per generation, so a Pro user never
-        picks a model. <strong>No eligibility verdict is shown here</strong>: the funded-route ceiling was set against
-        text generation, and no ceiling for image work has been decided, so there is nothing to check these against
-        yet. The price column is what the gateway publishes <strong>per generated image</strong>, and only dedicated
-        image models publish one. A multimodal language model that answers with an image — which is what the Pro
-        concept route is — bills through its ordinary output tokens instead, so it reads <em>not published</em> here
-        and its real cost is in the token columns rather than missing.
+        What the provider lists for <strong>image output</strong>. <strong>Nothing here is in use.</strong> NoaCG Pro
+        used to draw a concept image and rebuild it as code; it now spends one text call on a design language and
+        composes the graphic itself, so no NoaCG surface asks an image model for anything and no row below is marked
+        <em> in use</em>. This tab is a priced menu for a decision nobody has taken yet, not a list of what runs.
+        <strong> No eligibility verdict is shown here</strong> either: the funded-route ceiling was set against text
+        generation, and no ceiling for image work has been decided, so there is nothing to check these against. The
+        price column is what the gateway publishes <strong>per generated image</strong>, and only dedicated image
+        models publish one. A multimodal language model that answers with an image bills through its ordinary output
+        tokens instead, so it reads <em>not published</em> here and its real cost would be in the token columns
+        rather than missing.
       </p>
 
       {data && data.discoveryFailed ? (

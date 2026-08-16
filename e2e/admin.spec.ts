@@ -853,7 +853,10 @@ test('the image tab lists routes without pretending to judge them', async ({ pag
         provider: 'vercel',
         syncedAt: '2026-08-01T06:00:00Z',
         models: [
-          { key: 'vercel:vendor/draw', provider: 'vercel', model: 'vendor/draw', name: 'Draw', imagePriceUsd: 30, inputPerMillion: 0.3, available: true, createdAt: null, isNew: false, usedBy: [{ task: 'NoaCG Pro concept' }] },
+          // `usedBy` is EMPTY on both rows because that is what the server now returns: no NoaCG
+          // task calls an image model since Phase A retired the concept-and-reconstruct engine
+          // (docs/NOACG_PRO_PLAN.md §16), so `routesInUse` names none of them.
+          { key: 'vercel:vendor/draw', provider: 'vercel', model: 'vendor/draw', name: 'Draw', imagePriceUsd: 30, inputPerMillion: 0.3, available: true, createdAt: null, isNew: false, usedBy: [] },
           { key: 'vercel:vendor/quiet', provider: 'vercel', model: 'vendor/quiet', name: 'Quiet', imagePriceUsd: null, inputPerMillion: null, available: true, createdAt: null, isNew: false, usedBy: [] },
         ],
         discoveryFailed: false,
@@ -877,17 +880,15 @@ test('the image tab lists routes without pretending to judge them', async ({ pag
   await expect(table).not.toContainText('eligible');
   const imageNote = page.locator('.admin-note').filter({ hasText: 'image output' });
   await expect(imageNote).toContainText('No eligibility verdict');
-  // And it says why nothing is marked in use here, rather than leaving the absence to be read
-  // as "Pro is using none of these".
-  await expect(imageNote).toContainText('PRO_STANDARD_ROUTES');
+  // And it says OUTRIGHT that nothing here runs, rather than leaving an empty in-use column to
+  // be read as a listing that failed to load. An absence nobody announces is the defect this
+  // whole tab's copy exists to avoid.
+  await expect(imageNote).toContainText('Nothing here is in use');
 
-  // The route the tier actually draws with is marked, so 'no verdict' is never read as
-  // 'nothing here is used'. A curated route carries no primary/fallback suffix - there is no
-  // spare behind it to distinguish it from.
-  const drawn = page.locator('tr[data-model="vendor/draw"]');
-  await expect(drawn).toContainText('NoaCG Pro concept');
-  await expect(drawn).not.toContainText('primary');
-  await expect(page.locator('tr[data-model="vendor/quiet"]')).not.toContainText('NoaCG Pro');
+  // …and no row claims otherwise. Both halves matter: the sentence could be true and the table
+  // still mark something, which is exactly the state this replaced.
+  await expect(page.locator('tr[data-model="vendor/draw"]')).not.toContainText('NoaCG');
+  await expect(page.locator('tr[data-model="vendor/quiet"]')).not.toContainText('NoaCG');
 });
 
 // ── the internal-account scope ───────────────────────────────────────────────────────────

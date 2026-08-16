@@ -184,7 +184,12 @@ Image-output models with at least one ZDR endpoint on the same day: `google/gemi
 `microsoft/mai-image-2.5(-pro)` and three `krea/krea-2-*` endpoints. The current route is
 therefore not the only ZDR option, and it is not the cheapest one - **which is a fact, not a
 recommendation.** The route was chosen by the 2026-07-31 paid Pro round; nothing in this audit
-re-opens that, and moving it needs `npm run bench:pro`, not a price table.
+re-opens that.
+
+**NO NoaCG SURFACE CALLS AN IMAGE MODEL SINCE 2026-08-15.** Pro's concept-and-reconstruct engine
+was retired by Phase A and deleted, the image route came off the hosted profile's funded list, and
+the catalog entry stays as an AUDIT RECORD rather than as a route in use. Picking an image route
+again is a fresh decision needing a fresh paid round, not a re-read of this table.
 
 ### Price ceiling
 

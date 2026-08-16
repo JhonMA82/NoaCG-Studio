@@ -122,8 +122,9 @@ export async function admitManagedProCall(
  * at most one more call than it should, and `maxCallsPerGeneration` still stops the run.
  *
  * HONEST LIMIT, stated rather than discovered later: a provider that answers without a cost
- * figure settles as zero, exactly as `proSpendExceeds` reads an unset cost. That is a reason
- * to keep every Pro route inside the audited catalog, where the price is known, which is what
+ * figure settles as zero - a provider that reported no number has not thereby proved a breach,
+ * and refusing on silence would fail generations that cost nothing unusual. That is a reason to
+ * keep every Pro route inside the audited catalog, where the price is known, which is what
  * `proRouteFunded` above enforces.
  */
 export async function settleManagedProCall(

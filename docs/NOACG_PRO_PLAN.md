@@ -1840,26 +1840,26 @@ every ERROR unfiltered (an error is why a row says `failed`) and only `pro-` WAR
 runtime bench is chatty by design and the wire caps the list at 30, so bench noise would evict
 the Pro-owned codes). A row can now tell a clean generation from a rescued one.
 
-**Why the retired engine still exists**, per the requirement to say so explicitly. It moved to
+**Why the retired engine existed for one more day, and then did not.** It moved to
 `src/ai/pro/reconstruct/` behind a build-time import boundary
-(`retiredProEngineRestriction`, `eslint.config.js`) that refuses it from every region of `src/`
+(`retiredProEngineRestriction`, `eslint.config.js`) that refused it from every region of `src/`
 a user can reach - mutation-checked from the UI and from `pro/language/`, and a per-file version
 of the same rule was measured to be VACUOUS first, because the patterns match the import string
-and missed the sibling form. Three reasons it was not deleted outright:
+and missed the sibling form. It was carried rather than deleted because deleting reached into
+`api/`, `scripts/` and `package.json` that the rewiring change did not own, and a live worktree
+was editing two of those.
 
-- **The fixture bank is the evidence for §16.** `scripts/pro-bench.mjs` replays it free and
-  reproduces the defect that argued for Phase A. Deleting the engine deletes that check.
-- **Deleting reaches outside this change.** `api/_lib/aiProProfile.ts` funds the image route,
-  `api/_lib/admin/models.ts` and two api tests read `PRO_STANDARD_ROUTES`, and four `scripts/`
-  entries plus a `package.json` script drive the engine - none of it owned here, and a live
-  worktree is editing `scripts/` and `package.json` right now.
-- **The precedent is the repo's own.** `creative/` is carried the same way, and that file says
-  it: removing it is a separate, deliberate change. The order to do it in is
-  `src/ai/pro/reconstruct/AGENTS.md`.
-
-The one consequence worth naming: the server still funds `PRO_STANDARD_ROUTES.concept`, an image
-route the product no longer calls. Funding is not spending, so it costs nothing - but it should
-come off the funded list when the engine goes.
+**DELETED 2026-08-15**, in the deliberate pass its own `AGENTS.md` specified, in that order:
+the four `scripts/pro-*` runners and the `bench:pro` package script, the nine reconstruction
+tests in `e2e/pro.spec.ts` (leaving the two that pin the tier DOOR), `concept` and `interpret`
+from `PRO_STANDARD_ROUTES` and from the server's funded list, the interpretation half of
+`src/ai/pro/contract.ts` with `api/_lib/proGeometry.test.ts` and the rewritten
+`proCostCeiling.test.ts`, then the directory and the eslint block in the same commit as the last
+import. The fixture bank was archived outside the repo first and the copy proven by sha256; the
+paid rounds that produced it stay in `benchmarks/pro/round-2026-08-0{8,9,10}/`, and what those
+rounds MEASURED is carried forward in `src/ai/AGENTS.md` rather than in the code that produced
+it. The boundary went with the directory: a rule guarding a path that does not exist is a rule
+nothing can violate and nobody can check.
 
 **Owed, and deliberately not done here:**
 
@@ -1915,15 +1915,174 @@ BINDING number. The configured spec's fixture now sets the two counters DIFFEREN
 fixture where they agree cannot tell a panel reading the right one from a panel reading either -
 mutation-checked by flipping `min` to `max`.
 
-**Defect 2: hosted Pro is still gated on the RETIRED image route.** Availability requires every
-route in the funded list to be priced, catalog-approved and not disabled from `/admin`
-(`resolveProGate`), and that list is still `[concept, interpret]`. Funding an unused route costs
-nothing, but **de-listing or disabling the image model would now take the whole tier down for a
-pipeline that never calls it.** Dropping `concept` from `api/_lib/aiProProfile.ts` belongs with the
-deletion pass in `src/ai/pro/reconstruct/AGENTS.md`.
+**Defect 2: hosted Pro was gated on the RETIRED image route. FIXED 2026-08-15.** Availability
+requires every route in the funded list to be priced, catalog-approved and not disabled from
+`/admin` (`resolveProGate`), and that list was `[concept, interpret]`. Funding an unused route
+costs nothing, but **de-listing or disabling the image model would have taken the whole tier down
+for a pipeline that never calls it** - a foot-gun aimed at a classroom, on the one switch an
+operator reaches for to stop spend on a model that has gone wrong.
+
+The funded list is now `[language]`, read from `AI_PRO_LANGUAGE_PROVIDER`/`_MODEL`. `proTaskProfile`
+declares no `imageRoutes` (no task does), `/api/admin/models` marks no image row in use and the
+image tab says so outright, and the audited catalog entry stays as an AUDIT RECORD - deleting it
+would delete a verified ZDR result. Pinned two ways in `api/_lib/pro/managedCall.test.ts`: the
+retired route is refused at the spend seam before it is billed, and `routeDisabled` over
+`profile.routes` - `resolveProGate`'s own expression - answers false with the image route
+disabled and true with the language route disabled, so the gate is narrower rather than switched
+off. Re-funding the image route fails both.
 
 **Turning hosted Pro on locally needs three env vars `.env.example` does not group together:**
 `AI_PRO_ENABLED`, `IP_HASH_SALT` (>= 16 chars, or the ledger reads unconfigured) and
 `AI_LITE_GATEWAY_PROVIDERS` (the audited gateway allowlist Pro shares). With the last unset,
 `taskConfigured` is false for every route and the status endpoint answers `not-configured` - which
 names the deployment rather than the missing variable.
+
+### The evidence round - 2026-08-16: the frames nobody could look at
+
+§16's whole lesson is that a graphic can pass every gate and be unusable, so the human read is
+the one step that cannot be skipped - and the first Phase A generation lost its picture to a bad
+locator in a throwaway spec. Separately, the four lower thirds whose mark handling changed
+(ls29, ls17, lt07, ls10) and the two the sweep found growing taller (lt49, lt53) were verified
+NUMERICALLY and never displayed. Both are the same missing thing: a viewable frame.
+
+**Everything below except the generations is free and repeatable.**
+
+**The capture.** `scripts/spike-mark-clearance-sweep.mjs --capture` writes each render the sweep
+already makes to a 1920x1080 PNG **with its alpha intact**. The shot is taken on a second page
+rather than off the mounted iframe, because an element screenshot inside `/app` carries whatever
+the app painted behind it: the composed document is self-contained by contract, so it is
+`setContent` into a page parked on the dev origin, where relative `fonts/<file>` still resolves
+and everything the design does not paint stays transparent. The measurements are unchanged - the
+square-crest run reproduces the committed ledger exactly (ls18 and ls25 flagged, lt49 and lt53 the
+two that grow), which is what makes the capture path safe to add to a rig a reading depends on.
+
+**A square mark and a portrait mark were then swept separately, and that is the finding.** The
+sweep had only ever run `badge-square`. Running it again with `shield-tall` produces **the same
+box numbers on almost every design** - the well's rect does not depend on the artwork - and
+visibly different frames. lt07 and ls10 read clean for so long for exactly that reason: the
+number a portrait crest changes is not the number the sweep prints.
+
+**The review page** (`scripts/pro-evidence-review.mjs` -> `benchmarks/pro/evidence/review.html`)
+holds every frame at 1920x1080 over a backdrop it draws itself, with the words each render carried
+and the raw measurement beside it. Four backdrops (dark studio, blown-out daylight, busy mid-tone,
+checkerboard) plus black and white, and a zoom that magnifies the corner the graphic sits in rather
+than capturing a second croppable picture that could disagree with the first. **The backdrops are
+CSS and the page says so** - they stand in for footage, so a legibility call made against them is a
+call about contrast. **The page carries no verdict, no pass/fail and no ranking**, deliberately:
+a machine verdict printed next to a picture is how §16 happened.
+
+**Hosted Pro now stands up locally.** The three variables above are in this checkout's `.env`, and
+`/api/ai/pro-status` answers `enabled: true` with `reason: sign-in` - the refusal naming the
+CALLER rather than the deployment, which is the difference the note above is about. The three
+configured Pro specs then pass against it (`e2e/configured/pro-wizard.spec.ts`): the route is
+reached and speaks the wire contract unstubbed, the door appears with the allowance read back off
+the binding counter, one reservation pays for exactly one `emit_design_language` call, and a
+configured backend alone is still not a door. **The walk was proved with a stub before a cent was
+spent**, which is what the generations below then did not have to re-prove.
+
+**Nine other configured specs failed in that same run, none of them Pro and none of them this
+branch's** (this branch touches `scripts/`, `benchmarks/` and `.env` only): four in `feedback`,
+plus `audience-live`, `moderator`, `production-links`, `quiz-output` and `scorebug-output`. The
+shape is a locator that never appears - `[data-testid="beta-feedback-open"][data-area="wizard"]`,
+`production-publish` - so they are worth a look on a branch that owns those surfaces. Recorded
+here rather than fixed here, because a session capturing evidence should not also be editing the
+surfaces it is measuring.
+
+#### The round: 18 real generations, $0.1070, and what a person then SAW
+
+`node scripts/pro-spike.mjs --generate --route=vercel:google/gemini-2.5-flash --arms=language
+--divergence-arm=language --max-cost=0.12`, after the free `--control` pass. The plan is the
+committed fixtures': the twelve-brief bank under its assigned brand, plus the divergence cell -
+`news-public` and `entertainment` re-run under every OTHER brand - so all four synthetic brands
+appear and two briefs appear under all four.
+
+| | |
+|---|---|
+| generations | 18, one text call each |
+| provider spend | **$0.1070** ($0.0038-$0.0097, mean $0.0059) |
+| wall clock | 31-57 s per item, most of it the capture, not the call |
+| validator | 0 errors, 0 failed field contracts, 0 repair rounds |
+| ceiling | $0.12 asked for, $0.15 authorised - the run stopped short of both on its own |
+
+Per-generation cost is **higher than §16's $0.0039** and lower than the $0.0777 the retired
+engine spent: the bench conditions each brief on a synthetic brand, which is prompt the product's
+own brief does not carry. Treat $0.004-$0.010 as the planning band rather than either single
+measurement.
+
+**What is on the frames** - description, not a verdict, because the verdict is the owner's read
+and this file has twice recorded a machine calling a broken graphic fine:
+
+- Every one of the 18 painted ONE strap in the lower-left carrying the brief's name and title.
+  **Nothing prints its words twice** - the §16 ghost is structurally impossible here, because
+  there is no artwork to erase.
+- **The mark sits BESIDE the words in every branded generation**, never above them; no strap
+  became a block. Marks render as marks (the KSTRL wordmark, the Aldervale crest, the Sunbeam
+  sun, the Ledger glyph).
+- **Under the stress values every panel GREW and kept its text inside it.** `long-name.kestrel`
+  wraps a 46-character name onto three lines and the panel takes the height; read at full
+  resolution, nothing is clipped. That is the `width: fit-content` box the composer inherits from
+  the catalog assembler doing exactly what §15.5 claims for it.
+- **Non-Latin renders**: `non-latin.aldervale` sets Greek and Japanese with no missing glyphs.
+- **Four brands produce four visibly different straps from the SAME brief** - navy serif panel,
+  black with a lime edge, plum with an orange sun, white with black slab - differing in palette,
+  type voice, accent form and mark, not one look recoloured. Both divergence cells behave that way.
+- **One platform intervention is visible in the frame**: `news-public.aldervale` paints a neutral
+  field behind the crest inside its navy panel, so the mark sits on a light chip. That is
+  `pro-mark-field` firing, and it is legible as an intervention rather than as a design choice -
+  worth the owner's eye specifically.
+- `minimalist.ledger` composed with **no panel at all**: mark and words sit directly on the
+  picture.
+
+**The frames are on the review page** (`benchmarks/pro/evidence/review.html`, served over HTTP -
+`file://` will not load them), transparent, over the backdrop switcher, each with its brief, the
+language the model named, its rationale, the palette, the platform's adjustments, the cost and the
+validator's own words. **No verdict is printed anywhere on it.**
+
+**Still owed after this**: a real HOSTED generation a person watched - these 18 ran through the
+bench's route, not through `/api/ai/pro-generations`. The hosted WALK is now covered end to end
+with a stub (above), and the entitlement gate is what stops the throwaway test account from
+running the real thing locally: `ai.pro` is owner + `@arcada.fi` only, and granting it to a test
+account to make a spec pass would be the gate telling itself what it wants to hear.
+
+#### And the one that went through the PRODUCT - ledger `28807ce7`, 2026-08-16
+
+The eighteen above ran through the bench's route. This one was typed into the wizard on a
+configured deployment with **nothing stubbed** - a real reservation, a real managed call, a real
+outcome, a real ledger row - and a person then looked at it.
+
+| | |
+|---|---|
+| ledger row | `28807ce7-f385-422f-9417-0ae04a2bfe7a`, `status: usable` |
+| model calls on the reservation | **1** |
+| provider cost | **$0.0041359** |
+| server runtime / wall clock to the result card | 12.4 s / 12.9 s |
+| `validation_rule_codes` / `adjustments` | empty, and honestly so - no repair fired, no mark was uploaded, no field fell back |
+| page errors | none |
+
+The browser's whole `/api/ai` timeline, in order: `pro-status` → **`POST pro-generations`** →
+**`POST generate`** → **`POST pro-outcome`** → `pro-status`. One reservation, one call inside it,
+one settle, and the panel re-asking the server what is left rather than decrementing its own copy.
+
+**What it looks like**: a navy panel with square corners, a thin gold rule fused to the leading
+edge, the name in white Libre Franklin bold and the role in grey beneath it, bottom-left. One
+strap. Nothing is printed twice. Under the stress values the panel grows and the name wraps to two
+lines inside it. **The design language the model returned was "Election Night Watch"**, and the
+result card says so along with what the platform decided from it (balanced density, 25/33px
+padding, 11px line gap, accent outside the padding, reveal at measured pace).
+
+**How it was run, because both rules here were bought with money.** The composed document and the
+screenshots were written to disk BEFORE the first assertion, and the driver has no retry - the
+2026-08-15 run lost its picture to a locator that failed after the product had finished and
+Playwright's retry bought a second graphic. The whole walk was also driven once in `--dry` mode,
+stopping at the Create button with the brief filled, so every locator was proved before a cent
+moved. The runner is deliberately NOT a committed spec: a spec that spends real money is one CI
+run away from spending it repeatedly.
+
+**Two things about the account, stated plainly.** The tester account already held a permanent
+`ai.pro` grant, so nothing was written to production to make this run. Its BINDING counter
+(successes) was spent, so the run used `AI_PRO_OVERRIDE_USER_IDS` in the local `.env` - the
+documented development override - which lifts the quota and leaves the reservation, the lease, the
+settle and the ledger row exactly as real as they would be for a student. The allowance GATE is
+therefore covered by the stubbed configured spec rather than by this run, which is the honest
+division: this one exists to answer "what does the product actually produce", and it now has a
+picture on the review page to answer it with.

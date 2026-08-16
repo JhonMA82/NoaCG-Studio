@@ -71,7 +71,6 @@
     "bench:creative:pilot": "node scripts/creative-pilot-bench.mjs",
     "bench:creative:refs": "node scripts/creative-catalog-refs.mjs",
     "bench:report": "node scripts/ai-lite-report.mjs",
-    "bench:pro": "node scripts/pro-bench.mjs",
     "video:models:sync": "node scripts/video-models-sync.mjs",
     "video:bench:smoke": "node scripts/video-benchmark.mjs smoke",
     "video:bench:run": "node scripts/video-benchmark.mjs run",

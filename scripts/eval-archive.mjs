@@ -4,7 +4,7 @@
 //                                 [--archive=<path>]
 //   npm run eval:archive -- lite-eval-out v14
 //
-// Every bench out-dir this repo produces (`lite-eval-out*`, `lite-bench-out*`, `pro-bench-out*`,
+// Every bench out-dir this repo produces (`lite-eval-out*`, `lite-bench-out*`, `pro-spike-out*`,
 // `bench-*`) is gitignored, so a round lives only inside one throwaway worktree and dies with
 // it. Two paid rounds have already been destroyed that way. The archive at
 // C:/claude/noacg-lite-eval-archive is outside the repo on purpose.

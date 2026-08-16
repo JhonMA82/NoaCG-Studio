@@ -61,10 +61,15 @@ function routesInUse(): Map<string, AdminRouteUse[]> {
       add(modelRouteKey(route), { task: TASK_LABEL[taskId], slot: 'fallback' });
     }
   }
-  // No slot: each Pro stage pins exactly one route with nothing behind it, so there is no
+  // No slot: Pro pins exactly one curated route with nothing behind it, so there is no
   // primary/fallback distinction to report.
-  add(modelRouteKey(PRO_STANDARD_ROUTES.concept), { task: 'NoaCG Pro concept' });
-  add(modelRouteKey(PRO_STANDARD_ROUTES.interpret), { task: 'NoaCG Pro interpret' });
+  //
+  // ONE ENTRY, NOT THREE. `PRO_STANDARD_ROUTES` still carries `concept` and `interpret`, the
+  // two stages of the retired concept-and-reconstruct engine (docs/NOACG_PRO_PLAN.md §16), and
+  // marking either "in use" would tell the operator this deployment draws with an image model
+  // it has not called since Phase A shipped. What a route is marked in use BY is what the
+  // product spends on.
+  add(modelRouteKey(PRO_STANDARD_ROUTES.language), { task: 'NoaCG Pro' });
   return map;
 }
 

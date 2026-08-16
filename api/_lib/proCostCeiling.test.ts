@@ -6,53 +6,51 @@
 // the dependency-light Pro contract, which `api/` is already entitled to import - the same
 // reason PRO_STANDARD_ROUTES lives there rather than beside the pipeline.
 //
-// Why a test at all, when the ceiling is three lines: every path that would exercise it for
-// real SPENDS MONEY. e2e/pro.spec.ts drives the deterministic stub, whose costs are zero, so it
-// can never reach a breach; the paid bench can, at about $0.08 a try. A cost control nothing
-// cheap can fail is a cost control nobody re-checks after editing it.
+// Why a test at all, when the ceiling is one number: every path that would exercise it for real
+// SPENDS MONEY. The offline stub's costs are zero, so nothing cheap can reach a breach, and a
+// cost control nothing cheap can fail is a cost control nobody re-checks after editing it.
+//
+// WHAT THIS USED TO TEST. Until 2026-08-15 it drove `proSpendExceeds({conceptUsd, interpretUsd})`
+// - a helper that summed the retired concept-and-reconstruct engine's two calls. That engine is
+// gone and the helper had no caller but this file, so what is pinned now is the CONSTANT and its
+// relationship to the two measurements it has been sized against. The enforcement moved to the
+// ledger, where a reservation books against this number and refuses the call that would pass it
+// (api/_lib/pro/managedCall.ts, `admission.status === 'cost-ceiling'`).
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  PRO_MAX_GENERATION_COST_USD,
-  proSpendExceeds,
-} from '../../src/ai/pro/contract.js';
+import { PRO_MAX_GENERATION_COST_USD } from '../../src/ai/pro/contract.js';
 
-test('the ceiling sits above the measured generation and below a runaway', () => {
-  // pro-baseline-2026-08-09: $0.0777 per generation, dearest brief $0.0849.
-  assert.ok(PRO_MAX_GENERATION_COST_USD > 0.0849, 'the dearest measured brief must pass');
-  assert.ok(PRO_MAX_GENERATION_COST_USD < 0.25, 'three times the measurement is not a ceiling');
+/** The retired engine's measured generation: $0.0777 typical, $0.0849 dearest
+ *  (`pro-baseline-2026-08-09`, four briefs, 4/4 pass). */
+const RETIRED_ENGINE_DEAREST_USD = 0.0849;
+/** Phase A's, measured on the first real hosted generations (docs/NOACG_PRO_PLAN.md §16):
+ *  $0.0043211 and $0.0034336, one call each. */
+const PHASE_A_DEAREST_USD = 0.0043211;
+
+test('the ceiling still clears the dearest generation either engine has produced', () => {
+  // Both, not just the live one. The ledger holds rows written under the old engine, and a
+  // ceiling that would retroactively have refused them is a ceiling that moved without anyone
+  // deciding to move it.
+  assert.ok(PRO_MAX_GENERATION_COST_USD > RETIRED_ENGINE_DEAREST_USD);
+  assert.ok(PRO_MAX_GENERATION_COST_USD > PHASE_A_DEAREST_USD);
 });
 
-test('a normal generation passes, at both the typical and the dearest measured split', () => {
-  assert.equal(proSpendExceeds({ conceptUsd: 0.0671, interpretUsd: 0.0068 }), false);
-  assert.equal(proSpendExceeds({ conceptUsd: 0.0671, interpretUsd: 0.0178 }), false);
+test('…and is still low enough to stop a runaway rather than merely exist', () => {
+  // Three times the retired engine's own measurement was never a ceiling. Phase A is 20x
+  // cheaper, so this bound is now loose by design and NOT by accident - see the constant's own
+  // note. Tightening it needs a fresh measurement, not a tidy-up.
+  assert.ok(PRO_MAX_GENERATION_COST_USD < 0.25);
+  assert.ok(
+    PRO_MAX_GENERATION_COST_USD / PHASE_A_DEAREST_USD > 10,
+    'the slack against the live engine is real; if this ever fails the ceiling was tightened '
+      + 'and its note needs rewriting with it',
+  );
 });
 
-test('the ceiling counts BOTH calls, not the image alone', () => {
-  // Each half is comfortably under on its own; together they are over. The bench had exactly
-  // this bug in reverse (docs/ADMIN.md §9) - counting one call and reporting the run as within
-  // its ceiling - so this is the property worth pinning, not the arithmetic.
-  assert.equal(proSpendExceeds({ conceptUsd: 0.09 }), false);
-  assert.equal(proSpendExceeds({ interpretUsd: 0.09 }), false);
-  assert.equal(proSpendExceeds({ conceptUsd: 0.09, interpretUsd: 0.09 }), true);
-});
-
-test('exactly at the ceiling is allowed; a hundredth of a cent over is not', () => {
-  assert.equal(proSpendExceeds({ conceptUsd: PRO_MAX_GENERATION_COST_USD }), false);
-  assert.equal(proSpendExceeds({ conceptUsd: PRO_MAX_GENERATION_COST_USD + 0.0001 }), true);
-});
-
-test('an unreported cost counts as zero rather than as a breach', () => {
-  // The documented reading, matching how api/_lib/lite/generations.ts treats an actual spend:
-  // silence from the provider is not proof of a breach. Stated here so a future change to the
-  // opposite reading is a deliberate edit to a failing test, not a quiet flip.
-  assert.equal(proSpendExceeds({ conceptUsd: null, interpretUsd: null }), false);
-  assert.equal(proSpendExceeds({}), false);
-  assert.equal(proSpendExceeds({ conceptUsd: null, interpretUsd: 0.2 }), true);
-});
-
-test('an explicit ceiling overrides the default in both directions', () => {
-  assert.equal(proSpendExceeds({ conceptUsd: 0.0777 }, 0.05), true);
-  assert.equal(proSpendExceeds({ conceptUsd: 0.5 }, 1), false);
+test('the ceiling is a real number a reservation can book against', () => {
+  // The ledger multiplies and compares it. A zero, a NaN or a negative would make every
+  // generation either free or impossible, and both fail silently at the reservation.
+  assert.equal(Number.isFinite(PRO_MAX_GENERATION_COST_USD), true);
+  assert.ok(PRO_MAX_GENERATION_COST_USD > 0);
 });
