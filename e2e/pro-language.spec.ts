@@ -452,6 +452,13 @@ test.describe('one design language, the whole package', () => {
         // THE SIBLING RULE, made structural (DESIGN_LANGUAGE §8): the accent's weight and the
         // corner radius are resolved against the PACKAGE unit, not against each graphic's own
         // anchor, so all three carry one bar and one corner language.
+        //
+        // KNOWN LIMIT, and it is worth knowing what this assertion does NOT cover (§15.9, the
+        // 2026-08-16 blind read): equal px is not equal PERCEIVED weight. The countdown's panel
+        // is ~45% taller than the strap's, so the same 16px bar reads at 0.073 of its panel
+        // against the strap's 0.106 - the owner saw it and this test passes straight through it.
+        // Left as it is by his ruling (record, change nothing); a guard that pins the rule we
+        // chose is still the right guard, as long as nobody reads it as pinning the appearance.
         expect(member.accentPx, `${set.name} ${member.graphic} accent weight`).toBe(first.accentPx);
         expect(member.cornerPx, `${set.name} ${member.graphic} corner radius`).toBe(first.cornerPx);
         // One palette and one typeface across the set - the same four roles, the same face.
