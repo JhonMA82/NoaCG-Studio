@@ -436,9 +436,9 @@ is real; question length 500.
 **Carried items, mostly closed since:** the `/join/<name>` path-form rewrite is DONE
 (`vercel.json` rewrite; the 404 the owner's first pass hit was fixed on `main`); the
 vanity-slug squatting window was closed by `0040_production_url_identity.sql` (a production
-keeps its URLs across unpublish/republish); root `AGENTS.md` no longer carries the stale
-showchat path. Still open: docs/PLAYOUT_DASHBOARD.md §8 still says `src/community/showchat/`
-(showchat lives at `src/showchat/`), and `presenterBySlug` has no e2e coverage.
+keeps its URLs across unpublish/republish); the stale `src/community/showchat/` path is gone
+from root `AGENTS.md` and docs/PLAYOUT_DASHBOARD.md §8 (showchat lives at `src/showchat/`).
+Still open: `presenterBySlug` has no e2e coverage.
 
 ### Phase 5 — original scope (design below)
 Migration 0035 + `/join` page (ask/comment modes) + the Audience workspace (inbox, immutable

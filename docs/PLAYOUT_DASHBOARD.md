@@ -192,9 +192,10 @@ question, push a poll result, promote a message. Those arrive as **modules under
 scoped to the selected graphic**, alongside the state machine's own event buttons (which already
 work this way — "graphic-specific actions travel with the graphic").
 
-An **incoming feed** (the public submit page and the moderation page the owner is building next,
-extending `src/community/showchat/`) lands in the same region: a module that shows what viewers
-sent and puts approved items into a cue. Keep the region's height flexible and its contents
+An **incoming feed** lands in the same region: a module that shows what viewers sent and puts
+approved items into a cue. The audience plane that feeds it is built (the `/join` page and the
+production's Audience workspace - `docs/INTERACTIVE_PLAYOUT_PLAN.md` Phases 5-6); the standalone
+showchat surface lives at `src/showchat/`. Keep the region's height flexible and its contents
 graphic-scoped; do not fill it with chrome.
 
 ## 8a. The interactive blueprints — what §8's modules actually look like
