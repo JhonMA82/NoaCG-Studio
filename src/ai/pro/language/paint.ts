@@ -139,10 +139,6 @@ export function wizardPalette(
   };
 }
 
-/** The audited pair from `benchmarks/lite/BRAND-AUDIT-2026-08-09.md` - a fixed neutral, never the
- *  palette whose tone already failed. */
-const MARK_FIELD_LIGHT = '#f2f4f7';
-const MARK_FIELD_DARK = '#12161c';
 /** The same 3:1 the rendered mark gate and the Lite brand audit both measure against. */
 const MARK_INK_CONTRAST_FLOOR = 3;
 /**
@@ -173,84 +169,101 @@ function contrastFromLuminance(a: number, b: number): number {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
-export interface MarkField {
-  fill: string;
-  reason: string;
-}
+/**
+ * What the platform does about a mark that cannot be read on the surface it chose.
+ *
+ * `knock` recolours a SINGLE-INK mark to the one ink that reads; `none` leaves it exactly as
+ * uploaded. **There is deliberately no plate.** The owner's ruling of 2026-08-16, after reading
+ * the first accepted Pro set (docs/NOACG_PRO_PLAN.md §17): *try the ink knock first for single-ink
+ * marks, do not automatically plate them; a full-colour mark keeps its colours and is served by a
+ * well the DESIGN provides, never by the platform painting a generic repair field.*
+ *
+ * The read that produced it is worth keeping beside the rule, because it is subtler than "no
+ * boxes": lt07's blue block and ls10's red block were both LIKED. A well a design draws is part
+ * of the composition; a neutral field the platform paints around the artwork is a patch, and it
+ * reads as one.
+ */
+export type MarkTreatment =
+  | { kind: 'knock'; ink: string; filter: string; reason: string }
+  | { kind: 'none'; reason: string | null };
+
+/** The two inks a knock can produce, and the only two it should: a single-ink mark supplied for
+ *  broadcast is a mono knockout, and `brightness(0)` collapses any one ink to black exactly.
+ *  Hitting an arbitrary hex through a filter chain is approximate; these two are not. */
+const KNOCK_WHITE = { ink: '#ffffff', filter: 'brightness(0) invert(1)', luminance: 1 };
+const KNOCK_BLACK = { ink: '#000000', filter: 'brightness(0)', luminance: 0 };
 
 /**
- * The surface the mark needs, or null when it already reads.
+ * The treatment the mark needs, or `none` when it already reads.
  *
  * Deciding this needs nothing from the layout - only the mark's measured ink and the surface the
  * language chose - so it is deterministic, it is here, and it is the SAME answer on every graphic
- * type in the package. A mark that brings its own field reads on anything and is left alone; a
- * transparent one is judged against the surface, and when it falls under the floor the better of
- * the two audited neutrals is chosen BY MEASUREMENT rather than by assuming a dark ink wants the
- * light one (the sunbeam roundel is the counter-example: mid-tone ink that reads 9.4:1 on the
- * dark neutral and 1.8:1 on the light).
+ * type in the package. A mark that brings its own field reads on anything and is left alone.
+ *
+ * **A knock that cannot clear the floor is not applied.** The chain the ruling names is knock,
+ * then a design-supported alternate placement, then nothing - and the composed Pro graphic draws
+ * no second placement today, so the third rung is reached by leaving the mark alone and SAYING
+ * so. Recolouring a customer's mark to something that still cannot be read would spend the
+ * alteration and buy nothing.
  */
-export function markFieldFor(surface: string, logo: ProLogo): MarkField | null {
-  if (logo.backing === 'own-field' || typeof logo.inkLuminance !== 'number') return null;
+export function markTreatmentFor(surface: string, logo: ProLogo): MarkTreatment {
+  if (logo.backing === 'own-field' || typeof logo.inkLuminance !== 'number') {
+    return { kind: 'none', reason: null };
+  }
   // ONE INK, OR NOTHING. A coloured mark reads by hue and shape, not by the mean luminance the
-  // contrast test measures, so a field would be a repair for a defect it does not have - which
-  // is exactly what a rendered A/B showed on the Phase A round: the two flagged roundel cells
-  // came out WORSE with a field and the owner's blind read had passed both. An older probe with
-  // no spread at all is treated as "cannot tell", and cannot tell means do not touch it.
-  if (typeof logo.inkSpread !== 'number' || logo.inkSpread > MARK_SINGLE_INK_SPREAD) return null;
+  // contrast test measures, and knocking it to a single ink would DESTROY it - the identity is
+  // the colour. Those are the design's to serve with a well of its own. An older probe with no
+  // spread at all is treated as "cannot tell", and cannot tell means do not touch it.
+  if (typeof logo.inkSpread !== 'number' || logo.inkSpread > MARK_SINGLE_INK_SPREAD) {
+    return { kind: 'none', reason: null };
+  }
   const panel = luminanceOf(surface);
-  if (panel === null) return null;   // a panel-free super paints no surface to fail against
+  if (panel === null) return { kind: 'none', reason: null };   // a panel-free super paints no surface to fail against
   const onPanel = contrastFromLuminance(logo.inkLuminance, panel);
-  if (onPanel >= MARK_INK_CONTRAST_FLOOR) return null;
-  const light = luminanceOf(MARK_FIELD_LIGHT) ?? 1;
-  const dark = luminanceOf(MARK_FIELD_DARK) ?? 0;
-  const onLight = contrastFromLuminance(logo.inkLuminance, light);
-  const onDark = contrastFromLuminance(logo.inkLuminance, dark);
-  const better = onLight >= onDark
-    ? { fill: MARK_FIELD_LIGHT, ratio: onLight }
-    : { fill: MARK_FIELD_DARK, ratio: onDark };
+  if (onPanel >= MARK_INK_CONTRAST_FLOOR) return { kind: 'none', reason: null };
+
+  // WHICH ink, by measurement rather than by assuming a dark mark wants white: the panel decides.
+  const white = contrastFromLuminance(KNOCK_WHITE.luminance, panel);
+  const black = contrastFromLuminance(KNOCK_BLACK.luminance, panel);
+  const better = white >= black
+    ? { ...KNOCK_WHITE, ratio: white }
+    : { ...KNOCK_BLACK, ratio: black };
+  if (better.ratio < MARK_INK_CONTRAST_FLOOR) {
+    return {
+      kind: 'none',
+      reason: `the mark reads ${onPanel.toFixed(2)}:1 on this panel (floor ${MARK_INK_CONTRAST_FLOOR})`
+        + ` and no knock clears it either (${better.ratio.toFixed(2)}:1 at best), so the mark is left`
+        + ' exactly as supplied - this design offers no second placement for it',
+    };
+  }
   return {
-    fill: better.fill,
-    // An honest failure beats a silent one: if neither neutral clears the floor the field still
-    // goes on, as the best surface available, and the reason says so.
+    kind: 'knock',
+    ink: better.ink,
+    filter: better.filter,
     reason: `the mark reads ${onPanel.toFixed(2)}:1 on this panel (floor ${MARK_INK_CONTRAST_FLOOR})`
-      + ` - its column carries ${better.fill}, where it reads ${better.ratio.toFixed(2)}:1`,
+      + ` - its single ink is knocked to ${better.ink}, where it reads ${better.ratio.toFixed(2)}:1`
+      + ' on the panel itself, with no field behind it',
   };
 }
 
 /**
- * The mark's reading field as a BAND of the composition, not a plate around the artwork.
+ * The knock, as CSS on the mark itself - no surface, no padding, no box.
  *
- * TWO ARRANGEMENTS, because the shared slot has two and the field has to fit the one that is
- * drawn (`templates/shared/logoSlot.ts`). On a STRAP the mark is a leading column, so
- * `align-self: stretch` makes its box the full height of the text stack and the field reads as a
- * segment of the panel. Everywhere else the mark is a band ABOVE the text, already its own row,
- * so the field is symmetric padding around it. `object-fit: contain` keeps the artwork
- * undistorted in both (never `cover` - the as-is screen refuses a cropped mark, and rightly).
+ * `brightness(0)` collapses every non-transparent pixel of a single-ink mark to black and
+ * `invert(1)` lifts that to white; alpha, aspect and geometry are untouched, which is what makes
+ * this a RECOLOUR rather than the kind of alteration the as-is screen exists to refuse. The mark
+ * still sits on the panel the design chose - the whole point of the ruling.
  *
- * That distinction is the whole of the no-plate rule: the field is only drawable at all because
- * the platform owns this composition and knows the mark's ink before the surface is chosen.
+ * THE CLASS IS THE CONTRACT. `assetIntegrity.ts` admits a filter on a protected picture only on
+ * this selector and only in this exact shape, so every other filter anywhere - including a blur
+ * on this same element - is still the blocking error it was. Change the emit here and that
+ * allowance stops matching, which is the failure mode worth having.
  */
-export function markFieldCss(
-  prefix: string,
-  field: MarkField,
-  s: ResolvedSpacing,
-): string {
-  const inset = Math.round(s.markGapPx / 2);
-  // The strap's emit is kept BYTE-IDENTICAL to what the §15.8 round scored: a control that
-  // composes something other than what was measured stops being comparable with it.
-  const geometry = prefix === 'lower-third'
-    ? `  align-self: stretch;              /* the full height of the words beside it: a band, not a box */
-  background: ${field.fill};              /* a fixed neutral - never the palette whose tone already failed */
-  object-fit: contain;              /* the whole mark, never cropped or stretched */
-  padding: 0 calc(${inset}px * var(--scale));  /* its clear space, inside the field */`
-    : `  background: ${field.fill};              /* a fixed neutral - never the palette whose tone already failed */
-  object-fit: contain;              /* the whole mark, never cropped or stretched */
-  box-sizing: content-box;          /* the field grows around the mark, never squeezes it */
-  padding: calc(${inset}px * var(--scale));  /* its clear space, on all four sides of the band */`;
+export function markKnockCss(prefix: string, knock: MarkTreatment & { kind: 'knock' }): string {
   return `
-/* == PLATFORM: ${field.reason}. == */
-.${prefix}-box > .${prefix}-logo {
-${geometry}
+/* == PLATFORM: ${knock.reason}. == */
+.${prefix}-box > .${prefix}-logo.${prefix}-logo--knocked {
+  filter: ${knock.filter};  /* the mark's one ink, recoloured to read - nothing else is touched */
 }`;
 }
 
@@ -259,8 +272,8 @@ ${geometry}
  * package, plus whatever it had to repair.
  *
  * One writer for all three types, because these notes are what the result card shows and what
- * `gate.ts` re-reads for the `pro-mark-field` finding; two writers is how the note and the
- * finding come to state different numbers about the same repair.
+ * `gate.ts` re-reads for the `pro-mark-knocked` finding; two writers is how the note and the
+ * finding come to state different numbers about the same alteration.
  */
 export function platformNotes(input: {
   language: DesignLanguage;
@@ -269,9 +282,9 @@ export function platformNotes(input: {
   /** The class prefix, for the accent note's honest caveat. */
   prefix: string;
   adjustments: string[];
-  field: MarkField | null;
+  mark: MarkTreatment;
 }): string[] {
-  const { language, spacing, surface, prefix, adjustments, field } = input;
+  const { language, spacing, surface, prefix, adjustments, mark } = input;
   const plan = accentPlan(language.accent.form);
   const notes = [
     `structure and spacing: platform-owned (${language.density} density -`
@@ -285,6 +298,9 @@ export function platformNotes(input: {
       + ' animates the panel and its lines rather than a separate shape');
   }
   if (adjustments.length) notes.push(`palette furniture repaired: ${adjustments.join(', ')}`);
-  if (field) notes.push(`mark field: ${field.reason}`);
+  // Said out loud in BOTH directions: a knock is an alteration to a customer's artwork and a
+  // refusal to knock is a mark left unreadable. Neither may be silent.
+  if (mark.kind === 'knock') notes.push(`mark ink knocked: ${mark.reason}`);
+  else if (mark.reason) notes.push(`mark left as supplied: ${mark.reason}`);
   return notes;
 }

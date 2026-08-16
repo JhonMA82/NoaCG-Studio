@@ -46,15 +46,27 @@ export function proLanguageFindings(
         + ` its own panel: ${palette.join(', ')}. Identity (accent and panel) is untouched.`,
     });
   }
-  if (composed.adjustments.includes('mark_field_painted')) {
+  if (composed.adjustments.includes('mark_ink_knocked')) {
     // The composer already wrote the measured reason into a note; reuse it rather than
     // recomputing the contrast, or the finding and the note can disagree about the same number.
-    const note = composed.notes.find((n) => n.startsWith('mark field: '));
+    const note = composed.notes.find((n) => n.startsWith('mark ink knocked: '));
     out.push({
-      rule: 'pro-mark-field',
+      rule: 'pro-mark-knocked',
       message: note
-        ? `The brand mark's column carries a measured neutral field - ${note.slice('mark field: '.length)}`
-        : 'The brand mark\'s column carries a measured neutral field so its ink reads on this panel.',
+        ? `The brand mark's single ink was recoloured so it reads on the panel - ${note.slice('mark ink knocked: '.length)}`
+        : 'The brand mark\'s single ink was recoloured so it reads on this panel, with no field behind it.',
+    });
+  }
+  // A mark left UNREADABLE is the more serious of the two and was previously invisible: the old
+  // field always went on, so there was nothing to report. Now that the platform can decline to
+  // alter a customer's artwork, declining has to be as loud as acting.
+  const leftAsSupplied = composed.notes.find((n) => n.startsWith('mark left as supplied: '));
+  if (leftAsSupplied) {
+    out.push({
+      rule: 'pro-mark-unreadable',
+      message: `The brand mark is left exactly as supplied and does not clear the contrast floor`
+        + ` on this panel - ${leftAsSupplied.slice('mark left as supplied: '.length)}.`
+        + ' A design-provided logo well, or a mark supplied in a second ink, is what fixes this.',
     });
   }
   if (fallbacks.length) {

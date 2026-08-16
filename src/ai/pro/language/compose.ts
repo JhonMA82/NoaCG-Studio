@@ -28,14 +28,15 @@ import type { LineSpec, ResolvedOptions, TemplateVariant } from '../../../model/
 import { accentPlan, resolveSpacing, type ResolvedSpacing } from './structure';
 import type { DesignLanguage, LanguagePalette } from './contract';
 import {
-  markFieldCss,
-  markFieldFor,
+  markKnockCss,
+  markTreatmentFor,
   panelSurface,
   platformNotes,
   readableInkOn,
   resolvePalette,
   wizardPalette,
   type BrandPalette,
+  type MarkTreatment,
   type ProLogo,
 } from './paint';
 
@@ -284,17 +285,19 @@ export function composeFromLanguage(language: DesignLanguage, options: ComposeOp
   const surface = panelSurface(language, palette);
   // ON unless a caller explicitly asks for the un-repaired composition - see `ComposeOptions`.
   const markField = options.markField ?? true;
-  const field = markField && options.logo ? markFieldFor(surface.value, options.logo) : null;
+  const mark: MarkTreatment = markField && options.logo
+    ? markTreatmentFor(surface.value, options.logo)
+    : { kind: 'none', reason: null };
   const variant = variantForLanguage(
     language,
-    field ? markFieldCss('lower-third', field, s) : '',
+    mark.kind === 'knock' ? markKnockCss('lower-third', mark) : '',
     options.brandPalette,
   );
   // Every divergence from what was asked for, said out loud. A repair the ledger cannot count is
   // a promise nobody can check (the Lite brand rule, `docs/AI_LITE_BRAND_PLAN.md` §3.2).
-  const adjustments = [...paletteAdjustments, ...(field ? ['mark_field_painted'] : [])];
+  const adjustments = [...paletteAdjustments, ...(mark.kind === 'knock' ? ['mark_ink_knocked'] : [])];
   const notes = platformNotes({
-    language, spacing: s, surface, prefix: 'lower-third', adjustments, field,
+    language, spacing: s, surface, prefix: 'lower-third', adjustments, mark,
   });
   const template = variant.create({
     lines: options.lines,
@@ -302,7 +305,14 @@ export function composeFromLanguage(language: DesignLanguage, options: ComposeOp
     ...(options.fps ? { fps: options.fps } : {}),
     animation: { presetId: s.preset, speed: s.speed, easing: 'auto', steps: false },
     ...(options.logo
-      ? { logoEnabled: true, logoAssetPath: options.logo.assetPath, importedImages: options.logo.images }
+      ? {
+        logoEnabled: true,
+        logoAssetPath: options.logo.assetPath,
+        importedImages: options.logo.images,
+        // The class the knock rule targets, emitted only when there IS a knock - so the
+        // selector and the declaration always arrive together or not at all.
+        ...(mark.kind === 'knock' ? { logoInkKnocked: true } : {}),
+      }
       : {}),
   });
   return { template, variant, spacing: s, notes, adjustments };

@@ -278,7 +278,10 @@ export function applyLogoSlot(design: StandardDesign, prefix: string, o: Resolve
 
   const markHtml = (indent: string): string =>
     `\n${indent}<!-- Logo (image field ${logoField}) — ${beside ? 'sits beside the stack above, centred on it' : 'a band above the text'}. Empty = hidden. -->` +
-    `\n${indent}<img id="${logoField}" class="${prefix}-logo"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />`;
+    // The knock class is a CONTRACT, not decoration: `assetIntegrity.ts` admits the platform's
+    // one legal recolour of a protected mark ONLY on this selector (docs/NOACG_PRO_PLAN.md §17).
+    // Absent by default, so every catalog design emits exactly what it emitted before.
+    `\n${indent}<img id="${logoField}" class="${prefix}-logo${o.logoInkKnocked ? ` ${prefix}-logo--knocked` : ''}"${logoPath ? ` src="${logoPath}"` : ' style="display: none"'} alt="" />`;
 
   // WHERE the mark goes in the markup is not a formatting choice, and on a strap it is not the
   // front. A design addresses its own children positionally - lt02 drops every line after the

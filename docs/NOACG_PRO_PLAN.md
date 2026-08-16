@@ -2180,3 +2180,62 @@ the four things §15.4 moved to the model. Three of the five findings are PLATFO
 mark field, the missing plate instrument, a catalog design's margin), which is the same shape as
 §15.2's decomposition and the reason Phase A was built. The premise holds; the work is now
 ordinary improvement against named defects.
+
+### 17.6 The mark ruling, implemented - 2026-08-16
+
+**The owner's chain, verbatim:** try the ink knock first for single-ink marks; do not automatically
+plate them; if a knock cannot preserve the mark, use a design-supported alternate placement where
+one is available; full-colour marks keep their colours and are served by an intentional well the
+DESIGN provides, never by the platform painting a generic repair field.
+
+`markFieldFor` is gone. `markTreatmentFor` (`pro/language/paint.ts`) returns a `knock` or a
+`none`, and there is no third answer that paints anything:
+
+| the mark | what happens |
+|---|---|
+| single ink, reads on the panel | nothing |
+| single ink, under the floor | its one ink is knocked to white or black, whichever measures better on that panel, and it sits ON the panel |
+| single ink, under the floor, and no knock clears it either | **left exactly as supplied**, with `pro-mark-unreadable` naming the number |
+| full colour (`inkSpread` over the single-ink band) | nothing - the colours are the identity |
+| brings its own field | nothing |
+
+**The third rung is honest rather than implemented.** The composed Pro graphic draws no second
+placement for a mark today, so "a design-supported alternate placement" has nothing to select; the
+code declines to alter the artwork and says why instead. When a Pro composition grows a second
+mark position, that is where it plugs in.
+
+**Measured on the exact graphic that produced the finding** (`news-public.aldervale`, recomposed
+free from its own saved `language.json`): the monogram probes at ink luminance 0.0200 and
+`inkSpread` 0.00038 - single ink by two orders of magnitude - and read **1.01:1** on the `#14264a`
+panel. Knocked to white it reads **14.89:1 on the panel itself, with no field behind it**. The
+ledger row carries `mark_ink_knocked` and `pro-mark-knocked`.
+
+**It also fixed the other half of §17.1 for free.** The field was what set the mark's column to
+`align-self: stretch`, so removing it returns the crest to the shared slot's own vertical
+centring - the "not really centered on anything, aligned with the top line row" complaint. One
+change, both halves.
+
+### 17.7 The as-is screen now admits exactly one alteration
+
+A knock is a CSS `filter`, and `assetIntegrity.ts` refuses every filter on a picture the user
+marked "use it as it is" - so this ruling and that one collide, and the collision is real rather
+than a technicality. Both are the owner's, and the resolution is to make the exception the
+narrowest thing the screen can express rather than to loosen the screen:
+
+- the selector must be the platform's own knock class (`.{prefix}-logo--knocked`), which only
+  `markKnockCss` emits and which the shared slot only writes when the composer asks for it;
+- the declaration must be exactly `brightness(0)`, optionally `invert(1)` - the two shapes that
+  are pure recolours;
+- the rule must declare NOTHING ELSE.
+
+**Mutation-checked, 9 cases** (`local` runner, reproducible): both legal knocks admitted; a blur,
+a `brightness(0.4)`, a drop-shadow, the knock on a non-knock selector, and the knock beside a
+`clip-path`, a `border-radius` or an `object-fit: cover` all still raise their blocking errors.
+The e2e spec runs the REAL screen over the REAL emit, so the two rules - written in different
+files, for different reasons - are proven to meet.
+
+**Why this is a recolour and not a distortion**, stated because it is the part worth arguing with:
+what a brand manual protects a mark from is being cropped, squashed, masked or shadowed, and every
+one of those is still refused. A single-ink mark supplied as a mono knockout is what broadcast has
+always used, and the alternative on a dark panel is a mark nobody can see or a box the owner has
+now twice objected to.

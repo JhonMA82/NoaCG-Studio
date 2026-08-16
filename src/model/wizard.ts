@@ -287,6 +287,14 @@ export interface WizardOptions {
   /** Whether an 'optional'-logo design should include its logo slot (field + <img>).
    *  Unset falls back to "an image was provided"; 'built-in' designs always have one. */
   logoEnabled?: boolean;
+  /** Mark the logo's `<img>` as ink-KNOCKED - it carries `.{prefix}-logo--knocked` and the
+   *  caller supplies the recolour rule.
+   *
+   *  It is a class rather than the CSS itself because the class is a CONTRACT: `assetIntegrity.ts`
+   *  admits a filter on a protected picture only on this selector and only in the exact knock
+   *  shape, so the one alteration the platform may make to a customer's mark is expressible and
+   *  nothing else is (docs/NOACG_PRO_PLAN.md §17). Only NoaCG Pro's composer sets it today. */
+  logoInkKnocked?: boolean;
   /** The artwork that IS the graphic (the Import Graphic flow's imported-design category).
    *  Its natural size decides the design's size, so it is measured at import, not guessed. */
   designArt?: DesignArt;
@@ -339,6 +347,7 @@ export interface ResolvedOptions {
   importedImages: AssetFile[];
   logoAssetPath: string | null;
   logoEnabled: boolean;
+  logoInkKnocked: boolean;
   designArt: DesignArt | null;
 }
 
@@ -516,6 +525,7 @@ export function resolveOptions(variant: TemplateVariant, options: WizardOptions 
     logoEnabled:
       variant.logo === 'built-in' ||
       (variant.logo === 'optional' && (options.logoEnabled ?? !!options.logoAssetPath)),
+    logoInkKnocked: options.logoInkKnocked ?? false,
     designArt: options.designArt ?? null,
   };
 }
