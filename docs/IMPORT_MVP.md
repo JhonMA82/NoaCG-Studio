@@ -509,6 +509,38 @@ visible to Google before anything is fetched.
 
 E2E: `e2e/google-fonts.spec.ts` (Google stubbed, as the AI routes are).
 
+## Does this need AI? Measured, 2026-08-16 — no
+
+`node scripts/import-suggest-audit.mjs` (free, no tokens) puts ten authored lower thirds through
+both free paths and scores each against the intended text box its fixture declares BEFORE the
+run. The design vocabulary comes from `docs/LOWER_THIRDS_REFERENCE_CORPUS.md` §3.4, not from
+what the detector happens to like.
+
+| | clean export (no text) | text baked in |
+| --- | --- | --- |
+| auto-placement (`suggestFields.ts`) | 5 hit / 1 miss / 4 refused | 0 hit — the wrong tool |
+| the Prepare step's ERASE | n/a | **9 of 10, two lines each** |
+
+Two conclusions, and both are about what is IN THE FILE rather than about model quality:
+
+- **A panel-less design exported clean is unanswerable by anyone.** There is no evidence in the
+  pixels of where the words go — one fixture is an empty frame. §4 of the corpus says that
+  family is half of our catalog and most of the professional one, so this is the common case,
+  not the edge.
+- **Baked-in text belongs to the erase**, which measures the ink and seeds a field per line —
+  including on panel-less artwork and over footage. AI's only unique niche is baked text on a
+  background too textured to erase (1 of 10 here), and there it can still only say WHERE the
+  text is: the pixels cannot be cleaned, so the old words stay visible under the new field.
+
+The audit is a LOWER BOUND on difficulty — the fixtures are authored, not collected. Re-run it
+against a real class set before treating the numbers as coverage.
+
+**A caution this cost.** The first argument against AI here cited the 2026-07-29 vision bench's
+23% region precision. That run's dataset is the house CATALOG rendered to PNGs
+(`scripts/ai-vision-dataset.mjs`, whose own header says the catalog "is exactly the thing a
+user's imported artwork is not"). It measured a proxy and predicts nothing about imports. Check
+what a benchmark was run ON before citing its number.
+
 ## Deliberately out of scope
 
 Layered/PSD imports, OCR/text detection, Google Sheets, multi-step logic, state-machine
