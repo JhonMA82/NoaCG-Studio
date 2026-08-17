@@ -489,6 +489,17 @@ last-known-good). Choose concrete providers only after licensing/cost review.
    1920×1080, survives a CasparCG channel restart.
 8. Unpublish → output URL and control URL both go dead honestly; re-publish → same record,
    new session, output URL unchanged only if the row was updated rather than deleted.
+9. **Pictures — NOT YET RUN.** The picture graphic (§ pool list, `src/templates/picture.ts`)
+   ships covered by `e2e/productions.spec.ts`, which is the LOCAL half: it never publishes,
+   so the one thing pictures add to the wire — a multi-megabyte base64 payload in the
+   published `output` row, read whole by the renderer AND by every hosted operator page — has
+   never been carried by a real backend. Needs a real Supabase, so it cannot be run from a
+   spec: add two pictures to a production, publish, load `/output?production=<slug>`, take
+   picture 1 (it airs full-frame), take picture 2 (it REPLACES picture 1 on the same layer
+   rather than stacking), kill the output tab and reload (it comes back showing picture 2).
+   Watch the payload size and the reload time while doing it — that is what `MAX_PICTURES = 20`
+   is a guess about, and this walk is the first measurement of whether twenty is the right
+   number.
 
 ## 9. Why not… (decisions with their reasons)
 

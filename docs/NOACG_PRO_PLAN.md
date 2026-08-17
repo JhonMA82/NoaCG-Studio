@@ -1223,11 +1223,15 @@ src/ai/AGENTS.md for the four rules that bind it). What the shape of it buys:
   and `languageFallbacks` records which fields fell back, so a round can see a language that was
   mostly ours.
 - **`structure.ts` composes in the units the instruments measure in.** Every size is a ratio of
-  the primary type size, so each calibrated threshold is cleared by construction and the file
-  states its margin: tightest padding 0.34 against a 0.28 floor, opposite sides equal (1.0x
-  against a 2.6x limit), widest line gap 0.83 against a 1.4 ceiling, nearest rule 0.45 against a
-  0.02-0.12 crowding band, footprint ~0.071 against a 0.10 ceiling, mark 1.2 type sizes against a
-  3.2 ceiling.
+  the primary type size, so each calibrated threshold can be stated as a margin rather than
+  inspected for. **The numbers below were DERIVED when this was written and are now MEASURED -
+  §18, and nine of the eleven moved.** Rendered over 582 compositions: tightest padding **0.33**
+  against a 0.28 floor, opposite sides equal in every declaration (**1.00** rendered, 1.06 worst
+  under one typeface, against a 2.6x limit), widest line gap **1.20** against a 1.4 ceiling,
+  nearest rule **0.14** against a 0.02-0.12 crowding band, mark **1.56** type sizes against a 3.2
+  ceiling - and footprint **0.14 against a 0.10 ceiling at the stress words, which breaches it**.
+  Composing in the instrument's unit is what makes the margins knowable in one free sweep; it is
+  not what makes them clear, and §18.3 is the one that is not.
 - **`compose.ts` builds through the catalog's own assembler.** A Phase A graphic is an ordinary
   `TemplateVariant`, so it inherits the `:root` contract, the NOACG_ANIM region, the SPX
   definition, the shared logo slot, exports - and the auto-fit `width: fit-content` box, **which
@@ -2442,3 +2446,120 @@ to overwrite, and a platform change that is visible as a CHANGE is worth more th
 quietly looks correct. For the same reason the validator rows on a recomposed cell are now
 labelled "(the paid round, before the composer changed)": the graphic is new, that verdict is
 not, and mixing the two eras silently is how a page starts lying.
+
+## 18. The nine structure margins, measured - 2026-08-16
+
+`structure.ts` states a margin against every calibrated instrument threshold, and that table is
+the whole argument for Phase A's doctrine: the platform composes in the unit the instruments
+measure in, so a threshold is cleared **by construction** rather than by inspection. §15.5 repeats
+six of those numbers as the reason to believe the doctrine.
+
+**Exactly one of them had ever been rendered.** That one - the mark's clear space - had already
+come back 0.31 and 0.46 against a stated 0.4, wrong in both directions, which is what a derived
+number does: it reports the CSS the composer writes rather than the box the browser paints.
+Line-height leading, the mask idiom, a size floor firing above the anchor a ratio was taken from,
+a block's own padding riding on a line gap and a fit-content panel sized by its own text all move
+it. So the rest were rendered too.
+
+### 18.1 The sweep
+
+`node scripts/spike-structure-margins.mjs` - free, no model call, ~18 minutes. **582 cells**:
+density x type step x accent form x panel treatment x graphic type x mark arm, each composed
+through `composeGraphic` + `composeDocument` at 1920x1080 and read by the LIVE `measureSpacing` /
+`measureProportion` with **that type's own thresholds** (`PRO_GRAPHICS[id].instruments`), at the
+control's words and again at the stress words - **1164 readings**. Nothing is re-implemented: a
+sweep that recomputed the ratios would be measuring the driver's opinion of the composer.
+
+Three decisions in it are worth carrying to the next sweep of this shape:
+
+- **The panel and corner axes are REDUCED, and the reduction is earned rather than assumed.** The
+  grid sweeps `solid` and `none` and one corner; a separate pass re-measures all four of each at
+  the extreme cells and fails the run if any geometric number moves. Both held.
+- **The typographic voice is a second pass, not a grid axis** - all 17 bundled faces and all 12
+  case/tracking combinations at the tightest and airiest cells. It found the only skew reading in
+  the round that is not exactly 1.00.
+- **The page is recycled every 40 cells.** The first attempt died at cell ~130 on renderer memory
+  and would have reported a "worst" taken over the cells it happened to reach - the most dangerous
+  shape a measurement can have, because it looks complete.
+
+### 18.2 What each claim said, what it measured
+
+| claim | threshold | stated | MEASURED (worst, whole package) | where |
+| --- | --- | --- | --- | --- |
+| `padding-tight` | floor 0.28 | 0.34 | **0.33** | strap, compact |
+| `padding-lopsided` | limit 2.6x | "exactly 1.0x" | **1.00** on 790 of the 792 readings that have one, **1.06** worst | one bug in Oswald |
+| `lines-adrift` | ceiling 1.4 | 0.83 | **1.20** | countdown, airy + block accent |
+| `text-crowds-rule` | band 0.02-0.12 | 0.45 | **0.14** | countdown, compact + block accent |
+| `type-ratio-thin` | floor 0.28 | 0.36 | **0.35** | strap, compact + strong step |
+| `type-ratio-flat` | band 0.86-0.93 | 0.62 | **0.63** | countdown, subtle step |
+| `panel-oversized` | fill floor 0.18 | ~0.47 | **0.34** | countdown, airy + strong step |
+| `footprint-large` | ceiling 0.10 | ~0.071 | **0.08** control words, **0.14 stress - BREACHED** | strap, airy |
+| `mark-oversized` | ceiling 3.2 | 1.2 | **1.56** strap, **2.67** bug (ceiling 5.5 there) | square crest at the slot's cap |
+| `mark-crowded` | band 0.35-2.1 | 0.48 seated / 0.72 banded | **0.48** strap (confirmed), **0.83-0.87** bug | - |
+| `text-escapes-panel` | - | "structurally impossible" | **zero escapes in the 792 readings that have a panel** (confirmed) | - |
+
+**Two survived and nine moved.** What survived is the structural claim and the one reading anybody
+had ever rendered. Two of the nine are worth more than their arithmetic:
+
+- **`text-crowds-rule` was out by 3.2x, and the stated number was measuring the wrong thing.** A
+  strap's own rules do sit at 0.44 and up, which is what 0.45 described. But the `block` accent
+  form paints a slab, a slab is a rule the instrument measures text against, and the gap to it is
+  the **line gap** (`DENSITY_SPACE.compact.lineGap` = 0.14), never `RULE_GAP_RATIO`. Two forms,
+  two clear spaces; the table had read the constant instead of the frame. 0.14 against a band that
+  ends at 0.12 is still clear, by 0.02 - so compact's line gap is now a number with a rule-gap
+  consequence, and that is written where it lives.
+- **`padding-lopsided`'s "exactly 1.0x" was a claim about CSS being read as a claim about
+  pixels.** Opposite sides really are equal in every declaration this file writes. The instrument
+  measures panel edge to the bounding box of what the panel holds, and a face whose ascent and
+  descent sit asymmetrically in its line box moves that box without moving a declaration. 1.06
+  against a 2.6x limit: free, and worth knowing the mechanism.
+
+### 18.3 The one margin this composer does not have
+
+`footprint-large` **is breached**, and it is recorded as a breach rather than retuned.
+
+A long name and a 60-character role at airy density widen the fit-content panel to the auto-fit
+cap, and the strap then covers **14% of the frame against a 10% ceiling** - on **59 of the 162
+strap stress readings that produce a footprint at all** (36%; a panel-free super has none), 46 of
+them airy, and **zero at the control's words**. For scale: the instrument's ceiling was calibrated where the
+catalog's largest shipped design is 0.09 and the owner's own *"the box is way too big"* sat at
+0.12. At the control's words nothing fires and the strap measures 0.07, which is why every
+previous look at this number agreed with the claim.
+
+Nothing here fails. `proportionCheck` REPORTS and does not gate, for the reason it states - a gate
+that failed a deliberate full-bleed composition would be teaching designs to be timid - and this
+round changed no threshold and added no gate. **What changed is that the file no longer claims a
+margin it does not have.** Density is the lever (46 of 59 are airy) and whether an airy strap
+should hold its width against a long role line is a design decision, not a threshold to move; it
+is a question for a blind read, not for this sweep.
+
+### 18.4 `markHeightPx` is read, and the strap's value is the wrong description
+
+A handoff proposed deleting `markHeightPx` from `ResolvedSpacing` as unread. **It is read** -
+`composeBug.ts:170` floors the tile's padding at a quarter of it, because on a sponsor bug the
+mark is the graphic and the tile's air belongs to it. There the numbers are exact: the stacked
+slot paints a fixed 64px with 20px beneath, and both are transcribed.
+
+The strap's pair is a different matter and the sweep is what caught it. `gapPx` 26 is exact (the
+slot's own `MARK_CLEAR_PX`), but `heightPx` 65 is one wordmark's rendered height from the §15.8
+round, not the slot's rule: `logoSlot.ts` gives the side-by-side arrangement a **cap**
+(`MARK_MAX_HEIGHT_PX` 84) with `height: auto`, so the artwork's aspect decides. A square crest
+reaches the cap at **1.56 type sizes**, which is where the table's "mark 1.2" came from and why it
+was wrong. Corrected in the comment rather than in the number: nothing spends the strap's
+`heightPx`, and changing it would move a fallback for a type that never uses it while leaving the
+one real caller untouched.
+
+### 18.5 What this says about the doctrine
+
+The doctrine holds and its statement was too strong. Composing in the instrument's own unit is
+what makes every one of these margins **knowable** - eleven numbers, one free sweep, no model in
+the loop, and each one attributable to a named constant. That is real, and no other engine this
+project has built could produce that table at all.
+
+But knowable is not clear, and "a threshold is cleared by construction" was doing the work of
+"cleared, and here is the number" without anybody having rendered the number. Nine of eleven had
+drifted from what paints, one of them past its ceiling. **A ratio derived from the CSS a composer
+writes is an assertion wearing a measurement's clothes** - which is the same finding as
+`bench-line-wrap`, as the gate that computed `pass` without reading its own warnings, and as the
+control that did not run the code under test. The margin table now carries the cell that produced
+each reading, so re-running it is one command and disagreeing with it needs a frame.

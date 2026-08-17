@@ -149,7 +149,13 @@ const MAP = [
   // kit-flow or wizard-header change ran neither the spec named after it nor anything that
   // walks to its step - the "runs FEWER specs" failure mode with no alarm attached
   // (scripts/e2e-affected.mjs's own safety argument is that it fails toward running more).
-  [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts', 'wizard-setup-fields.spec.ts', 'google-fonts.spec.ts']],
+  // import-prepare, import-canvas, import-stretch and import-analysis were mapped from NOWHERE
+  // - not from this list, not from src/assets/ below - so the four specs that own the Import
+  // Graphic flow's Prepare and Text steps only ever ran at night. That is the same "runs FEWER
+  // specs" failure mode the wizard-finish line above records, and it has already bitten twice:
+  // auto-placement broke import-analysis, and the erase's opening proposal changes the very
+  // step import-prepare and import-canvas walk through.
+  [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-canvas.spec.ts', 'import-stretch.spec.ts', 'import-analysis.spec.ts', 'text-tools.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts', 'wizard-setup-fields.spec.ts', 'google-fonts.spec.ts']],
   // WHAT HAPPENS WHEN A WRITE FAILS is its own contract (e2e/storage-full.spec.ts) and it cuts
   // across the storage layer, the two save paths over it, and the surface that announces the
   // failure. It is mapped separately because the failure mode it guards - a door that saves
@@ -196,7 +202,10 @@ const MAP = [
   // catch a break, leaving it to the nightly. (`pro.spec.ts` was here too while the Pro
   // compiler's baked-text removal and ring matte used the same helper; that engine was deleted
   // on 2026-08-15 and the Import Graphic step is the only caller left.)
-  [/^src\/assets\//, ['assets.spec.ts', 'images.spec.ts', 'bench.spec.ts', 'asset-workflow.spec.ts', 'import-graphic.spec.ts']],
+  // eraseRegion.ts also owns the SCAN that draws the Prepare step's opening box, and
+  // suggestFields.ts the Text step's auto-placement, so the four Import Graphic specs ride
+  // along here for the same reason they now ride along on the wizard directory.
+  [/^src\/assets\//, ['assets.spec.ts', 'images.spec.ts', 'bench.spec.ts', 'asset-workflow.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-canvas.spec.ts', 'import-stretch.spec.ts', 'import-analysis.spec.ts']],
   [/^src\/admin\//, ['admin.spec.ts']],
   [/^admin\.html$/, ['admin.spec.ts']],
   [/^api\/admin\//, ['admin.spec.ts']],

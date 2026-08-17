@@ -1,5 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
+import JSZip from 'jszip';
 import { createProject } from './_create';
+import { relayServe, routeOrigin } from './_relay';
 
 // The production page's GRAPHIC ACTIONS block (docs/PLAYOUT_DASHBOARD.md §8): the machine's
 // ⚡ buttons rendered from the metadata that travels inside the template, greyed by the
@@ -341,4 +343,115 @@ test('± LIVE NUMBERS bumps a figure on air without publishing other staged edit
   await page.getByTestId('cue-field-f7').fill('');
   await page.getByTestId('verb-update').click();
   await expect(program.locator('.scoreboard-podium-4')).toHaveClass(/scoreboard-podium-empty/);
+});
+
+test('± LIVE NUMBERS on the EXPORTED controller: the bump is a partial, carrying that field alone', async ({ page, context }) => {
+  test.setTimeout(180_000);
+  // The same rule as the test above, on the surface a show drops to when the network dies -
+  // the exported local-control package, driven through the bundled relay. It matters MORE
+  // here: this is the fallback an operator reaches for under pressure, and it used to
+  // republish the cue's whole value set on every stepper press, so a half-typed name went to
+  // air riding a goal.
+  //
+  // The assertion is the WIRE, not the DOM. What an exported operator surface puts on the
+  // relay is the contract every receiver (and the log's own recovery replay) reads; a screen
+  // that happens to look right can still be shipping the wrong payload, which is exactly how
+  // this survived. So the rows are read straight off the in-spec relay and their SHAPE checked.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const b64 = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const shows = await import('/src/model/shows.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    // sb22 House Podiums: four scores (number) beside a spotlight index (number, but carried
+    // as the ⚡ action's PAYLOAD) - both halves of §7c's derivation in one graphic.
+    const tpl = variantById('sb22')!.create({});
+    const { doc } = createGraphic(tpl, { name: 'House Podiums' });
+    const show = shows.createShowNamed('Game Night');
+    shows.addGraphicToShow(show.id, tpl, { graphicId: doc!.id });
+    const fresh0 = shows.loadShows().find((s) => s.id === show.id)!;
+    shows.updateShowCue(show.id, fresh0.cues![0].id, { label: 'Round one' });
+    const fresh = shows.loadShows().find((s) => s.id === show.id)!;
+    const zip = await buildShowZipFor(fresh, 'html-overlay');
+    return zip.generateAsync({ type: 'base64' });
+  });
+
+  const zip = await JSZip.loadAsync(b64, { base64: true });
+  const files = new Map<string, string>();
+  for (const n of Object.keys(zip.files)) {
+    // Strip whatever folder the production's own name produced - the package is named after
+    // the show, not a hard-coded slug.
+    if (!zip.files[n].dir && /\.(html|json)$/.test(n)) files.set(n.replace(/^[^/]+\//, ''), await zip.file(n)!.async('string'));
+  }
+  const manifest = JSON.parse(files.get('payload.json')!) as { graphics: { file: string }[] };
+  const { serve, rows } = relayServe(files);
+  const origin = 'http://podium-host.local';
+
+  // The OBS side: the overlay addressed as the program source. Managed, so it waits for the log.
+  const air = await context.newPage();
+  await routeOrigin(air, origin, serve);
+  await air.goto(`${origin}/${manifest.graphics[0].file}?stream=program`, { waitUntil: 'load' });
+
+  const ctl = await context.newPage();
+  await routeOrigin(ctl, origin, serve);
+  await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
+  await expect(ctl.locator('#mode')).toContainText('SHOW');
+  await ctl.locator('.cue', { hasText: 'Round one' }).click();
+  await ctl.locator('#v-take').click();
+  await expect(ctl.locator('.cue').first()).toHaveClass(/on-air/, { timeout: 10_000 });
+  await expect(air.locator('#f2')).toHaveText('0', { timeout: 10_000 });
+
+  /** Every PROGRAM `update` this page has sent, newest last. */
+  const programUpdates = () =>
+    rows.filter((r) => r.stream === 'program' && (r.msg as { t: string }).t === 'update')
+      .map((r) => (r.msg as { data: Record<string, string> }).data);
+
+  // Stage an edit that must NOT ride the bump: a half-typed name. Typing STAGES on this
+  // surface too - the editor header has always promised "changes push live on ✎ Update".
+  const nameRow = ctl.locator('.field', { hasText: /^F1 · / });
+  await nameRow.locator('input[type="text"]').fill('ZO');
+  await ctl.waitForTimeout(300);
+  expect(programUpdates().some((d) => d.f1 === 'ZO')).toBe(false);
+  await expect(air.locator('#f1')).toHaveText('MAYA');
+
+  // THE BUMP. One press, one row, one key.
+  const scoreRow = ctl.locator('.field', { hasText: /^F2 · / });
+  const before = programUpdates().length;
+  await scoreRow.locator('button.step', { hasText: '+' }).click();
+  await expect.poll(() => programUpdates().length).toBe(before + 1);
+  expect(programUpdates()[before]).toEqual({ f2: '1' });
+  await scoreRow.locator('button.step', { hasText: '−' }).click();
+  await expect.poll(() => programUpdates().length).toBe(before + 2);
+  expect(programUpdates()[before + 1]).toEqual({ f2: '0' });
+
+  // The aired board moved and the staged name did not travel with it…
+  await expect(scoreRow.locator('input[type="number"]')).toHaveValue('0');
+  await expect(air.locator('#f1')).toHaveText('MAYA');
+  // …and the cue kept the bumped value, so the next ⟳ Take or ✎ Update cannot regress it.
+  await scoreRow.locator('button.step', { hasText: '+' }).click();
+  await expect(air.locator('#f2')).toHaveText('1', { timeout: 10_000 });
+
+  // §7c's EXCLUSION: the spotlight index is an ⚡ payload field, so its stepper airs nothing -
+  // it is set by its own action, and a second road to it would air a value without the state
+  // that gives it meaning. Pressing + there stages, exactly like typing.
+  const spotRow = ctl.locator('.field', { hasText: /^F9 · / });
+  const beforeSpot = programUpdates().length;
+  await spotRow.locator('button.step', { hasText: '+' }).click();
+  await ctl.waitForTimeout(400);
+  expect(programUpdates().length).toBe(beforeSpot);
+  // The ⚡ action is how that number reaches air, carrying the state that explains it.
+  await ctl.locator('#editor-events').getByRole('button', { name: '⚡ Spotlight podium' }).click();
+  await expect(air.locator('.scoreboard-podium-1')).toHaveClass(/scoreboard-podium-spot/, { timeout: 10_000 });
+
+  // ✎ Update stays the deliberate other half: the WHOLE value set, staged name included.
+  await ctl.locator('#v-update').click();
+  await expect(air.locator('#f1')).toHaveText('ZO', { timeout: 10_000 });
+  const last = programUpdates()[programUpdates().length - 1];
+  expect(last.f1).toBe('ZO');
+  expect(Object.keys(last).length).toBeGreaterThan(1);
+  expect(last.f2).toBe('1');   // the bump survived the full publish rather than being undone
+
+  await ctl.close();
+  await air.close();
 });

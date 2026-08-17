@@ -363,6 +363,68 @@ ink (and a draft saved before this existed) falls back to the old rect-derived n
 E2E: e2e/import-prepare.spec.ts (pixel-asserted, including retina and the non-flat refusal) +
 the alignment cases in e2e/import-canvas.spec.ts.
 
+## The step opens with the box already drawn (2026-08-16)
+
+The audit below measured the erase as the workhorse of this whole flow — 9 of 10 designs,
+including panel-less artwork and artwork over footage, where the empty-panel detector answers
+none of the baked ones. But it only ever ran **if the student thought to drag a box**, so the
+strongest path in the flow was opt-in by accident. `assets/eraseRegion.ts proposeEraseRect`
+scans the artwork on arrival and hands the step a rectangle already drawn around the words.
+
+**What separates type from artwork is the count of horizontal STROKE EDGES on a row** — pairs
+of adjacent pixels more than `EDGE_TOLERANCE` (40) apart on some channel, alpha included. A
+solid shape contributes exactly two per row however large it is, so a strap, an accent bar, a
+rounded chip, a hairline rule and a divider together give six or eight; "Alexandra Riva" alone
+gives forty. `MIN_ROW_EDGES` (12) sits in that gap, which is why a CLEAN export — the way
+students are told to send their design — is offered nothing rather than a box drawn on the
+panel.
+
+| step | what it does | the failure it exists to stop |
+|---|---|---|
+| rows → bands | rows over `MIN_ROW_EDGES`, contiguous (one blank row tolerated), at least `MIN_TEXT_ROWS` tall | a hairline rule or a dashed border reading as a line of type |
+| bands → one block | lines within `BLOCK_GAP` (1.2) of the taller one's height are ONE region | a name and its title becoming two boxes, when the erase already measures both inside one and seeds a field each |
+| block → column span | the widest run of edge-carrying columns, gaps up to 0.6 of a line height | the box stretching across furniture that merely shares the words' rows — the divider on a two-person strap sits 200 px past the name |
+| re-read rows through that span | bands recomputed inside the columns alone | a row that only qualified because of that furniture keeping the box tall |
+| size caps | wider than `MAX_BLOCK_WIDTH` (0.85) or taller than `MAX_BLOCK_HEIGHT` (0.4) of the artwork is refused | a photograph or a texture, where every row is busy, reading as one enormous piece of text |
+| the INK cross-check | `measureInk` over the padded box, against the ring's own sampled fill | a candidate the erase's own measurement cannot see; a disagreement about the line count costs confidence rather than being hidden |
+
+The rectangle carries `PROPOSAL_PAD` (0.3 of the tallest line) of air — the loose lasso a
+person draws — which clears the glyphs' antialiasing and leaves the ring's probes
+(`SAMPLE_OFFSET` beyond it) on real background.
+
+**Confidence, and what it is for.** `density × shape × agree`: edges per row against
+`CONFIDENT_ROW_EDGES` (24), times 1 / 0.7 / 0.4 as the block is wider than tall by 1.5× / 1× /
+less (set text is wider than it is tall; a logo or a chart is not), times 0.75 when the two
+measurements disagree on how many lines are there. Under `MIN_CONFIDENCE` (0.45) the scan
+**proposes nothing and names the rule that refused**, which the step says out loud
+(`erase-scan-refusal`). A rectangle drawn around the wrong thing costs the student more than an
+empty canvas: they have to notice it is wrong, work out why, and undo it, where an empty canvas
+only asks them to drag.
+
+**It is an OFFER, never an edit.** Nothing is filled until "Erase this" is pressed, the box and
+its four corner grips are dragged in source px like every other rect on this surface, and "I'll
+draw it myself" dismisses it back to the manual tools unchanged. Accepting runs the ordinary
+`eraseRegionFlat` — the flat verdict, the non-flat warning, the seeded field per line are all
+the same code — and the scan then **re-runs on the CLEANED artwork**, so a design carrying a
+name, a title and a scoreline offers them one at a time and stops when nothing is left.
+
+No model call, and that is measured rather than preferred: the audit below found the free path
+already answering the designs an AI route was proposed for.
+
+**Measured, on the same ten designs** (`node scripts/import-suggest-audit.mjs`, which grows a
+detector column beside the hand-drawn-lasso one):
+
+| | hand-drawn lasso | the opening proposal |
+| --- | --- | --- |
+| baked exports erased flat | 9 of 10 (p4's gradient not flat, 1 line) | **identical on all ten** |
+| lines measured per design | 2 | **2** |
+| text left over after the erase | n/a | **none** (the scan is re-run on the cleaned artwork) |
+| boxes drawn on CLEAN exports | n/a | **none of 10** |
+
+E2E: the three proposal cases in `e2e/import-graphic.spec.ts` — the box covers every painted
+glyph of a REAL typeset strap and stays inside it, the box drags and resizes without applying
+anything, and a clean export is offered nothing and says which rule refused.
+
 ## Scaling mode: fixed vs horizontal 9-slice stretch (2026-07-19)
 
 Different graphic types scale differently, so it is a per-graphic CHOICE on the Prepare step,
@@ -531,6 +593,8 @@ Two conclusions, and both are about what is IN THE FILE rather than about model 
   including on panel-less artwork and over footage. AI's only unique niche is baked text on a
   background too textured to erase (1 of 10 here), and there it can still only say WHERE the
   text is: the pixels cannot be cleaned, so the old words stay visible under the new field.
+  Since 2026-08-16 the erase does not even wait to be asked — the section above scans for the
+  words and opens with the box drawn, matching the hand-drawn lasso on all ten designs.
 
 The audit is a LOWER BOUND on difficulty — the fixtures are authored, not collected. Re-run it
 against a real class set before treating the numbers as coverage.

@@ -735,11 +735,21 @@ Five rules bind anyone editing it:
   five failure classes would come straight back through it. `normalizeDesignLanguage` never fails
   and never invents: every field is one of the values the schema offered or the house value, so
   the composer downstream has no defensive branches.
-- **THE PLATFORM COMPOSES IN THE UNITS THE INSTRUMENTS MEASURE IN.** Every size in `structure.ts`
-  is a ratio of the primary type size - the same unit `spacingCheck` and `proportionCheck` report
-  in - so each threshold is cleared BY CONSTRUCTION and the file states its margin. `padding-tight`
-  cannot fire on padding defined as 1.2x the floor, and opposite sides are equal by definition, so
-  `padding-lopsided` has nothing to find.
+- **THE PLATFORM COMPOSES IN THE UNITS THE INSTRUMENTS MEASURE IN, WHICH MAKES EVERY MARGIN
+  KNOWABLE - NOT CLEAR.** Every size in `structure.ts` is a ratio of the primary type size, the
+  same unit `spacingCheck` and `proportionCheck` report in, so the file can state a margin against
+  each threshold and one free sweep can check it. **`node scripts/spike-structure-margins.mjs` did
+  (2026-08-16, 582 compositions, 1164 readings) and nine of the eleven stated margins moved**
+  (docs/NOACG_PRO_PLAN.md §18): a DERIVED ratio is the CSS the composer wrote, not the box the
+  browser painted, and leading, the mask idiom, a size floor firing above its anchor and a
+  fit-content panel all move it. `text-crowds-rule` was stated at 0.45 and measures 0.14 - the
+  `block` accent's slab is a rule too, and the gap to it is the LINE gap, not `RULE_GAP_RATIO`.
+  **`footprint-large` is BREACHED** at the stress words (0.14 against a 0.10 ceiling, on 59 of the
+  162 strap stress readings that have a footprint, and none at the control's words); the
+  instrument reports and does not gate, so what changed is that the file no
+  longer claims a margin it does not have. `padding-lopsided` and `text-escapes-panel` are the two
+  that hold - opposite sides are equal in every declaration, and no text escaped its panel in any
+  of the 792 readings that have one. **State a margin only with the frame that produced it.**
 - **IT COMPOSES THROUGH THE CATALOG'S OWN ASSEMBLER.** `compose.ts` builds a real `TemplateVariant`
   through `defineVariant`, so a Phase A graphic inherits the `:root` contract, the auto-fit
   `width: fit-content` box (**which is why text can never escape its panel**), the mask idiom, the

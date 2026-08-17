@@ -546,11 +546,21 @@ function paintEditor() {
   var g = graphicByName(cue.graphic);
   var onAir = pgmLive[cue.graphic] === cue.id;
   var onPvw = pvwLive[cue.graphic] === cue.id;
+  // The number fields an ⚡ event carries as PAYLOAD (docs/PLAYOUT_DASHBOARD.md §7c): those get
+  // no live bump. They are set by their own action, and a second road to them would air a value
+  // without the state that gives it meaning — so their steppers stage like any other edit.
+  var payloadKeys = {};
+  (g ? g.events : []).forEach(function (e) {
+    (e.payload || []).forEach(function (k) { payloadKeys[k] = true; });
+  });
+  var hasBump = (g ? g.controls : []).some(function (c) { return c.kind === 'number' && !payloadKeys[c.key]; });
   wrap.className = 'editor' + (onAir ? ' live' : onPvw ? ' pvw' : '');
   document.getElementById('ed-kicker').textContent = onAir ? 'EDITING ON-AIR CUE' : 'EDITING PREVIEW CUE';
   document.getElementById('ed-name').textContent = cue.label;
+  // What the operator's next keystroke will DO — and the one exception to it, said out loud on
+  // the graphics that have one: a −/+ press changes the figure on air by itself.
   document.getElementById('ed-fate').textContent = onAir
-    ? 'changes push live on ✎ Update'
+    ? (hasBump ? 'changes push live on ✎ Update · − / + bumps a number on air' : 'changes push live on ✎ Update')
     : 'changes air on ⟳ TAKE';
 
   // Same cue as last time: the header above is the whole update. Leave the inputs alone.
@@ -567,14 +577,32 @@ function paintEditor() {
     // The field's ID rides with its name here too, so this page and FIELDS.md agree.
     label.textContent = c.key.toUpperCase() + ' · ' + c.label;
     box.appendChild(label);
-    var commit = function (val) {
+    // Editing a field STAGES it. Off air it airs on ⟳ TAKE, on air on ✎ Update — which is what
+    // the header above has always promised, and what the other two operator surfaces do. This
+    // page used to push the whole value set on every keystroke of a live cue, so a name being
+    // typed reached air letter by letter.
+    var stage = function (val) {
       if (!drafts[cue.id]) drafts[cue.id] = {};
       drafts[cue.id][c.key] = val;
-      if (pgmLive[cue.graphic] === cue.id) updateLive();
-      else if (pvwLive[cue.graphic] === cue.id) {
-        // Live-edit the PREVIEW: typing refreshes the PVW monitor without touching air.
+      // Live-edit the PREVIEW: editing refreshes the PVW monitor without touching air. A cue
+      // that is on both streams (the usual case after a Take) shows the staged version on PVW
+      // and the aired one on PGM — which is what makes the pair worth having.
+      if (pvwLive[cue.graphic] === cue.id) {
         send([{ graphic: cue.graphic, stream: 'preview', msg: { t: 'update', data: cueValues(cue) } }]);
       }
+    };
+    // THE ONE DATA WRITE THAT AIRS IMMEDIATELY (docs/PLAYOUT_DASHBOARD.md §7c): a −/+ press on
+    // a number field of the ON-AIR cue. PARTIAL on purpose — only that key travels, because ✎
+    // Update sends the cue's whole value set and riding it would publish every other staged
+    // edit too: a score bump must never air a half-typed name. The staged value is mirrored in
+    // the same breath, so the visible input and the aired figure cannot drift.
+    var bumpLive = function (val) {
+      if (!drafts[cue.id]) drafts[cue.id] = {};
+      drafts[cue.id][c.key] = val;
+      var data = {};
+      data[c.key] = String(val);
+      send([{ graphic: cue.graphic, stream: 'program', msg: { t: 'update', data: data } }]);
+      feed('± ' + c.label + ': ' + val + ' · ' + cue.graphic);
     };
     var input;
     if (c.kind === 'lines') { input = document.createElement('textarea'); }
@@ -598,7 +626,7 @@ function paintEditor() {
           b.onclick = function () {
             for (var n = seg.firstChild; n; n = n.nextSibling) n.className = '';
             b.className = 'on';
-            commit(val);
+            stage(val);
           };
           seg.appendChild(b);
         });
@@ -615,11 +643,14 @@ function paintEditor() {
       });
     } else if (c.kind === 'number') {
       // The −/+ steppers the other two renderers carry (one-control doctrine): a score is
-      // bumped far more often than typed.
+      // bumped far more often than typed. There is ONE pair per number field and it wears both
+      // meanings, decided at press time by whether this cue is on air: off air it stages like
+      // any other edit, on air it is §7c's ± LIVE NUMBERS bump — a partial straight to program.
+      var bumpsAir = !payloadKeys[c.key];
       input = document.createElement('input');
       input.type = 'number';
       input.value = values[c.key] !== undefined ? values[c.key] : '';
-      input.oninput = function () { commit(input.value); };
+      input.oninput = function () { stage(input.value); };
       var numRow = document.createElement('div');
       numRow.className = 'numrow';
       var makeStep = function (dir, label) {
@@ -627,10 +658,14 @@ function paintEditor() {
         sb.type = 'button';
         sb.className = 'step';
         sb.textContent = label;
+        sb.title = bumpsAir
+          ? 'Changes this number on air the moment the cue is live — otherwise it stages like a typed value'
+          : 'Stages this number: it is set on air by its own ⚡ action';
         sb.onclick = function () {
           var s = c.step != null ? c.step : 1;
           input.value = String((parseFloat(input.value) || 0) + dir * s);
-          commit(input.value);
+          if (bumpsAir && pgmLive[cue.graphic] === cue.id) bumpLive(input.value);
+          else stage(input.value);
         };
         return sb;
       };
@@ -645,7 +680,7 @@ function paintEditor() {
       input.type = 'text';
     }
     input.value = values[c.key] !== undefined ? values[c.key] : '';
-    input.oninput = function () { commit(input.value); };
+    input.oninput = function () { stage(input.value); };
     box.appendChild(input);
     fields.appendChild(box);
   });
