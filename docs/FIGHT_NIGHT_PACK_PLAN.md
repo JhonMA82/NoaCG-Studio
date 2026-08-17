@@ -1,6 +1,19 @@
 # Fight Night production package - plan
 
-Status: **PLANNED, nothing built.** Owner sign-off pending on §9. Written 2026-08-17.
+Status: **BUILT through Phase 3, 2026-08-17** (owner approved the vision check and §9 defaults).
+The format + import/export round trip is `src/model/productionPack.ts` +
+`src/components/home/importProductionPack.ts`; the twelve graphics live in
+`packs/fight-night/` and assemble via `scripts/build-production-pack.mjs` (in the build gate)
+into `public/packs/fight-night.noacgpack.json`, offered as "Try the Fight Night sample" in
+Home → Productions. `e2e/production-pack.spec.ts` covers the round trip, the sample import
+through the validation gate, and refusals. Still open: the live cloud walk (§7 Phase 4's
+backend half) and the owner's look at the rendered set.
+
+**One scope amendment against §4 as first written:** v1 ships the steppy graphics
+(scorecards, fight card) on hand-written SPX `next()` logic and the fight bug's clock as
+self-contained runtime code (auto-start on play, re-seed from its field on ✎ Update) - NOT as
+explicit `NOACG_ANIM` machines. Operator behaviour on every control surface is identical;
+machines with `machine.controls` buttons (clock pause/resume) remain the v1.1 upgrade path.
 
 ## 1. What this is
 
