@@ -887,47 +887,71 @@ test('import graphic: full-frame artwork with no transparency says it will cover
 // artwork and opens with the rectangle drawn, deterministically and with no model call.
 
 const STRAP = { x: 120, y: 760, w: 940, h: 190 };
+/** The second baked block: a score bug at the top of the frame, on its own panel. */
+const SCORE = { x: 120, y: 120, w: 560, h: 120 };
 
 /**
  * A strap with REAL typeset words baked into the file — what a student sends when nobody told
  * them to export the design without its text. It returns the artwork AND the true box of the
  * painted glyphs, scanned off the canvas: the proposal is checked against the words as they
  * landed, not against the coordinates the fixture asked for.
+ *
+ * With `score`, a SECOND baked block is drawn far above the strap — a design carrying two
+ * separate pieces of text, which is what a real scoreboard is. The scan offers one region at a
+ * time, so the second block's ink box is returned alongside the first.
  */
-async function bakedStrap(page: Page) {
-  return page.evaluate(async (s) => {
-    const face = new FontFace('Inter', 'url(/fonts/inter.woff2)');
-    await face.load();
-    document.fonts.add(face);
-    const c = document.createElement('canvas');
-    c.width = 1920;
-    c.height = 1080;
-    const g = c.getContext('2d')!;
-    g.fillStyle = '#101b2e';
-    g.fillRect(s.x, s.y, s.w, s.h);
-    g.fillStyle = '#f6a623';
-    g.fillRect(s.x, s.y, 14, s.h); // the accent bar: furniture the erase must not swallow
-    g.fillStyle = '#ffffff';
-    g.textBaseline = 'top';
-    g.font = '700 56px Inter';
-    g.fillText('Alexandra Riva', 170, 800);
-    g.font = '400 31px Inter';
-    g.fillText('Correspondent', 170, 870);
-    const d = g.getImageData(0, 0, 1920, 1080).data;
-    const ink = { left: 1e9, right: -1, top: 1e9, bottom: -1 };
-    for (let y = s.y; y < s.y + s.h; y++) {
-      for (let x = s.x; x < s.x + s.w; x++) {
-        const p = (y * 1920 + x) * 4;
-        if (d[p] > 200 && d[p + 1] > 200 && d[p + 2] > 200) {
-          if (x < ink.left) ink.left = x;
-          if (x > ink.right) ink.right = x;
-          if (y < ink.top) ink.top = y;
-          if (y > ink.bottom) ink.bottom = y;
-        }
+async function bakedStrap(page: Page, opts: { score?: boolean } = {}) {
+  return page.evaluate(
+    async ({ s, sc, withScore }) => {
+      const face = new FontFace('Inter', 'url(/fonts/inter.woff2)');
+      await face.load();
+      document.fonts.add(face);
+      const c = document.createElement('canvas');
+      c.width = 1920;
+      c.height = 1080;
+      const g = c.getContext('2d')!;
+      g.fillStyle = '#101b2e';
+      g.fillRect(s.x, s.y, s.w, s.h);
+      g.fillStyle = '#f6a623';
+      g.fillRect(s.x, s.y, 14, s.h); // the accent bar: furniture the erase must not swallow
+      g.fillStyle = '#ffffff';
+      g.textBaseline = 'top';
+      g.font = '700 56px Inter';
+      g.fillText('Alexandra Riva', 170, 800);
+      g.font = '400 31px Inter';
+      g.fillText('Correspondent', 170, 870);
+      if (withScore) {
+        g.fillStyle = '#101b2e';
+        g.fillRect(sc.x, sc.y, sc.w, sc.h);
+        g.fillStyle = '#ffffff';
+        g.font = '700 48px Inter';
+        g.fillText('ARS 2 - 1 CHE', 150, 155);
       }
-    }
-    return { base64: c.toDataURL('image/png').split(',')[1], ink };
-  }, STRAP);
+      const d = g.getImageData(0, 0, 1920, 1080).data;
+      /** The true box of the white glyphs inside one zone, as they actually landed. */
+      const inkIn = (z: { x: number; y: number; w: number; h: number }) => {
+        const ink = { left: 1e9, right: -1, top: 1e9, bottom: -1 };
+        for (let y = z.y; y < z.y + z.h; y++) {
+          for (let x = z.x; x < z.x + z.w; x++) {
+            const p = (y * 1920 + x) * 4;
+            if (d[p] > 200 && d[p + 1] > 200 && d[p + 2] > 200) {
+              if (x < ink.left) ink.left = x;
+              if (x > ink.right) ink.right = x;
+              if (y < ink.top) ink.top = y;
+              if (y > ink.bottom) ink.bottom = y;
+            }
+          }
+        }
+        return ink;
+      };
+      return {
+        base64: c.toDataURL('image/png').split(',')[1],
+        ink: inkIn(s),
+        scoreInk: withScore ? inkIn(sc) : null,
+      };
+    },
+    { s: STRAP, sc: SCORE, withScore: Boolean(opts.score) },
+  );
 }
 
 /** Drop artwork built in the page, and walk Design -> Prepare. */
@@ -986,6 +1010,69 @@ test('the Prepare step opens with the baked-in text already boxed', async ({ pag
   await expect(page.getByTestId('erase-proposal')).toHaveCount(0);
 });
 
+test('a design with two baked blocks offers them one at a time until nothing is left', async ({
+  page,
+}) => {
+  // Every other fixture bakes exactly ONE block, so the branch that serves a real scoreboard —
+  // "accepting this rectangle re-runs the scan, which offers the next" — has never executed.
+  // This design carries a strap AND a score bug: two separate pieces of text, erased in two
+  // rounds, and the scan says nothing only once both are gone.
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  const art = await bakedStrap(page, { score: true });
+  await toPrepare(page, art.base64, 'scoreboard.png');
+
+  /** Does the offered rectangle cover this zone's ink, and stay inside the zone's panel? */
+  const covers = (
+    rect: { x: number; y: number; width: number; height: number },
+    ink: { left: number; right: number; top: number; bottom: number },
+    zone: { x: number; y: number; w: number; h: number },
+  ) =>
+    rect.x <= ink.left &&
+    rect.x + rect.width >= ink.right &&
+    rect.y <= ink.top &&
+    rect.y + rect.height >= ink.bottom &&
+    rect.x >= zone.x &&
+    rect.x + rect.width <= zone.x + zone.w &&
+    rect.y >= zone.y &&
+    rect.y + rect.height <= zone.y + zone.h;
+
+  // ROUND ONE. Whichever block the scan ranks strongest, it offers ONE of them — never a box
+  // spanning both, which is what a scan guessing at all of them at once would draw.
+  await expect(page.getByTestId('erase-proposal')).toBeVisible();
+  const first = await proposedRect(page);
+  const firstIsStrap = covers(first, art.ink, STRAP);
+  expect(firstIsStrap || covers(first, art.scoreInk!, SCORE)).toBe(true);
+
+  await page.getByTestId('erase-proposal-accept').click();
+  await expect(page.getByTestId('erase-done')).toContainText('erased cleanly');
+  await expect(page.getByTestId('erase-warning')).toHaveCount(0);
+  await expect(page.getByTestId('erase-marks').locator('li')).toHaveCount(1);
+
+  // ROUND TWO: the scan re-ran on the CLEANED artwork and found the OTHER block.
+  await expect(page.getByTestId('erase-proposal')).toBeVisible();
+  const second = await proposedRect(page);
+  expect(
+    firstIsStrap ? covers(second, art.scoreInk!, SCORE) : covers(second, art.ink, STRAP),
+  ).toBe(true);
+
+  await page.getByTestId('erase-proposal-accept').click();
+  await expect(page.getByTestId('erase-marks').locator('li')).toHaveCount(2);
+  await expect(page.getByTestId('erase-done')).toContainText('erased cleanly');
+  await expect(page.getByTestId('erase-warning')).toHaveCount(0);
+
+  // Both regions kept their own measured lines: the strap's name over its title is two, the
+  // score bug is one — so three fields, not one per rectangle and not two for the pair.
+  const marks = page.getByTestId('erase-marks').locator('li');
+  await expect(marks.filter({ hasText: '2 lines' })).toHaveCount(1);
+  await expect(marks.filter({ hasText: '1 line' })).toHaveCount(1);
+  await expect(page.getByTestId('erase-done')).toContainText('3 text fields');
+
+  // …and the loop STOPS: the cleaned artwork holds no words, so nothing more is offered.
+  await expect(page.getByTestId('erase-proposal')).toHaveCount(0);
+  await expect(page.getByTestId('erase-proposal-rect')).toHaveCount(0);
+});
+
 test('the proposed box is dragged and resized before it is accepted', async ({ page }) => {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
@@ -1020,6 +1107,57 @@ test('the proposed box is dragged and resized before it is accepted', async ({ p
   await page.getByTestId('erase-proposal-dismiss').click();
   await expect(page.getByTestId('erase-proposal-rect')).toHaveCount(0);
   await expect(page.getByTestId('erase-done')).toHaveCount(0);
+});
+
+test('a proposal against the artwork edge still has grips you can grab', async ({ page }) => {
+  // MOST professional lower thirds have no panel at all (the corpus's §4 finding), so their
+  // baked words sit against the artwork's own edge and the proposal is drawn clamped to it.
+  // Every other fixture here boxes text in the MIDDLE of a panel, so the edge case — where the
+  // grips straddle the surface's own boundary and `.wz-prep-surface` clips its overflow — is
+  // only ever exercised by driving one. It is driven rather than asserted on, because a
+  // clipped element still reports its full box to `boundingBox` and still passes
+  // `toBeVisible`: whether the press LANDS is the only honest question.
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  const base64 = await page.evaluate(async () => {
+    const face = new FontFace('Inter', 'url(/fonts/inter.woff2)');
+    await face.load();
+    document.fonts.add(face);
+    const c = document.createElement('canvas');
+    c.width = 1920;
+    c.height = 1080;
+    const g = c.getContext('2d')!;
+    g.clearRect(0, 0, 1920, 1080); // panel-less: nothing but the words, on transparency
+    g.fillStyle = '#ffffff';
+    g.textBaseline = 'top';
+    g.font = '700 56px Inter';
+    g.fillText('Alexandra Riva', 2, 2);
+    return c.toDataURL('image/png').split(',')[1];
+  });
+  await toPrepare(page, base64, 'edge.png');
+
+  // Clamped to the artwork's own edges. The few source px of slack are the surface's 1px
+  // border: `proposedRect` measures against the surface's BORDER box while the overlay is
+  // placed against its padding box, and one screen px is three source px at this scale.
+  const before = await proposedRect(page);
+  expect(before.x).toBeLessThan(10);
+  expect(before.y).toBeLessThan(10);
+
+  // A box drawn tight around one line of type is only about a dozen SCREEN px tall, so the
+  // vertical drag is small on purpose: a bigger one collapses the box onto its minimum size,
+  // where the clamp — not the grip — decides the result and the test proves nothing.
+  const grip = (await page.getByTestId('erase-proposal-grip-nw').boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 + 24, grip.y + grip.height / 2 + 4, { steps: 4 });
+  await page.mouse.up();
+
+  // The press landed on the grip, so the box resized from its own corner: the far edges held.
+  const after = await proposedRect(page);
+  expect(after.x).toBeGreaterThan(before.x + 40);
+  expect(after.y).toBeGreaterThan(before.y + 8);
+  expect(Math.abs(after.x + after.width - (before.x + before.width))).toBeLessThan(6);
+  expect(Math.abs(after.y + after.height - (before.y + before.height))).toBeLessThan(6);
 });
 
 test('artwork with no baked-in text is offered nothing, and names the rule that refused', async ({ page }) => {

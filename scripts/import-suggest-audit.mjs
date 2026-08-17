@@ -130,6 +130,22 @@ const FIXTURES = `[
     },
   },
   {
+    id: 'd2-two-block-scoreboard',
+    label: 'Scoreboard: a score bug AND a strap - two separate baked blocks',
+    panel: true,
+    // TWO pieces of baked text, far apart. Every other fixture bakes exactly one, so the branch
+    // that serves a real scoreboard - the scan re-running on the CLEANED artwork and offering
+    // the NEXT region - had no fixture that could execute it.
+    intent: { x: 170, y: 800, w: 700, h: 60, size: 56 },
+    intent2: { x: 150, y: 155, w: 420, h: 48, size: 48 },
+    regions: 2,
+    draw: (g) => {
+      g.fillStyle = '#101b2e'; g.fillRect(120, 760, 940, 190);
+      g.fillStyle = '#f6a623'; g.fillRect(120, 760, 14, 190);
+      g.fillStyle = '#101b2e'; g.fillRect(120, 120, 560, 120);
+    },
+  },
+  {
     id: 'f1-centred-title',
     label: 'Full-frame title card, centred panel',
     panel: true,
@@ -158,8 +174,19 @@ const RENDER = `async (fixturesSrc, baked) => {
       g.fillText('Alexandra Riva', f.intent.x, f.intent.y);
       g.font = '400 ' + Math.round(f.intent.size * 0.55) + 'px sans-serif';
       g.fillText('Correspondent', f.intent.x, f.intent.y + Math.round(f.intent.size * 1.25));
+      // A design's SECOND baked block, where it declares one: its own words, its own place.
+      if (f.intent2) {
+        g.font = '700 ' + f.intent2.size + 'px sans-serif';
+        g.fillText('ARS 2 - 1 CHE', f.intent2.x, f.intent2.y);
+      }
     }
-    out.push({ id: f.id, label: f.label, panel: f.panel, intent: f.intent, data: c.toDataURL('image/png') });
+    // How many regions the detector should have to walk. A CLEAN export has no baked text at
+    // all, so its answer is zero rounds however many blocks the baked variant carries.
+    out.push({
+      id: f.id, label: f.label, panel: f.panel, intent: f.intent,
+      regions: baked ? (f.regions || 1) : 0,
+      data: c.toDataURL('image/png'),
+    });
   }
   return out;
 }`;
@@ -214,28 +241,42 @@ const ERASE = `async (images) => {
  *   - the CLEAN variant, where the honest answer is to propose NOTHING. A design exported
  *     without its words has no baked text, so any rectangle here is a false positive, and a
  *     false positive is worse than an empty canvas.
- *   - RESIDUAL text: the proposal is applied and the scan re-run on the cleaned artwork. If
- *     it still finds words, the rectangle covered only part of them.
+ *   - the ROUND COUNT: the proposal is applied and the scan re-run on the cleaned artwork,
+ *     over and over until it refuses. That loop is the product's own behaviour - a design
+ *     carrying a name, a title and a scoreline is offered ONE region at a time - and the
+ *     number of rounds it takes has to match the number of blocks the fixture declares.
+ *     Fewer means a rectangle covered only part of the text; more means it drew boxes on
+ *     artwork after the words were gone.
  */
 const DETECT = `async (images) => {
   const { proposeEraseRect, eraseRegionFlat } = await import('/src/assets/eraseRegion.ts');
+  // A stop far above any real design: a loop that never converges is a defect to REPORT,
+  // never one to hang the audit on.
+  const MAX_ROUNDS = 6;
   const out = [];
   for (const img of images) {
-    const r = await proposeEraseRect(img.data);
-    if (!r.proposal) {
-      out.push({ id: img.id, proposed: false, refusal: r.refusal });
-      continue;
+    let data = img.data;
+    const rounds = [];
+    let refusal = null;
+    while (rounds.length < MAX_ROUNDS) {
+      const r = await proposeEraseRect(data);
+      if (!r.proposal) { refusal = r.refusal; break; }
+      const e = await eraseRegionFlat(data, r.proposal.rect);
+      data = e.dataUrl;
+      rounds.push({
+        rect: r.proposal.rect,
+        confidence: r.proposal.confidence,
+        uniform: e.sampling.uniform,
+        lines: e.ink ? e.ink.lines.length : 0,
+      });
     }
-    const e = await eraseRegionFlat(img.data, r.proposal.rect);
-    const again = await proposeEraseRect(e.dataUrl);
     out.push({
       id: img.id,
-      proposed: true,
-      rect: r.proposal.rect,
-      confidence: r.proposal.confidence,
-      uniform: e.sampling.uniform,
-      lines: e.ink ? e.ink.lines.length : 0,
-      residual: Boolean(again.proposal),
+      regions: img.regions,
+      rounds,
+      // It stopped because it ran out of patience, not because the artwork was clean.
+      exhausted: refusal === null && rounds.length >= MAX_ROUNDS,
+      refusal,
     });
   }
   return out;
@@ -270,6 +311,24 @@ function score(intent, result) {
     why: `proposed ${f.fontSize}px at ${f.x},${f.y} · intended ~${intent.size}px at ${intent.x},${intent.y}`
       + (inside ? '' : ' · OUTSIDE the intended box') + (sizeOk ? '' : ' · size off'),
   };
+}
+
+/**
+ * The detector's whole walk over one design, in one cell: how many rounds it took, whether
+ * every fill was flat, how many lines of text it seeded in total, and its weakest round's
+ * confidence. A walk whose round count does not match the design's declared block count is
+ * marked, in either direction - too few rounds means text is still on the artwork, too many
+ * means it kept drawing boxes after the words were gone.
+ */
+function describeDetect(d) {
+  if (d.rounds.length === 0) return 'nothing proposed';
+  const lines = d.rounds.reduce((n, r) => n + r.lines, 0);
+  const worst = Math.min(...d.rounds.map((r) => r.confidence));
+  return (
+    `${d.rounds.every((r) => r.uniform) ? 'flat' : 'NOT flat'}, ` +
+    `${d.rounds.length}x region, ${lines} line(s), p>=${worst}` +
+    (d.rounds.length === d.regions && !d.exhausted ? '' : ' · TEXT LEFT OVER')
+  );
 }
 
 const rows = [];
@@ -314,11 +373,8 @@ for (const baked of [false, true]) {
       variant: baked ? 'baked' : 'clean',
       ...s,
       erase: e ? (e.uniform ? `flat, ${e.lines} line(s)` : `NOT flat, ${e.lines} line(s)`) : null,
-      detect: d.proposed
-        ? `${d.uniform ? 'flat' : 'NOT flat'}, ${d.lines} line(s), p=${d.confidence}` +
-          (d.residual ? ' · TEXT LEFT OVER' : '')
-        : 'nothing proposed',
-      detectWhy: d.proposed ? null : d.refusal,
+      detect: describeDetect(d),
+      detectWhy: d.rounds.length === 0 ? d.refusal : null,
       id: img.id,
       label: img.label,
       panel: img.panel,
