@@ -31,6 +31,17 @@ const args = process.argv.slice(2);
 const value = (name) => args.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
 const rounds = args.filter((a) => !a.startsWith('--'));
 
+// `--price=<roundName>=<inPerM>/<outPerM>` - price a round's cells from usage where the
+// gateway reported no cost (the anthropic route reports none, so its ledger holds honest
+// zeros). The §19.4 precedent: a cost settled by arithmetic beats a blank, and the column
+// says `(priced)` so a reader knows which rule produced the number.
+const priceOverrides = new Map(args.filter((a) => a.startsWith('--price='))
+  .map((a) => {
+    const [name, rates] = a.slice('--price='.length).split('=');
+    const [inRate, outRate] = (rates ?? '').split('/').map(Number);
+    return [name, { inRate, outRate }];
+  }));
+
 if (rounds.length < 2) {
   console.error('usage: node scripts/pro-freeform-columns.mjs <round> <round> [...] [--out=file.md]');
   process.exit(1);
@@ -48,7 +59,13 @@ async function summarize(dir) {
   const input = sum((r) => r.usage?.input);
   const output = sum((r) => r.usage?.output);
   const reasoning = reasoningRecorded ? sum((r) => r.usage?.reasoning) : null;
-  const cost = sum((r) => r.costUsd);
+  const name = path.basename(path.resolve(dir));
+  const override = priceOverrides.get(name);
+  const reported = sum((r) => r.costUsd);
+  const priced = override && !reported
+    ? (input * override.inRate + output * override.outRate) / 1e6
+    : null;
+  const cost = priced ?? reported;
 
   const withDevice = done.filter((r) => r.deviceReport);
   const devicePresent = withDevice.filter((r) => r.deviceReport.present);
@@ -58,7 +75,8 @@ async function summarize(dir) {
   }
 
   return {
-    name: path.basename(path.resolve(dir)),
+    name,
+    priced: priced !== null,
     model: done[0]?.model ?? ledger.route ?? '?',
     planned: cells.length,
     completed: done.length,
@@ -103,9 +121,9 @@ lines.push(row('input tokens / graphic', (s) => fmt(s.inputPerCell)));
 lines.push(row('output tokens / graphic', (s) => fmt(s.outputPerCell)));
 lines.push(row('reasoning tokens / graphic', (s) => (s.reasoningPerCell === null ? 'not recorded' : fmt(s.reasoningPerCell))));
 lines.push(row('reasoning share of output', (s) => (s.reasoningShare === null ? 'not recorded' : `${fmt(s.reasoningShare * 100)}%`)));
-lines.push(row('cost / graphic', (s) => `$${fmt(s.costPerCell, 4)}`));
-lines.push(row('cost / 100 graphics', (s) => `$${fmt(s.costPer100, 2)}`));
-lines.push(row('round spend', (s) => `$${fmt(s.spentUsd, 4)}`));
+lines.push(row('cost / graphic', (s) => `$${fmt(s.costPerCell, 4)}${s.priced ? ' (priced)' : ''}`));
+lines.push(row('cost / 100 graphics', (s) => `$${fmt(s.costPer100, 2)}${s.priced ? ' (priced)' : ''}`));
+lines.push(row('round spend', (s) => `$${fmt(s.spentUsd, 4)}${s.priced ? ' (priced)' : ''}`));
 lines.push('');
 
 const text = lines.join('\n');
