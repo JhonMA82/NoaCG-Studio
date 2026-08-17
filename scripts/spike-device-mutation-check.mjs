@@ -107,7 +107,7 @@ const FIXTURES = [
       <div style="background:#1a2233;padding:20px 32px">
         <div id="f0" class="line" style="font-size:48px">Maria Lindqvist</div>
       </div>
-      <div id="f1" class="line" style="position:relative;top:-18px;left:24px;font-size:24px;background:#e8b23a;color:#111;display:inline-block;padding:2px 10px">Chief Meteorologist</div>
+      <div id="f1" class="line" style="position:relative;top:-34px;left:24px;font-size:24px;background:#e8b23a;color:#111;display:inline-block;padding:2px 10px">Chief Meteorologist</div>
     </div></div>`,
   },
 ];

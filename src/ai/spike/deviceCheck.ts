@@ -79,18 +79,46 @@ function hasSurface(style: CSSStyleDeclaration): boolean {
   if (bg && bg.alpha > 0.15) return true;
   if (style.backgroundImage && style.backgroundImage !== 'none') return true;
   if ((parseFloat(style.borderTopWidth) || 0) > 0 && style.borderTopStyle !== 'none') return true;
+  // Frosted glass: a near-transparent fill over a backdrop blur still reads as a box - the
+  // catalog's lt08 is exactly this and the control run read it as "no carrier" without it.
+  const backdrop = style.backdropFilter || (style as unknown as { webkitBackdropFilter?: string }).webkitBackdropFilter;
+  if (backdrop && backdrop !== 'none') return true;
   return false;
 }
 
-/** The nearest ancestor (the field element itself included) that paints a surface. This is
- *  the box a viewer reads the line as sitting IN; null means the line sits bare on the frame. */
+/** Wider than this a surface is a backdrop, not a carrier - the same cut spacingCheck and
+ *  axisCheck make at 90% of 1920. */
+const BACKDROP_WIDTH_PX = 1728;
+
+/** The nearest ancestor (the field element itself included) that paints a surface - and when
+ *  no ancestor does, the smallest painted surface whose box ENCLOSES the line geometrically.
+ *  The fallback is the sibling-overlay idiom `panelMembers` documents: the house catalog draws
+ *  some panels as a sibling the text merely sits ON, and an ancestors-only walk read lt08's
+ *  panel as "no carrier" on the control run - which would under-report exactly the channel
+ *  the instrument exists to see. Null means the line truly sits bare on the frame. */
 function carrierOf(el: Element, win: Window): Element | null {
   for (let node: Element | null = el; node && node !== win.document.body; node = node.parentElement) {
     const style = win.getComputedStyle(node);
     if (style.display === 'none' || style.visibility === 'hidden') return null;
     if (hasSurface(style)) return node;
   }
-  return null;
+  const rect = el.getBoundingClientRect();
+  let best: { el: Element; area: number } | null = null;
+  for (const candidate of win.document.body.querySelectorAll('*')) {
+    if (candidate === el || candidate.contains(el)) continue;
+    const style = win.getComputedStyle(candidate);
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
+    if (parseFloat(style.opacity) < 0.05) continue;
+    if (!hasSurface(style)) continue;
+    const box = candidate.getBoundingClientRect();
+    if (box.width >= BACKDROP_WIDTH_PX) continue;
+    const holds = box.left <= rect.left + 1 && box.right >= rect.right - 1
+      && box.top <= rect.top + 1 && box.bottom >= rect.bottom - 1;
+    if (!holds) continue;
+    const area = box.width * box.height;
+    if (!best || area < best.area) best = { el: candidate, area };
+  }
+  return best?.el ?? null;
 }
 
 /** Corner radius as pill-ness: the largest corner over half the box's height, clamped to 1.
