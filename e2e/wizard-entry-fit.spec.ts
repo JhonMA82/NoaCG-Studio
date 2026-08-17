@@ -332,6 +332,18 @@ test('the video strip is one line, quieter than any shipped mode', async ({ page
   expect(edges.videoWidth).toBe(edges.gridWidth);
 });
 
+test('an offline build promises no free tier it cannot run', async ({ page }) => {
+  await entryStepAt(page, 1366, 768);
+  // The AI card names NoaCG Lite as free where there is a backend to meter its allowance
+  // against (pinned in e2e/configured/anonymous.spec.ts). This suite is pinned OFFLINE, where
+  // there are no accounts and no Lite - so the clause, and every word about an account, must
+  // be absent. A self-hosted studio grows no auth UI at all (root AGENTS.md, auth posture),
+  // and a card advertising a tier the build cannot run is the same broken promise in copy.
+  const hint = page.locator('[data-entry="ai"] .hint');
+  await expect(hint).toContainText('Describe the graphic you need');
+  await expect(hint).not.toContainText(/NoaCG Lite|free account/);
+});
+
 test('both AI doors are marked Beta', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
   // The video door has said Beta since it shipped; "Create with AI" is the same kind of
