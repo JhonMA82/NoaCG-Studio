@@ -2681,3 +2681,30 @@ What the machine half already says:
   `REASONING_HEADROOM_TOKENS` was raised to the newly measured worst case - >41k tokens of
   thinking with no complete answer, twice, on briefs its siblings finish in ~7k. Its round is
   10 of 12 and says so.
+
+### 20.1 The owner's blind read, and the verdict - premise 1 is RETIRED
+
+The read came back the same day, 59 of 64 items rated, notes written before any reveal
+(`notes.md` in the round archive holds them verbatim plus the join). Airable rates over rated
+items: **the platform-composed Phase A control 14 of 15 - and the four coder arms 3/11, 2/9,
+5/12 and 3/11 (~30% together)**, on one interleaved blind page, same briefs, same brands. The
+frontier reasoning model is not an outlier: claude-opus-5 landed 3 of 11 beside minimax's 3 of
+11 at 17x the price.
+
+- **The dominant defect class was predicted by the instruments before anyone looked**: "the
+  line is on top of the text" accounts for ~13 of the 30 coder failures, and `text-over-rule`
+  had already fired on almost exactly those cells (grok 6 of 6, gemini 6 of 6). The remaining
+  classes are mark plates (the class the composer's knock rule closed a round ago), junk
+  furniture above the strap, and undersized or misaligned marks - plus minimax's two
+  runtime-dead cells, which are exactly its two blocking-error cells. Machine and human agree
+  everywhere they measure the same dimension.
+- **A device did not buy a pass**: of the 5 coder cells carrying one, 1 passed - and the opus
+  monogram-K device is one of the pieces of furniture the owner rejected by name. The §20
+  spine question stands as a fact about the harness, but it no longer carries a product
+  premise: even where a device exists, the composition fails on collisions and mark treatment.
+- **So premise 1 (§15.4) retires on the strongest evidence it will ever get**: a 2026 frontier
+  reasoning model, inside the shipped harness, with the repair loop, lands at a quarter of the
+  platform-composed acceptance rate for 17-50x the cost of a Phase A language call. Phase A is
+  not a compromise; it is the answer. The `bare` arm remains a research option for the spine
+  question and is NOT a product path - running it would be spending money to refine the size
+  of a gap the product has already routed around.

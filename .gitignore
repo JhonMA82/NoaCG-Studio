@@ -172,3 +172,4 @@ lite-payload.tmp.json
 *.tmp.mjs
 # The free mark-field A/B (docs/NOACG_PRO_PLAN.md §15.8).
 mark-field-ab/
+pro-freeform-blind/
