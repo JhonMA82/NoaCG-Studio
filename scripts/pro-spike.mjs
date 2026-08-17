@@ -600,6 +600,13 @@ async function captureHold(item, measure = false) {
     }
     await win.document.fonts.ready;   // real glyphs or nothing
     await new Promise((resolve) => setTimeout(resolve, 1800));
+    // NOT YET QUIESCED, and measured to need it: two runs of the identical `--control` command
+    // disagreed on 3 of these 42 holds - `anchor-adapt-1` hold and stress, and
+    // `language-volt-matchday.hold` - the promoted-layer raster §20 diagnoses. The one-line fix
+    // the page-level captures use is `rasterSettledFrame`, applied here from the parent because
+    // this graphic lives in a same-origin srcdoc frame. It is deliberately NOT applied yet: it
+    // needs its own two-run diff to confirm, and confirming it needs exclusive browser time on
+    // this machine. See §20.5 for what is and is not established.
     return error;
   }, item);
   // Measure the SETTLED frame while it is still mounted: the rendered mark gate (the Phase 0

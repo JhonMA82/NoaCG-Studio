@@ -2651,3 +2651,26 @@ recomposed still, it keeps one **on air** too: the settled graphic goes on showi
 raster until something else invalidates the layer. That is a catalog-wide motion-CSS question -
 whether the hint should be dropped when the entrance completes - and it is not answered here,
 because measuring it belongs on a rendered graphic in playout, not on a screenshot runner.
+
+### 20.5 The control run has the same defect, and it is not fixed yet
+
+`captureHold` - the free `--control` run's capture, and the reference every paid round is judged
+against - mounts, plays and settles exactly the way the recompose did, so it was measured the same
+way. **Two runs of the identical command disagreed on 7 of its 42 hold frames.** Four of those are
+honest: `language-countdown-*` shows a live clock, so those frames SHOULD differ between runs, and
+a byte diff over the control set has to expect them. The other three are the promoted-layer raster
+- `anchor-adapt-1.hold`, `anchor-adapt-1.stress.hold`, `language-volt-matchday.hold`.
+
+That is where this stops. The fix is one step in one place (`rasterSettledFrame`'s work, applied
+from the parent page because this graphic lives in a same-origin srcdoc frame), but confirming it
+takes two more full control runs, and a browser-driving job needs the machine to itself - the
+laptop is RAM-bound and a paid round was in flight elsewhere. **So the control run carries a
+measured, named, unfixed instability**, marked at the line it happens on.
+
+Two things for whoever picks it up. The countdown frames are a reminder that "the frames stopped
+moving" is the wrong success test for this capture - the right one is "only the frames with their
+own clock moved". And the guard that parks browser work counts `scripts/dev-bench.mjs` as a running
+sweep, because `SWEEP_SCRIPTS` matches `[\w-]*bench[\w-]*`: that script is a long-lived dev SERVER,
+not a finite job, so any session that leaves its bench server up parks every other session's
+browser work for as long as it is running. Verifying this needs that resolved, overridden
+deliberately, or a quiet machine.
