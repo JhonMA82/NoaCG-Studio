@@ -1121,7 +1121,12 @@ if (paid) {
   // brand, so on a design-language round it is the one measurement that says whether a brand
   // actually moves the answer or whether four brands get one look with different colours - the
   // named sameness failure (src/ai/AGENTS.md).
-  const divergenceArm = value('divergence-arm') ?? brandsFixture?.divergence?.arm;
+  // `--no-divergence` drops the cell entirely: a multi-checkpoint round that budgets 12 cells
+  // per checkpoint would otherwise silently plan 18 - the fixture's default arm is `none`, so
+  // the cell rides along on exactly the arm the free-form coder round runs, and on the dearest
+  // checkpoint the extra six cells are the difference between fitting the ceiling and the
+  // ceiling cutting the round's last briefs mid-run.
+  const divergenceArm = flag('no-divergence') ? null : (value('divergence-arm') ?? brandsFixture?.divergence?.arm);
   if (divergenceArm && !KNOWN_ARMS.includes(divergenceArm)) {
     console.error(`--divergence-arm names an unknown arm "${divergenceArm}".`);
     process.exit(1);
