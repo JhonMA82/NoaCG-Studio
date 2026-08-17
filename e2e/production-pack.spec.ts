@@ -28,6 +28,17 @@ test('a production exports as a package and imports back with its rundown intact
   await page.getByTestId('cue-field-f0').fill('Anna Andersson');
   await expect(page.getByTestId('cue-list').locator('.pd-cue').first()).toContainText('Anna Pack');
 
+  // Cue edits are a DRAFT that debounces into the Show record - the export reads the
+  // RECORD, so wait until the typed value has actually landed before leaving the page.
+  await expect
+    .poll(async () =>
+      page.evaluate(async () => {
+        const { loadShows } = await import('/src/model/shows.ts');
+        return loadShows().find((s) => s.name === 'Pack Origin')?.cues?.[0]?.values.f0 ?? null;
+      }),
+    )
+    .toBe('Anna Andersson');
+
   // Back to the grid; the durable store must land the cue edits before the page goes away.
   await settleDurableWrites(page);
   await page.getByTestId('production-back').click();
