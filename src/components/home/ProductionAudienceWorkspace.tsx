@@ -19,6 +19,7 @@ import {
 } from '../../audience/joinSurface';
 import { createSupabaseAudience } from '../../audience/audienceData';
 import { isBackendConfigured } from '../../backend/config';
+import type { SpxField } from '../../model/types';
 
 /**
  * The production's AUDIENCE workspace (route `#/production/<id>/audience`, the third tab of the
@@ -413,21 +414,33 @@ export default function ProductionAudienceWorkspace({
    * is honest: the operator can see where it went.
    */
   const sendToRundown = (row: AudienceSubmission) => {
-    const target = show.graphics[0];
-    if (!target) {
-      setNote('This production has no graphics yet — add one, then send a question to it.');
-      return;
-    }
-    const { author, body } = broadcastValues(row);
-    const fields = target.template.fields ?? [];
-    const byTitle = (...wanted: string[]): string | null => {
+    const titled = (fields: SpxField[], ...wanted: string[]): string | null => {
       for (const f of fields) {
         const title = (f.title ?? '').trim().toLowerCase();
         if (wanted.some((w) => title === w)) return f.field;
       }
       return null;
     };
-    const bodyField = byTitle('message', 'question', 'comment', 'body', 'text') ?? fields.find((f) => f.ftype === 'textfield' || f.ftype === 'textarea')?.field ?? null;
+    const BODY_TITLES = ['message', 'question', 'comment', 'body', 'text'] as const;
+    // THE POOL IS SEARCHED, not indexed. `graphics[0]` is the BACKMOST LAYER, which has
+    // nothing to do with where a viewer's words belong: a production carrying the news kit
+    // put every approved question into its TICKER, because the ticker happens to be the
+    // bottom of the stack, while the chat-highlight card built for exactly this sat unused
+    // two layers up. `stageTally` right above already searches the pool for a graphic whose
+    // fields fit; this is the same move, over the same by-the-words titles. The old index
+    // stays as the fallback, so a production with nothing titled for a message behaves
+    // exactly as it did and the note still says where the cue went.
+    const target =
+      show.graphics.find((g) => titled(g.template.fields ?? [], ...BODY_TITLES) !== null) ??
+      show.graphics[0];
+    if (!target) {
+      setNote('This production has no graphics yet — add one, then send a question to it.');
+      return;
+    }
+    const { author, body } = broadcastValues(row);
+    const fields = target.template.fields ?? [];
+    const byTitle = (...wanted: string[]): string | null => titled(fields, ...wanted);
+    const bodyField = byTitle(...BODY_TITLES) ?? fields.find((f) => f.ftype === 'textfield' || f.ftype === 'textarea')?.field ?? null;
     const authorField = byTitle('name', 'author', 'from', 'sender');
     const values: Record<string, string> = {};
     if (bodyField) values[bodyField] = body;
