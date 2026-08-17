@@ -18,6 +18,14 @@ import {
   type JoinSurfaceHandle,
 } from '../../audience/joinSurface';
 import { createSupabaseAudience } from '../../audience/audienceData';
+import {
+  chatIntakeFor,
+  chatPlatformWord,
+  type ChatSourceState,
+  type ChatSubmit,
+} from '../../audience/chatIntake';
+import { normalizeTwitchChannel } from '../../audience/twitchChat';
+import { normalizeYouTubeVideoId } from '../../audience/youtubeChat';
 import { isBackendConfigured } from '../../backend/config';
 
 /**
@@ -145,6 +153,53 @@ export default function ProductionAudienceWorkspace({
   const stagedCue = useRef<Record<string, string>>({});
   /** What the room was being asked for before a vote took the mode over. */
   const modeBeforeRound = useRef<AudienceMode>('question');
+
+  // ── CHAT SOURCES (src/audience/chatIntake.ts) ─────────────────────────────────────────────
+  // Twitch / YouTube live chat as a PRODUCER of submissions: every accepted line goes in
+  // through the same viewer-half `submit` a phone uses - the synthesized per-author device
+  // token is what makes the per-device caps meter per chat user - so moderation, approval and
+  // the rundown exit above need to know nothing about platforms. The intake lives in a
+  // per-production registry (the localAudienceFor pattern): a Twitch socket must survive the
+  // operator's trip to Playout, or the feature dies on every tab switch.
+  const intake = useMemo(() => chatIntakeFor(show.id), [show.id]);
+  const [chatSources, setChatSources] = useState<ChatSourceState[]>(() => intake.sources());
+  const [chatPlatform, setChatPlatform] = useState<'twitch' | 'youtube'>('twitch');
+  const [chatChannel, setChatChannel] = useState('');
+  const [chatVideo, setChatVideo] = useState('');
+  const [chatKey, setChatKey] = useState('');
+  const [chatNote, setChatNote] = useState<string | null>(null);
+
+  // The intake writes through whichever door is CURRENT: a published production's real join
+  // slug, otherwise the local rehearsal provider. Deliberately not cleared on unmount - the
+  // sources keep collecting while the operator is on Playout, exactly like the inbox keeps
+  // its rows.
+  useEffect(() => {
+    const viewer = live && show.joinSlug ? createSupabaseAudience({ joinSlug: show.joinSlug }) : backend;
+    const submit: ChatSubmit = (token, author, body) => viewer.submit(token, author, body);
+    intake.setSubmit(submit);
+  }, [intake, backend, live, show.joinSlug]);
+
+  useEffect(() => {
+    const refresh = () => setChatSources(intake.sources());
+    refresh();
+    return intake.onChange(refresh);
+  }, [intake]);
+
+  const addChatSource = () => {
+    if (chatPlatform === 'twitch') {
+      const channel = normalizeTwitchChannel(chatChannel);
+      if (!channel) return setChatNote('Not a Twitch channel name - the name or the channel URL both work.');
+      intake.add({ platform: 'twitch', channel });
+      setChatChannel('');
+    } else {
+      const videoId = normalizeYouTubeVideoId(chatVideo);
+      if (!videoId) return setChatNote('Not a YouTube video id or URL.');
+      if (!chatKey.trim()) return setChatNote('Paste a YouTube Data API key - YouTube has no anonymous chat read.');
+      intake.add({ platform: 'youtube', videoId, apiKey: chatKey.trim() });
+      setChatVideo('');
+    }
+    setChatNote(null);
+  };
 
   /**
    * WHAT VIEWERS SEE, rendered by the SAME function the public page renders (the plan's own
@@ -428,7 +483,10 @@ export default function ProductionAudienceWorkspace({
       return null;
     };
     const bodyField = byTitle('message', 'question', 'comment', 'body', 'text') ?? fields.find((f) => f.ftype === 'textfield' || f.ftype === 'textarea')?.field ?? null;
-    const authorField = byTitle('name', 'author', 'from', 'sender');
+    // 'handle' and 'asked by' are the audience category's own attribution titles (the chat
+    // highlight and the viewer question) - without them a chat line reached those cards with
+    // its author dropped on the floor.
+    const authorField = byTitle('name', 'author', 'from', 'sender', 'handle', 'asked by');
     const values: Record<string, string> = {};
     if (bodyField) values[bodyField] = body;
     if (authorField) values[authorField] = author;
@@ -511,6 +569,116 @@ export default function ProductionAudienceWorkspace({
           <span className="hint" data-testid="audience-live">
             Live — viewers send from the audience link (Links ▸ Audience link).
           </span>
+        )}
+      </div>
+
+      {/* CHAT SOURCES. Live chat pulled into the SAME inbox: a source is a producer of
+          submissions and nothing more - what arrives here is moderated, approved and sent to
+          the rundown exactly like a phone's question, and the platform is TEXT on the author
+          line, never a logo (the audience category's own rule). Compact on purpose: this is
+          intake plumbing, and the inbox below is the show. */}
+      <div className="pd-aud-sources" data-testid="chat-sources">
+        <div className="pd-aud-sources-head">
+          <h3>Chat sources</h3>
+          <span className="hint">
+            Twitch or YouTube chat lands in this inbox as ordinary submissions - nothing airs
+            without you.
+          </span>
+        </div>
+        {chatSources.length > 0 && (
+          <ul className="pd-aud-source-list">
+            {chatSources.map((s) => (
+              <li key={s.id} className="pd-aud-source" data-testid={`chat-source-${s.platform}`}>
+                {/* The dot is the LIVE indicator; its title says the same thing in words. */}
+                <span
+                  className={`pd-aud-source-dot ${s.paused ? 'paused' : s.status}`}
+                  title={s.paused ? 'Paused' : s.status}
+                  aria-hidden="true"
+                />
+                <span className="pd-aud-source-name">
+                  {chatPlatformWord(s.platform)} · {s.label}
+                </span>
+                {/* The dropped count is deliberately always visible: the throttle and the
+                    per-author caps refuse things by design, and a limiter that drops silently
+                    is indistinguishable from a broken connector. */}
+                <span className="pd-aud-source-stats" data-testid="chat-source-stats">
+                  {s.submitted} in · {s.dropped} dropped
+                </span>
+                {s.detail && !s.paused && (
+                  <span className="pd-aud-source-detail" data-testid="chat-source-detail">
+                    {s.detail}
+                  </span>
+                )}
+                <button onClick={() => intake.setPaused(s.id, !s.paused)} data-testid="chat-source-pause">
+                  {s.paused ? '▶ Resume' : '❚❚ Pause'}
+                </button>
+                <button onClick={() => intake.remove(s.id)} title="Disconnect this source" data-testid="chat-source-remove">
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="pd-aud-source-add">
+          <select
+            value={chatPlatform}
+            onChange={(e) => setChatPlatform(e.target.value as 'twitch' | 'youtube')}
+            aria-label="Chat platform"
+            data-testid="chat-add-platform"
+          >
+            <option value="twitch">Twitch channel</option>
+            <option value="youtube">YouTube live</option>
+          </select>
+          {chatPlatform === 'twitch' ? (
+            <input
+              type="text"
+              value={chatChannel}
+              placeholder="Channel name or twitch.tv URL"
+              onChange={(e) => setChatChannel(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addChatSource()}
+              data-testid="chat-add-channel"
+            />
+          ) : (
+            <>
+              <input
+                type="text"
+                value={chatVideo}
+                placeholder="Video URL or id"
+                onChange={(e) => setChatVideo(e.target.value)}
+                data-testid="chat-add-video"
+              />
+              <input
+                type="password"
+                value={chatKey}
+                placeholder="YouTube Data API key"
+                onChange={(e) => setChatKey(e.target.value)}
+                data-testid="chat-add-key"
+              />
+            </>
+          )}
+          <button onClick={addChatSource} data-testid="chat-add-connect">
+            Connect
+          </button>
+        </div>
+        {chatNote && (
+          <p className="status-bad pd-data-note" data-testid="chat-add-note">
+            {chatNote}
+          </p>
+        )}
+        {chatPlatform === 'youtube' && (
+          <p className="hint pd-aud-source-hint">
+            Reading YouTube chat needs your own API key and spends its quota: about 3,600 units
+            an hour of polling, so the free daily 10,000 covers roughly 2½ hours of continuous
+            chat. Pause the source to stop the spend.
+          </p>
+        )}
+        {/* The door refusal made visible: submit refuses while the audience is closed, so a
+            connected source with the door shut would count every line as dropped and an
+            operator would read that as a broken connector. */}
+        {!open && chatSources.length > 0 && (
+          <p className="hint pd-aud-source-hint" data-testid="chat-sources-closed-hint">
+            Accepting messages is off - chat is refused until you turn it on above.
+          </p>
         )}
       </div>
 
