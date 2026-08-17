@@ -68,7 +68,9 @@ test.describe('community moderation (configured / moderator)', () => {
 
     // The 🛡 Moderate button is present (granted in beforeAll). Open the queue, review, remove.
     await page.getByRole('button', { name: /Moderate/ }).click();
-    await page.getByRole('button', { name: /^All/ }).click(); // default filter is "Reported"
+    // Scoped to the queue: the analytics consent banner mounts app-wide with an "Allow"
+    // button, which a page-wide /^All/ matches just as well as the "All (n)" filter.
+    await page.locator('.pk-modal').getByRole('button', { name: /^All/ }).click(); // default filter is "Reported"
     await page
       .locator('.pk-modal .pk-graphic', { hasText: 'Hairline' })
       .first()
