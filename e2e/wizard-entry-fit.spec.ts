@@ -337,6 +337,16 @@ test('the video strip is one line, quieter than any shipped mode', async ({ page
   expect(edges.videoWidth).toBe(edges.gridWidth);
 });
 
+test('the Import card names the file types its own drop zone takes', async ({ page }) => {
+  await entryStepAt(page, 1366, 768);
+  // A finished .html / .zip template goes through THIS door (ImportDesignStep's `accept` takes
+  // image/*, .html, .htm and .zip). It was named only on the AI card, so the one user who
+  // arrives holding a finished graphic had to guess that the AI door - the door they have
+  // every reason to avoid - was the way in.
+  await expect(page.locator('[data-entry="import-graphic"] .hint')).toContainText('.html or .zip');
+  await expect(page.locator('[data-entry="ai"] .hint')).not.toContainText('.zip');
+});
+
 test('an offline build promises no free tier it cannot run', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
   // The AI card names NoaCG Lite as free where there is a backend to meter its allowance

@@ -186,7 +186,12 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
             <span className="wz-entry-icon">▦</span>
             <strong>Import graphic</strong>
           </span>
-          <span className="hint">Bring a finished image in, place editable text on it, pick fonts and animation — no AI, you place every piece.</span>
+          {/* IT NAMES .html / .zip, because this card is where that file's owner looks. The
+              same drop zone takes both (ImportDesignStep's `accept`), and the AI card used to
+              be the only place either was mentioned — so anyone holding a finished template
+              had to guess that the AI door, which they had every reason to avoid, was the way
+              in. "No AI" and "already finished" are the same errand. */}
+          <span className="hint">Bring a finished image in, place editable text on it, pick fonts and animation — no AI, you place every piece. Already have it as .html or .zip? Drop that in instead.</span>
         </button>
         {/* Blank's only outcome is the code editor, so the card is an Advanced-mode door
             (docs/GOALS.md "Student release" step 4). */}
