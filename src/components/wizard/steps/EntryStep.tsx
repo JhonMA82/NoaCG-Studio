@@ -97,13 +97,21 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
         </h1>
         {/* THE SUBTITLE CARRIES BOTH ROUTES TO AIR, and every export target rather than a
             sample of three: naming SPX, CasparCG and OGraf alone read as the whole list, which
-            told an OBS, vMix, H2R or LiveOS user this was not for them. The CLOUD route leads,
-            because it is the one nobody expects from a browser tool and the one the student
-            release is built around. */}
+            told an OBS, vMix, H2R or LiveOS user this was not for them.
+
+            THE CONTROLLER ROUTE NAMES ITS MECHANISM, because "run it from the cloud" sounds
+            like a platform you have to move onto, and the truth is the opposite: the playout
+            client the studio already runs adds ONE browser source and never touches it again.
+            That sentence is the answer to "do I have to change my setup", so it says the thing
+            the operator actually does rather than where the software lives.
+
+            It says BROWSER SOURCE, never "HTML overlay". `HTML overlay (OBS / vMix)` is the
+            name of an export TARGET - a downloadable folder of files - so using the phrase for
+            the live URL would make one term mean two products on the one screen. */}
         <p className="wz-hero-sub">
-          Lower thirds, tickers, scoreboards and more, made by choosing rather than coding.
-          Run them live in the cloud from NoaCG’s own control panel, or export a validated
-          package for SPX Graphics, CasparCG, OGraf, H2R Graphics, LiveOS, OBS and vMix.
+          Choose your graphics, then pick who drives them. Our controller runs the show live
+          through one browser source your playout client loads once, or export them for SPX
+          Graphics, CasparCG, OGraf, H2R Graphics, LiveOS, OBS and vMix.
         </p>
       </div>
 
@@ -168,9 +176,9 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
             </strong>
           </span>
           <span className="hint">
-            Describe the graphic you need and NoaCG turns a proven broadcast design into a
-            customized one — drop in a logo, brand stills, or an existing .html / SPX template.
-            {liteOffered && ' Free with NoaCG Lite, included with a free account.'}
+            Describe the graphic you need and NoaCG adapts a proven broadcast design to it. Drop
+            in a logo, mood board or brand colours.
+            {liteOffered && ' Free with NoaCG Lite.'}
           </span>
         </button>
         <button className="wz-entry-card" onClick={onImportGraphic} data-entry="import-graphic">

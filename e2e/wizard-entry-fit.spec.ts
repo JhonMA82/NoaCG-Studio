@@ -230,9 +230,14 @@ test('the hero names both routes to air and EVERY export target, in the sentence
   // what makes the two surfaces read as one product.
   await expect(hero.locator('.wz-hero-title')).toHaveText('Create live graphics. Run the show.');
   const sub = hero.locator('.wz-hero-sub');
-  // THE CLOUD ROUTE IS NAMED. Running the show from NoaCG's own control panel is the half a
-  // browser tool is not assumed to have, and the step used to promise export alone.
-  await expect(sub).toContainText('live in the cloud from NoaCG’s own control panel');
+  // THE CONTROLLER ROUTE IS NAMED, AND SO IS ITS MECHANISM. The step used to promise export
+  // alone; naming the controller without saying how it reaches air reads as a platform the
+  // studio has to move onto, when what it actually costs them is one browser source.
+  await expect(sub).toContainText('Our controller runs the show live');
+  await expect(sub).toContainText('one browser source your playout client loads once');
+  // …and NOT as an "HTML overlay": that phrase is the name of an export TARGET (a folder of
+  // files), so reusing it for the live URL would make one term mean two products on one screen.
+  await expect(sub).not.toContainText('HTML overlay');
   // EVERY TARGET, not a sample of three: naming SPX, CasparCG and OGraf alone read as the whole
   // list, and told an OBS, vMix, H2R or LiveOS user this was not for them. The list here is the
   // export registry's six targets (src/export/targets/), so a NEW target updates both.
