@@ -203,6 +203,44 @@ const ERASE = `async (images) => {
   return out;
 }`;
 
+/**
+ * The erase's OPENING PROPOSAL (`eraseRegion.ts proposeEraseRect`): the same erase, but with
+ * the rectangle found for the student instead of dragged by them. It is scored against the
+ * hand-drawn lasso above, on the same designs, because that column is what it has to match -
+ * a proposal that erases less cleanly, or finds fewer lines, is a regression however
+ * convenient it is.
+ *
+ * Two things are measured that the lasso column cannot be:
+ *   - the CLEAN variant, where the honest answer is to propose NOTHING. A design exported
+ *     without its words has no baked text, so any rectangle here is a false positive, and a
+ *     false positive is worse than an empty canvas.
+ *   - RESIDUAL text: the proposal is applied and the scan re-run on the cleaned artwork. If
+ *     it still finds words, the rectangle covered only part of them.
+ */
+const DETECT = `async (images) => {
+  const { proposeEraseRect, eraseRegionFlat } = await import('/src/assets/eraseRegion.ts');
+  const out = [];
+  for (const img of images) {
+    const r = await proposeEraseRect(img.data);
+    if (!r.proposal) {
+      out.push({ id: img.id, proposed: false, refusal: r.refusal });
+      continue;
+    }
+    const e = await eraseRegionFlat(img.data, r.proposal.rect);
+    const again = await proposeEraseRect(e.dataUrl);
+    out.push({
+      id: img.id,
+      proposed: true,
+      rect: r.proposal.rect,
+      confidence: r.proposal.confidence,
+      uniform: e.sampling.uniform,
+      lines: e.ink ? e.ink.lines.length : 0,
+      residual: Boolean(again.proposal),
+    });
+  }
+  return out;
+}`;
+
 const port = devPort();
 const browser = await chromium.launch();
 const page = await browser.newPage();
@@ -260,14 +298,27 @@ for (const baked of [false, true]) {
         { eraseSrc: ERASE, imgs: rendered },
       )
     : [];
+  const detected = await page.evaluate(
+    async ({ detectSrc, imgs }) => {
+      const fn = (0, eval)('(' + detectSrc + ')');
+      return fn(imgs);
+    },
+    { detectSrc: DETECT, imgs: rendered },
+  );
   for (const img of rendered) {
     const result = results.find((r) => r.id === img.id);
     const s = score(img.intent, result);
     const e = erased.find((x) => x.id === img.id);
+    const d = detected.find((x) => x.id === img.id);
     rows.push({
       variant: baked ? 'baked' : 'clean',
       ...s,
       erase: e ? (e.uniform ? `flat, ${e.lines} line(s)` : `NOT flat, ${e.lines} line(s)`) : null,
+      detect: d.proposed
+        ? `${d.uniform ? 'flat' : 'NOT flat'}, ${d.lines} line(s), p=${d.confidence}` +
+          (d.residual ? ' · TEXT LEFT OVER' : '')
+        : 'nothing proposed',
+      detectWhy: d.proposed ? null : d.refusal,
       id: img.id,
       label: img.label,
       panel: img.panel,
@@ -283,22 +334,45 @@ await browser.close();
 
 const pad = (s, n) => String(s).padEnd(n);
 console.log(
-  '\n' + pad('design', 30) + pad('panel', 7) + pad('clean: suggest', 16) + pad('baked: suggest', 16) + 'baked: erase',
+  '\n' +
+    pad('design', 30) +
+    pad('panel', 7) +
+    pad('clean: suggest', 16) +
+    pad('baked: suggest', 16) +
+    pad('baked: erase', 24) +
+    pad('clean: detect', 20) +
+    'baked: detect',
 );
-console.log('-'.repeat(30 + 7 + 16 + 16 + 22));
+console.log('-'.repeat(30 + 7 + 16 + 16 + 24 + 20 + 34));
 const ids = [...new Set(rows.map((r) => r.id))];
 for (const id of ids) {
   const clean = rows.find((r) => r.id === id && r.variant === 'clean');
   const baked = rows.find((r) => r.id === id && r.variant === 'baked');
   console.log(
-    pad(id, 30) + pad(clean.panel ? 'yes' : 'no', 7) + pad(clean.verdict, 16) + pad(baked.verdict, 16) + (baked.erase ?? ''),
+    pad(id, 30) +
+      pad(clean.panel ? 'yes' : 'no', 7) +
+      pad(clean.verdict, 16) +
+      pad(baked.verdict, 16) +
+      pad(baked.erase ?? '', 24) +
+      pad(clean.detect, 20) +
+      baked.detect,
   );
 }
+const proposedOnClean = rows.filter((r) => r.variant === 'clean' && r.detect !== 'nothing proposed');
+console.log(
+  '\ndetector: ' +
+    rows.filter((r) => r.variant === 'baked' && r.detect.startsWith('flat')).length +
+    ' of ' + ids.length + ' baked designs erased flat from the proposal alone, ' +
+    rows.filter((r) => r.variant === 'baked' && r.detect.includes('TEXT LEFT OVER')).length +
+    ' left text behind, ' + proposedOnClean.length + ' false positives on the clean exports',
+);
 const tally = (v, variant) => rows.filter((r) => r.verdict === v && r.variant === variant).length;
 console.log('\nclean exports: ' + tally('HIT', 'clean') + ' hit, ' + tally('MISS', 'clean') + ' miss, ' + tally('NONE', 'clean') + ' refused (of ' + ids.length + ')');
 console.log('baked exports: ' + tally('HIT', 'baked') + ' hit, ' + tally('MISS', 'baked') + ' miss, ' + tally('NONE', 'baked') + ' refused (of ' + ids.length + ')');
 console.log('\nper-design detail:');
 for (const r of rows) console.log(`  [${r.variant}] ${r.id}: ${r.verdict} - ${r.why ?? ''}`);
+console.log('\nwhat the detector refused, and on which rule:');
+for (const r of rows) if (r.detectWhy) console.log(`  [${r.variant}] ${r.id}: ${r.detectWhy}`);
 
 await writeFile(path.join(OUT, 'audit.json'), JSON.stringify(rows, null, 1), 'utf8');
 console.log(`\nArtwork + audit.json written to ${OUT}`);

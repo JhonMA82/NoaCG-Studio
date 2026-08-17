@@ -1,5 +1,8 @@
 import { useRef, useState, type ReactNode } from 'react';
 import type { EraseRect } from '../../assets/eraseRegion';
+// Wizard-local, not styles.css: the proposal overlay is this surface's own vocabulary and
+// nothing else renders it, so it has no business in the sheet every page loads.
+import './prepProposal.css';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -79,12 +82,50 @@ interface Props {
   onRect: (rect: EraseRect) => void;
   /** When false the surface only displays — no rectangle drawing (mode overlays only). */
   drawEnabled: boolean;
+  /** The scan's OPENING PROPOSAL (source px), drawn ready to adjust — null when it refused
+   *  or the user dismissed it. Unlike `rects` this one is not applied to any pixels yet. */
+  proposed?: EraseRect | null;
+  /** Fired while the proposal is dragged or resized — every frame, so the caller owns it. */
+  onProposedChange?: (rect: EraseRect) => void;
   /** Extra overlays in the same source-px coordinate space (the stretch guides). */
   children?: ReactNode;
 }
 
 /** Smallest committable rectangle, in source px — anything under this is a stray click. */
 const MIN_RECT = 6;
+
+/** The proposal's grips: the whole box moves, each corner resizes from its own edges. */
+type Grip = 'move' | 'nw' | 'ne' | 'sw' | 'se';
+const GRIPS: Grip[] = ['nw', 'ne', 'sw', 'se'];
+
+/** Apply a pointer delta (source px) to the proposal. Every result stays inside the artwork
+ *  and no smaller than MIN_RECT, so a drag can never leave a rectangle the erase would
+ *  refuse to work with. */
+function moved(base: EraseRect, grip: Grip, dx: number, dy: number, w: number, h: number): EraseRect {
+  if (grip === 'move') {
+    return {
+      ...base,
+      x: clamp(base.x + dx, 0, w - base.width),
+      y: clamp(base.y + dy, 0, h - base.height),
+    };
+  }
+  let { x, y, width, height } = base;
+  if (grip === 'nw' || grip === 'sw') {
+    const next = clamp(x + dx, 0, x + width - MIN_RECT);
+    width += x - next;
+    x = next;
+  } else {
+    width = clamp(width + dx, MIN_RECT, w - x);
+  }
+  if (grip === 'nw' || grip === 'ne') {
+    const next = clamp(y + dy, 0, y + height - MIN_RECT);
+    height += y - next;
+    y = next;
+  } else {
+    height = clamp(height + dy, MIN_RECT, h - y);
+  }
+  return { x, y, width, height };
+}
 
 /**
  * The Prepare step's artwork surface: the design shown at fit size, with DOM overlays in the
@@ -103,6 +144,8 @@ export default function DesignPrepCanvas({
   rects,
   onRect,
   drawEnabled,
+  proposed = null,
+  onProposedChange,
   children,
 }: Props) {
   const surface = useRef<HTMLDivElement>(null);
@@ -159,6 +202,29 @@ export default function DesignPrepCanvas({
   // The marks already applied, plus whichever rectangle is being dragged right now.
   const shown = draft ? [...rects, draft] : rects;
 
+  /** Drag or resize the proposal. Window-level listeners for the drag's lifetime, like the
+   *  stretch guides: a corner grip is a 14px square and the pointer leaves it on the first
+   *  frame of a real drag, so tracking must not depend on events still hitting the element. */
+  const startProposalDrag = (grip: Grip) => (e: React.PointerEvent) => {
+    if (!proposed || !onProposedChange || e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const box = surface.current!.getBoundingClientRect();
+    const k = sourceWidth / box.width;
+    const from = { x: e.clientX, y: e.clientY };
+    const base = proposed;
+    const move = (ev: PointerEvent) =>
+      onProposedChange(
+        moved(base, grip, Math.round((ev.clientX - from.x) * k), Math.round((ev.clientY - from.y) * k), sourceWidth, sourceHeight),
+      );
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
   return (
     <div
       ref={surface}
@@ -172,6 +238,26 @@ export default function DesignPrepCanvas({
       {shown.map((r, i) => (
         <div key={i} className="wz-prep-rect" data-testid="erase-rect" style={pct(r)} />
       ))}
+      {proposed && (
+        <div
+          className="wz-prep-proposed"
+          data-prep-overlay
+          data-testid="erase-proposal-rect"
+          style={pct(proposed)}
+          onPointerDown={startProposalDrag('move')}
+          title="Drag this box, or its corners, until it covers the baked-in text"
+        >
+          {GRIPS.map((grip) => (
+            <span
+              key={grip}
+              className={`wz-prep-grip ${grip}`}
+              data-prep-overlay
+              data-testid={`erase-proposal-grip-${grip}`}
+              onPointerDown={startProposalDrag(grip)}
+            />
+          ))}
+        </div>
+      )}
       {children}
     </div>
   );
