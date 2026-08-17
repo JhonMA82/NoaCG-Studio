@@ -208,6 +208,7 @@ function update(data) {
   if (source && Object.prototype.hasOwnProperty.call(fields, 'f0')) source.textContent = fields.f0;
   tickerItems = readItems();
   showCurrent();
+  paintClock();   // previews settle through update(), so the clock reads real time there too
 }
 
 /* == ANIMATION (generated — the Animation panel rewrites this block) == */

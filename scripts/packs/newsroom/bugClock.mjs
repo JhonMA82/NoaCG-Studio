@@ -4,7 +4,7 @@
 // Always-on: it takes once at the start of the show and stays. The clock repaints every
 // second through GSAP's clock and holds its width (tabular digits).
 
-import { SIMPLE_UPDATE_JS, definitionScript, pageHtml, stageCss } from './look.mjs';
+import { definitionScript, pageHtml, stageCss } from './look.mjs';
 
 const definition = definitionScript({
   description: 'Corner bug — mark, channel word and a live clock',
@@ -104,7 +104,17 @@ const js = `// Uutishuone bug & clock — SPX calls update(), play(), stop(), ne
 
 var clockTimer = null;   // the 1s repaint, killable
 
-${SIMPLE_UPDATE_JS}
+// update(data): SPX sends field values as JSON. Each field fN writes into the element with
+// the same id; the clock repaints too, so previews that settle through update() read real
+// time rather than the placeholder.
+function update(data) {
+  var fields = (typeof data === 'string') ? JSON.parse(data) : data;
+  for (var key in fields) {
+    var el = document.getElementById(key);
+    if (el) el.textContent = fields[key];
+  }
+  paintClock();
+}
 
 // paintClock(): Finnish wall-clock time, HH.MM.
 function paintClock() {
