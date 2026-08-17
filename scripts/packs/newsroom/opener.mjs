@@ -29,17 +29,22 @@ const html = pageHtml({
     <!-- The violet field the whole frame sits on. -->
     <div class="opener-field"></div>
 
-    <!-- The pack's shape motif: rounded squares floating in a layered depth field, with
-         one companion dot. Decorative — no text, no fields. -->
+    <!-- The pack's shape motif: rounded squares floating in a layered depth field.
+         Decorative — no text, no fields. -->
     <div class="opener-square opener-square-1"></div>
     <div class="opener-square opener-square-2"></div>
     <div class="opener-square opener-square-3"></div>
-    <div class="opener-dot"></div>
 
-    <!-- The centred lockup: pill kicker over the big wordmark over the subtitle. -->
+    <!-- The centred lockup: pill kicker over the big wordmark over the subtitle. The
+         accent dot is the wordmark's full stop, so it follows the title at any length. -->
     <div class="opener-lockup">
       <div class="opener-pill"><span id="f1">UUTISHUONE</span></div>
-      <div class="opener-mask"><h1 class="opener-title" id="f0">UUTISET</h1></div>
+      <div class="opener-mask">
+        <div class="opener-titlerow">
+          <h1 class="opener-title" id="f0">UUTISET</h1>
+          <span class="opener-dot"></span>
+        </div>
+      </div>
       <p class="opener-sub" id="f2">Maanantaina 17. elokuuta</p>
     </div>
   </div>
@@ -94,13 +99,18 @@ const css = `${stageCss()}
   background: rgba(86, 54, 216, 0.45);          /* the deep violet sibling */
 }
 
-/* The companion dot — tugs at the big square's corner. */
+/* The wordmark row: title + its accent full stop, revealed together. */
+.opener-titlerow {
+  display: flex;
+  align-items: flex-end;
+  gap: calc(10px * var(--scale));
+}
+
+/* The companion dot — the wordmark's full stop, in the accent. */
 .opener-dot {
-  position: absolute;
-  width: calc(64px * var(--scale));
-  height: calc(64px * var(--scale));
-  left: calc(1210px * var(--scale));
-  top: calc(560px * var(--scale));
+  width: calc(30px * var(--scale));
+  height: calc(30px * var(--scale));
+  margin-bottom: calc(22px * var(--scale));      /* sits on the baseline, not the descender */
   border-radius: 50%;
   background: var(--accent);
   will-change: transform, opacity;
@@ -176,9 +186,9 @@ function buildInTimeline() {
   tl.from('.opener-square-1', { x: 160, y: -60, opacity: 0, duration: 0.9 / animSpeed, ease: 'power3.out' }, 0.05);
   tl.from('.opener-square-2', { x: -140, y: 80, opacity: 0, duration: 0.9 / animSpeed, ease: 'power3.out' }, 0.12);
   tl.from('.opener-square-3', { y: -120, opacity: 0, duration: 0.9 / animSpeed, ease: 'power3.out' }, 0.2);
-  tl.from('.opener-dot', { scale: 0, opacity: 0, duration: 0.6 / animSpeed, ease: 'back.out(1.6)' }, 0.4);
   tl.from('.opener-pill', { scale: 0.6, opacity: 0, duration: 0.55 / animSpeed, ease: 'back.out(1.6)' }, 0.35);
-  tl.from('.opener-title', { yPercent: 110, duration: 0.8 / animSpeed, ease: 'power3.out' }, 0.45);
+  tl.from('.opener-titlerow', { yPercent: 110, duration: 0.8 / animSpeed, ease: 'power3.out' }, 0.45);
+  tl.from('.opener-dot', { scale: 0, duration: 0.5 / animSpeed, ease: 'back.out(1.8)' }, 0.95);
   tl.from('.opener-sub', { y: 26, opacity: 0, duration: 0.6 / animSpeed, ease: 'power2.out' }, 0.7);
   return tl;
 }
@@ -187,7 +197,7 @@ function buildInTimeline() {
 function buildOutTimeline() {
   var tl = gsap.timeline();
   tl.to('.opener-lockup', { y: -60, opacity: 0, duration: 0.4 / animSpeed, ease: 'power2.in' }, 0);
-  tl.to('.opener-square, .opener-dot', { y: -140, opacity: 0, duration: 0.45 / animSpeed, ease: 'power2.in', stagger: 0.04 }, 0);
+  tl.to('.opener-square', { y: -140, opacity: 0, duration: 0.45 / animSpeed, ease: 'power2.in', stagger: 0.04 }, 0);
   tl.to('#opener-stage', { opacity: 0, duration: 0.45 / animSpeed, ease: 'power2.in' }, 0.15);
   return tl;
 }
@@ -197,8 +207,8 @@ function buildOutTimeline() {
 function play() {
   if (outTimer) { outTimer.kill(); outTimer = null; }
   if (ambient) { ambient.kill(); ambient = null; }
-  gsap.killTweensOf('#opener-stage, .opener-field, .opener-square, .opener-dot, .opener-pill, .opener-title, .opener-sub, .opener-lockup');
-  gsap.set('#opener-stage, .opener-square, .opener-dot, .opener-pill, .opener-title, .opener-sub, .opener-lockup', { clearProps: 'all' });
+  gsap.killTweensOf('#opener-stage, .opener-field, .opener-square, .opener-dot, .opener-pill, .opener-titlerow, .opener-sub, .opener-lockup');
+  gsap.set('#opener-stage, .opener-square, .opener-dot, .opener-pill, .opener-titlerow, .opener-sub, .opener-lockup', { clearProps: 'all' });
   var entrance = buildInTimeline();
   // A slow idle drift on the squares while the opener stands — killed by the exit.
   ambient = gsap.to('.opener-square', { y: '-=14', duration: 2.6, ease: 'sine.inOut', yoyo: true, repeat: -1 });

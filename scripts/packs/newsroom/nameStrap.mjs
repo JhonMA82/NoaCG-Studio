@@ -85,6 +85,7 @@ const css = `${stageCss()}
   flex: 0 0 auto;
   width: calc(20px * var(--scale));
   height: calc(20px * var(--scale));
+  margin-top: calc(4px * var(--scale));          /* optical: centre on the lowercase body */
   border-radius: calc(6px * var(--scale));
   background: var(--accent);
   will-change: transform;
