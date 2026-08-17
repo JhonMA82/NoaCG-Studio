@@ -398,9 +398,23 @@ test('± LIVE NUMBERS on the EXPORTED controller: the bump is a partial, carryin
   await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
   await expect(ctl.locator('#mode')).toContainText('SHOW');
   await ctl.locator('.cue', { hasText: 'Round one' }).click();
+
+  // OFF AIR the pair is GREYED, not quietly repurposed (docs/PLAYOUT_DASHBOARD.md §7c): a
+  // control that acts on air has nothing to act on until the cue is taken, and a press that
+  // silently staged instead looked exactly like a bump that did not work.
+  const scoreSteps = ctl.locator('.field', { hasText: /^F2 · / }).locator('button.step');
+  await expect(scoreSteps.first()).toBeDisabled();
+  await expect(scoreSteps.last()).toBeDisabled();
+  await expect(scoreSteps.first()).toHaveAttribute('title', /not on air — Take it first/);
+  // The exclusion keeps its own meaning: an ⚡ payload field's pair never airs anything, so it
+  // stages at all times and greying it would strand the only stepper the field has.
+  await expect(ctl.locator('.field', { hasText: /^F9 · / }).locator('button.step').first()).toBeEnabled();
+
   await ctl.locator('#v-take').click();
   await expect(ctl.locator('.cue').first()).toHaveClass(/on-air/, { timeout: 10_000 });
   await expect(air.locator('#f2')).toHaveText('0', { timeout: 10_000 });
+  // …and the take is what enables it, on the controller's own 400 ms log poll.
+  await expect(scoreSteps.first()).toBeEnabled({ timeout: 10_000 });
 
   /** Every PROGRAM `update` this page has sent, newest last. */
   const programUpdates = () =>
