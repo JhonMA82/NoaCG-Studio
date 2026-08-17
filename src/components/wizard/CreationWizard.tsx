@@ -21,6 +21,7 @@ import { formatTemplate } from '../../format/formatCode';
 import { paletteById } from '../../model/wizard';
 import WizardPreview from './WizardPreview';
 import BrandLogo from '../BrandLogo';
+import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import EntryStep from './steps/EntryStep';
 import ImportStep from './steps/ImportStep';
 import ImportDesignStep from './steps/ImportDesignStep';
@@ -1212,6 +1213,13 @@ export default function CreationWizard() {
               Step <b>{railPos + 1}</b> / {stepTitles.length}
             </span>
           )}
+
+          {/* The feedback door belongs to the HEADER, so it is reachable from the first step
+              rather than only from the one at the end - the wizard is the student release's
+              own surface, and somebody who gets lost on Browse never reaches Finish to say so.
+              Its push is the chain in styles.css (.wz-stepcount ~ .fb-open ~ .gallery-close),
+              since the step counter is absent on Entry and this button is absent offline. */}
+          <BetaFeedbackButton area="wizard" />
 
           <button
             className="gallery-close"
