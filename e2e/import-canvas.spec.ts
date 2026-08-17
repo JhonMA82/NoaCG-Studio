@@ -367,10 +367,20 @@ async function dropCard(page: Page, buffer: Buffer) {
   });
 }
 
-/** Design step -> Prepare, open the erase surface, and drag a rect over it (image fractions). */
+/** Design step -> Prepare, open the erase surface, and drag a rect over it (image fractions).
+ *
+ *  Two steps are conditional because the Prepare step now SCANS for baked-in text and opens
+ *  with a box already drawn when it finds any (eraseRegion.ts proposeEraseRect): on artwork it
+ *  reads — the REAL typeset fixture below — the yes/no question is answered by measuring and
+ *  never asked, and the proposal has to be dismissed before these cases drag their own
+ *  deliberately-off-centre lasso. The bar fixtures carry no stroke edges, so they take neither
+ *  branch and behave exactly as before. */
 async function eraseRect(page: Page, fx0: number, fy0: number, fx1: number, fy1: number) {
   await page.getByRole('button', { name: 'Next →' }).click();
-  await page.getByTestId('baked-yes').click();
+  const ask = page.getByTestId('baked-yes');
+  if (await ask.count()) await ask.click();
+  const proposed = page.getByTestId('erase-proposal-dismiss');
+  if (await proposed.count()) await proposed.click();
   const surface = page.getByTestId('erase-surface');
   await expect(surface).toBeVisible();
   await expect.poll(async () => (await surface.boundingBox())?.height ?? 0).toBeGreaterThan(100);

@@ -179,10 +179,23 @@ Three derivation rules, all template-driven (no category is ever consulted):
 - The buttons enable only while the edited cue is the one on air — the same legality wording as
   the ⚡ buttons ("Take the cue first").
 
-Both operator deployments carry it (`ProductionPage`, `HostedControlPage` — the cloud-first
-surface a class drives from a phone). The exported production controller does not yet; on that
-fallback surface a score changes through the field + ✎ Update, which stays correct, just two
-presses. Pinned by `e2e/production-controls.spec.ts` ("± LIVE NUMBERS bumps a figure on air").
+**All three deployments carry it** — `ProductionPage`, `HostedControlPage` (the cloud-first
+surface a class drives from a phone) and the EXPORTED production controller, the fallback a show
+drops to when the network dies. The exported page has no separate block: it is a third renderer
+under the one-control doctrine, so its number field's own −/+ pair wears both meanings, decided
+at press time — off air it stages like a typed value, on air it is the bump. Same partial, same
+exclusion, same "only while the edited cue is the one on air".
+
+Two things follow from that on the exported page, and both were wrong before it carried the
+rule: EDITING A FIELD STAGES (it used to push the whole value set on every keystroke of a live
+cue, so a name reached air letter by letter, while the editor's own header promised "changes
+push live on ✎ Update"), and a cue that is on both streams shows the STAGED version on PVW while
+PGM keeps what is aired.
+
+Pinned by `e2e/production-controls.spec.ts`: "± LIVE NUMBERS bumps a figure on air" for the
+React surfaces, and "± LIVE NUMBERS on the EXPORTED controller" for the package — that one reads
+the rows off the relay and asserts the PAYLOAD SHAPE, because what an exported surface puts on
+the wire is the contract, and a screen that looks right can still ship the wrong payload.
 
 ## 8. Built to grow (interactive graphics)
 

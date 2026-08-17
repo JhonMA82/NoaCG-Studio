@@ -1,37 +1,8 @@
-import { test, expect, type Page, type Route } from '@playwright/test';
+import { test, expect, type Route } from '@playwright/test';
 import { createProject } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
-
-/** An in-spec implementation of relay protocol v1 (the same shapes the conformance harness
- *  pins on the real servers) + a static file map, as a Playwright route handler. */
-function relayServe(files: Map<string, string>) {
-  const rows: { id: number; graphic: string; stream: string; msg: unknown }[] = [];
-  let head = 0;
-  const serve = (route: Route) => {
-    const url = new URL(route.request().url());
-    if (url.pathname === '/relay/ping') return route.fulfill({ json: { ok: true, v: 1, head } });
-    if (url.pathname === '/relay/head') return route.fulfill({ json: { head } });
-    if (url.pathname === '/relay/log') {
-      const after = Number(url.searchParams.get('after') ?? '0');
-      return route.fulfill({ json: { rows: rows.filter((r) => r.id > after).slice(0, 500), head } });
-    }
-    if (url.pathname === '/relay/send') {
-      const body = route.request().postDataJSON() as { graphic?: string; stream?: string; msg?: unknown; items?: { graphic: string; stream?: string; msg: unknown }[] };
-      const items = body.items ?? [body as { graphic: string; stream?: string; msg: unknown }];
-      for (const item of items) rows.push({ id: ++head, graphic: String(item.graphic), stream: item.stream || 'program', msg: item.msg });
-      return route.fulfill({ json: { head } });
-    }
-    const file = files.get(decodeURIComponent(url.pathname.replace(/^\//, '')));
-    if (file == null) return route.fulfill({ status: 404, body: 'nf' });
-    return route.fulfill({ status: 200, contentType: 'text/html', body: file });
-  };
-  return { serve, rows };
-}
-
-async function routeOrigin(page: Page, origin: string, serve: (r: Route) => unknown) {
-  await page.route(`${origin}/**`, serve);
-}
+import { relayServe, routeOrigin } from './_relay';
 
 // The LOCAL-CONTROL door (offline local control, no command line): the overlay package
 // bundles a localhost relay (two stdlib implementations of protocol v1) + double-click
@@ -307,21 +278,28 @@ test('a scorebug over the relay: the stepper bumps the score on air, and the clo
   await expect(air.locator('#f0')).toHaveText('ASHTON', { timeout: 10_000 });
   await expect.poll(async () => air.locator('.scoreboard').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
 
+  // The bump below ACTS ON AIR, so the precondition has to be stated rather than assumed: the
+  // controller learns what is live from the LOG, on its own poll, and a press that lands before
+  // that row arrives stages instead of airing - which looks exactly like a broken bump.
+  await expect(ctl.locator('.cue', { hasText: 'Kick off' })).toHaveClass(/on-air/, { timeout: 10_000 });
+
   // THE SCORE, bumped rather than typed. The exported controller renders the number field as
   // −/value/+ (it is a third renderer and deliberately has no operator step-size box, unlike
   // the two React surfaces), so locate the row by its label and press +.
   const scoreRow = ctl.locator('.field', { hasText: 'Score A' });
   const plus = scoreRow.locator('button.step', { hasText: '+' });
   await plus.click();
-  // Pressing + STAGES the goal; it does not air it. That is the whole prepared-vs-published
-  // rule and it holds here exactly as on the other surfaces - nothing reaches air because it
-  // was typed, only because a verb was pressed.
+  // A goal on the LIVE cue airs on the press: this is the ± LIVE NUMBERS bump
+  // (docs/PLAYOUT_DASHBOARD.md §7c), the one data write that does not wait for a verb, and it
+  // travels as a partial carrying that field alone. The cue keeps the new value in step, so a
+  // later ⟳ Take or ✎ Update cannot regress the score. The payload SHAPE is pinned in
+  // production-controls.spec.ts; here the point is that the aired board really moved.
   await expect(scoreRow.locator('input[type="number"]')).toHaveValue('1');
-  await expect(air.locator('#f1')).toHaveText('0');
-  // ✎ Update pushes it to the live graphic without re-animating the board.
-  await ctl.locator('#v-update').click();
   await expect(air.locator('#f1')).toHaveText('1', { timeout: 10_000 });
   await plus.click();
+  await expect(air.locator('#f1')).toHaveText('2', { timeout: 10_000 });
+  // ✎ Update pushes the whole cue to the live graphic without re-animating the board - the
+  // deliberate other half, and it agrees with the bumps rather than undoing them.
   await ctl.locator('#v-update').click();
   await expect(air.locator('#f1')).toHaveText('2', { timeout: 10_000 });
 

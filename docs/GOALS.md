@@ -313,8 +313,8 @@ Real work, deliberately not now. Each has a plan doc; none is current until it i
   feature's clothes; the doc says which.
 - **Video/animation projects** - the parallel Beta shell stays where it is until the north star
   lands.
-- **Google Fonts import, the dedicated preview channel, Home polish** - postponed by the student
-  release, still wanted.
+- **The dedicated preview channel, Home polish** - postponed by the student release, still
+  wanted. (Google Fonts import LANDED on 2026-08-16 and moved to `GOALS_ARCHIVE.md`.)
 
 ---
 

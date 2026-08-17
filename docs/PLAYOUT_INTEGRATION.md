@@ -46,6 +46,40 @@ These four apply to CasparCG, OBS and vMix alike.
   so it plays correctly at any rate, but a browser source running at 30 in a 50 Hz channel
   judders in a way that looks like the graphic's fault.
 
+## 2a. Pictures on air
+
+A production often needs a still on screen - a holding slide, a photo of the person being
+interviewed, a sponsor card, a scanned rules sheet. You do not need a template for that, and you
+do not need to open the editor.
+
+On the production page, **"＋ Add pictures…"** beside the graphics pool takes image files
+straight from your machine. Each picture becomes its **own cue** in the rundown, named after the
+file, and you air one exactly like any other cue: select it, ⟳ Take, ■ Out. It fades in and out
+full-frame over whatever is behind it.
+
+**One picture graphic per production, and that is on purpose.** However many pictures you add,
+they all live on a single generated graphic occupying a single playout layer - so taking picture
+3 while picture 1 is up **replaces** it. Pictures never stack, never end up hidden behind one
+another, and never need a separate layer each. If you want two stills on screen at once, that is
+a design with two slots, not two picture cues.
+
+**Twenty pictures per production.** That ceiling is real, not a taste limit: every picture is
+embedded into the production's published output, which the renderer and every operator page load
+in full. Uploads are downscaled to the frame's own size before being stored, which puts a
+production at roughly 15 MB at the limit - heavy but workable. A show that needs more stills than
+that wants a media server or a playlist, not more cues here.
+
+Two practical notes:
+
+- **A picture added to a published production reaches the playout on the next publish.** The
+  output is pinned when you publish it, so re-publish after adding stills - the upload says so
+  on screen too.
+- **SPX has no picture player either**, so this is not a NoaCG limitation being worked around.
+  The SPX answer to "put a still on air" is the same shape: a template with a file-list field
+  pointed at a folder on the SPX machine, and someone copying files into `ASSETS` beforehand.
+  Uploading here is that step, without the file copy - and it works identically on the cloud
+  output URL, in an exported package, and through the SPX template file of §6a.
+
 ## 3. CasparCG
 
 CasparCG plays a web page through its **HTML producer**.

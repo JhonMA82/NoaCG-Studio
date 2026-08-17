@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AssetFile, Resolution } from '../../../model/types';
 import type { DesignArt, DesignStretch } from '../../../model/wizard';
 import type { DesignEraseState } from '../draft';
 import {
   eraseRegionFlat,
+  proposeEraseRect,
   FLAT_BG_TOLERANCE,
+  type EraseProposal,
   type EraseRect,
   type EraseResult,
 } from '../../../assets/eraseRegion';
@@ -61,6 +63,14 @@ export default function PrepareDesignStep({
   const [busy, setBusy] = useState(false);
   const [comparing, setComparing] = useState(false);
   const [demoLen, setDemoLen] = useState(DEMO_NAME.length);
+  // The scan's OPENING PROPOSAL, and the rectangle as the user has dragged it since. Held
+  // apart because the offer's wording reports what was MEASURED (its line count, its
+  // confidence) while the rectangle is the user's the moment they touch it.
+  const [proposal, setProposal] = useState<EraseProposal | null>(null);
+  const [proposedRect, setProposedRect] = useState<EraseRect | null>(null);
+  const [scanRefusal, setScanRefusal] = useState<string | null>(null);
+  /** The artwork the scan last ran against — a scan is one per artwork, never per render. */
+  const scanned = useRef<string | null>(null);
 
   const current = images[0] ?? null;
   const sourceW = art.sourceWidth ?? art.width;
@@ -75,6 +85,40 @@ export default function PrepareDesignStep({
       ? current.data
       : null;
   const downloadName = `${(current?.path ?? 'images/design.png').replace(/^.*\//, '').replace(/\.[^.]+$/, '')}-clean.png`;
+
+  /**
+   * SCAN the artwork for baked-in text and open with the rectangle already drawn around it.
+   * The erase is the workhorse of this flow (docs/IMPORT_MVP.md's audit: 9 of 10 designs),
+   * and it used to run only if the student thought to drag a box.
+   *
+   * It re-runs on the CLEANED artwork after every applied erase, so a design carrying a name,
+   * a title and a scoreline offers them one at a time and stops when nothing is left. Nothing
+   * is filled by any of this: the rectangle is an offer the user drags, accepts or dismisses.
+   *
+   * Guarded by the artwork itself rather than a cancel flag — under StrictMode the first
+   * effect's cleanup would otherwise throw away the only scan that ran.
+   */
+  useEffect(() => {
+    const data = typeof current?.data === 'string' ? current.data : null;
+    if (!data || scanned.current === data) return;
+    scanned.current = data;
+    void proposeEraseRect(data).then((result) => {
+      if (scanned.current !== data) return; // the artwork moved on under us
+      setProposal(result.proposal);
+      setProposedRect(result.proposal?.rect ?? null);
+      setScanRefusal(result.refusal);
+      // A measurement answers the "is there baked-in text?" question better than the user
+      // can from memory, so a proposal opens the marking surface instead of asking — but
+      // only while the question is still open. A slow scan (a very large upload) can land
+      // after the user has already answered it, and it must not reverse them.
+      if (result.proposal) setMarking((answered) => (answered === null ? true : answered));
+    });
+  }, [current?.data]);
+
+  const clearProposal = () => {
+    setProposal(null);
+    setProposedRect(null);
+  };
 
   const stateOf = (rect: EraseRect, result: EraseResult): DesignEraseState => ({
     rect,
@@ -93,6 +137,7 @@ export default function PrepareDesignStep({
     if (!original || typeof current?.data !== 'string') return;
     setBusy(true);
     setPending(null);
+    clearProposal();
     try {
       const result = await eraseRegionFlat(current.data, rect);
       if (result.sampling.uniform) {
@@ -123,6 +168,7 @@ export default function PrepareDesignStep({
   const removeErase = async (index: number) => {
     if (!original || typeof original.data !== 'string') return;
     setPending(null);
+    clearProposal();
     const keep = erases.filter((_, i) => i !== index);
     if (keep.length === 0) {
       onErases([], [original]);
@@ -192,6 +238,8 @@ export default function PrepareDesignStep({
         rects={pending ? [...erases.map((e) => e.rect), pending.rect] : erases.map((e) => e.rect)}
         onRect={(r) => void run(r)}
         drawEnabled={marking === true && !busy}
+        proposed={marking === false || pending || busy ? null : proposedRect}
+        onProposedChange={setProposedRect}
       >
         {hz && (
           <StretchGuides
@@ -203,6 +251,31 @@ export default function PrepareDesignStep({
         )}
       </DesignPrepCanvas>
       {busy && <p className="hint">Sampling the background…</p>}
+      {proposedRect && proposal && !pending && !busy && marking !== false && (
+        <div className="wz-prep-verdict" data-testid="erase-proposal">
+          <p>
+            This looks like baked-in text, so the box is already drawn around it
+            {proposal.lines > 1 ? ` — ${proposal.lines} lines of it` : ''}. Drag the box or its
+            corners until it covers the words, then erase — or draw your own box instead.
+          </p>
+          <div className="row" style={{ gap: 8 }}>
+            <button
+              className="primary"
+              data-testid="erase-proposal-accept"
+              onClick={() => void run(proposedRect)}
+            >
+              Erase this
+            </button>
+            <button data-testid="erase-proposal-dismiss" onClick={clearProposal}>
+              I'll draw it myself
+            </button>
+            <span className="hint">
+              {Math.round(proposedRect.width)} × {Math.round(proposedRect.height)} px · found by
+              measuring the artwork, not by asking an AI
+            </span>
+          </div>
+        </div>
+      )}
       {pending && (
         <div className="wz-prep-verdict bad" data-testid="erase-warning">
           <p>
@@ -269,7 +342,7 @@ export default function PrepareDesignStep({
                 Download cleaned artwork
               </a>
             )}
-            <button data-testid="erase-remove" onClick={() => { setPending(null); onErases([], original ? [original] : []); }}>
+            <button data-testid="erase-remove" onClick={() => { setPending(null); clearProposal(); onErases([], original ? [original] : []); }}>
               {erases.length > 1 ? 'Remove all erases' : 'Remove erase'}
             </button>
           </div>
@@ -285,6 +358,12 @@ export default function PrepareDesignStep({
           works cleanly over a FLAT background, and it says so when it can't: the honest fix
           then is to export the design again with the text left out.
         </p>
+        {scanRefusal && !proposedRect && erases.length === 0 && (
+          <p className="hint" style={{ marginTop: 8 }} data-testid="erase-scan-refusal">
+            Nothing was drawn for you here: {scanRefusal} Mark it yourself if it is there — the
+            scan proposes nothing rather than proposing badly.
+          </p>
+        )}
         {marking === null && (
           <div className="row" style={{ gap: 8, marginTop: 10 }}>
             <button data-testid="baked-no" onClick={() => setMarking(false)}>
