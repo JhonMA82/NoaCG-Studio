@@ -2738,25 +2738,47 @@ raster until something else invalidates the layer. That is a catalog-wide motion
 whether the hint should be dropped when the entrance completes - and it is not answered here,
 because measuring it belongs on a rendered graphic in playout, not on a screenshot runner.
 
-### 20.5 The control run has the same defect, and it is not fixed yet
+### 20.5 The control run had the same defect, and now it is fixed
 
 `captureHold` - the free `--control` run's capture, and the reference every paid round is judged
 against - mounts, plays and settles exactly the way the recompose did, so it was measured the same
-way. **Two runs of the identical command disagreed on 7 of its 42 hold frames.** Four of those are
-honest: `language-countdown-*` shows a live clock, so those frames SHOULD differ between runs, and
-a byte diff over the control set has to expect them. The other three are the promoted-layer raster
-- `anchor-adapt-1.hold`, `anchor-adapt-1.stress.hold`, `language-volt-matchday.hold`.
+way, and it failed the same way: **two runs of the identical command disagreed on 7 hold frames.**
+Three were named as the promoted-layer raster (`anchor-adapt-1.hold`, `anchor-adapt-1.stress.hold`,
+`language-volt-matchday.hold`); the other four were `language-countdown-*` and were written off as
+honest, on the reasoning that a live clock SHOULD differ between runs.
 
-That is where this stops. The fix is one step in one place (`rasterSettledFrame`'s work, applied
-from the parent page because this graphic lives in a same-origin srcdoc frame), but confirming it
-takes two more full control runs, and a browser-driving job needs the machine to itself - the
-laptop is RAM-bound and a paid round was in flight elsewhere. **So the control run carries a
-measured, named, unfixed instability**, marked at the line it happens on.
+`rasterSettledFrame`'s step now runs inside `captureHold` too, written out inline because the
+graphic lives in a same-origin srcdoc frame and there is no Playwright handle for that document,
+only `win` from the parent.
 
-Two things for whoever picks it up. The countdown frames are a reminder that "the frames stopped
-moving" is the wrong success test for this capture - the right one is "only the frames with their
-own clock moved". And the guard that parks browser work counts `scripts/dev-bench.mjs` as a running
-sweep, because `SWEEP_SCRIPTS` matches `[\w-]*bench[\w-]*`: that script is a long-lived dev SERVER,
-not a finite job, so any session that leaves its bench server up parks every other session's
-browser work for as long as it is running. Verifying this needs that resolved, overridden
-deliberately, or a quiet machine.
+**Measured 2026-08-17, four full `--control` runs into separate `--out` dirs on an otherwise idle
+machine (~8.5 min each, no skips, no errors):**
+
+| diff | identical | differ |
+| --- | --- | --- |
+| fixed run A vs fixed run B | 40 of 40 | **0** |
+| fixed run A vs fixed run C | 40 of 40 | **0** |
+| fixed run B vs fixed run C | 40 of 40 | **0** |
+| fixed run A vs an UNFIXED run | 28 of 40 | 12 |
+
+So the capture is reproducible across three runs spread over half an hour, and the fix is
+**narrow**: it leaves 28 of the 40 holds byte-for-byte as they were, which is the same result the
+recompose fix had - it costs nothing on evidence that never moved.
+
+**The hold set is 40 frames, not the 42 recorded above** - 20 briefs, each shot normal and stress.
+
+**And the four countdown frames were most likely never honest.** `src/templates/shared/clock.ts`
+anchors on `Date.now()` and repaints every 250 ms, so the digits are a function of time ELAPSED
+since `play()`, not of absolute wall time - and the hold is shot a fixed ~1.9 s after it, well
+inside one whole second, so the same digit is drawn every run. Before the fix, 4 of the 8
+`language-countdown-*` frames moved; after it, 0 of 8 move across three runs half an hour apart.
+Four of eight is what a shared defect looks like sampled twice, not what a clock looks like. The
+residual risk is real but different from the one recorded: if that ~1.9 s ever jittered across a
+whole second the digit WOULD change, so a byte diff over this set still has to read a countdown
+difference as inconclusive rather than as a regression.
+
+The guard that parks browser work also counted `scripts/dev-bench.mjs` as a running sweep, because
+`SWEEP_SCRIPTS` matched `[\w-]*bench[\w-]*` and that script is a long-lived dev SERVER, not a
+finite job - so did `bench-dispatcher.mjs`, the module that server preloads and which therefore
+shares its command line, which made one bench server report as two active jobs. Fixed first, as
+its own commit: `SERVER_SCRIPTS` carves the three server scripts back out of the alternation.

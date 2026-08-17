@@ -600,13 +600,30 @@ async function captureHold(item, measure = false) {
     }
     await win.document.fonts.ready;   // real glyphs or nothing
     await new Promise((resolve) => setTimeout(resolve, 1800));
-    // NOT YET QUIESCED, and measured to need it: two runs of the identical `--control` command
-    // disagreed on 3 of these 42 holds - `anchor-adapt-1` hold and stress, and
-    // `language-volt-matchday.hold` - the promoted-layer raster §20 diagnoses. The one-line fix
-    // the page-level captures use is `rasterSettledFrame`, applied here from the parent because
-    // this graphic lives in a same-origin srcdoc frame. It is deliberately NOT applied yet: it
-    // needs its own two-run diff to confirm, and confirming it needs exclusive browser time on
-    // this machine. See §20.5 for what is and is not established.
+    // Settled, but not yet REPRODUCIBLE without the next step: the entrance runs on a
+    // permanently promoted layer, so the texture Chromium keeps is one it rastered mid-flight
+    // and never redrew (§20). Measured, not assumed - two runs of the identical `--control`
+    // command disagreed on 7 of these 40 holds, and with this step THREE runs half an hour apart
+    // are byte-identical on all 40 while 28 of them stay exactly as they were (§20.5).
+    //
+    // This is `rasterSettledFrame`'s step (§20's long note explains why BOTH halves are needed),
+    // written out inline because the graphic lives in a same-origin srcdoc frame: the page-level
+    // helper takes a Playwright page, and there is no Playwright handle for this document, only
+    // `win` from the parent. Drop the hint for one frame so the settled content is rastered once
+    // at the offset it rests at, then restore it so the shutter sees exactly what the template
+    // wrote.
+    const hintOff = win.document.createElement('style');
+    hintOff.textContent = '*{will-change:auto !important}';
+    const twoFrames = async () => {
+      win.document.body.getBoundingClientRect();   // flush layout before handing the frame over
+      await new Promise((resolve) => {
+        win.requestAnimationFrame(() => win.requestAnimationFrame(resolve));
+      });
+    };
+    win.document.head.appendChild(hintOff);
+    await twoFrames();
+    hintOff.remove();
+    await twoFrames();
     return error;
   }, item);
   // Measure the SETTLED frame while it is still mounted: the rendered mark gate (the Phase 0
