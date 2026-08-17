@@ -2647,3 +2647,37 @@ cell's `recomposedAdjustments` moved and §17.11's "recomposed byte-for-byte in 
 not guessed at here.** The rule it buys: *a recomposed frame diff is not evidence the composer
 changed until the recompose has been run twice.* The committed frames were restored rather than
 churned, since neither version is more correct than the other.
+
+## 20. The free-form coder round on four checkpoints - 2026-08-17, machine half only
+
+Premise 1 (§15.4) had been measured to fail only on non-reasoning open-weight checkpoints, and
+panel layout is a spatial-reasoning problem - so the untested argument was "a 2026 reasoning
+model composes where those could not". Four checkpoints ran the identical protocol: the 12-brief
+bank, the `none` arm (the free-form coder, no exemplars), assigned brands, pinned decoding, no
+divergence cell, one out-dir per checkpoint, cheapest first. The blind page (64 items - all four
+rounds interleaved with the accepted Phase A set, ids reissued) and `machine-columns.md` are in
+the round archive; **the owner's blind read is OWED and nothing here is a verdict on the look.**
+
+What the machine half already says:
+
+- **The device proxy is approximately zero on every checkpoint** - 1, 1, 0 and 2 of 12
+  (`deviceCheck.ts`, mutation-checked both directions before any spend). Four models across
+  three vendors, one of them a frontier reasoning model, and the two live lines land as two
+  rows in one plain box on ~92% of cells. Per the round's own pre-registered reading: when the
+  device rate is flat across checkpoints INCLUDING the frontier ceiling, the SPINE is what
+  flattens it, not the checkpoint - the structure-spine contract hands every model the same
+  safe plain-panel answer. **A `bare` arm (drop the spine, keep the field contract) is the next
+  session's build, with the editability trade written down.**
+- **Contract compliance is no longer the differentiator**: 10, 10, 12 and 12 of 12 scaffold-ok,
+  and claude-opus-5 needed zero repair rounds across the bank - the first checkpoint ever to.
+- **Output volume answers the owner's second question, and rate-is-not-cost holds again**:
+  ~6.6k/6.9k/6.7k/5.1k output tokens per graphic - nobody near the modelled 12k, and the
+  frontier model emits the LEAST. Reasoning share where reported: 35% / 58% / 49% (the
+  anthropic route reports no split, stated as not-recorded rather than zero). Cost per
+  graphic: $0.0097 / $0.0274 / $0.0310 / $0.169-priced - 17x between cheapest and dearest for
+  the same contract compliance and the same flat device rate.
+- **grok-4.3 has a reasoning runaway**: `portrait-logo.sunbeam` and `non-latin.aldervale`
+  truncated at a 25,000-token output ceiling and AGAIN at 41,000 after
+  `REASONING_HEADROOM_TOKENS` was raised to the newly measured worst case - >41k tokens of
+  thinking with no complete answer, twice, on briefs its siblings finish in ~7k. Its round is
+  10 of 12 and says so.
