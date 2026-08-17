@@ -44,6 +44,7 @@ thin `CLAUDE.md` import.
 | 2 services | `control/` | ControlMessage protocol, 3 receivers, panel generators | `controlModel`, `receiverScript`, `controlPanelHtml`, `realtimeControl`, `hostedReceiver`, `hostedControl` |
 | 2 services | `video/` | video compile/validate/bridge pipeline | `compile`, `validate`, `playerBridge`, `videoFonts` |
 | 2 services | `community/`, `showchat/` | shared templates, audience send-in | `communityData`, `chatData` |
+| 2 services | `packs/` | the downloadable GRAPHICS PACK format (`.noacgpack.json`): parse/normalize, validate through the export gate, install as a production with layers + cues | `graphicsPack` |
 | 2 services | `audience/` | the AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5): ONE `AudienceBackend` interface, the in-memory rehearsal provider, the Supabase provider over migration 0035's slug-keyed RPCs, and the framework-free join renderer | `audienceTypes` (the interface + limits), `localAudience`, `audienceData` (`createSupabaseAudience`), `joinSurface` |
 | 3 app | `store/` * | editor UI state, undo, save link | `templateStore` (`applyTemplate`), `saveActions`, `videoProjectStore`, `docKindStore` |
 | 3 app | `app/` | hash router | `router` |
@@ -79,6 +80,8 @@ here and not in §6 are wrong - fix the code, not the table.
   it reaches no other domain, which is what keeps "nothing viewer-written airs without an
   operator" structural - there is nowhere for it to write a command)
 - `community` -> backend, validation
+- `packs` -> validation (a pack installs only through the ONE export gate - the importer refusing
+  what export would refuse is the whole safety story of installing a file somebody handed you)
 - `admin` -> backend (`getAccessToken` + `isBackendConfigured` only - every fact it shows comes
   from `api/admin/*`, never from another domain)
 - `showchat` -> backend, control
@@ -115,6 +118,7 @@ dependency-cruiser; §7):
 | a deterministic edit to template code | a named patcher in `blocks/` |
 | a new catalog template, variant, pack, or graphic type | `templates/` |
 | a new export target or packaging convention | `export/targets/` + the registry |
+| a shipped graphics pack, or the pack-file format | `src/packs/` (format + install); pack template sources under `scripts/packs/`, built into `public/packs/` |
 | an operator surface, protocol message, or receiver | `control/` |
 | an AI model transport or credential boundary | `api/ai/` + `api/_lib/aiGateway.ts`; shared browser-safe contracts in `ai/modelTypes.ts` |
 | prompt, harness, provider, or AI settings work | `ai/` (SPX) or `ai/video/` |

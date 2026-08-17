@@ -198,6 +198,14 @@ module.exports = {
     },
     {
       comment:
+        '§3: packs -> validation. A downloadable graphics pack goes through the ONE export ' +
+        'gate before it installs - the importer refusing what export would refuse is the ' +
+        'whole safety story of "install a file somebody handed you".',
+      from: { path: '^src/packs/' },
+      to: { path: '^src/validation/' },
+    },
+    {
+      comment:
         '§3: admin -> backend (getAccessToken + isBackendConfigured only). The admin page is ' +
         'its own MPA entry, so it needs the session token to authorize its API calls; it ' +
         'reads no other domain, because every fact it shows comes from api/admin/*.',

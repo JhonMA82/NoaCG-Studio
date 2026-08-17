@@ -157,6 +157,97 @@ function buildOutTimeline() {
 }
 ${MARK_CLOSE}`,
   },
+
+  {
+    id: 'transition-iris' as AnimPresetId,
+    name: 'Iris',
+    description: 'In: the cover blooms from the centre until the frame is hidden. Out: the bloom collapses, revealing the new picture.',
+    autoEase: { easeIn: 'back.out(1.4)', easeOut: 'power3.in' },
+    emit: (cfg) => `${MARK_OPEN}
+// Preset: Iris — the covering surfaces BLOOM from the centre, largest last, until the frame
+// is hidden; the mark lands over the cover. The out collapses the bloom to nothing. Unlike a
+// wipe, an iris MAY retrace its path: the cut happened under full cover, so the collapse
+// reveals the new program, not the picture it hid. The overshoot ease is safe here because a
+// covering disc that overshoots scale 1 covers MORE than the frame, never less.
+// NOTE for designs on this preset: every .transition-panel must be a centre-anchored surface
+// large enough to cover the frame diagonal at scale 1 (a 2400px disc at 1080p).
+${knobs(cfg)}
+
+// buildInTimeline(): cover the frame. The settled pose is FULL COVER — this is the cut point.
+function buildInTimeline() {
+  var tl = gsap.timeline({ defaults: { ease: easeIn } });
+  tl.set('.transition', { opacity: 1 });               // reveal the (CSS-hidden) graphic
+  tl.fromTo('.transition-panel',
+    { scale: 0 },                                      // gathered at the centre point…
+    { scale: 1, duration: 0.55 / animSpeed, stagger: 0.07 / animSpeed }  // …bloomed to cover
+  );
+  tl.fromTo('.transition-mark',
+    { scale: 0.9, opacity: 0 },
+    { scale: 1, opacity: 1, duration: 0.3 / animSpeed },
+    '-=0.2'                                            // the mark lands as the bloom settles
+  );
+  return tl;
+}
+
+// buildOutTimeline(): clear the frame — the bloom collapses onto the new picture.
+function buildOutTimeline() {
+  var tl = gsap.timeline({ defaults: { ease: easeOut } });
+  tl.to('.transition-mark', { scale: 0.94, opacity: 0, duration: 0.16 / animSpeed });
+  tl.to('.transition-panel',
+    { scale: 0, duration: 0.42 / animSpeed, stagger: 0.06 / animSpeed },
+    '-=0.08'
+  );
+  tl.set('.transition', { opacity: 0 });               // fully hidden; ready to play again
+  tl.call(resetTransitionPanels);                         // reset while the root is hidden
+  return tl;
+}
+${MARK_CLOSE}`,
+  },
+
+  {
+    id: 'transition-spin' as AnimPresetId,
+    name: 'Spin',
+    description: 'In: the cover rotates up to full size over the frame. Out: it spins on the same way, shrinking to nothing.',
+    autoEase: { easeIn: 'power4.out', easeOut: 'power3.in' },
+    emit: (cfg) => `${MARK_OPEN}
+// Preset: Spin — the covering surfaces rotate in while growing to full cover, hold, then spin
+// ON in the same direction while shrinking away. One rotational direction throughout, the
+// spin's version of "a wipe never comes back the way it arrived".
+// NOTE for designs on this preset: a rotated rectangle uncovers its corners, so every
+// .transition-panel on this preset must be radially symmetric and centre-anchored, large
+// enough to cover the frame diagonal (a 2400px disc at 1080p).
+${knobs(cfg)}
+
+// buildInTimeline(): cover the frame. The settled pose is FULL COVER — this is the cut point.
+function buildInTimeline() {
+  var tl = gsap.timeline({ defaults: { ease: easeIn } });
+  tl.set('.transition', { opacity: 1 });               // reveal the (CSS-hidden) graphic
+  tl.fromTo('.transition-panel',
+    { rotation: -120, scale: 0.2 },                    // wound back and gathered small…
+    { rotation: 0, scale: 1, duration: 0.6 / animSpeed, stagger: 0.05 / animSpeed }
+  );
+  tl.fromTo('.transition-mark',
+    { scale: 1.1, opacity: 0 },
+    { scale: 1, opacity: 1, duration: 0.28 / animSpeed },
+    '-=0.2'                                            // the mark snaps on over the cover
+  );
+  return tl;
+}
+
+// buildOutTimeline(): clear the frame — the rotor spins on, shrinking onto the new picture.
+function buildOutTimeline() {
+  var tl = gsap.timeline({ defaults: { ease: easeOut } });
+  tl.to('.transition-mark', { scale: 0.94, opacity: 0, duration: 0.16 / animSpeed });
+  tl.to('.transition-panel',
+    { rotation: 120, scale: 0, duration: 0.46 / animSpeed, stagger: 0.05 / animSpeed },
+    '-=0.08'
+  );
+  tl.set('.transition', { opacity: 0 });               // fully hidden; ready to play again
+  tl.call(resetTransitionPanels);                         // reset while the root is hidden
+  return tl;
+}
+${MARK_CLOSE}`,
+  },
 ];
 
 export function transitionPresetById(id: AnimPresetId): AnimPreset {
