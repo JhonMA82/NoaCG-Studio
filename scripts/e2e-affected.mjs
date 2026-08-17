@@ -88,6 +88,9 @@ const MAP = [
   // what the dev server can reach, and nothing else here would notice.
   [/^api\/(ai\/|_lib\/ai)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-tiers.spec.ts', 'ai-more-control.spec.ts', 'ai-dev-routes.spec.ts', 'video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts']],
   [/^api\//, ['render.spec.ts', 'render-schedule.spec.ts']],
+  // The Production Data API (docs/DATA_API.md): the routed function, its logic module, and
+  // the dev middleware that makes the route exist locally at all.
+  [/^(api\/data\/|api\/_lib\/dataIngest|scripts\/dataDevPlugin)/, ['data-api.spec.ts']],
   // The dev server's own route RESOLVER. ai-dev-routes.spec.ts drives the real middleware instead
   // of mocking it, which is the only thing that can prove a route is reachable at all - every
   // other AI spec mocks at the network level, which is why an allowlist hid three surfaces.
@@ -313,7 +316,7 @@ const CORE = [
 // 2026-08-07: `nightly.yml` was the unmapped file that turned a two-line gate addition into a
 // 759-spec run.
 const SUITE_CRITICAL_SCRIPTS =
-  'renderDevPlugin|aiDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
+  'renderDevPlugin|aiDevPlugin|dataDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
 const IGNORE = [/^docs\//, /\.md$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
