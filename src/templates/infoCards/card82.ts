@@ -82,7 +82,18 @@ ${maskLines([maskLine('info-card', o, 2, 'info-card-detail', '        ')])}
 
 /* The index - an outlined figure at the height of the block. Drawn, not read: the stroke is
    what keeps a 168px numeral from outranking the topic beside it. */
-.info-card-index {
+.info-card-mask > .info-card-index {
+  /* The index is an ATOMIC TOKEN - a chapter number, not a line of copy - so it is bounded by
+     the catalog's clip rule (src/templates/AGENTS.md): the cap, the nowrap and the ellipsis all
+     sit on the SPAN, because overflow: hidden on the mask around it clips the PAINT and
+     leaves the layout box its full width, which is what lets a long value reach the words.
+     The CHILD selector and the text-wrap longhand are both load-bearing: the assembler's
+     .info-card-mask > span { text-wrap: balance } outranks a plain white-space: nowrap. */
+  max-width: calc(300px * var(--scale));  /* a marker's whole budget - past this it ellipsises */
+  white-space: nowrap;  /* one line (the shorthand, for older engines) */
+  text-wrap: nowrap;  /* one line - the longhand that actually beats the category's balance */
+  overflow: hidden;  /* with the two rules around it, this is what makes the ellipsis appear */
+  text-overflow: ellipsis;  /* an over-long index is cut honestly rather than pushing the bill */
   font-size: calc(168px * var(--scale) * var(--type-scale));  /* poster scale - the marker IS the composition */
   font-weight: 700;  /* a heavy stroke, since the fill is taken away */
   line-height: 0.82;  /* the figure sits tight against its own cap height */

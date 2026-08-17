@@ -157,6 +157,13 @@ export const ss18: TemplateVariant = defineStartingSoonVariant(
 
 /* The programme title - the display serif, set rather than announced. */
 .starting-soon-title {
+  /* The sheet is a FIXED width, so its lines have to be told to stay inside it. An
+     inline-block takes its max-content width unless something caps it, and the category's
+     overflow-wrap: break-word only breaks once the box is constrained - so without this the
+     title simply runs out over the countdown column instead of wrapping. Every other holding
+     screen escapes it by being width: fit-content, where the box grows to the words. */
+  display: inline-block;  /* so the cap below applies to the line itself */
+  max-width: 100%;  /* the page column's own measure, whatever the sheet has settled at */
   font-size: calc(112px * var(--scale) * var(--type-scale));  /* full-frame display scale */
   font-weight: 400;  /* THE page weight - see the note under the sheet rule: this design has one */
   line-height: 1.02;  /* big serif type sits tight */
@@ -166,7 +173,7 @@ export const ss18: TemplateVariant = defineStartingSoonVariant(
 /* The note - one sentence at a comfortable reading measure. */
 .starting-soon-note {
   display: inline-block;  /* so the measure below applies to the line itself */
-  max-width: calc(620px * var(--scale));  /* holds the note to a readable row length */
+  max-width: min(calc(620px * var(--scale)), 100%);  /* a readable row length, never wider than the sheet */
   margin-top: calc(22px * var(--scale));  /* separates the note from the title above it */
   font-size: calc(30px * var(--scale) * var(--type-scale));  /* reading size, comfortably above the floor */
   font-weight: 400;  /* the page weight, unchanged: hierarchy here is size, not weight */

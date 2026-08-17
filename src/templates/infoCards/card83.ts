@@ -106,6 +106,13 @@ ${maskLines([
    read bottom-to-top, which is the direction a printed spine is set in. */
 .info-card-mask > .info-card-spine {
   display: block;  /* a rotated line needs a block box to take a height */
+  /* A vertical line is bounded along the BLOCK axis, so the clip rule's cap is a max-HEIGHT
+     here. Without it a long subtitle sets the card's height, which is the one thing a spine
+     label must never do. */
+  max-height: calc(640px * var(--scale));  /* the spine's whole budget - past this it is cut */
+  white-space: nowrap;  /* the spine is one line down the edge */
+  text-wrap: nowrap;  /* the longhand that actually beats the category's balance */
+  overflow: hidden;  /* an over-long subtitle is cut rather than stretching the card */
   writing-mode: vertical-rl;  /* the line is set down the edge rather than across the card */
   transform: rotate(180deg);  /* so it reads bottom-to-top, the way a spine is printed */
   font-size: calc(24px * var(--scale) * var(--type-scale));  /* label scale, above the broadcast floor */
@@ -124,9 +131,20 @@ ${maskLines([
 }
 
 /* The three words. Different sizes, one baseline grid, no space between them. */
-.info-card-word-a,
-.info-card-word-b,
-.info-card-word-c {
+.info-card-mask > .info-card-word-a,
+.info-card-mask > .info-card-word-b,
+.info-card-mask > .info-card-word-c {
+  /* Each word is an ATOMIC TOKEN, and the catalog's clip rule (src/templates/AGENTS.md) is what
+     bounds one: cap, nowrap and ellipsis all on the SPAN. It matters more here than anywhere -
+     the design's whole premise is ONE word per field, so a value long enough to wrap would
+     stack the block past the frame rather than making a bigger poster. The CHILD selector
+     and the text-wrap longhand are both load-bearing: the assembler's
+     .info-card-mask > span { text-wrap: balance } outranks a plain white-space: nowrap. */
+  max-width: 100%;  /* the stack's own column, whatever the box has settled at */
+  white-space: nowrap;  /* one line (the shorthand, for older engines) */
+  text-wrap: nowrap;  /* one line - the longhand that actually beats the category's balance */
+  overflow: hidden;  /* with the two rules around it, this is what makes the ellipsis appear */
+  text-overflow: ellipsis;  /* an over-long word is cut honestly rather than growing the block */
   line-height: 0.86;  /* the words lock together as one block, not as three rows */
   letter-spacing: -0.02em;  /* poster-scale type closes up */
   text-transform: uppercase;  /* the opener is set in caps whatever the operator types */
