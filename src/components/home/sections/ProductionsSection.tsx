@@ -1,10 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createShow, deleteShow, type Show } from '../../../model/shows';
 import { outputPageUrl } from '../../../control/hostedControl';
+import { installPack, parsePack } from '../../../packs/graphicsPack';
+import { trackEvent } from '../../../backend/events';
 import { copyLink } from '../copyLink';
 import ProductionExportDialog from '../ProductionExportDialog';
 import GraphicThumb from '../GraphicThumb';
-import { IconDownload, IconLink, IconTrash, IconTv } from '../../icons';
+import { IconDownload, IconLink, IconTrash, IconTv, IconUpload } from '../../icons';
+
+/** One entry of `/packs/index.json` — the packs this build ships ready to install. */
+interface BuiltInPack {
+  file: string;
+  name: string;
+  description: string;
+}
 
 /**
  * The Productions section — Home's LEAD (docs/GOALS.md "Student release" step 8): a production
@@ -30,6 +39,11 @@ export default function ProductionsSection({
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [exportShow, setExportShow] = useState<Show | null>(null);
+  // The pack door's state: which pack is installing, the outcome line, the shipped list.
+  const [packBusy, setPackBusy] = useState<string | null>(null);
+  const [packNote, setPackNote] = useState<string | null>(null);
+  const [builtIn, setBuiltIn] = useState<BuiltInPack[]>([]);
+  const packInput = useRef<HTMLInputElement>(null);
   const shown = limit ? productions.slice(0, limit) : productions;
   const create = () => {
     const next = createShow(newName);
@@ -37,6 +51,65 @@ export default function ProductionsSection({
     onChanged();
     const made = next[next.length - 1];
     if (made) onOpen(made);
+  };
+
+  // The packs this build ships (public/packs/index.json). Dashboard mode (`limit`) hides the
+  // import card, so only the full section pays for the fetch; a build with no packs, or a
+  // fetch that fails, degrades to the file door alone.
+  useEffect(() => {
+    if (limit) return;
+    let stale = false;
+    void fetch('/packs/index.json')
+      .then((r) => (r.ok ? (r.json() as Promise<unknown>) : []))
+      .then((list) => {
+        if (stale || !Array.isArray(list)) return;
+        setBuiltIn(
+          list.filter(
+            (p): p is BuiltInPack =>
+              typeof p === 'object' && p !== null &&
+              typeof (p as BuiltInPack).file === 'string' &&
+              typeof (p as BuiltInPack).name === 'string',
+          ),
+        );
+      })
+      .catch(() => undefined);
+    return () => { stale = true; };
+  }, [limit]);
+
+  /** Parse, validate and install one pack's text; land on the new production's dashboard. */
+  const importPackText = async (label: string, text: string) => {
+    setPackBusy(label);
+    setPackNote(null);
+    try {
+      const { pack, error } = parsePack(text);
+      if (!pack) throw new Error(error ?? 'That file is not a NoaCG graphics pack.');
+      const show = await installPack(pack);
+      trackEvent('activation', 'pack');
+      onChanged();
+      onOpen(show);
+    } catch (error) {
+      setPackNote(error instanceof Error ? error.message : String(error));
+    } finally {
+      setPackBusy(null);
+    }
+  };
+
+  const importPackFile = async (file: File | undefined) => {
+    if (!file) return;
+    await importPackText(file.name, await file.text());
+  };
+
+  const installBuiltIn = async (pack: BuiltInPack) => {
+    setPackBusy(pack.file);
+    setPackNote(null);
+    try {
+      const response = await fetch(`/packs/${pack.file}`);
+      if (!response.ok) throw new Error('The pack could not be loaded.');
+      await importPackText(pack.file, await response.text());
+    } catch (error) {
+      setPackNote(error instanceof Error ? error.message : String(error));
+      setPackBusy(null);
+    }
   };
   return (
     <>
@@ -165,6 +238,60 @@ export default function ProductionsSection({
             ＋ Create
           </button>
         </div>
+        {/* The pack door — a finished multi-graphic package installs as a ready production
+            (src/packs/graphicsPack.ts). Dashboard mode hides it; the full section is where a
+            production is set up. Shipped packs list first; any downloaded pack file imports
+            through the same parser. */}
+        {!limit && (
+          <div className="prod-card prod-card-new" data-testid="import-pack-card">
+            <strong>Import a package</strong>
+            <p className="prod-card-stats">
+              A finished graphics package — installs as a production with its cue rundown and
+              layers ready to operate.
+            </p>
+            {builtIn.map((pack) => (
+              <div className="pack-row" key={pack.file}>
+                <div className="lib-info">
+                  <strong>{pack.name}</strong>
+                  {pack.description && <span className="muted">{pack.description}</span>}
+                </div>
+                <button
+                  className="primary"
+                  disabled={packBusy !== null}
+                  onClick={() => void installBuiltIn(pack)}
+                  data-testid={`install-pack-${pack.file}`}
+                >
+                  {packBusy === pack.file ? 'Installing…' : 'Install'}
+                </button>
+                <a
+                  href={`/packs/${pack.file}`}
+                  download={pack.file}
+                  title={`Download ${pack.name} as a shareable pack file`}
+                  aria-label={`Download ${pack.name}`}
+                >
+                  <IconDownload />
+                </a>
+              </div>
+            ))}
+            <div className="spacer" />
+            <input
+              ref={packInput}
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={(e) => { void importPackFile(e.target.files?.[0]); e.target.value = ''; }}
+              data-testid="import-pack-file"
+            />
+            <button
+              disabled={packBusy !== null}
+              onClick={() => packInput.current?.click()}
+              title="Import a downloaded .noacgpack.json file"
+            >
+              <IconUpload /> Import a pack file…
+            </button>
+            {packNote && <p className="status-bad">{packNote}</p>}
+          </div>
+        )}
       </div>
       {exportShow && <ProductionExportDialog show={exportShow} onClose={() => setExportShow(null)} />}
     </>

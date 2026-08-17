@@ -67,9 +67,13 @@ export function requireAllowedRoute(route, { flag, reason, source }) {
     console.error(`${named} must be <provider>:<model> (got ${JSON.stringify(route ?? null)}).`);
     process.exit(1);
   }
-  if (parsed.provider === GATEWAY_PROVIDER) return { ...parsed, frontierReason: null };
-
+  // A gateway route needs no reason - but one the operator STATES anyway is recorded rather
+  // than dropped: a $25/M model routed through the gateway passes on transport alone, and the
+  // round should still say why it was paid for (the claude-opus-5 precedent, 2026-08-17).
   const stated = String(reason ?? '').trim();
+  if (parsed.provider === GATEWAY_PROVIDER) {
+    return { ...parsed, frontierReason: stated.length ? stated : null };
+  }
   if (stated.length < 10) {
     console.error(`\nREFUSED: ${named} = ${route} is not a ${GATEWAY_PROVIDER} gateway route.`);
     console.error('Harness runs use the gateway (open-weight or cheap models). A direct');

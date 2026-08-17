@@ -97,7 +97,12 @@ export interface SpikeRunResult {
    *  the bundled path, and whether the model broke the no-src contract. */
   fill?: BrandFillReport;
   costUsd: number;
-  usage: { input: number; output: number };
+  /** `reasoning` is the slice of `output` the model spent THINKING, when the provider reports
+   *  it separately (the same carry `pro/language/generate.ts` records). A free-form emit is
+   *  ~12k tokens of code, and a reasoning checkpoint can spend multiples of that before the
+   *  first code token - billed at the completion rate. A round comparing checkpoints on cost
+   *  alone cannot see which one it is without this. */
+  usage: { input: number; output: number; reasoning: number };
   model: string;
 }
 
@@ -189,10 +194,11 @@ export async function runSpikeBrief(options: SpikeRunOptions): Promise<SpikeRunR
   // Provider-reported where the gateway reports it, operator-priced otherwise; an
   // unreported cost counts as zero, which is the same honest limit the Pro ceiling carries.
   let costUsd = 0;
-  const usage = { input: 0, output: 0 };
+  const usage = { input: 0, output: 0, reasoning: 0 };
   const account = (u: ModelUsage | undefined) => {
     usage.input += u?.inputTokens ?? 0;
     usage.output += u?.outputTokens ?? 0;
+    usage.reasoning += u?.reasoningTokens ?? 0;
     costUsd += u?.estimatedCost?.amount ?? 0;
   };
   account(first.usage);

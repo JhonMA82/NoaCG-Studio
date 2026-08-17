@@ -284,6 +284,14 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   // The nine candidate fields, then the board's own two headings (its title and the status
   // flag beside it) — both operator fields, so the same board serves any count night.
   ig07: { category: 'poll-quiz', subtype: 'vote', structures: ['bars', 'rows'], positionalSemantics: ['name', 'organization', 'percentage', 'name', 'organization', 'percentage', 'name', 'organization', 'percentage', 'headline', 'topic'], extraCapabilities: ['poll-states'] },
+  // The ELECTION NIGHT mini-pack (ig34-ig36). They file under three different categories on
+  // purpose: a seat board IS a results board, a majority meter is a progress graphic that
+  // happens to be about seats, and a turnout dial is a statistic. An operator on a count night
+  // reaches for each of them by that word, not by "election" - and the programme format
+  // ('election-night') is what actually gathers them, which is ranking, not filing.
+  ig34: { category: 'results', subtype: 'seat-count', structures: ['bars', 'rows'], positionalSemantics: ['items', 'organization', 'topic', 'topic'], extraCapabilities: ['repeating'] },
+  ig35: { category: 'progress', subtype: 'progress-bar', structures: ['bars', 'single-line'], positionalSemantics: ['score', 'score', 'score', 'organization'], extraCapabilities: ['progress'] },
+  ig36: { category: 'stats', subtype: 'stat-panel', structures: ['single-line'], positionalSemantics: ['percentage', 'headline', 'percentage', 'topic'] },
   // info-card split (§4): card04 turned out to be a QUOTE card (Quote + Name + Role) — the
   // quote category's first catalog content, found by the factory's schema-length assertion.
   card04: { category: 'quote', subtype: 'quote', structures: ['multi-line', 'name-role'], positionalSemantics: ['description', 'name', 'role'] },
