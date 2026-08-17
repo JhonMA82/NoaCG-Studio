@@ -12,6 +12,37 @@ For each: does the palette read at broadcast distance? does the type carry a del
 hierarchy? do the accent and shape language look decided or defaulted? does the stress frame
 still hold together?
 
+---
+
+## THE OWNER'S BLIND READ - 2026-08-17, written before the reveal
+
+> "I think they all look good, no big problems! I like it!"
+
+**A whole-set pass on all 36 items, with no defect named on any of them and no item singled
+out.** That covers both rounds - the owner did not know which was which, and the verdict does
+not divide.
+
+**What it settles.** No layout, palette, type or motion failure was named on either checkpoint's
+output. For the 2026-08-16 round that repeats its own accepted read of 2026-08-16 (§17.4), which
+is worth having: the same set, recomposed through a composer that has changed since, still reads
+as accepted. For the 3.7-flash round it is the first read of any kind, and it names nothing
+either.
+
+**What it does NOT settle, and this is the part to keep.** A per-item read cannot see a
+BETWEEN-item property, and the whole machine difference between these two rounds is one:
+3.7-flash answered `solid` on 17 of 18 panels against 12 of 18, and its accents sit 0.196 apart
+in OKLab against 0.282 (`round-2026-08-17/language-diff.md`). Every one of those graphics can be
+good on its own page and the ROUND still be narrower than the one beside it. Sameness is
+invisible when the items are judged one at a time - that is exactly why Lite's open problem was
+found by a matrix and not by a gallery. **The question "is the narrower vocabulary a problem?"
+is still open, and this read did not ask it.**
+
+The set gallery is the surface that asks it (`round-2026-08-17/set-gallery.html`, one language
+per row); a checkpoint comparison would need the two rounds' rows side by side, which nothing
+here builds yet.
+
+---
+
 ## X-24
 
 - palette reads:

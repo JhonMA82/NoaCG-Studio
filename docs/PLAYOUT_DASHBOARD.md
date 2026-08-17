@@ -182,9 +182,13 @@ Three derivation rules, all template-driven (no category is ever consulted):
 **All three deployments carry it** — `ProductionPage`, `HostedControlPage` (the cloud-first
 surface a class drives from a phone) and the EXPORTED production controller, the fallback a show
 drops to when the network dies. The exported page has no separate block: it is a third renderer
-under the one-control doctrine, so its number field's own −/+ pair wears both meanings, decided
-at press time — off air it stages like a typed value, on air it is the bump. Same partial, same
-exclusion, same "only while the edited cue is the one on air".
+under the one-control doctrine, so its number field's own −/+ pair IS the block — same partial,
+same exclusion, and the same "only while the edited cue is the one on air", greying off air with
+"This cue is not on air — Take it first" and carrying the *act on air* mark beside the field's
+name. It briefly staged off air instead, which is the one thing this control must never do: a
+second meaning with no feedback at all, where the figure moved on screen and nothing said it had
+not aired. An excluded (⚡ payload) field's pair is never greyed — it stages at all times, and
+greying it would strand the only stepper that field has.
 
 Two things follow from that on the exported page, and both were wrong before it carried the
 rule: EDITING A FIELD STAGES (it used to push the whole value set on every keystroke of a live
