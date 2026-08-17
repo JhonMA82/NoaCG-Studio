@@ -602,8 +602,8 @@ assembler calls after every update(). **Nothing about the list is ever expressed
 fields**: a template does not grow `f7`…`f26` because a weekend has twenty fixtures. The SPX
 definition stays small (so a control page shows one multi-line editor, and adding a substitute
 is typing a line), the motion is MEASURED from the rendered rows, and the rebuild is per TYPE
-rather than per design. `dataRuntimes.ts` holds the agenda and poll shapes;
-**sportsRuntimes.ts** holds the sports pack's fixtures shape. Both escape operator text before
+rather than per design. `dataRuntimes.ts` holds the agenda, poll, goal, milestone and ELECTION
+shapes; **sportsRuntimes.ts** holds the sports pack's fixtures shape. Both escape operator text before
 it reaches innerHTML and SKIP a malformed line rather than rendering an empty row, and both
 render into `#infographic-rows` with one direct child per item - exactly what `rows-cascade`
 measures.
@@ -681,7 +681,7 @@ measures.
   any `<div id="fN" style="…display: none">` in the emitted HTML. An `<img id="fN">` is the one
   exception and is excluded there: an empty image slot hides itself inline through
   `setFieldValue`, and `resetGraphicInline` restates that after clearing.
-- **infographics/** - ig01…ig25 (prefix 'infographic'; design owns fields + runtimeExtraJs) +
+- **infographics/** - ig01…ig36 (prefix 'infographic'; design owns fields + runtimeExtraJs) +
   igPresets (count-up / bars-grow / ring-fill / rows-cascade / **goal-ring** / **milestone-run**)
   + **igMotion.ts** + **dataRuntimes.ts** (the rebuilds several designs of a type share:
   schedule rows, bar rows, the GOAL meter in its two drawn shapes, the MILESTONE track).
@@ -699,6 +699,25 @@ measures.
   (real, editable keyframes) and NAMES the measured part. A count-up design may or may not pair a
   progress bar with its figure, so `PresetConfig.hasBars` tells the preset - without it a bar-less
   design (ig01) would carry a phantom timeline layer for an element it doesn't have.
+  **The ELECTION NIGHT mini-pack is ig34-ig36** (the catalog's first EDITORIAL infographics, all
+  siblings of lt25 "Masthead"): a seat board whose parties are one "Party | seats" textarea, a
+  coalition majority meter, and a turnout dial. Three rules they hold, each written into the
+  runtime that owns it (dataRuntimes.ts):
+  - **A seat board's bars are scaled against the BIGGEST PARTY, not the chamber.** Chamber-scaled
+    bars are stubs (76 of 200 is a 38% bar) and the party-against-party comparison the board
+    exists to make is exactly what the stubs stop showing. The scale is a DRAWING choice: the
+    figure at each tip is the seat count they typed, never a share.
+  - **The majority is a LINE ACROSS the track, not the track's end.** Running the meter to the
+    majority would draw a full bar the moment a government is formed and have nothing left to
+    say about the seats won past it, which on a count night is most of the story. That is why
+    `majorityMeterRuntimeJs` takes THREE numbers where the goal meter takes two.
+  - **The comparison figure is optional by construction.** Clear the turnout dial's hidden
+    previous-turnout source and the swing line empties, which `:empty` removes - a first
+    election costs the operator one deletion, not a different graphic.
+  The one that builds markup (ig34) escapes operator text at the data boundary like the rest of
+  the category; the two that only DERIVE text (ig35, ig36) write `textContent`, so their operator
+  text is inert by construction rather than by escaping - each says so in its own source, because
+  "no escaping here" has to read as a decision rather than as an omission.
 - **versus/** - vs01…vs02 (prefix 'versus', type 'fullscreen', SELF-ASSEMBLED like scoreboards;
   fixed field contract f0/f1 team names, f2 event line, f3/f4 logo filelists with visible
   placeholder marks; steps '1' - the sides are simultaneous) + vsPresets.ts (vs-slam /

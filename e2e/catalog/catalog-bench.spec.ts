@@ -35,22 +35,41 @@ const CATEGORIES = [
   'stream-notification',
 ] as const;
 
+// Slice budgets: a large category benches as SLICES[category] parallel test units (variant i
+// belongs to slice i % slices, so every variant is covered by construction). At ~1-1.5 s per
+// variant a single test's 120 s timeout caps a category near 80 designs - lower-third reached
+// 90 - and slicing turns growth into more parallel units instead of one longer test. Bump a
+// category's number when a slice nears ~40 variants; a category not named here runs whole.
+const SLICES: Partial<Record<(typeof CATEGORIES)[number], number>> = {
+  'lower-third': 4,
+  'info-card': 4,
+  'corner-bug': 2,
+  'infographic': 2,
+};
+
 test.describe('catalog calibration tripwire', () => {
   for (const category of CATEGORIES) {
-    test(`every ${category} variant passes the bench`, async ({ page }) => {
-      test.setTimeout(120_000);
-      await toApp(page);
-      const rows = await page.evaluate(`(async (category) => { ${HELPERS}
-        const { CATALOG } = await import('/src/templates/catalog.ts');
-        const out = [];
-        for (const v of CATALOG[category] || []) {
-          const res = await bench(v.create());
-          out.push({ id: v.id, ok: res.ok, errors: res.errors.map((e) => e.rule + ': ' + e.message) });
-        }
-        return out;
-      })(${JSON.stringify(category)})`);
-      const failed = (rows as { id: string; ok: boolean; errors: string[] }[]).filter((r) => !r.ok);
-      expect(failed, JSON.stringify(failed, null, 2)).toEqual([]);
-    });
+    const slices = SLICES[category] ?? 1;
+    for (let slice = 0; slice < slices; slice++) {
+      const label = slices === 1 ? category : `${category} slice ${slice + 1} of ${slices}`;
+      test(`every ${label} variant passes the bench`, async ({ page }) => {
+        test.setTimeout(120_000);
+        await toApp(page);
+        const rows = await page.evaluate(`(async (category, slice, slices) => { ${HELPERS}
+          const { CATALOG } = await import('/src/templates/catalog.ts');
+          const out = [];
+          const all = CATALOG[category] || [];
+          for (let i = 0; i < all.length; i++) {
+            if (i % slices !== slice) continue;
+            const v = all[i];
+            const res = await bench(v.create());
+            out.push({ id: v.id, ok: res.ok, errors: res.errors.map((e) => e.rule + ': ' + e.message) });
+          }
+          return out;
+        })(${JSON.stringify(category)}, ${slice}, ${slices})`);
+        const failed = (rows as { id: string; ok: boolean; errors: string[] }[]).filter((r) => !r.ok);
+        expect(failed, JSON.stringify(failed, null, 2)).toEqual([]);
+      });
+    }
   }
 });

@@ -34,10 +34,30 @@
  * `pro-spike` are one rig: the Pro spike runner and the calibration sweeps that read its
  * thresholds off the catalog. `[\w-]*spike[\w-]*` is deliberately the same shape as the `*bench*`
  * entry beside it, so a NEW spike script is covered by being named like its siblings rather than
- * by somebody remembering this file.
+ * by somebody remembering this file. The price of a name-shaped rule is that it also catches
+ * things that merely SOUND like a job; `SERVER_SCRIPTS` below carves those back out.
  */
+/**
+ * The scripts whose names fall inside the families above and that are NOT browser work.
+ *
+ * A SERVER IS NOT A SWEEP. `dev-bench.mjs` is a Vite dev server with a crash log around it, and
+ * it stays up for as long as somebody is benching - hours. `bench-dispatcher.mjs` is a module
+ * that server preloads (`--import`), so it appears in the SAME process's command line and the
+ * detector counted one dev server twice. `ai-bench-server.mjs` restarts that server per
+ * candidate. None of the three opens a browser; what they cost is one Vite, which is what the
+ * sessions running beside them already pay.
+ *
+ * Measured 2026-08-17: a bench server left up in one worktree reported as two running sweeps and
+ * parked every other session's browser work for 55 minutes, with no finite job anywhere to wait
+ * for. Mutual exclusion has to be against jobs that END; a long-lived server in the list turns
+ * the guard from serialisation into a deadlock nobody can see the far end of.
+ */
+export const SERVER_SCRIPTS = 'dev-bench|bench-dispatcher|ai-bench-server';
+
 export const SWEEP_SCRIPTS =
-  'l3-sweep|type-floor|overflow-sweep|field-coverage|numerals|factory|catalog-geometry|acceptance-shots|render-smoke[\\w-]*|[\\w-]*bench[\\w-]*|[\\w-]*spike[\\w-]*';
+  'l3-sweep|type-floor|overflow-sweep|field-coverage|numerals|factory|catalog-geometry'
+  + `|acceptance-shots|render-smoke[\\w-]*|(?!(?:${SERVER_SCRIPTS})\\.)[\\w-]*bench[\\w-]*`
+  + '|[\\w-]*spike[\\w-]*';
 
 /**
  * Drop every HERE-DOCUMENT body from a command line, leaving the command that opened it.

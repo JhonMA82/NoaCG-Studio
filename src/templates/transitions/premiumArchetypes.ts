@@ -13,7 +13,7 @@ import { attachMachine } from '../types/graphicType';
 import { transitionType } from '../types/transitions';
 import { defineTransitionVariant, type TransitionDesign } from './shared';
 
-interface ArchetypeSpec {
+export interface ArchetypeSpec {
   id: string;
   name: string;
   description: string;
@@ -25,7 +25,7 @@ interface ArchetypeSpec {
   design: (o: ResolvedOptions) => TransitionDesign;
 }
 
-function panelBase(background: string): string {
+export function panelBase(background: string): string {
   return `/* Opaque over-cover: the extra two percent protects every corner during motion. */
 .transition-panel {
   inset: 0;
@@ -60,7 +60,7 @@ function panelBase(background: string): string {
 .transition-label:empty { display: none; }`;
 }
 
-function archetype(spec: ArchetypeSpec): TemplateVariant {
+export function archetype(spec: ArchetypeSpec): TemplateVariant {
   const base = defineTransitionVariant(
     {
       id: spec.id,

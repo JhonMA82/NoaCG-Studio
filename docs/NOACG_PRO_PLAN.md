@@ -2644,6 +2644,141 @@ Two consecutive runs of the same code disagreeing is what settles it as run-to-r
 rather than the composer moving. `results.json` was byte-identical across all three runs, so no
 cell's `recomposedAdjustments` moved and §17.11's "recomposed byte-for-byte in their adjustments"
 - a claim about the LEDGER - still holds. **The mechanism is not diagnosed and is deliberately
-not guessed at here.** The rule it buys: *a recomposed frame diff is not evidence the composer
+not guessed at here** - §20 is that diagnosis, measured the next day, and the frames named here
+are the three it fixes. The rule it buys: *a recomposed frame diff is not evidence the composer
 changed until the recompose has been run twice.* The committed frames were restored rather than
-churned, since neither version is more correct than the other.
+churned, since neither version is more correct than the other - which is what §20.3 revisits, once
+one of the two versions had become the reproducible one.
+
+## 20. Why a recomposed frame moved without the composer moving - 2026-08-17
+
+`--recompose` rebuilds a finished round from each generation's saved `language.json` through
+today's composer (§17.11), and the whole reason that is cheap evidence is the claim underneath it:
+**the language is the artefact the money bought, and everything after it is deterministic.** A
+frame that comes back different twice makes that a claim rather than a fact, and three frames did
+- recomposing the 2026-08-16 round moved 3 of its 36 against the committed ones, and running the
+identical command again moved them again.
+
+### 20.1 The bisect: everything the platform decides was byte-identical
+
+Five runs of the five kestrel cells (ten frames), hashing each stage:
+
+| stage | across 5 runs |
+| --- | --- |
+| `language.json` | identical (it is read off disk) |
+| `composeFromLanguage` html + css + js | **identical** |
+| `composeDocument` srcdoc | **identical** |
+| `result.adjustments` (the ledger row) | **identical** |
+| every element's rect to 4dp + 19 paint-relevant computed styles | **identical** |
+| the captured PNG | **3 of 10 moved; one cell produced 5 distinct files in 5 runs** |
+
+So the composer is exonerated by measurement, not by argument, and the ledger claim §17.11 makes
+("recomposed byte-for-byte in their adjustments") is confirmed a second time. The differences sit
+only on **glyph and panel edges**, with the three colour channels moving together - the shape of
+one raster of the same content against another, not of a layout that moved.
+
+Four plausible causes were tested and are NOT it: Anton is a single-weight face asked for at
+`font-weight: 700`, so every kestrel cell renders **synthetic bold** - forcing weight 400, and
+separately `font-synthesis: none`, changed nothing; `--disable-gpu` changed nothing;
+`--disable-lcd-text` changed nothing; a fresh page per shot rather than a reused one changed
+nothing. Two consecutive shots 1.5 s apart **inside one page load are always identical**, with
+GSAP's global timeline holding zero live tweens - so it is not an unsettled animation either.
+
+### 20.2 What it is: a texture rasterised mid-entrance and never redrawn
+
+`.lower-third-box` carries `will-change: transform, opacity`, so Chromium promotes it to its own
+compositing layer for the life of the page. The entrance moves that layer. Chromium rasterises the
+layer's texture **while it is moving**, and because the hint says more transforms are coming it
+does not re-rasterise once the tween settles. The frame we keep is therefore a texture rastered at
+whatever sub-pixel phase of the ~0.5 s entrance the last raster happened to catch, composited at
+the settled transform - which is why the variation is continuous (5 runs, 5 files) rather than a
+flip between two states, and why it is stable within a load.
+
+Two independent interventions confirm it, and they agree **byte for byte**:
+
+- **Drop the hint for one frame after the graphic has settled**, then restore it. That invalidates
+  the layer, so the settled content is rastered once at the offset it rests at.
+- **Fast-forward the entrance** (`gsap.globalTimeline.timeScale(1000)`), so the only raster that
+  ever happens is the settled one.
+
+Ten frames, five runs, byte-identical under either. The first is what ships in
+`rasterSettledFrame` - the second would also fast-forward a timer graphic's own clock.
+
+A third intervention stabilises the frames and is **wrong**: leaving the hint off through the shot.
+A still painted straight into the page instead of into a layer switches text to sub-pixel
+antialiasing, moving a glyph edge by up to **233/255** with the channels visibly disagreeing. That
+is a different picture, not a stabler one - which is the trap in "the frames stopped moving, so it
+must be fixed".
+
+### 20.3 Blast radius on the recompose evidence that already exists
+
+Two full `--recompose` runs of round-2026-08-16 are now byte-identical across all 36 frames, and
+`results.json` is byte-identical to the committed one. Against the **committed** frames:
+
+- **33 of 36 are byte-identical.** The fix costs nothing on evidence that never moved, which is
+  the property that makes it safe to apply to a round a human has already read.
+- **3 changed** - `sports-live.kestrel.hold`, `sports-live.kestrel.stress`,
+  `long-name.kestrel.hold`, exactly the three that were never reproducible. Each moves 0.17-0.45%
+  of pixels at max channel delta 59-91, the same band the run-to-run noise occupied, so no design
+  ruling in §17 or the blind reads is disturbed. They are committed rather than restored this
+  time: one of the two versions is now reproducible and the other was one draw from a continuum.
+
+The rule §17.11 bought stays worth keeping - *a recomposed frame diff is not evidence the composer
+changed until the recompose has been run twice* - but the reason has changed. It is no longer an
+undiagnosed wobble; it is a promoted layer, and a run that still disagrees with itself now means
+something new is wrong.
+
+### 20.4 The product question this leaves open
+
+Nothing above is specific to Pro. `will-change` is declared in CSS **permanently** on this box
+and on animated elements throughout the catalog, and permanently-promoted layers are exactly what
+the property's own guidance warns against. If Chromium keeps a mid-entrance texture for a
+recomposed still, it keeps one **on air** too: the settled graphic goes on showing the softer
+raster until something else invalidates the layer. That is a catalog-wide motion-CSS question -
+whether the hint should be dropped when the entrance completes - and it is not answered here,
+because measuring it belongs on a rendered graphic in playout, not on a screenshot runner.
+
+### 20.5 The control run had the same defect, and now it is fixed
+
+`captureHold` - the free `--control` run's capture, and the reference every paid round is judged
+against - mounts, plays and settles exactly the way the recompose did, so it was measured the same
+way, and it failed the same way: **two runs of the identical command disagreed on 7 hold frames.**
+Three were named as the promoted-layer raster (`anchor-adapt-1.hold`, `anchor-adapt-1.stress.hold`,
+`language-volt-matchday.hold`); the other four were `language-countdown-*` and were written off as
+honest, on the reasoning that a live clock SHOULD differ between runs.
+
+`rasterSettledFrame`'s step now runs inside `captureHold` too, written out inline because the
+graphic lives in a same-origin srcdoc frame and there is no Playwright handle for that document,
+only `win` from the parent.
+
+**Measured 2026-08-17, four full `--control` runs into separate `--out` dirs on an otherwise idle
+machine (~8.5 min each, no skips, no errors):**
+
+| diff | identical | differ |
+| --- | --- | --- |
+| fixed run A vs fixed run B | 40 of 40 | **0** |
+| fixed run A vs fixed run C | 40 of 40 | **0** |
+| fixed run B vs fixed run C | 40 of 40 | **0** |
+| fixed run A vs an UNFIXED run | 28 of 40 | 12 |
+
+So the capture is reproducible across three runs spread over half an hour, and the fix is
+**narrow**: it leaves 28 of the 40 holds byte-for-byte as they were, which is the same result the
+recompose fix had - it costs nothing on evidence that never moved.
+
+**The hold set is 40 frames, not the 42 recorded above** - 20 briefs, each shot normal and stress.
+
+**And the four countdown frames were most likely never honest.** `src/templates/shared/clock.ts`
+anchors on `Date.now()` and repaints every 250 ms, so the digits are a function of time ELAPSED
+since `play()`, not of absolute wall time - and the hold is shot a fixed ~1.9 s after it, well
+inside one whole second, so the same digit is drawn every run. Before the fix, 4 of the 8
+`language-countdown-*` frames moved; after it, 0 of 8 move across three runs half an hour apart.
+Four of eight is what a shared defect looks like sampled twice, not what a clock looks like. The
+residual risk is real but different from the one recorded: if that ~1.9 s ever jittered across a
+whole second the digit WOULD change, so a byte diff over this set still has to read a countdown
+difference as inconclusive rather than as a regression.
+
+The guard that parks browser work also counted `scripts/dev-bench.mjs` as a running sweep, because
+`SWEEP_SCRIPTS` matched `[\w-]*bench[\w-]*` and that script is a long-lived dev SERVER, not a
+finite job - so did `bench-dispatcher.mjs`, the module that server preloads and which therefore
+shares its command line, which made one bench server report as two active jobs. Fixed first, as
+its own commit: `SERVER_SCRIPTS` carves the three server scripts back out of the alternation.

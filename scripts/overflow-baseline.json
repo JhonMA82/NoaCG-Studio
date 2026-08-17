@@ -1506,6 +1506,74 @@
    ".transition-mask:y"
   ]
  },
+ "tr11": {
+  "off": [
+   ".transition-panel:LTRB",
+   ".transition-panel:TB"
+  ],
+  "clip": [
+   ".transition-box:xy"
+  ]
+ },
+ "tr12": {
+  "off": [
+   ".transition-panel:LTRB",
+   ".transition-panel:LTRB",
+   "circle:LTRB",
+   "circle:TB",
+   "polygon:TB",
+   "svg:LTRB"
+  ],
+  "clip": [
+   ".transition-box:xy"
+  ]
+ },
+ "tr13": {
+  "off": [
+   ".bloom-pearl:T",
+   ".transition-panel:LTRB",
+   ".transition-panel:LTRB"
+  ],
+  "clip": [
+   ".transition-box:xy"
+  ]
+ },
+ "tr15": {
+  "off": [
+   ".transition-panel:LTB",
+   ".transition-panel:TB",
+   ".transition-panel:TB",
+   ".transition-panel:TRB",
+   ".transition-panel:TRB"
+  ],
+  "clip": [
+   ".transition-box:xy"
+  ]
+ },
+ "tr16": {
+  "off": [
+   ".transition-panel:LR"
+  ],
+  "clip": [
+   ".transition-box:x"
+  ]
+ },
+ "tr17": {
+  "off": [
+   ".transition-panel:LTRB"
+  ],
+  "clip": [
+   ".transition-box:xy"
+  ]
+ },
+ "tr18": {
+  "off": [
+   ".transition-panel:LTRB"
+  ],
+  "clip": [
+   ".transition-box:xy"
+  ]
+ },
  "es01": {
   "off": [],
   "clip": [

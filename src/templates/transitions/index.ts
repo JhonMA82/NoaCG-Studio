@@ -8,6 +8,7 @@ import { tr02 } from './tr02';
 import { tr03 } from './tr03';
 import { tr04 } from './tr04';
 import { premiumTransitionArchetypes } from './premiumArchetypes';
+import { stingerTransitionArchetypes } from './stingerArchetypes';
 
 export const TRANSITIONS: TemplateVariant[] = [
   tr03, // House Replay — noacg replay bumper, void bands + amber seam (sibling lt11 / lt12)
@@ -15,6 +16,7 @@ export const TRANSITIONS: TemplateVariant[] = [
   tr02, // Clean Wipe — minimal single band behind an accent edge (sibling lt01 / card07)
   tr04, // Frost Sweep — glass columns rising over the frame (sibling lt08 / card03)
   ...premiumTransitionArchetypes,
+  ...stingerTransitionArchetypes, // tr11–tr18: the mechanism round (iris, spin, shapes, flash)
 ];
 
 export function transitionById(id: string): TemplateVariant | undefined {
