@@ -36,7 +36,12 @@ export interface ReadabilityReport {
   readings: ReadabilityReading[];
 }
 
-const SIZE_FLOOR_PX = 22;
+/** CALIBRATED 2026-08-18 against shipped lower thirds (lt11 22px, lt27 20px, lt08 27px
+ *  supporting lines): the smallest supporting line the catalog ships is 20px, so a 22px floor
+ *  flagged a good design on its first run - exactly the false positive this floor must not
+ *  produce. 18px sits under the catalog with margin while the grey-on-grey mutation fixture
+ *  (14px) stays loud. */
+const SIZE_FLOOR_PX = 18;
 const CONTRAST_FLOOR = 3;
 
 function parseColor(value: string): { r: number; g: number; b: number; a: number } | null {

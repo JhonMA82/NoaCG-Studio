@@ -510,13 +510,17 @@ if (control) {
   // ── ONE KNOWN-GOOD CATALOG CELL PER NEW TYPE, through the EXTENDED capture: if step
   // capture or the field-paint validator misfires on a shipped scoreboard or quiz, the
   // harness is broken - fix it before paying (the Phase 0 lesson, standing).
+  // `skipPaint` mirrors the bank's own `paintExpected: false`: a catalog design's TRANSFORM
+  // fields (gt05's minutes become a clock, sb21's spotlight index drives a state) legitimately
+  // paint nothing verbatim, and a paid cell of that type never runs the raw one-state read on
+  // such a field either - the harness check must measure the same rule the round will.
   const TYPE_CELLS = [
     { type: 'scoreboard', variant: 'sb01' },
     { type: 'quiz-board', variant: 'qz01' },
     { type: 'ticker', variant: 'tk01' },
     { type: 'stat-panel', variant: 'ig01' },
-    { type: 'countdown', variant: 'gt05' },
-    { type: 'podium-score', variant: 'sb21' },
+    { type: 'countdown', variant: 'gt05', skipPaint: ['f1'] },
+    { type: 'podium-score', variant: 'sb21', skipPaint: ['f9'] },
   ];
   for (const cell of TYPE_CELLS) {
     const made = await page.evaluate(async ({ variantId }) => {
@@ -544,13 +548,16 @@ if (control) {
     );
     // The validator's field-paint read, exactly as a paid cell composes it (machine-aware:
     // unreachableFields walks a shipped type's explicit machine).
-    const paint = await page.evaluate(async ({ template }) => {
+    const paint = await page.evaluate(async ({ template, skipPaint }) => {
       const bust = '?t=' + Date.now();
       const { productionSpxValidator } = await import('/src/ai/litePipeline.ts' + bust);
       const validate = productionSpxValidator(null, [], { fieldPaints: true });
       const v = await validate(template);
-      return v.warnings.filter((w) => w.rule === 'bench-field-unpainted').map((w) => w.message.slice(0, 160));
-    }, { template: made.template });
+      return v.warnings
+        .filter((w) => w.rule === 'bench-field-unpainted')
+        .map((w) => w.message.slice(0, 160))
+        .filter((m) => !skipPaint.some((id) => m.includes(`(${id})`)));
+    }, { template: made.template, skipPaint: cell.skipPaint ?? [] });
     const loud = [
       ...(cap.playError ? [`play() threw: ${cap.playError}`] : []),
       ...cap.stepFindings.map((f) => `step: ${f}`),
