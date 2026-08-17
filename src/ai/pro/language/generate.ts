@@ -30,7 +30,12 @@ export interface GeneratedLanguage {
    *  is the normal case; a long one is a round measuring the fallback rather than the model. */
   fallbacks: string[];
   costUsd: number;
-  usage: { input: number; output: number };
+  /** `reasoning` is the slice of `output` the model spent THINKING, when the provider reports
+   *  it separately. Recorded because a checkpoint that thinks pays completion rates for tokens
+   *  nobody reads, and a round comparing two checkpoints on cost alone cannot see which one it
+   *  is - a design language is ~200 tokens of enum values, so a large reasoning share is the
+   *  whole difference between a cheap answer and a dear one. */
+  usage: { input: number; output: number; reasoning: number };
   model: string;
 }
 
@@ -73,7 +78,11 @@ export async function generateDesignLanguage(
       fallbacks: languageFallbacks(result.output, language),
       // An unreported cost counts as zero - the same honest limit the Pro ceiling carries.
       costUsd: result.usage.estimatedCost?.amount ?? 0,
-      usage: { input: result.usage.inputTokens ?? 0, output: result.usage.outputTokens ?? 0 },
+      usage: {
+        input: result.usage.inputTokens ?? 0,
+        output: result.usage.outputTokens ?? 0,
+        reasoning: result.usage.reasoningTokens ?? 0,
+      },
       model: result.model,
     };
   } catch (error) {
