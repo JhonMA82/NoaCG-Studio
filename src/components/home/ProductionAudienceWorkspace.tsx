@@ -422,16 +422,27 @@ export default function ProductionAudienceWorkspace({
       return null;
     };
     const BODY_TITLES = ['message', 'question', 'comment', 'body', 'text'] as const;
-    // THE POOL IS SEARCHED, not indexed. `graphics[0]` is the BACKMOST LAYER, which has
-    // nothing to do with where a viewer's words belong: a production carrying the news kit
-    // put every approved question into its TICKER, because the ticker happens to be the
-    // bottom of the stack, while the chat-highlight card built for exactly this sat unused
-    // two layers up. `stageTally` right above already searches the pool for a graphic whose
-    // fields fit; this is the same move, over the same by-the-words titles. The old index
-    // stays as the fallback, so a production with nothing titled for a message behaves
-    // exactly as it did and the note still says where the cue went.
+    // THE POOL IS SEARCHED, not indexed, AND THE TITLES RANK IT. `graphics[0]` is the
+    // BACKMOST LAYER, which has nothing to do with where a viewer's words belong: a
+    // production carrying the news kit put every approved question into its TICKER, because
+    // the ticker happens to be the bottom of the stack, while the chat-highlight card built
+    // for exactly this sat unused two layers up. `stageTally` right above already searches
+    // the pool for a graphic whose fields fit; this is the same move over the same
+    // by-the-words titles.
+    //
+    // A VOTE BOARD IS NOT WHERE A MESSAGE GOES, even though it answers to the same word. The
+    // audience cards title their body "Question" or "Comment", and a live-vote board titles
+    // ITS question "Question" too - so a plain title search hands every viewer message to the
+    // vote board whenever one was added to the production first. `pollFieldMap` is this
+    // module's own definition of "this graphic is a vote board" (stageTally aims AT it with
+    // the same function), so the message search steps around exactly that shape and needs no
+    // per-template knowledge of its own. A vote board still beats the blind index if it is
+    // the only thing in the pool that can hold text at all.
+    const messageTarget = (pool: typeof show.graphics) =>
+      pool.find((g) => titled(g.template.fields ?? [], ...BODY_TITLES) !== null);
     const target =
-      show.graphics.find((g) => titled(g.template.fields ?? [], ...BODY_TITLES) !== null) ??
+      messageTarget(show.graphics.filter((g) => pollFieldMap(g.template.fields ?? []) === null)) ??
+      messageTarget(show.graphics) ??
       show.graphics[0];
     if (!target) {
       setNote('This production has no graphics yet — add one, then send a question to it.');
