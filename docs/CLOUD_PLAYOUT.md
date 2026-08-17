@@ -332,7 +332,7 @@ except on air.
   always present and always coloured, because a mode you have to go looking for is a mode you can
   be wrong about.
 - **The rehearsal has its own live map.** A rehearsal must never make the page report something
-  about the real output, so the on-air marks, the layer chips and the verb legality all read
+  about the real output, so the on-air marks and the verb legality all read
   whichever map the current mode owns. Entering or leaving rehearsal builds a fresh stage with
   nothing up, and empties that map with it.
 - **The payload comes from the LOCAL show, not from what was published** — rehearsing is how you
@@ -476,10 +476,11 @@ last-known-good). Choose concrete providers only after licensing/cost review.
    field + Update (live text changes without replay), Next (state advances), Take cue 2 on
    the OTHER graphic — **both are now on air**, each on its own layer, cue 1 untouched — then
    Out on cue 2's layer (only that one exits) and All out (the frame clears).
-4b. **Layers**: with two graphics up that overlap on screen, reorder them on the production
-   page (↑/↓), re-publish, and reload the output — the one listed higher paints over the
-   other. Take a third cue on the SAME graphic as cue 1: it replaces cue 1 rather than
-   stacking, because a graphic is one layer and one renderer instance.
+4b. **Layers**: with two graphics up that overlap on screen, type a higher `Playout layer` for
+   one of them in the cue editor (docs/PLAYOUT_DASHBOARD.md §5 — the number, not an ordering
+   gesture), re-publish, and reload the output: the higher number paints over the other. Take a
+   third cue on the SAME graphic as cue 1: it replaces cue 1 rather than stacking, because a
+   graphic is one layer and one renderer instance.
 5. Kill the output tab, reload → it snaps back to the pre-kill on-air state (data, then
    snap). Kill the network briefly → commands sent meanwhile apply on reconnect, in order.
 6. Open `?control=<slug>` on a phone (signed out): cue strip + fields + verbs usable; a Take

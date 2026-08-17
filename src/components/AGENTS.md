@@ -454,7 +454,7 @@ e2e/layout.spec.ts.
 - **HostedControlPage** - the `?control=<slug>` operator page (routed in App.tsx like ?chat=).
   It renders **THE PLAYOUT DASHBOARD** (docs/PLAYOUT_DASHBOARD.md), the one design the in-app
   production page and the exported controller also render: PVW + PGM monitors, the verb bar,
-  the selected-cue editor, the cue rundown with layer badges, the layer chips. It was a FORM
+  the selected-cue editor, the cue rundown with its layer badges. It was a FORM
   before - no monitors at all, one tall card per graphic down a narrow column - so an operator
   could see neither what they were about to air nor what was on it, and a student who learned
   the exported controller could not operate this.

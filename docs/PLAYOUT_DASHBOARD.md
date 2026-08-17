@@ -47,8 +47,8 @@ Two columns, full height, nothing scrolls but the two lists.
 │  ┌ EDITING PREVIEW CUE · <name> ─── switch to on-air ▾┐ │                      │
 │  │ F0 · KICKER   F1 · TITLE   F2 · SUBTITLE           │ │                      │
 │  │ [⚡ event] [⚡ event]                                │ │                      │
-│  └────────────────────────────────────────────────────┘ ├── LAYERS ────────────┤
-│  ▸ ACTIVITY  20:14:02  ⟳ Take · Presenter strap         │ [L3 Ticker][L1 Strap]│
+│  └────────────────────────────────────────────────────┘ ├──────────────────────┤
+│  ▸ ACTIVITY  20:14:02  ⟳ Take · Presenter strap         │ [+ from library][+ …]│
 └─────────────────────────────────────────────────────────┴──────────────────────┘
 ```
 
@@ -104,6 +104,22 @@ and delete live behind the row's `⋯`, never as four permanent buttons that cru
 - **The cue's title is editable here**, in the operator surface — mislabelling "Guest lower
   third" as "Host lower third" is a live-show mistake and must be fixable without leaving.
 - Reorder is a DRAG, not arrow buttons.
+- **THE RUNDOWN IS THE ONLY LIST** of what a production holds (owner decision 2026-08-17, on the
+  layer list this replaced): every pool graphic is present in it, named and wearing its layer, so
+  nothing about the production hides in a second list. Two rules keep that true rather than
+  merely tidy, and both live in the row's `⋯`:
+  - **Removing a graphic's LAST cue removes the graphic** (`model/shows.ts` removeShowCue), and
+    the menu item says so before it is pressed. Otherwise a pool graphic with no cues appears
+    nowhere and still ships in the published payload, still loading as an iframe on its own layer
+    — an orphan the operator could neither see nor reach.
+  - **"Remove graphic and its N cues"** is the one gesture for taking a graphic out of the
+    production, offered only where it differs from the item above (2+ cues). Both removals take
+    the graphic OFF AIR first: the output page follows the log, not the payload, so a live pool
+    entry deleted from under it would keep rendering with nothing left able to stop it.
+  A removal that destroys typed content asks twice — the pictures graphic carries the uploads
+  themselves, so its wording names the count ("Also deletes 3 pictures — confirm?").
+- The rail's foot is how graphics GET IN: the library picker, `＋ New graphic for this
+  production…`, `＋ Add pictures…`. Nothing else belongs there.
 
 ## 5. Layers — an explicit number, not an ordering game
 
@@ -118,9 +134,19 @@ number; one that wants a particular stack just types it.
 This replaces derived-from-pool-order layers and the ↑/↓ reorder buttons, which made the layer
 an accident of ordering.
 
+**There is no layer LIST** (owner decision, 2026-08-17: *"you should just be able to change the
+layer from the actual options … that would free more space for our rundown"*). A panel in the
+rail's corner listed the same graphics the rundown already lists, to show a number the operator
+edits beside the graphic's content anyway — so the rundown gets that room. Each row wears its
+graphic's layer, and every job the list had is somewhere the operator was already looking:
+removal in the row's `⋯` (§4), what is up in the ON AIR tags and the header's `· N layers`, the
+paint order in the number itself.
+
 A duplicate can still be typed deliberately, so **the surface says when one exists** rather than
 letting it be discovered live: the editor flags it inline with a one-click move to the next free
-number, and the layer chip wears the warning colour.
+number, and **every rundown row on the shared number wears the warning colour**, naming its
+partner on hover. Both rows, not just the one being edited — the point is which two graphics are
+about to replace each other. All three surfaces mark it the same way.
 
 ## 6. What is NOT here
 
@@ -129,6 +155,7 @@ number, and the layer chip wears the warning colour.
   way to do what the surface already does, and the one mistake it could cause — believing you
   were rehearsing while you were live — disappears with it.
 - No per-graphic card stack. The editor follows the SELECTION.
+- **No layer list** — see §5. The rundown is the only list of what a production holds.
 
 ## 7. Publishing and the links live here
 

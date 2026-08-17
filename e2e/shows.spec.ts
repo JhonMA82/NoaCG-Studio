@@ -37,14 +37,15 @@ test('a show collects graphics in rundown order and exports one aggregated panel
   await section.getByTestId('open-production-page').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
 
-  // Both graphics as LAYERS, listed front to back — highest number first. Layers are numbers
-  // now, distinct on arrival from 20 up (docs/PLAYOUT_DASHBOARD.md §5).
-  const layers = page.locator('.pd-layer-chip');
-  await expect(layers).toHaveCount(2);
-  await expect(layers.nth(0)).toContainText('L21');
-  await expect(layers.nth(0)).toContainText('Arena Quiz');
-  await expect(layers.nth(1)).toContainText('L20');
-  await expect(layers.nth(1)).toContainText('Hairline');
+  // Both graphics reached the production, each with its own layer — read off the RUNDOWN, which
+  // is the only list of what a production holds (docs/PLAYOUT_DASHBOARD.md §5). Layers are
+  // numbers, distinct on arrival from 20 up.
+  const cueRows = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cueRows).toHaveCount(2);
+  await expect(cueRows.nth(0)).toContainText('Hairline');
+  await expect(cueRows.nth(0).getByTestId('cue-layer')).toHaveText('L20');
+  await expect(cueRows.nth(1)).toContainText('Arena Quiz');
+  await expect(cueRows.nth(1).getByTestId('cue-layer')).toHaveText('L21');
 
   // Export: the target picker (SPX is the remembered default), one folder per graphic + the
   // aggregated show panel.
@@ -385,26 +386,24 @@ test('the layer stack reorders and removes; deleting the show keeps nothing behi
   await section.getByTestId('open-production-page').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
 
-  // Arena Quiz went in last, so it took the next free number and heads the front-to-back list.
-  // Restacking is TYPING a number, not walking arrows (docs/PLAYOUT_DASHBOARD.md §5).
-  const layers = page.locator('.pd-layer-chip');
-  await expect(layers.nth(0)).toContainText('Arena Quiz');
-  await expect(layers.nth(0)).toContainText('L21');
-  await page
-    .getByTestId('cue-list')
-    .locator('.pd-cue')
-    .filter({ hasText: 'Hairline' })
-    .first()
-    .getByTestId('select-cue')
-    .click();
+  // Arena Quiz went in last, so it took the next free number. Restacking is TYPING a number, not
+  // walking arrows (docs/PLAYOUT_DASHBOARD.md §5), and the RUNDOWN is where the numbers are read:
+  // there is no layer list any more.
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  const rowFor = (name: string) => rows.filter({ hasText: name }).first();
+  await expect(rowFor('Arena Quiz').getByTestId('cue-layer')).toHaveText('L21');
+  await expect(rowFor('Hairline').getByTestId('cue-layer')).toHaveText('L20');
+  await rowFor('Hairline').getByTestId('select-cue').click();
   await page.getByTestId('graphic-layer').fill('30');
-  await expect(layers.nth(0)).toContainText('Hairline');
-  await expect(layers.nth(0)).toContainText('L30');
-  await expect(layers.nth(1)).toContainText('Arena Quiz');
-  await expect(layers.nth(1)).toContainText('L21');
+  await expect(rowFor('Hairline').getByTestId('cue-layer')).toHaveText('L30');
+  await expect(rowFor('Arena Quiz').getByTestId('cue-layer')).toHaveText('L21');
 
-  await layers.nth(0).getByRole('button', { name: /^Remove / }).click();
-  await expect(layers).toHaveCount(1);
+  // Removal is the row's ⋯. Each graphic has one cue, so removing that cue takes the graphic with
+  // it — and the menu item says so before it is pressed.
+  await rowFor('Hairline').getByTestId('cue-menu').click();
+  await expect(page.getByTestId('delete-cue')).toHaveText('Remove cue and graphic');
+  await page.getByTestId('delete-cue').click();
+  await expect(rows).toHaveCount(1);
 
   // Deleting the production is a Home action (two-step, on its row).
   await page.getByTestId('production-back').click();
