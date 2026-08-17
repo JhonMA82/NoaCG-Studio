@@ -150,6 +150,10 @@ async function loadRound(dir) {
       fallbacks: r.languageFallbacks ?? [],
       costUsd: r.costUsd ?? 0,
       usage: r.usage ?? null,
+      // What the composer had to CHANGE about the answer to render it. Present only on a round
+      // that has been through `--recompose`, and worth a section of its own: a palette the
+      // legibility ladder had to clamp is a language that did not read as returned.
+      adjustments: r.recomposedAdjustments ?? null,
     }));
   return { dir, file, route: round.route, capturedAt: round.capturedAt, spentUsd: round.spentUsd, cells };
 }
@@ -236,6 +240,19 @@ function adherence(round) {
   return { withBrand, accentExact, accentNear, panelExact, panelNear, typeface, misses };
 }
 
+/** What the composer had to repair, per round. Read off the RECOMPOSED pass, so both rounds are
+ *  measured by the same composer rather than by whichever one was live on their capture day. */
+function repairs(round) {
+  const measured = round.cells.filter((c) => Array.isArray(c.adjustments));
+  const map = counts(measured.flatMap((c) => c.adjustments));
+  return {
+    measured: measured.length,
+    cells: round.cells.length,
+    cellsAdjusted: measured.filter((c) => c.adjustments.length).length,
+    spread: map.size ? topLine(map) : 'none',
+  };
+}
+
 function ledger(round) {
   const withReasoning = round.cells.filter((c) => c.usage && typeof c.usage.reasoning === 'number');
   const sum = (pick) => round.cells.reduce((n, c) => n + (c.usage?.[pick] ?? 0), 0);
@@ -265,6 +282,7 @@ const report = {
   collapse: { A: collapse(A), B: collapse(B) },
   palette: { A: palette(A), B: palette(B) },
   adherence: { A: adherence(A), B: adherence(B) },
+  repairs: { A: repairs(A), B: repairs(B) },
   ledger: { A: ledger(A), B: ledger(B) },
 };
 
@@ -367,7 +385,23 @@ for (const [label, a] of [['A', report.adherence.A], ['B', report.adherence.B]])
   say();
 }
 
-say('## 5. Fallbacks, cost and reasoning');
+say('## 5. What the composer had to repair');
+say();
+say('Read off the RECOMPOSED pass, so both rounds are measured by today\'s composer rather than');
+say('by whichever one was live on their capture day. A `palette_*_clamped` code is a language');
+say('whose own colours did not clear the legibility floor as returned; `mark_ink_knocked` is the');
+say('brand mark being recoloured to read on the panel the language chose.');
+say();
+say('| | A | B |');
+say('| --- | ---: | ---: |');
+for (const [label, r] of [['A', report.repairs.A], ['B', report.repairs.B]]) {
+  if (r.measured < r.cells) say(`| ${label}: cells with a recomposed record | ${r.measured} of ${r.cells} | |`);
+}
+say(`| cells the composer adjusted | ${pct(report.repairs.A.cellsAdjusted, report.repairs.A.measured)} | ${pct(report.repairs.B.cellsAdjusted, report.repairs.B.measured)} |`);
+say(`| adjustments | ${report.repairs.A.spread} | ${report.repairs.B.spread} |`);
+say();
+
+say('## 6. Fallbacks, cost and reasoning');
 say();
 say('| | A | B |');
 say('| --- | ---: | ---: |');
