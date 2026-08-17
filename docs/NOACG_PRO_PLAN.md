@@ -2708,3 +2708,38 @@ frontier reasoning model is not an outlier: claude-opus-5 landed 3 of 11 beside 
   not a compromise; it is the answer. The `bare` arm remains a research option for the spine
   question and is NOT a product path - running it would be spending money to refine the size
   of a gap the product has already routed around.
+
+### 20.2 The iterate arm - the custom lane earns its test read, 2026-08-17
+
+The owner redirected the retired premise the same day: Pro's custom lane should let the model
+ITERATE - render, measure, fix - as long as it needs, fail closed on anything still flawed, and
+cost little enough to beat opening a code assistant by hand. `src/ai/spike/iterate.ts` +
+`scripts/pro-iterate-spike.mjs` are the smallest honest version: the one-shot coder protocol,
+then up to four rounds of every instrument finding plus a downscaled screenshot of the model's
+own frame, `deliverable: false` a first-class result. The loop's own control run proves the
+collector is quiet on a known-good frame and loud on a forced overlap (moving a field inside
+its own mask is INVISIBLE - the mask is what must move; the check failed honestly first).
+
+**The blind read (42 items - both iterate arms + the accepted Phase A set interleaved):**
+
+| round | blind-airable | cost/graphic | calls/graphic |
+| --- | --- | --- | --- |
+| Phase A composed set | 18 of 18 | $0.006 | 1 |
+| gemini-3.7-flash iterate (vision on) | **9 of 12** | $0.128 | 2.8 |
+| minimax-m2.7 iterate (findings only) | **9 of 12** | **$0.0155** | 2.7 |
+
+Same models one-shot that morning: 5/12 and 3/12. Three readings that decide what gets built:
+
+- **The findings ARE the signal.** Minimax, shown no screenshot at all, matched
+  gemini-with-vision at an eighth of the price. The instruments' words move the model; the
+  picture adds little the words did not already say. The custom lane can run on a cheap
+  checkpoint.
+- **The fail-closed gate is roughly calibrated but over-strict on marginal findings**: of 4
+  dirty-stopped cells the owner failed 2 and forgave 2; of 19 delivered-clean cells the owner
+  passed 15. The four escapes name the missing instruments, all measurable: junk furniture
+  above the strap, a live field that never paints (compose `fieldPaints` into the spike
+  validator - the Lite lesson repeating), the mark centred in its own white space (the read's
+  most repeated nit), and a painted-text readability floor (size + contrast "for TV").
+- **Phase A stays the standard lane untouched** - 18/18 on its third consecutive blind read,
+  still 1 call and half a cent. The iterate loop is the CUSTOM lane behind the same Pro door,
+  slower and ~3-25x dearer, for briefs the catalog's structures cannot carry.
