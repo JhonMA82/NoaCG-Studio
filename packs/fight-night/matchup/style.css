@@ -63,11 +63,11 @@ html, body {
 
 .mu-photo {
   position: absolute;
-  bottom: 176px;
+  bottom: 150px;
   left: 50%;
   transform: translateX(-50%);
-  width: 300px;
-  height: 294px;
+  width: 330px;
+  height: 330px;
   object-fit: cover;
   object-position: top center;
 }

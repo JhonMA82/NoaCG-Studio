@@ -284,7 +284,7 @@ function patchShow(showId: string, mutate: (show: Show, at: string) => boolean):
 }
 
 /** A cue's starting values: the template's own field defaults (what update() falls back to). */
-function seedValues(fields: SpxTemplate['fields']): Record<string, string> {
+export function seedValues(fields: SpxTemplate['fields']): Record<string, string> {
   const values: Record<string, string> = {};
   for (const f of fields) values[f.field] = f.value ?? '';
   return values;

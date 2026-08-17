@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { createShow, deleteShow, type Show } from '../../../model/shows';
 import { outputPageUrl } from '../../../control/hostedControl';
 import { copyLink } from '../copyLink';
+import { importProductionPack } from '../importProductionPack';
 import ProductionExportDialog from '../ProductionExportDialog';
 import GraphicThumb from '../GraphicThumb';
 import { IconDownload, IconLink, IconTrash, IconTv } from '../../icons';
@@ -30,6 +31,9 @@ export default function ProductionsSection({
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [exportShow, setExportShow] = useState<Show | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const importInput = useRef<HTMLInputElement | null>(null);
   const shown = limit ? productions.slice(0, limit) : productions;
   const create = () => {
     const next = createShow(newName);
@@ -37,6 +41,39 @@ export default function ProductionsSection({
     onChanged();
     const made = next[next.length - 1];
     if (made) onOpen(made);
+  };
+  const importText = async (raw: string) => {
+    setImportBusy(true);
+    setImportError(null);
+    try {
+      const { show, error } = await importProductionPack(raw);
+      if (!show || error) {
+        setImportError(error ?? 'Import failed.');
+        return;
+      }
+      onChanged();
+      onOpen(show);
+    } finally {
+      setImportBusy(false);
+    }
+  };
+  // The bundled sample (public/packs/, built by scripts/build-production-pack.mjs)
+  // goes through the exact same parser and gate as a user's file.
+  const importSample = async () => {
+    setImportBusy(true);
+    setImportError(null);
+    try {
+      const res = await fetch('/packs/fight-night.noacgpack.json');
+      if (!res.ok) {
+        setImportError('The sample pack is not available in this build.');
+        return;
+      }
+      await importText(await res.text());
+    } catch {
+      setImportError('The sample pack is not available in this build.');
+    } finally {
+      setImportBusy(false);
+    }
   };
   return (
     <>
@@ -163,6 +200,46 @@ export default function ProductionsSection({
             data-testid="new-production"
           >
             ＋ Create
+          </button>
+        </div>
+        {/* The other way in: a whole production as one file (model/productionPack.ts) -
+            graphics, layers and cue rundown land ready to run, validation-gated at the
+            boundary. The export half lives in the export dialog beside the zip targets. */}
+        <div className="prod-card prod-card-new">
+          <strong>Import production</strong>
+          <p className="prod-card-stats">
+            A <code>.noacgpack.json</code> file — its graphics, layers and cue rundown, ready to run.
+          </p>
+          <div className="spacer" />
+          {importError && (
+            <p className="status-bad" data-testid="import-production-error">{importError}</p>
+          )}
+          <input
+            ref={importInput}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) void file.text().then(importText);
+            }}
+            data-testid="import-production-file"
+          />
+          <button
+            disabled={importBusy}
+            onClick={() => importInput.current?.click()}
+            data-testid="import-production"
+          >
+            {importBusy ? 'Importing…' : '⬆ Import…'}
+          </button>
+          <button
+            disabled={importBusy}
+            onClick={() => void importSample()}
+            title="A complete combat-sports production - 12 graphics and a ready-to-run cue rundown"
+            data-testid="import-sample-production"
+          >
+            Try the Fight Night sample
           </button>
         </div>
       </div>

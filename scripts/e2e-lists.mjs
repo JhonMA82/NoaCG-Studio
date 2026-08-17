@@ -31,6 +31,7 @@ export const FOCUS = [
   'production-audience.spec.ts',
   'production-controls.spec.ts',
   'production-data.spec.ts',
+  'production-pack.spec.ts',
   'production-persistence.spec.ts',
   'productions.spec.ts',
   'quiz-pilot.spec.ts',
