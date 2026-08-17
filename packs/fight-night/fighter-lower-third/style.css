@@ -1,6 +1,20 @@
 /* Fight Night - fighter info lower third
    Look: carbon/steel segmented cells, one signal-orange accent, wide-tracked caps. */
 
+/* Bundled faces (public/fonts, shipped into every export as fonts/<file>). */
+@font-face {
+  font-family: 'Archivo';
+  src: url("fonts/archivo.woff2") format("woff2");
+  font-weight: 100 1000;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Saira';
+  src: url("fonts/saira.woff2") format("woff2");
+  font-weight: 100 1000;
+  font-display: swap;
+}
+
 :root {
   /* -- style contract ------------------------------------------------- */
   --scale: 1;                       /* whole-graphic size knob */
