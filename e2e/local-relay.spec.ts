@@ -278,6 +278,9 @@ test('a scorebug over the relay: the stepper bumps the score on air, and the clo
   await routeOrigin(ctl, origin, serve);
   await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
   await ctl.locator('.cue', { hasText: 'Kick off' }).click();
+  // Off air the −/+ pair is greyed (docs/PLAYOUT_DASHBOARD.md §7c): it acts on air, so before
+  // the take there is nothing for it to act on, and it says so rather than staging in silence.
+  await expect(ctl.locator('.field', { hasText: 'Score A' }).locator('button.step').first()).toBeDisabled();
   await ctl.locator('#v-take').click();
   await expect(air.locator('#f0')).toHaveText('ASHTON', { timeout: 10_000 });
   await expect.poll(async () => air.locator('.scoreboard').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');

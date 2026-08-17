@@ -153,6 +153,13 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   .numrow input { flex:1 1 auto; min-width:0; }
   .numrow .step { font:inherit; font-size:14px; color:var(--text); background:var(--panel-2);
     border:1px solid var(--line); border-radius:6px; width:34px; flex:0 0 auto; cursor:pointer; }
+  /* Greyed, never removed - the same rule the verbs follow: a control that appeared the
+     moment a cue went live would shove the field beside it sideways at the worst possible
+     time. */
+  .numrow .step:disabled { opacity:.4; cursor:default; }
+  /* What the pair DOES, said where the pair is (§7c's "act on air", as the production page's
+     block kicker says it). Red, because that is the word for air on this page. */
+  .field .airmark { color:var(--air); font-weight:700; letter-spacing:.06em; margin-left:6px; }
   .seg { display:inline-flex; }
   .seg button { font:inherit; font-size:12.5px; color:var(--text); background:var(--bg);
     border:1px solid var(--line); border-right-width:0; border-radius:0; min-width:36px;
@@ -534,6 +541,21 @@ function paint() {
 // two keystrokes threw the half-typed value away and restored the cue's stored text. Only a
 // change of SELECTED CUE needs new inputs; a tally change needs the header and nothing else.
 var editorCueId = null;
+// The −/+ pairs of the fields currently built, so the tally poll can grey them without
+// rebuilding the inputs (which is what would eat a half-typed value).
+var stepButtons = [];
+
+// THE ± LIVE NUMBERS AFFORDANCE (docs/PLAYOUT_DASHBOARD.md §7c): the pair acts on air, so it
+// enables only while the edited cue is the one on air.
+function paintSteppers(onAir) {
+  for (var i = 0; i < stepButtons.length; i++) {
+    var sb = stepButtons[i];
+    sb.el.disabled = !onAir;
+    sb.el.title = onAir
+      ? 'Changes "' + sb.label + '" on air immediately'
+      : 'This cue is not on air — Take it first';
+  }
+}
 
 function paintEditor() {
   var wrap = document.getElementById('editor');
@@ -555,10 +577,16 @@ function paintEditor() {
   document.getElementById('ed-kicker').textContent = onAir ? 'EDITING ON-AIR CUE' : 'EDITING PREVIEW CUE';
   document.getElementById('ed-name').textContent = cue.label;
   // What the operator's next keystroke will DO — and the one exception to it, said out loud on
-  // the graphics that have one: a −/+ press changes the figure on air by itself.
+  // the graphics that have one: a −/+ press changes the figure on air by itself, which is also
+  // why it has nothing to do until the cue is taken.
   document.getElementById('ed-fate').textContent = onAir
-    ? (hasBump ? 'changes push live on ✎ Update · − / + bumps a number on air' : 'changes push live on ✎ Update')
-    : 'changes air on ⟳ TAKE';
+    ? (hasBump ? 'changes push live on ✎ Update · − / + act on air' : 'changes push live on ✎ Update')
+    : (hasBump ? 'changes air on ⟳ TAKE · − / + act on air, so they wait for it' : 'changes air on ⟳ TAKE');
+
+  // The pair GREYS off air, on the tally this page reads from the log — so a take made on
+  // another device enables it here too. Called before the early return below, because a tally
+  // change needs exactly this and nothing else.
+  paintSteppers(onAir);
 
   // Same cue as last time: the header above is the whole update. Leave the inputs alone.
   if (editorCueId === cue.id) return;
@@ -566,6 +594,7 @@ function paintEditor() {
 
   var fields = document.getElementById('editor-fields');
   fields.innerHTML = '';
+  stepButtons = [];
   var values = cueValues(cue);
   (g ? g.controls : []).forEach(function (c) {
     var box = document.createElement('div');
@@ -640,10 +669,21 @@ function paintEditor() {
       });
     } else if (c.kind === 'number') {
       // The −/+ steppers the other two renderers carry (one-control doctrine): a score is
-      // bumped far more often than typed. There is ONE pair per number field and it wears both
-      // meanings, decided at press time by whether this cue is on air: off air it stages like
-      // any other edit, on air it is §7c's ± LIVE NUMBERS bump — a partial straight to program.
+      // bumped far more often than typed. There is ONE pair per number field and it means ONE
+      // thing — §7c's ± LIVE NUMBERS bump, a partial straight to program — so it enables only
+      // while the edited cue is the one on air and greys otherwise, exactly as the two React
+      // surfaces do. It used to stage silently off air instead, which is a second meaning with
+      // no feedback at all: the figure moved on screen and nothing said it had not aired.
+      // A field an ⚡ event carries as PAYLOAD is the exclusion (§7c): its pair never airs
+      // anything, so it stages at all times and is never greyed — greying it would strand the
+      // only stepper the field has.
       var bumpsAir = !payloadKeys[c.key];
+      if (bumpsAir) {
+        var mark = document.createElement('b');
+        mark.className = 'airmark';
+        mark.textContent = 'act on air';
+        label.appendChild(mark);
+      }
       input = document.createElement('input');
       input.type = 'number';
       input.value = values[c.key] !== undefined ? values[c.key] : '';
@@ -655,15 +695,23 @@ function paintEditor() {
         sb.type = 'button';
         sb.className = 'step';
         sb.textContent = label;
-        sb.title = bumpsAir
-          ? 'Changes this number on air the moment the cue is live — otherwise it stages like a typed value'
-          : 'Stages this number: it is set on air by its own ⚡ action';
+        sb.title = 'Stages this number: it is set on air by its own ⚡ action';
         sb.onclick = function () {
           var s = c.step != null ? c.step : 1;
-          input.value = String((parseFloat(input.value) || 0) + dir * s);
-          if (bumpsAir && pgmLive[cue.graphic] === cue.id) bumpLive(input.value);
-          else stage(input.value);
+          var next = String((parseFloat(input.value) || 0) + dir * s);
+          // The greying above is the affordance; this is the same fact enforced, so a press
+          // that beats the poll cannot air on a cue that is no longer live.
+          if (bumpsAir) {
+            if (pgmLive[cue.graphic] !== cue.id) return;
+            input.value = next;
+            bumpLive(next);
+          } else {
+            input.value = next;
+            stage(next);
+          }
         };
+        // The bumping pair's enabled state and words are painted from the tally, every poll.
+        if (bumpsAir) stepButtons.push({ el: sb, label: c.label });
         return sb;
       };
       numRow.appendChild(makeStep(-1, '−'));
@@ -681,6 +729,8 @@ function paintEditor() {
     box.appendChild(input);
     fields.appendChild(box);
   });
+  // The pairs just built have never seen the tally: paint them before they are looked at.
+  paintSteppers(onAir);
 
   // The graphic's OPERATOR EVENTS (its state machine's buttons) — the capability module the
   // machine declares; a graphic with none shows none. Interactive graphics (polls, Q&A, chat)

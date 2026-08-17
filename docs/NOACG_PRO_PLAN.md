@@ -2563,3 +2563,87 @@ writes is an assertion wearing a measurement's clothes** - which is the same fin
 `bench-line-wrap`, as the gate that computed `pass` without reading its own warnings, and as the
 control that did not run the code under test. The margin table now carries the cell that produced
 each reading, so re-running it is one command and disagreeing with it needs a frame.
+
+## 19. A second checkpoint, read blind beside the first - 2026-08-17
+
+The accepted 2026-08-16 set (§17.4) had been read once, and nothing had ever been read against
+it. `gemini-3.7-flash` was run through the identical bank - same 12 briefs, same synthetic
+brands, same `assignment` and `divergence` fixture, same pinned decoding - so the two rounds
+differ in the CHECKPOINT and in nothing else that was chosen. Both were then recomposed through
+today's composer, which takes the composer out of the comparison as well, and put on ONE shuffled
+page with the frames copied under their issued id so neither the round nor the brief is readable
+from the page source (`scripts/pro-round-compare-gallery.mjs`, free).
+
+**18 of 18 cells, `CONTRACT OK` on every one, 0 repair rounds, 0 fields fallen back to the house
+language, $0.107.**
+
+### 19.1 The owner's read - a whole-set pass, on both checkpoints at once
+
+> "I think they all look good, no big problems! I like it!"
+
+36 items, no defect named on any of them, no item singled out - and the owner did not know which
+half was which, so the verdict does not divide by checkpoint. For the 2026-08-16 round that
+**repeats its own accepted read through a composer that has changed since**, which is worth
+having on its own. For 3.7-flash it is the first read of any kind and it names nothing either.
+
+**This is the second consecutive Pro round with no layout, palette, type or motion failure
+named.** Under the §15.3 ranking that is what "removing the decision" was supposed to buy, and it
+is now holding across two different checkpoints rather than one.
+
+### 19.2 What a per-item read structurally cannot see
+
+**The entire machine difference between these two rounds is a BETWEEN-item property, and a
+per-item read has no access to one.** 3.7-flash answered `solid` on 17 of 18 panels against 12
+of 18, used 5 distinct accents against 6, and its accents sit **0.196 apart in OKLab against
+0.282**. Every one of those graphics can be good on its own page while the ROUND is narrower than
+the one beside it - the items are individually fine and collectively more alike.
+
+That is not a hypothetical failure mode here: **sameness is Lite's open problem, and it was found
+by a matrix, never by a gallery** (src/ai/AGENTS.md). A page that shows one graphic at a time is
+the wrong instrument for it, and this read used that page. **"Is the narrower vocabulary a
+problem?" is open, and 19.1 did not ask it.** The surface that would ask it is the two rounds'
+set-gallery rows side by side, which nothing built yet.
+
+### 19.3 What the numbers say, none of which the read contradicts
+
+Full table in `benchmarks/pro/evidence/round-2026-08-17/language-diff.md`
+(`scripts/pro-language-diff.mjs`, free, counts only, no verdict on it).
+
+- **The two rounds billed the same money for opposite reasons** - $0.1070 against $0.1072 over 18
+  generations each. 3.7-flash charges 1.5x the completion rate ($3.75/M against $2.50/M) and
+  emits **21,141 output tokens against 38,652**, so rate and volume cancel almost exactly.
+- **81% of 3.7-flash's output is reasoning** (17,220 tokens) for an answer that is ~200 tokens of
+  enum values. `GeneratedLanguage.usage` carries `reasoning` from this round on; the 2.5-flash
+  round has none recorded and the diff says so rather than printing a zero. A probe measured
+  2.5-flash at 92% on the same brief.
+- **Brand adherence 18/18 on accent, panel AND typeface**, against 17 of 18 each.
+- **Neither round collapsed**: 18 distinct look signatures out of 18 cells on both sides.
+- **`typography.step` is `clear` on all 36 cells across both rounds.** Neither checkpoint has
+  ever returned `subtle` or `strong` - a third of that enum has never been exercised by a model,
+  which no round had noticed because no round had counted.
+- The composer repaired **1 cell of 18 here against 4 of 18 there** - one mark ink knock, against
+  three text-dim clamps, a text clamp and the same knock.
+
+### 19.4 The price, settled by arithmetic rather than by a price sheet
+
+Vercel's model page says **$0.75 / $3.75** per million and OpenRouter says $0.375 / $1.875. The
+gateway bills the former, and what settles it is a real billed call rather than either page:
+`1113 x 0.75 + 1168 x 3.75` = **$0.00521475**, which is what the provider reported to the cent.
+`internal_reasoning` priced at 0 does NOT mean thinking is free - reasoning tokens sit inside
+`outputTokens` and bill at the completion rate, which is the whole reason 19.3's cost line lands
+where it does.
+
+### 19.5 `--recompose` is not byte-stable, and two runs are what proved it
+
+Recomposing the 2026-08-16 round moved 3 of its 36 frames against the committed ones - all three
+kestrel cells, the ones set in Anton. **Running the identical command again, with no code change
+in between, moved 2 of the same 3 again** (0.43% and 0.37% of pixels at max channel delta 97 and
+65), while the third reproduced exactly.
+
+Two consecutive runs of the same code disagreeing is what settles it as run-to-run variation
+rather than the composer moving. `results.json` was byte-identical across all three runs, so no
+cell's `recomposedAdjustments` moved and §17.11's "recomposed byte-for-byte in their adjustments"
+- a claim about the LEDGER - still holds. **The mechanism is not diagnosed and is deliberately
+not guessed at here.** The rule it buys: *a recomposed frame diff is not evidence the composer
+changed until the recompose has been run twice.* The committed frames were restored rather than
+churned, since neither version is more correct than the other.
