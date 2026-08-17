@@ -13,9 +13,11 @@
 // re-sides its accent, because a right-anchored graphic with a left-hand accent bar points its
 // loudest element into the middle of the picture.
 //
-// Beyond the matrix sits the SPECIALIST pack (./specialist, ls01…ls32): straps drawn for ONE
+// Beyond the matrix sits the SPECIALIST pack (./specialist, ls01…ls40): straps drawn for ONE
 // production each — interview duos, host-and-guest pairings, commentary booths, athletes,
-// esports, worship, academic, politics, analysis, music, live-and-location, creator identity.
+// esports, worship, academic, politics, analysis, music, live-and-location, creator identity,
+// and broadcast journalism (a quotation, a translation, a caller, a location slate, breaking
+// and developing marks, a fact check, the parliamentary register).
 // They are the same kind of thing mechanically, and they answer the matrix's questions too;
 // what sets them apart is that the production decides their hierarchy (a squad number set
 // larger than the name, a party colour leading the candidate, a scripture reference outranking

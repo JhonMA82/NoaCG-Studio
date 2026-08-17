@@ -312,7 +312,7 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   card70: { category: 'bug', subtype: 'location', structures: ['multi-line'], coverage: 'overlay', positionalSemantics: ['location', 'location', 'description'] },
   card71: { category: 'caption', subtype: 'lyrics', structures: ['strip', 'multi-line'], coverage: 'strip', positionalSemantics: ['description', 'description', 'source'] },
 
-  // ── The SPECIALIST lower thirds (templates/lowerThirds/specialist, ls01…ls32) ──
+  // ── The SPECIALIST lower thirds (templates/lowerThirds/specialist, ls01…ls40) ──
   //
   // These are declared per variant rather than left to the lower-third fallback, because the
   // fallback's single value is exactly what they are not: it calls every strap a two-field
@@ -367,6 +367,17 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   // Creator — handles and stream identity.
   ls31: { category: 'lower-third', subtype: 'name-tag', structures: ['multi-line', 'single-line'], positionalSemantics: ['name', 'description', 'social-handle', 'social-handle', 'social-handle'] },
   ls32: { category: 'lower-third', subtype: 'name-tag', structures: ['name-role', 'multi-line'], positionalSemantics: ['social-handle', 'name', 'headline', 'amount'] },
+  // Broadcast journalism — straps whose subject is the WORDS or their status, not the person.
+  ls33: { category: 'lower-third', subtype: 'speaker', structures: ['multi-line', 'name-role'], positionalSemantics: ['headline', 'name', 'role'] },
+  ls34: { category: 'lower-third', subtype: 'speaker', structures: ['multi-line'], positionalSemantics: ['topic', 'description', 'topic', 'description'] },
+  ls35: { category: 'lower-third', subtype: 'speaker', structures: ['name-role', 'multi-line'], positionalSemantics: ['topic', 'name', 'location'] },
+  // ls36's fourth field is the hidden UTC offset the clock runtime reads — an input-only
+  // value, but a real DataField, so the positional array has to account for it.
+  ls36: { category: 'lower-third', subtype: 'locator', structures: ['multi-line', 'single-line'], positionalSemantics: ['location', 'location', 'time', 'duration'] },
+  ls37: { category: 'lower-third', subtype: 'live-tag', structures: ['single-line', 'multi-line'], positionalSemantics: ['topic', 'headline'] },
+  ls38: { category: 'lower-third', subtype: 'live-tag', structures: ['multi-line'], positionalSemantics: ['topic', 'headline', 'time'] },
+  ls39: { category: 'lower-third', subtype: 'name-tag', structures: ['multi-line'], positionalSemantics: ['answer', 'headline', 'source'] },
+  ls40: { category: 'lower-third', subtype: 'speaker', structures: ['name-role', 'multi-line'], positionalSemantics: ['name', 'organization', 'role', 'topic'] },
 
   // ── The PUBLIC-SERVICE pack's tickers (tk11…tk17, tk20) ────────────────────
   //

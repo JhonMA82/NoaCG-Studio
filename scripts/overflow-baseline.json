@@ -338,6 +338,25 @@
    ".lower-third-mask:y"
   ]
  },
+ "ls33": {
+  "off": [],
+  "clip": [
+   ".lower-third-mask:y"
+  ]
+ },
+ "ls35": {
+  "off": [],
+  "clip": [
+   ".lower-third-mask:y"
+  ]
+ },
+ "ls39": {
+  "off": [],
+  "clip": [
+   ".lower-third-mask:y",
+   ".lower-third-name:y"
+  ]
+ },
  "tk05": {
   "off": [
    "#ticker-track:LR",
