@@ -286,6 +286,48 @@ await page.locator('.wz-modal').waitFor({ state: 'visible', timeout: 20_000 }).c
 await page.keyboard.press('Escape');
 await page.locator('.wz-modal').waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => undefined);
 
+/**
+ * FORCE THE ONE RASTER THE STILL IS OF, on a graphic that has already settled.
+ *
+ * Every capture here mounts the graphic, calls `play()`, waits for the entrance to finish and
+ * shoots. That was not byte-stable: recomposing the 2026-08-16 round moved 3 of its 36 frames
+ * run to run with no code change in between, and 5 consecutive runs of one cell produced 5
+ * different files. The bisect (docs/NOACG_PRO_PLAN.md §20) put it entirely after the
+ * platform: the language, the composed html/css/js, the srcdoc and every element's rendered
+ * geometry and paint style were byte-identical across the runs that disagreed. Only the pixels
+ * moved, and only at glyph and panel EDGES.
+ *
+ * The cause is the composited layer the graphic animates on. `.lower-third-box` carries
+ * `will-change: transform, opacity`, so it is promoted for the whole life of the page; the
+ * entrance moves it; Chromium rasterises its texture DURING that move and - because the hint
+ * says more transforms are coming - never re-rasterises once the tween settles. The frame we
+ * keep is therefore a texture rasterised mid-flight, and which sub-pixel phase of the ~0.5 s
+ * entrance that raster caught is machine timing.
+ *
+ * Dropping the hint for one frame invalidates the layer, so the settled content is rastered
+ * once, at the offset it actually rests at; restoring it puts the graphic back exactly as the
+ * template wrote it before the shutter. Both halves matter - a still taken with the hint
+ * REMOVED is painted straight into the page instead, which switches text to sub-pixel
+ * antialiasing and moves a glyph edge by up to 233/255 (that is a different picture, not a
+ * stabler one).
+ *
+ * Measured: with this in place all 10 Anton frames are byte-identical across 5 runs, and the 7
+ * that were already stable are byte-identical to their COMMITTED frames - the fix costs nothing
+ * on evidence that never moved. Fast-forwarding the entrance instead (`timeScale`) lands on the
+ * same bytes, which is the second, independent reason to believe the mechanism; it is not what
+ * ships here because it would also fast-forward a timer graphic's own clock.
+ */
+async function rasterSettledFrame(target) {
+  const hintOff = await target.addStyleTag({ content: '*{will-change:auto !important}' });
+  const twoFrames = () => target.evaluate(async () => {
+    document.body.getBoundingClientRect();   // flush layout before handing the frame over
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  await twoFrames();
+  await hintOff.evaluate((el) => el.remove());
+  await twoFrames();
+}
+
 // ── --alpha: re-shoot a finished round's holds WITH THEIR ALPHA, free ───────────────────
 //
 // `captureHold` screenshots the hold from INSIDE the app, so every frame in a round carries the
@@ -377,6 +419,7 @@ if (flag('recompose')) {
         await document.fonts.ready;
         await new Promise((resolve) => setTimeout(resolve, 1800));
       }, data);
+      await rasterSettledFrame(shotPage);
       const name = `${record.slug}.${suffix}.png`;
       await shotPage.screenshot({ path: path.join(dir, name), omitBackground: true });
       record[suffix === 'hold' ? 'recomposedHold' : 'recomposedStress'] = `recomposed/${name}`;
@@ -444,6 +487,7 @@ if (flag('alpha')) {
         await document.fonts.ready;
         await new Promise((resolve) => setTimeout(resolve, 1800));
       }, data);
+      await rasterSettledFrame(shotPage);
       const name = `${record.slug}.${suffix}.png`;
       await shotPage.screenshot({ path: path.join(alphaDir, name), omitBackground: true });
       record[suffix === 'hold' ? 'alphaHold' : 'alphaStressHold'] = `alpha/${name}`;
