@@ -66,8 +66,8 @@ html, body {
   bottom: 150px;
   left: 50%;
   transform: translateX(-50%);
-  width: 330px;
-  height: 330px;
+  width: 314px;
+  height: 440px; /* 300:420 - the silhouette's own ratio, so nothing crops */
   object-fit: cover;
   object-position: top center;
 }
