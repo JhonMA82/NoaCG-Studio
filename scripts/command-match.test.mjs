@@ -143,6 +143,36 @@ test('a similarly-named script is not a sweep', () => {
   }
 });
 
+test('a long-lived SERVER is not a sweep, however it is named', () => {
+  // Measured 2026-08-17: `dev-bench.mjs` (a Vite dev server) and the module it preloads
+  // (`bench-dispatcher.mjs`, which shares that process's command line) both matched
+  // `[\w-]*bench[\w-]*`, so one bench server reported as TWO running sweeps and parked every
+  // other checkout's browser work for 55 minutes. Mutual exclusion only works against jobs that
+  // end; a server in the list is a deadlock with no far end.
+  for (const cmd of [
+    'node scripts/dev-bench.mjs',
+    'npm run dev:bench',
+    'node C:/claude/NoaCG-Studio/scripts/ai-bench-server.mjs',
+    'node scripts/bench-dispatcher.mjs',
+  ]) {
+    assert.ok(!invokesSweep(cmd), cmd);
+  }
+  // The detector reads a RUNNING process's command line, where the dispatcher arrives as a
+  // Vite `--import` argument rather than as the invocation - the same carve-out has to hold.
+  const built = new RegExp(`scripts[/\\\\]+(${SWEEP_SCRIPTS})\\.mjs`);
+  assert.ok(!built.test('node --import C:/repo/scripts/bench-dispatcher.mjs vite'));
+  assert.ok(!built.test('node C:/repo/scripts/dev-bench.mjs'));
+  // Carving those out must not cost the real bench jobs beside them.
+  for (const cmd of [
+    'node scripts/ai-bench.mjs --profile=lite',
+    'node scripts/video-bench.mjs',
+    'node scripts/creative-route-bench.mjs',
+    'node scripts/ai-bench-compare.mjs',
+  ]) {
+    assert.ok(invokesSweep(cmd), cmd);
+  }
+});
+
 test('segments strip env prefixes but keep the rest of the command', () => {
   assert.deepEqual(commandSegments('A=1 B=2 npm run test:e2e'), ['npm run test:e2e']);
   assert.deepEqual(commandSegments('a && b'), ['a', 'b']);
