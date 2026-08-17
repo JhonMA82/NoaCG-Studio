@@ -416,6 +416,28 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   pi06: { category: 'info', subtype: 'explainer', structures: ['multi-line'], coverage: 'panel', positionalSemantics: ['headline', 'description', 'description', 'organization'] },
   pi07: { category: 'caption', subtype: 'translation', structures: ['multi-line'], coverage: 'panel', positionalSemantics: ['headline', 'description', 'headline', 'description', 'organization'] },
   pi10: { category: 'bug', subtype: 'source', structures: ['corner-chip', 'multi-line'], coverage: 'overlay', positionalSemantics: ['source', 'description'] },
+
+  // ── The TYPOGRAPHIC VOICES pack (docs/CATALOG_VARIETY.md §3, "what is missing entirely") ──
+  //
+  // Declared where the design's fields are NOT what its category's fallback assumes. The
+  // lower-third fallback reads every strap as name / role / organization, and none of these
+  // three is: a byline leads with its section, a poster billing splits one name across two
+  // fields, and the quiet strap's third line is a show rather than an employer. The four cards
+  // are titles and topics rather than the 'explainer' an undeclared info card falls back to.
+  lt59: { category: 'lower-third', subtype: 'speaker', structures: ['name-role', 'multi-line'], positionalSemantics: ['topic', 'name', 'role', 'organization'] },
+  lt60: { category: 'lower-third', subtype: 'speaker', structures: ['name-role', 'multi-line'], positionalSemantics: ['name', 'role', 'topic'] },
+  lt61: { category: 'lower-third', subtype: 'name-tag', structures: ['multi-line', 'name-role'], positionalSemantics: ['topic', 'name', 'name', 'description'] },
+  card80: { category: 'title', subtype: 'segment-title', structures: ['multi-line'], positionalSemantics: ['topic', 'headline', 'description', 'source'] },
+  card81: { category: 'title', subtype: 'session-title', structures: ['multi-line'], positionalSemantics: ['topic', 'headline', 'description'] },
+  // The index ("03") is an ORDINAL, and the semantic vocabulary has no ordinal: 'topic' is the
+  // nearest honest answer (it is the chapter marker), and it is better than leaving the card on
+  // the info fallback, which would read the poster's topic word as a description.
+  card82: { category: 'topic', subtype: 'topic', structures: ['multi-line'], positionalSemantics: ['topic', 'headline', 'description'] },
+  card83: { category: 'title', subtype: 'show-open', structures: ['multi-line'], positionalSemantics: ['headline', 'headline', 'headline', 'description'] },
+  // The holding fallback's third field is a DURATION; on both of these it is the countdown's
+  // LABEL, and ss19 is a break card rather than a front door.
+  ss18: { category: 'holding', subtype: 'starting', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['headline', 'description', 'headline'], extraCapabilities: ['countdown', 'loop'] },
+  ss19: { category: 'holding', subtype: 'break', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['headline', 'topic', 'description'], extraCapabilities: ['countdown', 'loop'] },
 };
 
 // ── Per-assembler fallback (single-valued, proposal §4) ─────────────────────

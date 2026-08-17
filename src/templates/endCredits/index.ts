@@ -24,6 +24,7 @@ import { cr09 } from './cr09';
 import { cr10 } from './cr10';
 import { cr11 } from './cr11';
 import { cr12 } from './cr12';
+import { cr13 } from './cr13';
 
 export const END_CREDITS: TemplateVariant[] = [
   // ── Credits proper ──
@@ -32,6 +33,7 @@ export const END_CREDITS: TemplateVariant[] = [
   cr03, // Pager — one-pager section swaps (sport, sibling lt05)
   cr04, // Crawl — horizontal single-line credits (minimal, sibling lt02)
   cr06, // Credit Reel — the seamless looping reel (noacg, sibling lt11)
+  cr13, // Programme Roll - serif leader rows on paper (editorial, sibling lt59 / card80)
   // ── Walls & acknowledgements ──
   cr07, // Thank You Wall — held board of names in columns (minimal)
   cr08, // Donor Wall — giving levels, looping (glass)
