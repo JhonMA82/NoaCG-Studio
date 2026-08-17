@@ -218,6 +218,8 @@ export type AnimPresetId =
   | 'transition-slam'
   | 'transition-wipe'
   | 'transition-sweep'
+  | 'transition-iris'
+  | 'transition-spin'
   // Quiz format (templates/quiz/quizPresets.ts) — Continue plays the Reveal step, which
   // calls revealAnswer() to light up the correct row:
   | 'quiz-reveal'

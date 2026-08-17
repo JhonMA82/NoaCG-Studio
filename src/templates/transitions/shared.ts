@@ -193,6 +193,8 @@ function resetTransitionPanels() {
   gsap.set('.transition-premium-panel', {
     xPercent: 0,
     yPercent: 0,
+    scale: 1,
+    rotation: 0,
     filter: 'blur(0px)'
   });
 }`;
