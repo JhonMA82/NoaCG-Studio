@@ -183,10 +183,14 @@ test('the production controller: preview shows the cue without airing it, Take a
   await expect(ctl.locator('.cue', { hasText: 'Ben' })).toHaveClass(/on-air/);
 
   // The dashboard's shared vocabulary reached the exported page too
-  // (docs/PLAYOUT_DASHBOARD.md): every cue row states the LAYER its graphic airs on, and the
-  // layer chips list the stack front to back.
+  // (docs/PLAYOUT_DASHBOARD.md §5): every cue row states the LAYER its graphic airs on, and the
+  // rundown is the only list — there is no separate layer panel on any of the three surfaces.
   await expect(ctl.locator('.cue').first().locator('.sub')).toContainText(/^L\d+ · /);
-  await expect(ctl.locator('.chip').first()).toContainText(/^L\d+/);
+  await expect(ctl.locator('.cue').first().locator('.lay')).toHaveText(/^L\d+$/);
+  // Distinct layers here, so no row wears the clash colour — and the rail's foot, which used to
+  // hold the layer panel, is gone entirely.
+  await expect(ctl.locator('.cue .lay.clash')).toHaveCount(0);
+  await expect(ctl.locator('.rail-foot')).toHaveCount(0);
 
   // SPACE is Take here as well — and never while a field has focus, which is the guard that
   // matters: the cue's fields are on this same surface.

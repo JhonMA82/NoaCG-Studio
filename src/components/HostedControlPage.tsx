@@ -121,6 +121,16 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     (graphic: string) => payload?.graphics.find((g) => g.key === graphic)?.layer ?? null,
     [payload],
   );
+  /** Which graphics SHARE a layer with the named one. Two on one number replace each other on
+   *  air, and with the layer list gone the rundown row is where that is said (§5). */
+  const layerSharedWith = useCallback(
+    (graphic: string) => {
+      const layer = payload?.graphics.find((g) => g.key === graphic)?.layer ?? null;
+      if (layer === null) return [];
+      return (payload?.graphics ?? []).filter((g) => g.key !== graphic && (g.layer ?? 1) === layer).map((g) => g.key);
+    },
+    [payload],
+  );
   /** The KIND word per graphic, derived from the published CODE (detectPrefix) — the payload
    *  predates any stored kind field, so deriving keeps every already-published production
    *  labelled without a republish. Null when the code carries no recognisable box prefix. */
@@ -392,6 +402,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               const cueIsLive = liveCue[cue.graphic] === cue.id;
               const isSelected = cue.id === (selectedCue?.id ?? '');
               const layer = layerOf(cue.graphic);
+              const sharing = layerSharedWith(cue.graphic);
               return (
                 <div
                   key={cue.id}
@@ -402,7 +413,19 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                   <button className="pd-cue-label" onClick={() => selectCue(cue)} data-testid="hosted-select-cue">
                     <strong>{cue.label}</strong>
                     <span className="muted">
-                      {layer !== null ? `L${layer} · ` : ''}
+                      {layer !== null && (
+                        <span
+                          className={`pd-cue-layer${sharing.length ? ' clash' : ''}`}
+                          title={
+                            sharing.length
+                              ? `Shares layer ${layer} with ${sharing.join(', ')} — on air they replace each other`
+                              : `${cue.graphic} airs on layer ${layer}`
+                          }
+                        >
+                          L{layer}
+                        </span>
+                      )}
+                      {layer !== null ? ' · ' : ''}
                       {kindByKey.has(cue.graphic) ? `${kindByKey.get(cue.graphic)} · ` : ''}
                       {cue.note || cue.graphic}
                     </span>
@@ -415,23 +438,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                 </div>
               );
             })}
-          </div>
-          <div className="pd-rail-foot">
-            <div className="pd-layers-head">
-              <h3>Layers</h3>
-              <span className="muted">higher number in front</span>
-            </div>
-            <div className="pd-layer-chips">
-              {[...(payload?.graphics ?? [])]
-                .sort((a, b) => (b.layer ?? 1) - (a.layer ?? 1))
-                .map((g) => (
-                  <span key={g.key} className={`pd-layer-chip${liveCue[g.key] ? ' live' : ''}`}>
-                    <b>L{g.layer ?? 1}</b> {g.key}
-                    {kindByKey.has(g.key) && <span className="muted pd-chip-kind">{kindByKey.get(g.key)}</span>}
-                    {liveCue[g.key] && <i className="pd-layer-live" />}
-                  </span>
-                ))}
-            </div>
           </div>
         </aside>
       </main>

@@ -175,6 +175,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The hidden file input behind "＋ Add pictures…". */
   const pictureInput = useRef<HTMLInputElement>(null);
   const [menuCueId, setMenuCueId] = useState<string | null>(null);
+  /** Which removal in the open row menu is ARMED (`cue` / `graphic`). A cue holds values somebody
+   *  typed and there is no undo behind the rundown, so a removal that also takes uploaded
+   *  pictures or a whole graphic's rows asks twice — the same two-step Home's delete uses. */
+  const [armedRemove, setArmedRemove] = useState<'cue' | 'graphic' | null>(null);
   /** Which cue the editor is pointed at: the one on PREVIEW (the default — edits air on Take),
    *  or the one already ON AIR on that layer, where ✎ Update pushes edits live (§2). */
   const [editTarget, setEditTarget] = useState<'preview' | 'air'>('preview');
@@ -836,6 +840,39 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (await runVerb([clearCueItems(selectedGraphic)], 'Out')) {
       setLiveCue((m) => withLiveCue(m, selectedGraphic, null));
     }
+  };
+
+  /**
+   * Play a named graphic off air, if it is up. Removal goes through this first: the output page
+   * follows the LOG, not the payload, so a pool graphic deleted while live would keep rendering
+   * on its layer with nothing left on this surface able to take it off.
+   */
+  const takeOffAir = async (graphic: string) => {
+    if (!liveCue[graphic]) return;
+    if (await runVerb([clearCueItems(graphic)], 'Out')) {
+      setLiveCue((m) => withLiveCue(m, graphic, null));
+    }
+  };
+
+  /** Remove one cue. When it is its graphic's LAST cue the graphic goes with it (shows.ts
+   *  removeShowCue): the rundown is the only list of what a production holds, so nothing may
+   *  survive out of sight of it. */
+  const removeCue = async (cue: ShowCue) => {
+    const entry = graphicByPoolId.get(cue.sourceId);
+    const isLast = cues.filter((c) => c.sourceId === cue.sourceId).length === 1;
+    if (isLast && entry) await takeOffAir(entry.name);
+    setDraft(null);
+    setShows(removeShowCue(show.id, cue.id));
+  };
+
+  /** Remove a graphic and every cue prepared against it — the one gesture for getting a graphic
+   *  out of the production without deleting its rows one by one. */
+  const removeGraphic = async (poolId: string) => {
+    const entry = graphicByPoolId.get(poolId);
+    if (!entry) return;
+    await takeOffAir(entry.name);
+    setDraft(null);
+    setShows(removeShowGraphic(show.id, poolId));
   };
 
   /** Clear the screen — the one an operator reaches for under pressure, which is why it sits
@@ -1598,6 +1635,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             const poolEntry = graphicByPoolId.get(cue.sourceId);
             const cueIsLive = !!cueGraphic && liveCue[cueGraphic] === cue.id;
             const isSelected = cue.id === (selectedCue?.id ?? '');
+            // Removal wording, decided per row. How many cues the graphic has says whether this
+            // one takes the graphic with it (shows.ts removeShowCue) and whether removing the
+            // graphic outright is a distinct gesture at all; pictures live ONLY in their pool
+            // graphic, so losing it loses the uploads and the operator has to be told.
+            const siblingCues = cues.filter((c) => c.sourceId === cue.sourceId).length;
+            const pictures = poolEntry?.type === 'picture' ? poolEntry.template.assets.length : 0;
+            const clashWith = poolEntry
+              ? (clashes.get(graphicLayer(poolEntry)) ?? []).filter((g) => g.id !== poolEntry.id)
+              : [];
             return (
               <div
                 key={cue.id}
@@ -1625,7 +1671,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 <button className="pd-cue-label" onClick={() => selectCue(cue.id)} data-testid="select-cue">
                   <strong>{view.label}</strong>
                   <span className="muted">
-                    {poolEntry ? `L${graphicLayer(poolEntry)} · ` : ''}
+                    {/* The LAYER, and the one place a shared layer is announced now that the
+                        layer list is gone (§5): two graphics on one number replace each other on
+                        air, so both rows wear the warning colour where the operator is already
+                        looking. The repair — the editor's one-click "Move to layer N" — stays
+                        beside the number itself. */}
+                    {poolEntry && (
+                      <span
+                        className={`pd-cue-layer${clashWith.length ? ' clash' : ''}`}
+                        title={
+                          clashWith.length
+                            ? `Shares layer ${graphicLayer(poolEntry)} with ${nameList(clashWith.map((g) => g.name))} — on air they replace each other`
+                            : `${poolEntry.name} airs on layer ${graphicLayer(poolEntry)}`
+                        }
+                        data-testid="cue-layer"
+                      >
+                        L{graphicLayer(poolEntry)}
+                      </span>
+                    )}
+                    {poolEntry ? ' · ' : ''}
                     {/* The KIND beside the name: the label above is the operator's own word for
                         the cue, so this is what says "that one is the scoreboard" at a glance. */}
                     {poolEntry ? `${graphicKindLabel(poolEntry.type)} · ` : ''}
@@ -1640,7 +1704,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 <div className="pd-cue-menu-host">
                   <button
                     className="pd-icon pd-cue-more"
-                    onClick={() => setMenuCueId((m) => (m === cue.id ? null : cue.id))}
+                    onClick={() => {
+                      setArmedRemove(null);
+                      setMenuCueId((m) => (m === cue.id ? null : cue.id));
+                    }}
                     title="More"
                     aria-label={`More actions for ${view.label}`}
                     data-testid="cue-menu"
@@ -1649,7 +1716,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   </button>
                   {menuCueId === cue.id && (
                     <>
-                      <div className="lib-menu-backdrop" onClick={() => setMenuCueId(null)} />
+                      <div
+                        className="lib-menu-backdrop"
+                        onClick={() => {
+                          setArmedRemove(null);
+                          setMenuCueId(null);
+                        }}
+                      />
                       <div className="lib-menu" role="menu">
                         <button
                           role="menuitem"
@@ -1668,17 +1741,57 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                         >
                           Duplicate
                         </button>
+                        {/* Removing the LAST cue removes the graphic too, so the label says so
+                            rather than letting it be discovered. A picture graphic carries the
+                            uploads themselves, which is the one removal that destroys content
+                            with no copy in the library — it asks twice, naming the count. */}
                         <button
                           role="menuitem"
                           onClick={() => {
-                            setDraft(null);
-                            setShows(removeShowCue(show.id, cue.id));
+                            if (siblingCues === 1 && pictures > 0 && armedRemove !== 'cue') {
+                              setArmedRemove('cue');
+                              return;
+                            }
+                            void removeCue(cue);
+                            setArmedRemove(null);
                             setMenuCueId(null);
                           }}
+                          title={
+                            siblingCues === 1
+                              ? `The last cue on ${cueGraphic ?? 'this graphic'} — the graphic leaves the production with it`
+                              : 'Remove this cue; the graphic and its other cues stay'
+                          }
                           data-testid="delete-cue"
                         >
-                          Remove cue
+                          {armedRemove === 'cue'
+                            ? `Also deletes ${pictures} picture${pictures === 1 ? '' : 's'} — confirm?`
+                            : siblingCues === 1
+                              ? 'Remove cue and graphic'
+                              : 'Remove cue'}
                         </button>
+                        {/* One gesture for getting a graphic out of the production. Offered only
+                            where it differs from the item above: with a single cue, that one
+                            already takes the graphic. */}
+                        {siblingCues > 1 && (
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              if (armedRemove !== 'graphic') {
+                                setArmedRemove('graphic');
+                                return;
+                              }
+                              void removeGraphic(cue.sourceId);
+                              setArmedRemove(null);
+                              setMenuCueId(null);
+                            }}
+                            title={`Remove ${cueGraphic ?? 'this graphic'} from the production, with every cue prepared against it`}
+                            data-testid="delete-graphic"
+                          >
+                            {armedRemove === 'graphic'
+                              ? `Remove ${siblingCues} cues${pictures > 0 ? ` and ${pictures} pictures` : ''} — confirm?`
+                              : `Remove graphic and its ${siblingCues} cues`}
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
@@ -1688,41 +1801,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           })}
         </div>
 
+        {/* The foot is how graphics GET IN. It used to carry a layer list as well — a second
+            list of the same graphics, in a corner the rundown wanted for itself. The layer is
+            typed beside the graphic's content, every rundown row wears its number, and removal
+            lives in the row's ⋯ menu, so the rundown is the only list (§5). */}
         <div className="pd-rail-foot">
-          <div className="pd-layers-head">
-            <h3>Layers</h3>
-            <span className="muted">higher number in front</span>
-          </div>
-          <div className="pd-layer-chips">
-            {[...show.graphics]
-              .sort((a, b) => graphicLayer(b) - graphicLayer(a))
-              .map((g) => (
-                <span
-                  key={g.id}
-                  className={`pd-layer-chip${liveCue[g.name] ? ' live' : ''}${clashes.has(graphicLayer(g)) ? ' clash' : ''}`}
-                  title={
-                    clashes.has(graphicLayer(g))
-                      ? `Layer ${graphicLayer(g)} is shared — these graphics replace each other on air`
-                      : `${g.name} airs on layer ${graphicLayer(g)}`
-                  }
-                  data-testid={`pool-${g.id}`}
-                >
-                  <b>L{graphicLayer(g)}</b> {g.name}
-                  <span className="muted pd-chip-kind">{graphicKindLabel(g.type)}</span>
-                  {liveCue[g.name] && <i className="pd-layer-live" data-testid="layer-live" />}
-                  <button
-                    onClick={() => {
-                      setDraft(null);
-                      setShows(removeShowGraphic(show.id, g.id));
-                    }}
-                    title={`Remove ${g.name} and its cues from the production`}
-                    aria-label={`Remove ${g.name}`}
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))}
-          </div>
           <div className="row">
             <select value={addPick} onChange={(e) => setAddPick(e.target.value)} data-testid="add-graphic-pick">
               <option value="">Add a graphic from your library…</option>

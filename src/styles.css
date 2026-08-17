@@ -6174,36 +6174,12 @@ h2 + .lib-row,
 .pd-cue-more:focus-visible,
 .pd-cue-menu-host:has(.lib-menu) .pd-cue-more { opacity: 1; }
 
+/* A shared layer means two graphics replace each other on air. There is no layer list any more
+   (docs/PLAYOUT_DASHBOARD.md §5), so the rundown row's own number is where that is said — amber,
+   the warning colour the editor's inline fix already wears. */
+.pd-cue-layer.clash { color: var(--amber); font-weight: 600; }
+/* The foot is how graphics get in: the library picker, a new graphic, pictures. */
 .pd-rail-foot { flex: none; border-top: 1px solid var(--border); padding: 9px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
-.pd-layers-head { display: flex; align-items: baseline; gap: 8px; }
-.pd-layers-head h3 { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin: 0; }
-.pd-layers-head .muted { font-size: 11px; }
-.pd-layer-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.pd-layer-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  padding: 4px 6px 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  font-size: 12px;
-  background: var(--bg-2, #14161c);
-  overflow: hidden;
-  white-space: nowrap;
-}
-.pd-layer-chip b { font-family: var(--mono, monospace); font-size: 10.5px; color: var(--text-dim); font-weight: 600; }
-/* The KIND word beside the graphic's name — quieter than the name, which stays the primary
-   identity; the ellipsis keeps a long custom name from pushing the chip past its row. */
-.pd-chip-kind { font-size: 10.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; }
-.pd-layer-chip.live { border-color: rgba(239, 68, 68, 0.7); background: rgba(239, 68, 68, 0.08); }
-.pd-layer-chip.live b { color: #ef4444; }
-/* A shared layer means two graphics replace each other on air — say so where the layer is
-   shown, not only in the editor (docs/PLAYOUT_DASHBOARD.md §5). */
-.pd-layer-chip.clash { border-color: rgba(246, 166, 35, 0.7); }
-.pd-layer-chip.clash b { color: var(--amber); }
-.pd-layer-live { width: 6px; height: 6px; border-radius: 50%; background: #ef4444; flex: none; }
-.pd-layer-chip button { padding: 0 4px; min-height: 0; line-height: 1; color: var(--text-dim); background: none; border: none; }
 .pd-new-graphic { width: 100%; }
 
 /* ── Phone (docs/PLAYOUT_DASHBOARD.md §3) ──────────────────────────────────────

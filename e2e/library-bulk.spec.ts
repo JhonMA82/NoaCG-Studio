@@ -87,7 +87,9 @@ test('flat folders: bulk move, chips filter, unfile, and the folder view becomes
   // A folder view is one click from a production carrying exactly its graphics.
   await page.getByTestId('folder-to-production').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
-  await expect(page.locator('[data-testid^="pool-"]')).toHaveCount(2);
+  // Counted off the RUNDOWN — every pool graphic arrives with one cue, and the rundown is the
+  // only list of what a production holds (docs/PLAYOUT_DASHBOARD.md §5).
+  await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(2);
 
   // Back on the section: unfiling empties the folder and its chip disappears with the data.
   await page.goto('/app#/home/graphics');
@@ -157,5 +159,5 @@ test('bulk add to a NEW production pools the selection and lands on its page', a
   await page.getByTestId('bulk-new-production-name').fill('Evening Bulletin');
   await page.getByTestId('bulk-new-production').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
-  await expect(page.locator('[data-testid^="pool-"]')).toHaveCount(3);
+  await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
 });

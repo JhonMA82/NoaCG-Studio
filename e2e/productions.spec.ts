@@ -100,10 +100,57 @@ test('Home Productions creates a production and opens its page; removing a graph
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
   await expect(rows).toHaveCount(1);
 
-  // Removing the pool graphic takes its cues with it — a cue over nothing cannot air.
-  await page.locator('[data-testid^="pool-"]').getByRole('button', { name: /^Remove / }).click();
+  // A second cue on the same graphic, so removing the GRAPHIC is a gesture of its own: with a
+  // single cue, removing that cue already takes the graphic (docs/PLAYOUT_DASHBOARD.md §5).
+  await page.getByTestId('add-cue').click();
+  await expect(rows).toHaveCount(2);
+
+  // Removing the pool graphic takes its cues with it — a cue over nothing cannot air. It asks
+  // twice: the rows hold values somebody typed and there is no undo behind the rundown.
+  await rows.first().getByTestId('cue-menu').click();
+  await page.getByTestId('delete-graphic').click();
+  await expect(page.getByTestId('delete-graphic')).toContainText('confirm?');
+  await page.getByTestId('delete-graphic').click();
   await expect(rows).toHaveCount(0);
   await expect(page.getByTestId('no-cues')).toBeVisible();
+});
+
+test('the rundown is the only list: the last cue takes its graphic with it', async ({ page }) => {
+  // docs/PLAYOUT_DASHBOARD.md §5. The layer list is gone, so a pool graphic with no cues would be
+  // invisible in the rundown and still ship in the published payload — an orphan nobody could
+  // reach. Removing the last cue prunes it (model/shows.ts removeShowCue).
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('Anchor L3');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toBeHidden();
+
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-productions').click();
+  await page.getByTestId('new-production-name').fill('Only List');
+  await page.getByTestId('new-production').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('add-graphic-pick').selectOption({ label: 'Anchor L3' });
+  await page.getByTestId('add-graphic').click();
+
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(rows).toHaveCount(1);
+  const poolCount = () =>
+    page.evaluate(async () => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      return loadShows()[0].graphics.length;
+    });
+  expect(await poolCount()).toBe(1);
+
+  // The menu says what the removal will do, rather than letting it be discovered afterwards.
+  await rows.first().getByTestId('cue-menu').click();
+  await expect(page.getByTestId('delete-cue')).toHaveText('Remove cue and graphic');
+  // With one cue there is no separate graphic removal — it would be the same gesture twice.
+  await expect(page.getByTestId('delete-graphic')).toHaveCount(0);
+  await page.getByTestId('delete-cue').click();
+
+  await expect(rows).toHaveCount(0);
+  await expect.poll(poolCount).toBe(0);
 });
 
 test('the production page fits one 1080p screen, and the preview takes only the room left over', async ({ page }) => {
@@ -253,26 +300,33 @@ test('every graphic gets its own playout layer, typed, and it is what the output
   expect(await layerOf('Anchor L3')).toBe(21);
   await expect(page.getByTestId('layer-clash')).toHaveCount(0);
 
-  // The chips list front to back — the highest number paints over everything below it.
-  const chips = page.locator('.pd-layer-chip');
-  await expect(chips).toHaveCount(2);
-  await expect(chips.nth(0)).toContainText('L21');
-  await expect(chips.nth(0)).toContainText('Anchor L3');
-  await expect(chips.nth(1)).toContainText('L20');
+  // Every RUNDOWN ROW wears its graphic's number — the only place the layer is listed now that
+  // the layer chips are gone (§5).
+  const rowLayers = page.getByTestId('cue-list').locator('[data-testid="cue-layer"]');
+  await expect(rowLayers).toHaveCount(2);
+  await expect(rowLayers.nth(0)).toHaveText('L20');
+  await expect(rowLayers.nth(1)).toHaveText('L21');
 
   // Typing a number is the whole interaction. Selecting a cue points the editor at its graphic.
   await page.getByTestId('cue-list').locator('.pd-cue').first().getByTestId('select-cue').click();
   await page.getByTestId('graphic-layer').fill('30');
   await expect.poll(() => layerOf('Bug')).toBe(30);
-  await expect(chips.nth(0)).toContainText('L30');
+  await expect(rowLayers.nth(0)).toHaveText('L30');
+  // No clash, so no warning colour anywhere in the rundown.
+  await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(0);
 
   // A DUPLICATE can still be typed, and then the surface says so rather than letting it be
   // found on air — with the next free number one click away.
   await page.getByTestId('graphic-layer').fill('21');
   await expect(page.getByTestId('layer-clash')).toContainText('share layer 21');
   await expect(page.getByTestId('layer-clash')).toContainText('replace each other');
+  // BOTH rundown rows wear the warning colour, not only the one being edited — the operator has
+  // to see which two graphics are about to replace each other.
+  await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(2);
+  await expect(rowLayers.nth(0)).toHaveAttribute('title', /Shares layer 21 with Anchor L3/);
   await page.getByTestId('layer-clash-fix').click();
   await expect(page.getByTestId('layer-clash')).toHaveCount(0);
+  await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(0);
   expect(await layerOf('Bug')).toBe(20);
 
   // That number is what the PUBLISHED payload carries, and the payload's layer is what the
@@ -350,12 +404,13 @@ test('the program monitor is the real renderer, and every verb reaches it withou
   await takeCue(1);
   await expect(page.getByTestId('live-cue-chip')).toContainText('Anna Andersson');
   await expect(page.getByTestId('live-cue-chip')).toContainText('Ticker crawl');
-  await expect(page.locator('[data-testid^="pool-"] [data-testid="layer-live"]')).toHaveCount(2);
+  // Two layers up, counted off the rundown itself — one ON AIR row per live layer.
+  await expect(page.getByTestId('cue-list').locator('.pd-cue.on-air')).toHaveCount(2);
 
   // Out takes down the SELECTED cue's layer and leaves the other one up.
   await cueRows.nth(0).getByTestId('select-cue').click();
   await page.getByTestId('verb-out').click();
-  await expect(page.locator('[data-testid^="pool-"] [data-testid="layer-live"]')).toHaveCount(1);
+  await expect(page.getByTestId('cue-list').locator('.pd-cue.on-air')).toHaveCount(1);
   await expect(page.getByTestId('live-cue-chip')).toContainText('Ticker crawl');
   await expect(page.getByTestId('live-cue-chip')).not.toContainText('Anna Andersson');
 
@@ -363,7 +418,7 @@ test('the program monitor is the real renderer, and every verb reaches it withou
   // reaching for Take must never land on it.
   await page.getByTestId('verb-out-all').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
-  await expect(page.locator('[data-testid^="pool-"] [data-testid="layer-live"]')).toHaveCount(0);
+  await expect(page.getByTestId('cue-list').locator('.pd-cue.on-air')).toHaveCount(0);
 
   // The ACTION LOG recorded all of it, newest first, in the operator's own words — through the
   // same describeLogRow the wire rows go through, which is the only reason this is checkable
@@ -681,15 +736,23 @@ test('pictures upload straight into the rundown: one cue each, one layer, and th
   await expect(rows.nth(0)).toContainText('Opening slide');
   await expect(rows.nth(1)).toContainText('Sponsor board');
 
-  // ONE pool graphic holds both, so both cues air on the same layer and replace each other.
-  const pool = page.locator('[data-testid^="pool-"]');
-  await expect(pool).toHaveCount(1);
-  await expect(pool.first()).toContainText('Picture');
+  // ONE pool graphic holds both, so both cues air on the same layer and replace each other. Both
+  // rows therefore carry the SAME number — and it is not a clash, because it is one graphic.
+  const poolCount = () =>
+    page.evaluate(async () => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      return loadShows()[0].graphics.length;
+    });
+  expect(await poolCount()).toBe(1);
+  const rowLayers = page.getByTestId('cue-list').locator('[data-testid="cue-layer"]');
+  await expect(rowLayers.nth(0)).toHaveText('L20');
+  await expect(rowLayers.nth(1)).toHaveText('L20');
+  await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(0);
 
   // A third upload joins the SAME graphic rather than minting a second picture layer.
   await page.getByTestId('add-pictures-input').setInputFiles([pictureFile('Closing card.png')]);
   await expect(rows).toHaveCount(3);
-  await expect(pool).toHaveCount(1);
+  expect(await poolCount()).toBe(1);
   await expect(rows.nth(2)).toContainText('Closing card');
 
   // Taking a cue reaches the real renderer: the picture's path resolves to its uploaded bytes
@@ -704,5 +767,22 @@ test('pictures upload straight into the rundown: one cue each, one layer, and th
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
-  await expect(page.locator('[data-testid^="pool-"]')).toHaveCount(1);
+  expect(await poolCount()).toBe(1);
+
+  // Removing the last picture cue takes the picture graphic — and the uploads — with it, which is
+  // why that removal asks twice and names the count (docs/PLAYOUT_DASHBOARD.md §5).
+  const removeCue = async (i: number) => {
+    await rows.nth(i).getByTestId('cue-menu').click();
+    await page.getByTestId('delete-cue').click();
+  };
+  await removeCue(2);
+  await removeCue(1);
+  await expect(rows).toHaveCount(1);
+  expect(await poolCount()).toBe(1);
+  await rows.first().getByTestId('cue-menu').click();
+  await page.getByTestId('delete-cue').click();
+  await expect(page.getByTestId('delete-cue')).toContainText('Also deletes 3 pictures');
+  await page.getByTestId('delete-cue').click();
+  await expect(rows).toHaveCount(0);
+  await expect.poll(poolCount).toBe(0);
 });

@@ -130,7 +130,7 @@ two things around it did not, both fixed the same day:**
 ## 4. Recovery drills observed live (classroom failures, each SEEN handled)
 
 - [ ] Operator browser refresh mid-show: the production page comes back knowing what is on
-      air (per-layer chips) and the rundown selection survives.
+      air (an ON AIR row per live layer) and the rundown selection survives.
 - [ ] Edit a cue, republish mid-show: the output updates in place, nothing else replays.
 - [ ] Expired session mid-show: the prompt names it, nothing local is lost, re-sign-in
       resumes (the automated twin is configured/account.spec.ts — observe it once for real).

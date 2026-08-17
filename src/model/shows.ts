@@ -345,10 +345,22 @@ export function moveShowCue(showId: string, cueId: string, dir: -1 | 1): Show[] 
   });
 }
 
+/**
+ * Remove a cue - and, when it was its graphic's LAST cue, the pool graphic with it.
+ *
+ * The RUNDOWN is the whole truth about what a production holds (docs/PLAYOUT_DASHBOARD.md §5).
+ * A pool graphic with no cues appears nowhere in it, yet it still ships in the published payload
+ * and still loads as an iframe on its own layer in the output page - an orphan nobody could see
+ * or reach once the layer list is gone. Pruning it here is what lets the rundown be the only list.
+ */
 export function removeShowCue(showId: string, cueId: string): Show[] {
   return patchShow(showId, (show) => {
-    if (!show.cues?.some((c) => c.id === cueId)) return false;
-    show.cues = show.cues.filter((c) => c.id !== cueId);
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue) return false;
+    show.cues = (show.cues ?? []).filter((c) => c.id !== cueId);
+    if (!show.cues.some((c) => c.sourceId === cue.sourceId)) {
+      show.graphics = show.graphics.filter((g) => g.id !== cue.sourceId);
+    }
     return true;
   });
 }

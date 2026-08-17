@@ -191,16 +191,9 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   .tag.air { color:#fff; background:var(--air); }
   .tag.pv { color:#1a1205; background:var(--amber); }
 
-  .rail-foot { flex:none; border-top:1px solid var(--line); padding:9px 12px 12px; }
-  .rail-foot h3 { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); margin:0 0 6px; }
-  .chips { display:flex; flex-wrap:wrap; gap:6px; }
-  .chip { display:inline-flex; align-items:center; gap:6px; max-width:100%; padding:4px 8px;
-    border:1px solid var(--line); border-radius:7px; font-size:12px; background:var(--panel);
-    overflow:hidden; white-space:nowrap; }
-  .chip b { font-family:var(--mono); font-size:10.5px; color:var(--dim); font-weight:600; }
-  .chip.live { border-color:rgba(239,68,68,.7); background:rgba(239,68,68,.08); }
-  .chip.live b { color:var(--air); }
-  .chip i { width:6px; height:6px; border-radius:50%; background:var(--air); }
+  /* A shared layer means two graphics replace each other on air, and the rundown row is the one
+     place that is said — there is no layer list any more (docs/PLAYOUT_DASHBOARD.md §5). */
+  .cue .lay.clash { color:var(--amber); font-weight:600; }
 
   .nolisten { display:none; margin:10px 14px 0; padding:10px 14px; border:1px solid #8a4a2a;
     border-radius:8px; background:#2d1c12; color:#f0c9a8; font-size:12px; }
@@ -282,10 +275,6 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
       <h2>Cue rundown</h2><span class="n">${payload.cues.length}</span>
     </div>
     <div class="cues" id="cues"></div>
-    <div class="rail-foot">
-      <h3>Layers <span style="text-transform:none;letter-spacing:0">· higher number in front</span></h3>
-      <div class="chips" id="chips"></div>
-    </div>
   </aside>
 </main>
 <script>
@@ -342,6 +331,9 @@ function cueValues(cue) {
   return out;
 }
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+// A value going into a quoted ATTRIBUTE inside innerHTML needs the quote escaped as well —
+// esc() is for text nodes, and a graphic named 6" Rule would end the attribute early.
+function escAttr(s) { return esc(s).replace(/"/g, '&quot;'); }
 
 function feed(text) {
   var el = document.getElementById('feed');
@@ -467,7 +459,16 @@ function poll() {
     .catch(function () {});
 }
 
-// ── Painting: rundown, tallies, layer chips, the editor for the selected cue. ──
+// ── Painting: rundown, tallies, the editor for the selected cue. ──
+
+// Which OTHER graphics sit on one graphic's layer. Two on the same number replace each other on
+// air, so the row wears the warning where the operator is already looking.
+function layerSharedWith(g) {
+  if (!g) return [];
+  return PAYLOAD.graphics.filter(function (o) { return o.name !== g.name && o.layer === g.layer; })
+    .map(function (o) { return o.name; });
+}
+
 function paint() {
   var host = document.getElementById('cues');
   host.innerHTML = '';
@@ -475,6 +476,14 @@ function paint() {
     var g = graphicByName(cue.graphic);
     var onAir = pgmLive[cue.graphic] === cue.id;
     var onPvw = pvwLive[cue.graphic] === cue.id;
+    var sharing = layerSharedWith(g);
+    var lay = g
+      ? '<span class="lay' + (sharing.length ? ' clash' : '') + '" title="' +
+        (sharing.length
+          ? 'Shares layer ' + g.layer + ' with ' + escAttr(sharing.join(', ')) + ' — on air they replace each other'
+          : escAttr(g.name) + ' airs on layer ' + g.layer) +
+        '">L' + g.layer + '</span> · '
+      : '';
     var el = document.createElement('div');
     // The id is what the arrow keys scroll into view — a rundown longer than its box would
     // otherwise move the selection somewhere the operator cannot see.
@@ -483,22 +492,10 @@ function paint() {
     el.innerHTML =
       '<span class="no">' + (onAir ? '●' : (i + 1)) + '</span>' +
       '<span class="body"><span class="nm">' + esc(cue.label) + '</span>' +
-      '<span class="sub">' + (g ? 'L' + g.layer + ' · ' : '') + esc(cue.note || cue.graphic) + '</span></span>' +
+      '<span class="sub">' + lay + esc(cue.note || cue.graphic) + '</span></span>' +
       (onAir ? '<span class="tag air">ON AIR</span>' : onPvw ? '<span class="tag pv">PVW</span>' : '');
     el.onclick = function () { selectedId = cue.id; takeTo('preview'); paint(); };
     host.appendChild(el);
-  });
-
-  // Layer chips, front to back — the same stack the graphics really paint in.
-  var chips = document.getElementById('chips');
-  chips.innerHTML = '';
-  PAYLOAD.graphics.slice().sort(function (a, b) { return b.layer - a.layer; }).forEach(function (g) {
-    var live = !!pgmLive[g.name];
-    var chip = document.createElement('span');
-    chip.className = 'chip' + (live ? ' live' : '');
-    chip.title = g.name + ' airs on layer ' + g.layer;
-    chip.innerHTML = '<b>L' + g.layer + '</b> ' + esc(g.name) + (live ? '<i></i>' : '');
-    chips.appendChild(chip);
   });
 
   var pvwNames = [], pgmNames = [], pgmLayer = null;
