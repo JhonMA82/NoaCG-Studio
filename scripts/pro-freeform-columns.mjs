@@ -98,6 +98,42 @@ async function summarize(dir) {
   };
 }
 
+/** Per-TYPE columns (the custom-lane type sweep): deliverable rate, loop depth, what the
+ *  paint instruments caught, drivability (from custom-lane-drive-spike.mjs' report where one
+ *  was run), and money - per graphic type, because "does the loop generalize past lower
+ *  thirds" is a per-type question a round total cannot answer. */
+async function summarizeTypes(dir) {
+  const ledger = JSON.parse(await readFile(path.resolve(dir, 'results.json'), 'utf8'));
+  const done = (ledger.results ?? []).filter((r) => r.kind === 'candidate' && !r.skipped && !r.error);
+  if (!done.some((r) => r.type)) return null;
+  let drive = null;
+  try {
+    drive = JSON.parse(await readFile(path.resolve(dir, 'drive-report.json'), 'utf8'));
+  } catch { /* the drive proof runs separately; absent = not run */ }
+  const byType = new Map();
+  for (const r of done) {
+    const t = r.type ?? '-';
+    if (!byType.has(t)) byType.set(t, []);
+    byType.get(t).push(r);
+  }
+  const rows = [];
+  for (const [type, cells] of byType) {
+    const paintCatches = cells.reduce((n, r) => n + (r.iterationLog ?? [])
+      .reduce((m, it) => m + (it.findings ?? []).filter((f) => f.startsWith('field paint')).length, 0), 0);
+    const driven = (drive?.report ?? []).filter((d) => cells.some((c) => c.slug === d.slug));
+    rows.push({
+      type,
+      n: cells.length,
+      deliverable: cells.filter((r) => r.deliverable).length,
+      iterations: cells.reduce((n, r) => n + (r.iterations ?? 0), 0) / cells.length,
+      paintCatches,
+      drivable: driven.length ? `${driven.filter((d) => d.drivable).length} of ${driven.length}` : '-',
+      costPerCell: cells.reduce((n, r) => n + (r.costUsd ?? 0), 0) / cells.length,
+    });
+  }
+  return { name: path.basename(path.resolve(dir)), rows };
+}
+
 const summaries = [];
 for (const dir of rounds) summaries.push(await summarize(dir));
 
@@ -125,6 +161,19 @@ lines.push(row('cost / graphic', (s) => `$${fmt(s.costPerCell, 4)}${s.priced ? '
 lines.push(row('cost / 100 graphics', (s) => `$${fmt(s.costPer100, 2)}${s.priced ? ' (priced)' : ''}`));
 lines.push(row('round spend', (s) => `$${fmt(s.spentUsd, 4)}${s.priced ? ' (priced)' : ''}`));
 lines.push('');
+
+for (const dir of rounds) {
+  const t = await summarizeTypes(dir);
+  if (!t) continue;
+  lines.push(`## Per-type - ${t.name}`);
+  lines.push('');
+  lines.push('| type | cells | delivered clean | iterations avg | unpainted-field catches | drivable | cost / graphic |');
+  lines.push('|---|---|---|---|---|---|---|');
+  for (const r of t.rows) {
+    lines.push(`| ${r.type} | ${r.n} | ${r.deliverable} of ${r.n} | ${fmt(r.iterations, 1)} | ${r.paintCatches} | ${r.drivable} | $${fmt(r.costPerCell, 4)} |`);
+  }
+  lines.push('');
+}
 
 const text = lines.join('\n');
 console.log(text);

@@ -34,24 +34,53 @@ import { readEnvFile } from './ai-bench-server.mjs';
 import { requireAllowedRoute } from './harness-route-policy.mjs';
 
 const BASE = `http://localhost:${devPort()}`;
-const BANK = path.resolve('benchmarks/pro/v1/briefs.json');
-const DECODING = path.resolve('benchmarks/pro/v1/spike/decoding.json');
-const BRANDS = path.resolve('benchmarks/pro/v1/spike/brands.json');
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
 const value = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
 const only = args.find((a) => !a.startsWith('--'))?.split(',').filter(Boolean) ?? null;
 
+// The TYPE SWEEP (docs/NOACG_PRO_PLAN.md §21.2 follow-on) runs the same loop over the custom
+// bank: `--bank=benchmarks/pro/v1/custom/briefs.json --brands=benchmarks/pro/v1/custom/brands.json`.
+const BANK = path.resolve(value('bank') ?? 'benchmarks/pro/v1/briefs.json');
+const DECODING = path.resolve('benchmarks/pro/v1/spike/decoding.json');
+const BRANDS = path.resolve(value('brands') ?? 'benchmarks/pro/v1/spike/brands.json');
+
 const control = flag('control');
+const anchors = flag('anchors');
 const paid = flag('generate');
 const resume = flag('resume');
 const vision = !flag('no-vision');
 const MAX_ITERATIONS = Number(value('max-iterations') ?? 4);
 const OUT = path.resolve(value('out') ?? 'pro-iterate-out');
+/** 'feed' = readability findings drive the loop; 'report' = ledger-only. The control mode's
+ *  catalog calibration is what decides which is honest (an instrument whose false positives
+ *  are good designs gets ignored - the mark-gap lesson). */
+const READABILITY_MODE = value('readability') ?? 'feed';
 
-if (!control && !paid) {
-  console.error('Pick a mode: --control (free, run this first) or --generate (PAID).');
+// ── The sweep's type table ─────────────────────────────────────────────────────────────
+// Instrument thresholds exist calibrated for exactly two of the seven types: the lower third
+// (the calibration baseline) and the countdown (PRO_GRAPHICS.countdown, measured on the
+// shipped timers). Every OTHER type runs spacing/proportion with the lower-third defaults and
+// its findings are fed as ADVISORY - shown to the model with a judgement note, never counted
+// against deliverability, because an uncalibrated threshold must not bully a scoreboard.
+const CALIBRATED_PRO_TYPE = { 'lower-third': 'lower-third', countdown: 'countdown' };
+const sweepType = (entry) => entry.type ?? 'lower-third';
+const proInstrumentType = (entry) => CALIBRATED_PRO_TYPE[sweepType(entry)] ?? null;
+const instrumentsAdvisory = (entry) => !CALIBRATED_PRO_TYPE[sweepType(entry)];
+const declaredSteps = (entry) => Math.min(entry.brief.steps?.length ?? 0, 6);
+/** fieldPaints composes into the loop's VALIDATOR (the Lite pattern) only where its one-state
+ *  read is the whole answer: no declared steps, and every field expected to paint verbatim.
+ *  Steppers and transform fields (a countdown's seconds, a quiz's answer index) get the
+ *  runner's own sentinel step-walk instead - a sentinel that legitimately reaches no pixels
+ *  must not read as a defect. */
+const validatorFieldPaints = (entry) => {
+  if (!entry.brief.fields) return true;
+  return declaredSteps(entry) === 0 && entry.brief.fields.every((f) => f.paintExpected !== false);
+};
+
+if (!control && !paid && !anchors) {
+  console.error('Pick a mode: --control (free, run this first), --anchors (free, per-type catalog baselines) or --generate (PAID).');
   process.exit(1);
 }
 
@@ -157,8 +186,12 @@ if (paid) {
 }
 
 /** Mount the settled hold, measure every instrument, screenshot it. The same compose path,
- *  wait and instrument set as the spike runner's hold capture. */
-async function captureAndMeasure(template, data, markFieldId, markProbe, file) {
+ *  wait and instrument set as the spike runner's hold capture. `opts.proType` selects a
+ *  calibrated per-type instrument override (PRO_GRAPHICS); `opts.steps` > 0 additionally
+ *  drives next() through the declared steps and shoots each settled step frame under
+ *  `opts.stepPrefix`. */
+async function captureAndMeasure(template, data, markFieldId, markProbe, file, opts = {}) {
+  const steps = opts.steps ?? 0;
   const playError = await page.evaluate(async ({ template, data }) => {
     const bust = '?t=' + Date.now();
     const { composeDocument } = await import('/src/preview/composeDocument.ts' + bust);
@@ -183,50 +216,198 @@ async function captureAndMeasure(template, data, markFieldId, markProbe, file) {
     await new Promise((resolve) => setTimeout(resolve, 1800));
     return error;
   }, { template, data });
-  const measured = await page.evaluate(async ({ markFieldId, markProbe }) => {
+  const measured = await page.evaluate(async ({ markFieldId, markProbe, proType }) => {
     const bust = '?t=' + Date.now();
     const { measureRenderedMark } = await import('/src/ai/spike/brand.ts' + bust);
     const { measureAxes } = await import('/src/ai/spike/axisCheck.ts' + bust);
     const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts' + bust);
     const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts' + bust);
     const { measureDevice } = await import('/src/ai/spike/deviceCheck.ts' + bust);
+    const { measureReadability } = await import('/src/ai/spike/readabilityCheck.ts' + bust);
     const doc = document.getElementById('iterate-hold-frame')?.contentDocument;
     if (!doc) return null;
+    // The per-type thresholds are PRO_GRAPHICS' own (measured, docs/NOACG_PRO_PLAN.md §21.2
+    // pre-flight d) - imported rather than copied, so they cannot drift from the product's.
+    let spacingOpts = {};
+    let proportionOpts = {};
+    if (proType) {
+      const { PRO_GRAPHICS } = await import('/src/ai/pro/language/graphics.ts' + bust);
+      const inst = PRO_GRAPHICS[proType]?.instruments ?? {};
+      spacingOpts = { ...(inst.spacing ?? {}) };
+      proportionOpts = { ...(inst.proportion ?? {}) };
+    }
     const base = { markFieldId: markFieldId ?? null };
     return {
       axis: measureAxes(doc),
-      spacing: measureSpacing(doc, base),
-      proportion: measureProportion(doc, base),
+      spacing: measureSpacing(doc, { ...spacingOpts, ...base }),
+      proportion: measureProportion(doc, { ...proportionOpts, ...base }),
       device: measureDevice(doc),
       mark: markFieldId && markProbe ? measureRenderedMark(doc, markFieldId, markProbe) : null,
+      readability: measureReadability(doc),
     };
-  }, { markFieldId: markFieldId ?? null, markProbe: markProbe ?? null });
+  }, { markFieldId: markFieldId ?? null, markProbe: markProbe ?? null, proType: opts.proType ?? null });
   const shot = await page.frameLocator('#iterate-hold-frame').locator('body')
     .screenshot({ path: path.join(OUT, file) });
+
+  // STEP CAPTURE: drive next() along the DECLARED default path, shoot each settled frame.
+  // next() returning nothing before the declared count is a finding - the graphic does not
+  // implement its own step contract - and so is a missing next() entirely.
+  const stepFrames = [];
+  const stepFindings = [];
+  for (let k = 1; k <= steps; k += 1) {
+    const press = await page.evaluate(async () => {
+      const win = document.getElementById('iterate-hold-frame')?.contentWindow;
+      if (!win) return { error: 'frame gone' };
+      if (typeof win.next !== 'function') return { missing: true };
+      try {
+        const out = win.next();
+        return { returnedNull: out === null || out === undefined };
+      } catch (e) {
+        return { error: String(e?.message ?? e).slice(0, 200) };
+      }
+    });
+    if (press.missing) {
+      stepFindings.push(`the template declares ${steps} operator step(s) but window.next() does not exist`);
+      break;
+    }
+    if (press.error) {
+      stepFindings.push(`next() threw at step ${k} of ${steps}: ${press.error}`);
+      break;
+    }
+    if (press.returnedNull && k <= steps) {
+      stepFindings.push(`next() returned nothing at step ${k} of ${steps} - the graphic does not advance through its declared steps`);
+      break;
+    }
+    await page.waitForTimeout(1400);
+    const stepFile = `${opts.stepPrefix ?? file.replace(/\.png$/, '')}.step-${k}.png`;
+    await page.frameLocator('#iterate-hold-frame').locator('body')
+      .screenshot({ path: path.join(OUT, stepFile) });
+    stepFrames.push(stepFile);
+  }
+
   await page.evaluate(() => document.getElementById('iterate-hold-frame')?.remove());
-  return { playError, measured, shot };
+  return { playError, measured, shot, stepFrames, stepFindings };
 }
 
-/** Everything the loop feeds back, as teaching strings. The device instrument is deliberately
- *  ABSENT - a plain panel is a legal answer; this loop repairs defects, it does not demand
- *  novelty. */
+/**
+ * THE SENTINEL STEP-WALK - does every paint-expected field reach the screen in SOME state
+ * along the declared default path? The fieldPaint technique (validation/fieldPaint.ts -
+ * sentinels driven through update(), the frame re-read), walked with next() instead of the
+ * machine snap, because an emitted stepper's next() is hand-written JS with no machine to
+ * snap. Runs only where the validator's one-state fieldPaints read is not the whole answer.
+ */
+async function paintWalk(template, entry) {
+  const fields = (entry.brief.fields ?? []).filter((f) => f.paintExpected !== false);
+  if (!fields.length) return [];
+  const steps = declaredSteps(entry);
+  return page.evaluate(async ({ template, fields, steps }) => {
+    const bust = '?t=' + Date.now();
+    const { composeDocument } = await import('/src/preview/composeDocument.ts' + bust);
+    const { sentinelFor, visibleText, TEXT_FTYPES } = await import('/src/validation/fieldPaint.ts' + bust);
+    document.getElementById('iterate-paint-frame')?.remove();
+    const frame = document.createElement('iframe');
+    frame.id = 'iterate-paint-frame';
+    frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;'
+      + 'z-index:99998;background:#333;color-scheme:dark;';
+    document.body.appendChild(frame);
+    frame.srcdoc = composeDocument(template);
+    await new Promise((resolve) => { frame.onload = resolve; });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const win = frame.contentWindow;
+    const doc = win.document;
+    const findings = [];
+    try {
+      // Sentinels for the CONTRACT's paint-expected fields, driven through the fields the
+      // template actually declares (sentinelFor needs the declared ftype). A contract field
+      // the template does not declare at all is its own finding.
+      const declared = new Map((template.fields ?? []).map((f) => [f.field, f]));
+      const driven = [];
+      for (const [i, f] of fields.entries()) {
+        const tf = declared.get(f.id);
+        if (!tf) {
+          findings.push(`the field contract declares ${f.id} (${f.title}) and the template's SPX definition does not carry it`);
+          continue;
+        }
+        if (!TEXT_FTYPES.has(tf.ftype)) continue; // an image or colour field cannot be measured this way
+        driven.push({ id: f.id, title: f.title, sentinel: sentinelFor(tf, i) });
+      }
+      if (!driven.length) { frame.remove(); return findings; }
+      try {
+        win.update(JSON.stringify(Object.fromEntries(driven.map((d) => [d.id, d.sentinel]))));
+        win.play();
+      } catch {
+        frame.remove(); return findings; // a throwing template is the capture's finding, not ours
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1600));
+      const shows = (sentinel, painted) =>
+        sentinel.split(/[\s|\n]+/).some((part) => part && painted.includes(part));
+      let missing = driven.filter((d) => !shows(d.sentinel, visibleText(doc, win)));
+      for (let k = 1; k <= steps && missing.length; k += 1) {
+        try {
+          if (typeof win.next !== 'function' || win.next() == null) break;
+        } catch { break; }
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        const painted = visibleText(doc, win);
+        missing = missing.filter((d) => !shows(d.sentinel, painted));
+      }
+      for (const d of missing) {
+        findings.push(`live field ${d.title} (${d.id}) paints NOTHING in any state along the default path - its value never reaches the screen`);
+      }
+    } finally {
+      frame.remove();
+    }
+    return findings;
+  }, { template, fields, steps });
+}
+
+/** Everything the loop feeds back, as teaching strings - split into BLOCKING (counts against
+ *  deliverability) and ADVISORY (shown to the model with a judgement note, never counted:
+ *  spacing/proportion thresholds on a type they were never calibrated for). The device
+ *  instrument is deliberately ABSENT - a plain panel is a legal answer; this loop repairs
+ *  defects, it does not demand novelty. */
 const EDITABILITY_RULE = 'bench-editability';
-function collectFindings(validation, playError, measured) {
-  const findings = [];
+const UNPAINTED_RULE = 'bench-field-unpainted';
+function collectFindings(validation, playError, measured, ctx = {}) {
+  const blocking = [];
+  const advisory = [];
+  const instruments = ctx.advisoryInstruments ? advisory : blocking;
   for (const e of validation.errors) {
-    if (!e.startsWith(`${EDITABILITY_RULE}:`)) findings.push(`platform check failed - ${e}`);
+    if (!e.startsWith(`${EDITABILITY_RULE}:`)) blocking.push(`platform check failed - ${e}`);
   }
-  if (playError) findings.push(`the template threw at play(): ${playError}`);
-  for (const f of measured?.spacing?.findings ?? []) findings.push(`spacing (${f.code}): ${f.detail}`);
+  // The validator's one-state field-paint read (productionSpxValidator fieldPaints - the Lite
+  // lesson) surfaces as a warning; here it is the owner's "never ship a field that paints
+  // nothing" rule, so it blocks.
+  for (const w of validation.warnings ?? []) {
+    if (w.startsWith(`${UNPAINTED_RULE}:`)) blocking.push(`field paint - ${w}`);
+  }
+  if (playError) blocking.push(`the template threw at play(): ${playError}`);
+  for (const f of ctx.stepFindings ?? []) blocking.push(`step contract: ${f}`);
+  for (const f of ctx.paintFindings ?? []) blocking.push(`field paint: ${f}`);
+  for (const f of measured?.spacing?.findings ?? []) instruments.push(`spacing (${f.code}): ${f.detail}`);
   for (const escape of measured?.spacing?.escapes ?? []) {
-    if (escape.isText) findings.push(`live text paints outside its panel: ${escape.desc} by ${escape.px}px past the ${escape.side} edge`);
+    if (escape.isText) blocking.push(`live text paints outside its panel: ${escape.desc} by ${escape.px}px past the ${escape.side} edge`);
   }
-  for (const f of measured?.proportion?.findings ?? []) findings.push(`proportion (${f.code}): ${f.detail}`);
+  for (const f of measured?.proportion?.findings ?? []) instruments.push(`proportion (${f.code}): ${f.detail}`);
   for (const miss of measured?.axis?.nearMisses ?? []) {
-    findings.push(`alignment near-miss: ${miss.a.el} and ${miss.b.el} are ${miss.gapPx}px from sharing the ${miss.side} edge - align them exactly or separate them deliberately`);
+    blocking.push(`alignment near-miss: ${miss.a.el} and ${miss.b.el} are ${miss.gapPx}px from sharing the ${miss.side} edge - align them exactly or separate them deliberately`);
   }
-  for (const f of measured?.mark?.findings ?? []) findings.push(`brand mark: ${f}`);
-  return findings.slice(0, 14);
+  for (const f of measured?.mark?.findings ?? []) blocking.push(`brand mark: ${f}`);
+  const readability = measured?.readability?.findings ?? [];
+  const readabilityTarget = READABILITY_MODE === 'feed' ? blocking : null;
+  if (readabilityTarget) {
+    for (const f of readability) readabilityTarget.push(`readability (${f.code}): ${f.detail}`);
+  }
+  return { blocking: blocking.slice(0, 14), advisory: advisory.slice(0, 6) };
+}
+
+/** What the model is shown: the blocking findings as the contract, the advisory ones behind a
+ *  judgement note - stated as uncalibrated so an instrument cannot bully a type it has never
+ *  measured. */
+function feedFindings({ blocking, advisory }) {
+  return [
+    ...blocking,
+    ...advisory.map((a) => `ADVISORY, use your judgement (this threshold was calibrated on lower thirds, not this graphic type - fix it only if the frame genuinely reads wrong): ${a}`),
+  ];
 }
 
 /** Downscale the 1920x1080 hold to a model-sized JPEG inside the page. */
@@ -247,6 +428,7 @@ async function downscale(shotBuffer) {
 
 // ── --control: prove the findings collection, no model ─────────────────────────────────
 if (control) {
+  let failed = false;
   const anchor = await page.evaluate(async () => {
     const bust = '?t=' + Date.now();
     const spikeAnchors = await import('/src/ai/spike/anchors.ts' + bust);
@@ -254,9 +436,9 @@ if (control) {
     return { template: a.template, data: a.data };
   });
   const clean = await captureAndMeasure(anchor.template, anchor.data, null, null, 'control-clean.hold.png');
-  const cleanFindings = collectFindings({ errors: [] }, clean.playError, clean.measured);
-  console.log(`control (known-good): ${cleanFindings.length} finding(s)`);
-  for (const f of cleanFindings) console.log(`  - ${f}`);
+  const cleanFindings = collectFindings({ errors: [], warnings: [] }, clean.playError, clean.measured);
+  console.log(`control (known-good): ${cleanFindings.blocking.length} blocking finding(s)`);
+  for (const f of cleanFindings.blocking) console.log(`  - ${f}`);
 
   // The MUTATION: pull the supporting line's MASK up over the primary line. Moving the field
   // itself is absorbed by the mask's own overflow clip (the first version of this check
@@ -267,16 +449,214 @@ if (control) {
     css: `${anchor.template.css}\n/* control mutation - forced overlap */\n[class*="-mask"]:has(#f1) { margin-top: -52px; }`,
   };
   const bad = await captureAndMeasure(broken, anchor.data, null, null, 'control-broken.hold.png');
-  const badFindings = collectFindings({ errors: [] }, bad.playError, bad.measured);
-  console.log(`control (forced overlap): ${badFindings.length} finding(s)`);
-  for (const f of badFindings) console.log(`  - ${f}`);
+  const badFindings = collectFindings({ errors: [], warnings: [] }, bad.playError, bad.measured);
+  console.log(`control (forced overlap): ${badFindings.blocking.length} blocking finding(s)`);
+  for (const f of badFindings.blocking) console.log(`  - ${f}`);
+  if (badFindings.blocking.length === 0) {
+    console.error('MUTATION CHECK FAILED: the forced overlap produced no findings.');
+    failed = true;
+  }
+
+  // ── READABILITY CALIBRATION: three shipped catalog designs. An instrument whose false
+  // positives are good designs gets ignored (the mark-gap lesson), so the floor is trusted
+  // only if the catalog is quiet under it. Murky = rerun the round with --readability=report.
+  const calibration = await page.evaluate(async () => {
+    const bust = '?t=' + Date.now();
+    const { variantById } = await import('/src/templates/catalog.ts' + bust);
+    const out = [];
+    for (const id of ['lt11', 'lt27', 'lt08']) {
+      const variant = variantById(id);
+      if (!variant) { out.push({ id, error: 'gone from the catalog' }); continue; }
+      out.push({
+        id,
+        template: variant.create({
+          lines: [
+            { title: 'Name', sample: 'Alexandra Riva' },
+            { title: 'Role', sample: 'Chief Political Correspondent' },
+          ],
+        }),
+      });
+    }
+    return out;
+  });
+  let calibrationFindings = 0;
+  for (const c of calibration) {
+    if (c.error) { console.error(`  readability calibration: ${c.id} ${c.error}`); failed = true; continue; }
+    const cap = await captureAndMeasure(c.template, { f0: 'Alexandra Riva', f1: 'Chief Political Correspondent' }, null, null, `control-readability-${c.id}.hold.png`);
+    const report = cap.measured?.readability ?? { findings: [], readings: [] };
+    calibrationFindings += report.findings.length;
+    console.log(`readability calibration ${c.id}: ${report.findings.length} finding(s); readings: ${report.readings.map((r) => `${r.fontPx}px${r.contrast ? `/${r.contrast}:1` : ''}`).join(', ')}`);
+    for (const f of report.findings) console.log(`  - ${f.code}: ${f.detail}`);
+  }
+  if (calibrationFindings > 0) {
+    console.error(`READABILITY CALIBRATION MURKY: ${calibrationFindings} finding(s) on shipped designs - run the paid round with --readability=report.`);
+  }
+
+  // ── READABILITY MUTATION: a deliberately grey-on-grey, undersized supporting line must be
+  // loud, or the floor is measuring nothing.
+  const greyOnGrey = {
+    ...anchor.template,
+    css: `${anchor.template.css}\n/* control mutation - grey-on-grey undersized */\n#f1 { color: #3c4046 !important; font-size: 14px !important; }`,
+  };
+  const grey = await captureAndMeasure(greyOnGrey, anchor.data, null, null, 'control-grey.hold.png');
+  const greyFindings = grey.measured?.readability?.findings ?? [];
+  console.log(`control (grey-on-grey 14px): ${greyFindings.length} readability finding(s)`);
+  for (const f of greyFindings) console.log(`  - ${f.code}: ${f.detail}`);
+  if (greyFindings.length === 0) {
+    console.error('READABILITY MUTATION FAILED: the grey-on-grey undersized line produced no findings.');
+    failed = true;
+  }
+
+  // ── ONE KNOWN-GOOD CATALOG CELL PER NEW TYPE, through the EXTENDED capture: if step
+  // capture or the field-paint validator misfires on a shipped scoreboard or quiz, the
+  // harness is broken - fix it before paying (the Phase 0 lesson, standing).
+  const TYPE_CELLS = [
+    { type: 'scoreboard', variant: 'sb01' },
+    { type: 'quiz-board', variant: 'qz01' },
+    { type: 'ticker', variant: 'tk01' },
+    { type: 'stat-panel', variant: 'ig01' },
+    { type: 'countdown', variant: 'gt05' },
+    { type: 'podium-score', variant: 'sb21' },
+  ];
+  for (const cell of TYPE_CELLS) {
+    const made = await page.evaluate(async ({ variantId }) => {
+      const bust = '?t=' + Date.now();
+      const { variantById } = await import('/src/templates/catalog.ts' + bust);
+      const variant = variantById(variantId);
+      if (!variant) return { error: `variant ${variantId} is gone from the catalog` };
+      const template = variant.create({});
+      const values = Object.fromEntries(
+        template.fields
+          .filter((f) => f.ftype === 'textfield' || f.ftype === 'textarea' || f.ftype === 'number')
+          .map((f) => [f.field, String(f.value ?? '')]),
+      );
+      const presses = Math.max(0, (parseInt(template.settings.steps, 10) || 1) - 1);
+      return { template, values, presses };
+    }, { variantId: cell.variant });
+    if (made.error) {
+      console.error(`  type cell ${cell.type}: ${made.error}`);
+      failed = true;
+      continue;
+    }
+    const cap = await captureAndMeasure(
+      made.template, made.values, null, null, `control-type-${cell.type}.hold.png`,
+      { steps: Math.min(made.presses, 6), stepPrefix: `control-type-${cell.type}` },
+    );
+    // The validator's field-paint read, exactly as a paid cell composes it (machine-aware:
+    // unreachableFields walks a shipped type's explicit machine).
+    const paint = await page.evaluate(async ({ template }) => {
+      const bust = '?t=' + Date.now();
+      const { productionSpxValidator } = await import('/src/ai/litePipeline.ts' + bust);
+      const validate = productionSpxValidator(null, [], { fieldPaints: true });
+      const v = await validate(template);
+      return v.warnings.filter((w) => w.rule === 'bench-field-unpainted').map((w) => w.message.slice(0, 160));
+    }, { template: made.template });
+    const loud = [
+      ...(cap.playError ? [`play() threw: ${cap.playError}`] : []),
+      ...cap.stepFindings.map((f) => `step: ${f}`),
+      ...paint.map((p) => `unpainted: ${p}`),
+    ];
+    console.log(`type cell ${cell.type} (${cell.variant}): steps ${cap.stepFrames.length}/${Math.min(made.presses, 6)}, ${loud.length} harness finding(s)`);
+    for (const f of loud) console.log(`  - ${f}`);
+    if (loud.length > 0) failed = true;
+  }
 
   await browser.close();
-  if (badFindings.length === 0) {
-    console.error('\nMUTATION CHECK FAILED: the forced overlap produced no findings - do not pay for a round on this loop.');
+  if (failed) {
+    console.error('\nCONTROL FAILED - do not pay for a round on this harness.');
     process.exit(1);
   }
-  console.log('\nControl PASSED: the collector is quiet on the known-good frame and loud on the broken one.');
+  console.log('\nControl PASSED: quiet on known-good frames (all seven types), loud on both mutations.');
+  process.exit(0);
+}
+
+// ── --anchors: per-type CATALOG baselines for the blind page, free ─────────────────────
+// The real create() output of a shipped variant, driven with the type's first brief's own
+// words, so the read has a professional baseline per type (the §0.2 anchor rule, applied
+// per type). The slug borrows that brief's id - a slug naming "anchor" would answer the
+// question before the reviewer looks.
+if (anchors) {
+  const ANCHOR_VARIANTS = {
+    'lower-third': 'lt27',
+    scoreboard: 'sb01',
+    'quiz-board': 'qz01',
+    ticker: 'tk01',
+    'stat-panel': 'ig01',
+    countdown: 'gt05',
+    'podium-score': 'sb21',
+  };
+  const seen = new Set();
+  const anchorResults = [];
+  for (const entry of briefs) {
+    const type = sweepType(entry);
+    if (seen.has(type) || !ANCHOR_VARIANTS[type]) continue;
+    seen.add(type);
+    const variantId = ANCHOR_VARIANTS[type];
+    const made = await page.evaluate(async ({ variantId, brief }) => {
+      const bust = '?t=' + Date.now();
+      const { variantById } = await import('/src/templates/catalog.ts' + bust);
+      const spikeAnchors = await import('/src/ai/spike/anchors.ts' + bust);
+      const variant = variantById(variantId);
+      if (!variant) return { error: `variant ${variantId} is gone from the catalog` };
+      const template = variant.create({});
+      // The brief's own words onto the design's text fields, by order - the same driveData
+      // idea the §0.2 anchors use, across a type whose field count may differ.
+      const sample = Object.values(spikeAnchors.dataFor(brief));
+      const stressVals = Object.values(spikeAnchors.stressFor(brief));
+      const text = template.fields.filter((f) => ['textfield', 'textarea', 'number'].includes(f.ftype));
+      const map = (vals) => Object.fromEntries(
+        text.map((f, i) => [f.field, vals[i] ?? String(f.value ?? '')]),
+      );
+      return {
+        template,
+        variantName: variant.name,
+        values: map(sample),
+        stressValues: map(stressVals),
+        presses: Math.max(0, (parseInt(template.settings.steps, 10) || 1) - 1),
+      };
+    }, { variantId, brief: entry.brief });
+    if (made.error) {
+      console.error(`anchor ${type}: ${made.error}`);
+      continue;
+    }
+    const brandId = brandsFixture.assignment[entry.id] ?? brands[0].id;
+    const slug = `${entry.id}.${brandId}.catalog`;
+    const cap = await captureAndMeasure(
+      made.template, made.values, null, null, `${slug}.hold.png`,
+      { steps: Math.min(made.presses, 6), stepPrefix: slug, proType: proInstrumentType(entry) },
+    );
+    const stressCap = await captureAndMeasure(
+      made.template, made.stressValues, null, null, `${slug}.stress.hold.png`,
+    );
+    anchorResults.push({
+      slug,
+      kind: 'candidate',
+      arm: 'catalog-anchor',
+      type,
+      brand: brandId,
+      model: 'catalog',
+      provenance: `catalog design ${variantId} "${made.variantName}" via its real create(), driven with the ${entry.id} brief's words`,
+      deliverable: true,
+      iterations: 0,
+      contract: { scaffoldOk: true, blockingErrors: [] },
+      hold: `${slug}.hold.png`,
+      stressHold: `${slug}.stress.hold.png`,
+      ...(cap.stepFrames.length ? { stepFrames: cap.stepFrames } : {}),
+      ...(cap.playError ? { playError: cap.playError } : {}),
+      ...(stressCap.playError ? { stressPlayError: stressCap.playError } : {}),
+      costUsd: 0,
+    });
+    console.log(`anchor ${type}: ${variantId} · ${cap.stepFrames.length} step frame(s)${cap.playError ? ` · PLAY ERROR ${cap.playError}` : ''}`);
+  }
+  await writeFile(path.join(OUT, 'results.json'), `${JSON.stringify({
+    base: BASE,
+    capturedAt: new Date().toISOString(),
+    bank: path.relative(process.cwd(), BANK),
+    kind: 'catalog-anchors',
+    results: anchorResults,
+  }, null, 2)}\n`);
+  await browser.close();
+  console.log(`\n${anchorResults.length} catalog anchor(s) · ${path.join(OUT, 'results.json')}`);
   process.exit(0);
 }
 
@@ -301,6 +681,9 @@ async function writeLedger() {
     capturedAt: new Date().toISOString(),
     route,
     frontierReason,
+    bank: path.relative(process.cwd(), BANK),
+    brands: path.relative(process.cwd(), BRANDS),
+    readabilityMode: READABILITY_MODE,
     maxIterations: MAX_ITERATIONS,
     vision,
     maxCost,
@@ -344,7 +727,10 @@ for (const entry of briefs) {
           brief: input.brief,
           route: { provider, model: model.join(':') },
           decoding: input.decoding,
-          validate: productionSpxValidator(null, [input.brand.mark.path]),
+          // fieldPaints composed into the LOOP'S validator (the Lite pattern - §21.2 escape
+          // 2) wherever its one-state read is the whole answer; steppers get the runner's
+          // sentinel step-walk instead.
+          validate: productionSpxValidator(null, [input.brand.mark.path], input.benchOptions),
           brand: input.brand,
           previous: input.previous ?? undefined,
         });
@@ -361,7 +747,14 @@ for (const entry of briefs) {
           costUsd: result.costUsd,
           model: result.model,
         };
-      }, { brief: entry.brief, route, decoding, brand, previous });
+      }, {
+        brief: entry.brief,
+        route,
+        decoding,
+        brand,
+        previous,
+        benchOptions: validatorFieldPaints(entry) ? { fieldPaints: true } : {},
+      });
 
       totals.input += emitRes.usage.input;
       totals.output += emitRes.usage.output;
@@ -377,6 +770,9 @@ for (const entry of briefs) {
         writeFile(path.join(codeDir, 'index.html'), emitRes.template.html),
         writeFile(path.join(codeDir, 'template.css'), emitRes.template.css),
         writeFile(path.join(codeDir, 'template.js'), emitRes.template.js),
+        // The whole SpxTemplate, so the control-drive proof can load the exact emitted
+        // graphic into the shipped panel without re-importing from the three files.
+        writeFile(path.join(codeDir, 'template.json'), `${JSON.stringify(emitRes.template, null, 2)}\n`),
       ]);
 
       const data = await page.evaluate(async ({ briefEntry, fill }) => {
@@ -390,21 +786,35 @@ for (const entry of briefs) {
       const capture = await captureAndMeasure(
         emitRes.template, data, emitRes.fill?.slotFieldId ?? null, brand.mark.probe,
         `${slug}.round-${round}.hold.png`,
+        {
+          proType: proInstrumentType(entry),
+          steps: declaredSteps(entry),
+          stepPrefix: `${slug}.round-${round}`,
+        },
       );
+      // The sentinel step-walk covers what the validator's one-state read cannot (steppers,
+      // transform fields) - a quiz that never reveals its answer must fail the loop.
+      const paintFindings = validatorFieldPaints(entry) ? [] : await paintWalk(emitRes.template, entry);
       lastCapture = { ...capture, data, round };
 
-      const findings = collectFindings(emitRes.validation, capture.playError, capture.measured);
+      const split = collectFindings(emitRes.validation, capture.playError, capture.measured, {
+        advisoryInstruments: instrumentsAdvisory(entry),
+        stepFindings: capture.stepFindings,
+        paintFindings,
+      });
+      const findings = feedFindings(split);
       iterationLog.push({
         round,
-        findings,
+        findings: split.blocking,
+        advisory: split.advisory,
         usage: emitRes.usage,
         costUsd: emitRes.costUsd,
       });
-      console.log(`  round ${round}: ${findings.length} finding(s)`
+      console.log(`  round ${round}: ${split.blocking.length} blocking / ${split.advisory.length} advisory finding(s)`
         + ` · ${emitRes.usage.input} in / ${emitRes.usage.output} out · $${emitRes.costUsd.toFixed(4)}`);
-      for (const f of findings.slice(0, 6)) console.log(`    - ${f.slice(0, 140)}`);
+      for (const f of split.blocking.slice(0, 6)) console.log(`    - ${f.slice(0, 140)}`);
 
-      if (findings.length === 0) {
+      if (split.blocking.length === 0) {
         deliverable = true;
         break;
       }
@@ -443,6 +853,7 @@ for (const entry of briefs) {
   }, { briefEntry: entry.brief, fill: current.fill });
   const stress = await captureAndMeasure(
     current.template, stressData, current.fill?.slotFieldId ?? null, brand.mark.probe, `${slug}.stress.hold.png`,
+    { proType: proInstrumentType(entry) },
   );
 
   const blockingErrors = current.validation.errors.filter((e) => !e.startsWith(`${EDITABILITY_RULE}:`));
@@ -452,10 +863,11 @@ for (const entry of briefs) {
     slug,
     kind: 'candidate',
     arm: 'iterate',
+    type: sweepType(entry),
     brand: brand.id,
     route,
     model: current.model,
-    provenance: `${route} · iterate arm (${iterationLog.length} round(s), vision ${vision ? 'on' : 'off'}) · brand ${brand.id}`,
+    provenance: `${route} · iterate arm (${iterationLog.length} round(s), vision ${vision ? 'on' : 'off'}) · ${sweepType(entry)} · brand ${brand.id}`,
     iterations: iterationLog.length - 1,
     iterationLog,
     deliverable,
@@ -480,6 +892,8 @@ for (const entry of briefs) {
     ...(lastCapture.measured?.proportion ? { proportionReport: lastCapture.measured.proportion } : {}),
     ...(lastCapture.measured?.device ? { deviceReport: lastCapture.measured.device } : {}),
     ...(lastCapture.measured?.mark ? { markReport: lastCapture.measured.mark } : {}),
+    ...(lastCapture.measured?.readability ? { readabilityReport: lastCapture.measured.readability } : {}),
+    ...(lastCapture.stepFrames?.length ? { stepFrames: lastCapture.stepFrames } : {}),
     ...(stress.playError ? { stressPlayError: stress.playError } : {}),
     usage: totals,
     costUsd: cost,
