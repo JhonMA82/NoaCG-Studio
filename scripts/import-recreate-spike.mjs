@@ -47,10 +47,12 @@ const resume = flag('resume');
 const IMAGES = path.resolve(value('images') ?? 'example-import-graphics');
 const OUT = path.resolve(value('out') ?? 'recreate-out');
 const MAX_ITERATIONS = Number(value('max-iterations') ?? 4);
-// 0.7 of active blocks, not higher: an independent HTML rebuild of a rasterised design tops
-// out well under identity even when a viewer calls it the same graphic (textures, glyph
-// rasterisation, soft shadows). The floor gates the LOOP; the owner's gallery read judges.
-const MIN_SIMILARITY = Number(value('min-similarity') ?? 0.7);
+// READ OFF the 2026-08-18 round, not chosen: rebuilds the eye calls the same design measured
+// 42-58% of active blocks (textures, glyph rasterisation and soft shadows never match
+// per-block), scale-broken ones 19-34% (now named by the footprint finding), and the
+// wrong-design control 6%. The floor sits under the good cluster with clear air above the
+// mutation; the owner's gallery read judges quality.
+const MIN_SIMILARITY = Number(value('min-similarity') ?? 0.4);
 const DECODING = path.resolve('benchmarks/pro/v1/spike/decoding.json');
 
 if (!control && !paid) {
@@ -471,11 +473,44 @@ async function similarity(referenceB64, renderB64) {
       });
     // Under 0.2% active = one side is essentially empty against the other - score 0, never a
     // division-by-nothing pass.
-    if (active < W * H * 0.002) return { score: 0, offset: null, worst: ['the render paints almost nothing where the reference has a graphic'] };
+    if (active < W * H * 0.002) return { score: 0, offset: null, footprint: null, worst: ['the render paints almost nothing where the reference has a graphic'] };
     const offset = (best.dx || best.dy)
       ? { x: best.dx * 8, y: best.dy * 8 }
       : null;
-    return { score: ok / active, offset, worst };
+    // The FOOTPRINT gap: the two sides' active bounding boxes, in frame px. The round's two
+    // best-looking rebuilds scored 19% and 28% because they were drawn at a different SCALE -
+    // a defect the block diff can only report as "everything differs", while the bbox gap
+    // names the one actionable fix (draw it bigger/smaller, there).
+    const bbox = (img) => {
+      let x0 = W, y0 = H, x1 = -1, y1 = -1;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const p = (y * W + x) * 4;
+          let off = 0;
+          for (let c = 0; c < 3; c++) off = Math.max(off, Math.abs(img[p + c] - BG));
+          if (off > 12) {
+            if (x < x0) x0 = x;
+            if (x > x1) x1 = x;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+          }
+        }
+      }
+      return x1 < 0 ? null : { x: x0 * 8, y: y0 * 8, w: (x1 - x0 + 1) * 8, h: (y1 - y0 + 1) * 8 };
+    };
+    const refBox = bbox(a);
+    const renBox = bbox(b);
+    let footprint = null;
+    if (refBox && renBox) {
+      const grew = (m, n) => Math.abs(m - n) / Math.max(m, n) > 0.12;
+      if (grew(refBox.w, renBox.w) || grew(refBox.h, renBox.h)) {
+        footprint = `the reference graphic occupies about ${refBox.w}x${refBox.h}px at `
+          + `x=${refBox.x}, y=${refBox.y}; yours occupies ${renBox.w}x${renBox.h}px at `
+          + `x=${renBox.x}, y=${renBox.y} - redraw at the reference's size and position, `
+          + `keeping the design`;
+      }
+    }
+    return { score: ok / active, offset, footprint, worst };
   }, { referenceB64, renderB64 });
 }
 
@@ -580,7 +615,9 @@ async function runGraphic(slug, reference, emitRound) {
       (f) => `advisory (matching the reference may justify it): ${f.detail}`,
     );
     findings.push(...reactionFindings(emitRes.template, hold.fields, stress.fields, data, stressed));
-    if (sim.offset) {
+    if (sim.footprint) {
+      findings.push(sim.footprint);
+    } else if (sim.offset) {
       findings.push(`the whole graphic sits about ${Math.abs(sim.offset.x)}px `
         + `${sim.offset.x > 0 ? 'right' : 'left'} and ${Math.abs(sim.offset.y)}px `
         + `${sim.offset.y > 0 ? 'below' : 'above'} its position in the reference - keep the `
