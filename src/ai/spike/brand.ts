@@ -650,7 +650,9 @@ function relativeLuminance(rgb: [number, number, number]): number {
   return 0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2]);
 }
 
-function parseColor(value: string): { rgb: [number, number, number]; alpha: number } | null {
+/** Exported for the device instrument (deviceCheck.ts): two parsers of "what colour is this
+ *  surface" is how two instruments come to disagree, the same argument `paints` makes. */
+export function parseColor(value: string): { rgb: [number, number, number]; alpha: number } | null {
   const m = value.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)/);
   if (!m) return null;
   return { rgb: [Number(m[1]), Number(m[2]), Number(m[3])], alpha: m[4] === undefined ? 1 : Number(m[4]) };
