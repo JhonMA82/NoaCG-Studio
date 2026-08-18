@@ -249,6 +249,15 @@ values from a latest-template ref, and gates the auto-entrance on `document.font
 (capped) so a font choice shows on the entrance itself. Pinned by e2e/wizard-preview.spec.ts,
 wizard-logo.spec.ts, and wizard-filters.spec.ts.
 
+**THE LEGIBILITY SETTINGS ARE ONE SHARED CONTROL** (`ViewingControls.tsx`): the viewing-target
+select and the two size-floor toggles ("Broadcast text sizes" OFF = relaxed, "Guaranteed
+readable size" ON = safe - mirrors of ONE tri-state, interlock in the component). Rendered on
+the Style step (catalog walk) and on AiStep; PROJECT METADATA riding `draft.legibility`, never
+the `:root` contract - the create paths land it on the store, which persists it
+(model/designRules.ts). Every AI generation resolves it into `GenerateContext.legibility`, and
+the result card stamps what its request carried (`data-legibility`). Pinned by
+e2e/design-rules-product.spec.ts.
+
 **THE STYLE STEP WARNS WHEN THE PALETTE JUST ERASED THE LOGO** (`useMarkLegibility` ->
 `validation/markLegibility.ts`, owner's value-gate ballot 2026-08-14). It measures its OWN
 offscreen frame rather than the live preview, because WizardPreview's iframe deliberately carries

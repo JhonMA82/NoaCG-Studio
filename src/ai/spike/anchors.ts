@@ -66,6 +66,11 @@ const CONTROL_VARIANT_ID = 'lt11';
  *  what the mid-air `update()` cue writes during the motion capture: a strap that survives
  *  its entrance and breaks on the first real name is a strap that breaks on air. */
 export function stressFor(brief: SpikeBrief): Record<string, string> {
+  if (brief.fields) {
+    return Object.fromEntries(
+      brief.fields.map((f) => [f.id, f.stress ?? `${f.sample} and a good deal longer than planned`]),
+    );
+  }
   return {
     f0: `${brief.name} de la Cruz-Whittington`,
     f1: `${brief.title}, Southern Bureau and Election Desk`,
@@ -73,6 +78,9 @@ export function stressFor(brief: SpikeBrief): Record<string, string> {
 }
 
 export function dataFor(brief: SpikeBrief): Record<string, string> {
+  if (brief.fields) {
+    return Object.fromEntries(brief.fields.map((f) => [f.id, f.sample]));
+  }
   return { f0: brief.name, f1: brief.title };
 }
 
@@ -84,6 +92,51 @@ function driveData(template: SpxTemplate, values: string[]): Record<string, stri
   return Object.fromEntries(
     text.map((f, i) => [f.field, values[i] ?? String(f.value ?? '')]),
   );
+}
+
+/** A value only a score, a clock or a duration would carry - digits and their punctuation. */
+const NUMERIC_VALUE = /^[\d.,:+\- ]+$/;
+
+/**
+ * Map a brief's values onto a catalog design's fields BY WHAT EACH FIELD IS, not by position.
+ *
+ * The blind pages' catalog anchors used to assign purely by order, and the 2026-08-19 read
+ * paid for it twice: sb01's field order is name/score/name/score while the scoreboard brief
+ * lists name/name/score/score, so "NORTHBRIDGE ALBION" landed on a score chip and a score sat
+ * bare in a name slot ("one number has a yellow background and the other doesn't"); tk01
+ * declares its items TEXTAREA first and its label second while the ticker brief leads with the
+ * label, so the whole headlines block landed in the label and blew the strip out of its band.
+ * Both frames were then judged as the DESIGN's failure.
+ *
+ * The classes are the ones the field types themselves declare: a textarea wants the multiline
+ * value, a number field takes only a numeric-looking one, and a textfield prefers ordinary
+ * words. Within a class the brief's order still decides, so a two-name board keeps home before
+ * away. A value nothing claims is dropped and a field nothing fits keeps its design default -
+ * exactly what the positional map did when the counts differed.
+ */
+export function mapBriefValues(
+  fields: { field: string; ftype: string; value?: unknown }[],
+  values: string[],
+): Record<string, string> {
+  const remaining = [...values];
+  const take = (pred: (v: string) => boolean): string | undefined => {
+    const i = remaining.findIndex(pred);
+    return i === -1 ? undefined : remaining.splice(i, 1)[0];
+  };
+  const out: Record<string, string> = {};
+  for (const f of fields) {
+    if (!['textfield', 'textarea', 'number'].includes(f.ftype)) continue;
+    let v: string | undefined;
+    if (f.ftype === 'textarea') {
+      v = take((s) => s.includes('\n')) ?? take(() => true);
+    } else if (f.ftype === 'number') {
+      v = take((s) => NUMERIC_VALUE.test(s));
+    } else {
+      v = take((s) => !s.includes('\n') && !NUMERIC_VALUE.test(s)) ?? take((s) => !s.includes('\n'));
+    }
+    out[f.field] = v ?? String(f.value ?? '');
+  }
+  return out;
 }
 
 /**

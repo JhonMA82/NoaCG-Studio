@@ -31,10 +31,11 @@ import type {
   WizardOptions,
   Zone9,
 } from '../../model/wizard';
-import { paletteById } from '../../model/wizard';
+import { PALETTES, paletteById } from '../../model/wizard';
 import type { EasingId } from '../../model/easings';
 import { ensureFontFace, fontByStack, type CustomFont } from '../../model/fonts';
 import type { EraseRect, RegionInk } from '../../assets/eraseRegion';
+import type { ProjectLegibility } from '../../model/designRules';
 
 /** ONE applied baked-text erase: the marked rectangle (in the artwork's SOURCE pixels) and
  *  the sampling verdict it ran with. Its measured ink seeds a real text field per LINE it
@@ -169,6 +170,11 @@ export interface WizardDraft {
   /** The Text step's placed fields (Import Graphic). Ordered; each becomes a real placed
    *  field at build, AFTER the erase-seeded ones. */
   designFields: DesignFieldSpec[];
+  /** The project's legibility settings (model/designRules.ts): viewing target + the two
+   *  size-floor toggles. PROJECT METADATA, never template CSS — draftToOptions does not read
+   *  it; the create paths land it on the store, which persists it with the project. An
+   *  untouched draft is `{}` and serializes to nothing. */
+  legibility: ProjectLegibility;
 }
 
 /** A draft update: top-level fields replace; `animation` and `nudge` deep-merge. */
@@ -214,6 +220,7 @@ export function initialDraft(): WizardDraft {
     designOriginal: null,
     designErases: [],
     designFields: [],
+    legibility: {},
   };
 }
 
@@ -235,9 +242,23 @@ export function formatDraftPatch(selection: ProjectFormatSelection): DraftPatch 
 
 /** The DraftPatch that applies a saved project brand to the draft (the wizard's "Use current project's colors & typeface" toggle). */
 export function brandPatch(brand: import('../../model/brand').ProjectBrand): DraftPatch {
+  // ANYTHING THE CATALOG CANNOT NAME TRAVELS AS A CUSTOM PALETTE. A look CAPTURED off a
+  // template (model/packets.ts captureLookFromTemplate) is minted with id 'captured', not
+  // 'custom' - and `draftToOptions` resolves a non-custom palette through `paletteById`,
+  // which knows neither id. Keying only on the literal 'custom' therefore sent 'captured'
+  // down the lookup path, where `paletteById` SUBSTITUTES `PALETTES[0]` for anything it does
+  // not recognise rather than admitting the miss - so the whole captured palette was replaced
+  // by NoaCG Amber, silently. A graphic added through a production's "＋ New graphic for this
+  // production…" door therefore came out in catalog colours beside the production it was
+  // supposed to match, with only the typeface carrying. Measured on the Uutishuone pack:
+  // production accent #6C4CF1, the new graphic emitted #f6a623.
+  //
+  // Membership, not the resolver: `paletteById` is total by design and can never report a
+  // miss, so asking it whether an id is known is asking a question it cannot answer.
+  const known = PALETTES.some((p) => p.id === brand.palette.id);
   return {
-    customPalette: brand.palette.id === 'custom' ? brand.palette : null,
-    paletteId: brand.palette.id !== 'custom' ? brand.palette.id : null,
+    customPalette: known ? null : brand.palette,
+    paletteId: known ? brand.palette.id : null,
     fontId: brand.customFont ? 'custom' : brand.fontId,
     customFont: brand.customFont,
   };

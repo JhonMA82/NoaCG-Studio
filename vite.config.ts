@@ -6,6 +6,7 @@ import { aiApiPlugin } from './scripts/aiDevPlugin.mjs';
 import { eventsApiPlugin } from './scripts/eventsDevPlugin.mjs';
 import { adminApiPlugin } from './scripts/adminDevPlugin.mjs';
 import { meApiPlugin } from './scripts/meDevPlugin.mjs';
+import { dataApiPlugin } from './scripts/dataDevPlugin.mjs';
 
 // NoaCG Studio — dev/build config.
 // Seven pages: index.html is the static public landing at "/", app.html is the editor at
@@ -88,6 +89,7 @@ export default defineConfig(({ command, mode }) => {
       eventsApiPlugin(),
       adminApiPlugin(),
       meApiPlugin(),
+      dataApiPlugin(),
     ],
     // strictPort: the port is this checkout's identity (playwright + the dev scripts derive
     // the same number), so failing loudly beats silently drifting onto a neighbour's port.

@@ -25,7 +25,7 @@ import { useDocKindStore } from './docKindStore';
  *  template change, and a Save that changes nothing else must still survive a reload. */
 function persistLink(): void {
   const s = useTemplateStore.getState();
-  saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread);
+  saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility);
 }
 
 /** Where a first save / Save As puts the graphic. Packages are retired (docs/GOALS.md
@@ -48,7 +48,7 @@ export async function saveCurrentGraphic(): Promise<'saved' | 'needs-name' | 'fa
   const s = useTemplateStore.getState();
   if (!s.saved.graphicId) return 'needs-name';
   s.setSaved({ ...s.saved, status: 'saving' });
-  const { doc, error } = updateGraphic(s.saved.graphicId, { template: s.template, baseline: s.baseline, aiSpec: s.aiSpec, aiThread: s.aiThread });
+  const { doc, error } = updateGraphic(s.saved.graphicId, { template: s.template, baseline: s.baseline, aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility });
   const failure = error ?? (await commitDurableWrites());
   if (!doc || failure) {
     // The record vanished (deleted on another device): fall back to naming it fresh.
@@ -73,6 +73,7 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
     baseline: s.baseline,
     aiSpec: s.aiSpec,
     aiThread: s.aiThread,
+    legibility: s.legibility,
   });
   const failure = error ?? (await commitDurableWrites());
   if (failure) {
@@ -100,6 +101,7 @@ export function openGraphicDoc(doc: GraphicDoc): void {
   if (doc.baseline) useTemplateStore.setState({ baseline: doc.baseline });
   // The swap cleared the working spec and conversation; a saved AI creation brings its own back.
   useTemplateStore.setState({ aiSpec: doc.aiSpec ?? null, aiThread: normalizeThread(doc.aiThread) });
+  useTemplateStore.getState().setLegibility(doc.legibility ?? null);
   const entry = doc.activeEntryId ? doc.entries.find((e) => e.id === doc.activeEntryId) : null;
   if (entry) {
     for (const [field, value] of Object.entries(entry.values)) {

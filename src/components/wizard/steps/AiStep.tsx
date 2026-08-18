@@ -91,6 +91,8 @@ import { readinessRows, unclaimedFindings } from '../../../validation/readiness'
 import { formatDuration, formatTokens, hasTokenCounts, lastRun, runCost, runExpectation, type RunCost } from '../../../ai/runStats';
 import MiniPreview from '../MiniPreview';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
+import ViewingControls from '../ViewingControls';
+import { resolveLegibility, type ProjectLegibility, type ResolvedLegibility } from '../../../model/designRules';
 import MoreControlPanel from './ai/MoreControlPanel';
 import { GenerationRating } from '../../feedback/GenerationRating';
 import { LITE_AI_CATEGORIES } from '../../../ai/liteContract';
@@ -100,6 +102,11 @@ import type { LiteStatusResponse } from '../../../ai/liteTypes';
 interface Props {
   format: ProjectFormatSelection;
   onFormat: (format: ProjectFormatSelection) => void;
+  /** The project's legibility settings (viewing target + the two size-floor toggles,
+   *  model/designRules.ts) — project metadata the wizard persists with the creation. Every
+   *  generation resolves them into the request's context. */
+  legibility: ProjectLegibility;
+  onLegibility: (legibility: ProjectLegibility) => void;
   /** Brand colors to honor (when "Use current project's colors & typeface" is on and a brand exists). */
   brandPalette: Palette | null;
   /** The current AI result shown in the live preview (null until the first generation). */
@@ -289,6 +296,8 @@ function designWords(alt: AiTemplateChange): string[] {
 export default function AiStep({
   format,
   onFormat,
+  legibility,
+  onLegibility,
   brandPalette,
   result,
   onResult,
@@ -784,6 +793,9 @@ export default function AiStep({
       spec: activeSpec,
       conversation: turns.length ? conversation() : undefined,
       ...(seed ? { seed } : {}),
+      // The project's legibility settings, resolved: the provider renders them as the
+      // design-rules block on the user message (model/designRules.ts, one module zero drift).
+      legibility: resolveLegibility(legibility),
       resolution: authoredResolution,
       fps: authoredFps,
     };
@@ -791,6 +803,13 @@ export default function AiStep({
 
   /** The brief a Generate press acts on: what is typed, else what the talk arrived at. */
   const briefNow = (): string => prompt.trim() || latestBrief || '';
+
+  /** What the LAST generation's context carried, stamped on the result card
+   *  (`data-legibility`) so a spec can pin that the wizard's toggles reach the request
+   *  without spending a token — the offline stub receives the identical context. */
+  const [lastLegibility, setLastLegibility] = useState<string | null>(null);
+  const legibilityStamp = (l: ResolvedLegibility): string =>
+    `${l.floorsBlocking ? l.mode : 'relaxed'}:${l.target.profile}`;
 
   /** Take a colour as the brand accent; the rest of the system follows the house neutrals. */
   const applyAccent = (hex: string) => setSpec({ ...spec, brandColors: paletteFromAccent(hex) });
@@ -825,6 +844,7 @@ export default function AiStep({
     setPrompt('');
     setArmedExample(null);
     const context = contextFor(seed);
+    setLastLegibility(context.legibility ? legibilityStamp(context.legibility) : null);
     // Conversion always runs the validated conversion flow; plain generation branches on
     // the harness switch: OFF = the default one-shot (statically validated, no repair
     // loop), ON = three harness alternatives with the live bench injected.
@@ -1136,6 +1156,11 @@ export default function AiStep({
         idPrefix="ai-format"
         description="This resolution and frame rate are fixed before the first generation. AI cannot override them."
       />
+
+      {/* The legibility settings ride EVERY generation's context as the design-rules prompt
+          block, and persist with the created project — same shared control the Style step
+          renders on the catalog walk. */}
+      <ViewingControls value={legibility} onChange={onLegibility} />
 
       {/* The drop zone (images + existing templates). Never gated: the no-AI import lives here. */}
       <div
@@ -1784,7 +1809,7 @@ export default function AiStep({
           )}
 
           {result && !busy && (
-            <div className="change-preview" style={{ marginTop: 10 }}>
+            <div className="change-preview" style={{ marginTop: 10 }} data-legibility={lastLegibility ?? undefined}>
               <strong>{result.name}</strong>
               {summary && <p style={{ marginTop: 6 }}>{summary}</p>}
               {adaptedFrom(alternatives[selected]) && (

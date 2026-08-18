@@ -59,13 +59,19 @@ const MAP = [
   // round's numbers MEAN - and the panel-overflow blindness (docs/NOACG_PRO_PLAN.md §15.6) is
   // exactly the class that builds green and reports a defect as its opposite.
   [/^src\/ai\/spike\//, ['spike-instruments.spec.ts']],
+  // The design rules as a PRODUCT property (docs/DESIGN_RULES_PLAN.md §5 R4): the canonical
+  // module, the shared measurement instruments (moved out of the spike so product and bench
+  // read one code), and the warn-first product warnings. src/model and src/validation are
+  // CORE (full suite), but under the sprint focus that escalation runs the FOCUS list - so
+  // the spec is in e2e-lists.mjs FOCUS as well, and this line documents the pairing.
+  [/^src\/(model\/designRules\.ts|validation\/(designRulesWarnings|readabilityCheck|tickerCheck)\.ts)$/, ['design-rules-product.spec.ts', 'spike-instruments.spec.ts']],
   // The mark PROBE is read by the Lite legibility gate and by Pro's mark-field trigger, and the
   // trigger rests entirely on `inkSpread` separating one ink from several.
   [/^src\/assets\/assetInfo\.ts$/, ['spike-instruments.spec.ts', 'mark-legibility.spec.ts', 'assets.spec.ts']],
   [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-tiers.spec.ts', 'ai-retrieval.spec.ts', 'adapt-first.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts', 'pro.spec.ts', 'lite-line-fit.spec.ts', 'lite-type-floor.spec.ts', 'lite-parity.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts']],
   // The AI step and its child panels are what the ai-* specs actually drive; the generic
   // wizard rule below does not name them, which silently left an AiStep edit unpinned.
-  [/^src\/components\/wizard\/steps\/(AiStep|ai\/)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-tiers.spec.ts', 'ai-more-control.spec.ts', 'ai-consent.spec.ts', 'image-purpose.spec.ts', 'adapt-first.spec.ts', 'pro.spec.ts']],
+  [/^src\/components\/wizard\/steps\/(AiStep|ai\/)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-tiers.spec.ts', 'ai-more-control.spec.ts', 'ai-consent.spec.ts', 'image-purpose.spec.ts', 'adapt-first.spec.ts', 'pro.spec.ts', 'design-rules-product.spec.ts']],
   // The shared provider/model/key surface. The tier door is where its WORDING is pinned - the
   // one defect class (a mislabelled tier, a transport offered as a choice) that builds green.
   [/^src\/components\/AiProviderSettings\.tsx$/, ['ai-tiers.spec.ts', 'video-settings.spec.ts', 'ai.spec.ts']],
@@ -88,11 +94,17 @@ const MAP = [
   // what the dev server can reach, and nothing else here would notice.
   [/^api\/(ai\/|_lib\/ai)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-tiers.spec.ts', 'ai-more-control.spec.ts', 'ai-dev-routes.spec.ts', 'video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts']],
   [/^api\//, ['render.spec.ts', 'render-schedule.spec.ts']],
+  // The Production Data API (docs/DATA_API.md): the routed function, its logic module, and
+  // the dev middleware that makes the route exist locally at all.
+  [/^(api\/data\/|api\/_lib\/dataIngest|scripts\/dataDevPlugin)/, ['data-api.spec.ts']],
   // The dev server's own route RESOLVER. ai-dev-routes.spec.ts drives the real middleware instead
   // of mocking it, which is the only thing that can prove a route is reachable at all - every
   // other AI spec mocks at the network level, which is why an allowlist hid three surfaces.
   [/^scripts\/(aiDevPlugin|apiRouteTable)/, ['ai-dev-routes.spec.ts', 'ai.spec.ts', 'ai-depth.spec.ts', 'ai-more-control.spec.ts']],
   [/^src\/export\//, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'template-pack-10.spec.ts']],
+  // OGraf conformance is checked over the whole CATALOG, so a template change can break it as
+  // surely as an exporter change can (a new field type, a new machine shape).
+  [/^src\/(export\/targets\/ograf|templates)\//, ['ograf-conformance.spec.ts']],
   // The OUTPUT EMBED is an export file about the cloud output, so it belongs to the production
   // suite rather than to the package specs the rule above lists (rules union, never shadow).
   [/^src\/export\/outputEmbed/, ['productions.spec.ts']],
@@ -155,7 +167,7 @@ const MAP = [
   // specs" failure mode the wizard-finish line above records, and it has already bitten twice:
   // auto-placement broke import-analysis, and the erase's opening proposal changes the very
   // step import-prepare and import-canvas walk through.
-  [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-canvas.spec.ts', 'import-stretch.spec.ts', 'import-analysis.spec.ts', 'text-tools.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts', 'wizard-setup-fields.spec.ts', 'google-fonts.spec.ts']],
+  [/^src\/components\/wizard\//, ['wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-canvas.spec.ts', 'import-stretch.spec.ts', 'import-analysis.spec.ts', 'text-tools.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts', 'wizard-setup-fields.spec.ts', 'google-fonts.spec.ts', 'design-rules-product.spec.ts']],
   // WHAT HAPPENS WHEN A WRITE FAILS is its own contract (e2e/storage-full.spec.ts) and it cuts
   // across the storage layer, the two save paths over it, and the surface that announces the
   // failure. It is mapped separately because the failure mode it guards - a door that saves
@@ -176,6 +188,14 @@ const MAP = [
   [/^src\/components\/MachineGraph/, ['machine-graph.spec.ts', 'state-machine.spec.ts', 'timeline-v2.spec.ts']],
   [/^src\/components\/(fields|SampleDataPanel|ControlPanel|HostedControlPage)/, ['control.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'images.spec.ts', 'ux.spec.ts', 'video-inputs.spec.ts', 'import-graphic.spec.ts']],
   [/^src\/components\/(AssetsPanel|assetInfo|InsertTemplateDialog)/, ['assets.spec.ts', 'images.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
+  // The graphics-pack ROUND TRIP (src/packs/graphicsPack.ts buildPack + the export dialog's
+  // download): one spec drives export -> re-import through the real UI, plus the shipped
+  // Fight Night pack's install (rundown order included) - so the format owner and both UI
+  // ends select it, unioning with the pack-import rules below.
+  [/^src\/(packs\/|components\/home\/(ProductionExportDialog|sections\/ProductionsSection))/, ['production-pack.spec.ts']],
+  // The pack CONTENT and its builder: the sample-import test drives the built file end to
+  // end (import gate included), so editing a pack graphic or the assembler selects it.
+  [/^(packs\/|public\/packs\/|scripts\/build-production-pack)/, ['production-pack.spec.ts', 'pack-import.spec.ts']],
   // wizard-kit rides along: the kit's export door lands on ProductionPage and asks it to open
   // THE production export dialog (templateStore `pendingProductionExport`), so a change to
   // that page can break a wizard flow whose name says nothing about productions.
@@ -194,7 +214,7 @@ const MAP = [
   // NOTE: no spec asserts the compatibility panel's CONTENT yet (its `playout-compat` testids
   // are unused). These specs mount it, so a crash or a render fault is caught; a wrong VERDICT
   // is not. That gap wants a spec, not a wider mapping.
-  [/^src\/components\/(ExportSurface|PlayoutCompatibility)/, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'template-pack-10.spec.ts']],
+  [/^src\/components\/(ExportSurface|PlayoutCompatibility)/, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'template-pack-10.spec.ts', 'design-rules-product.spec.ts']],
   [/^src\/components\/auth\//, ['auth.spec.ts', 'sync.spec.ts']],
   [/^src\/backend\//, ['auth.spec.ts', 'sync.spec.ts', 'offline.spec.ts']],
   [/^src\/community\//, ['community.spec.ts']],
@@ -313,7 +333,7 @@ const CORE = [
 // 2026-08-07: `nightly.yml` was the unmapped file that turned a two-line gate addition into a
 // 759-spec run.
 const SUITE_CRITICAL_SCRIPTS =
-  'renderDevPlugin|aiDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
+  'renderDevPlugin|aiDevPlugin|dataDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
 const IGNORE = [/^docs\//, /\.md$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -

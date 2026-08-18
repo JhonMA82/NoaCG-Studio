@@ -136,9 +136,14 @@ export function machineStateNames(js: string): Record<string, Record<string, str
  */
 export function formatMachineState(
   names: Record<string, Record<string, string>>,
-  state: { groups: Record<string, string> } | null | undefined,
+  state: { groups?: Record<string, string> } | null | undefined,
 ): string | null {
-  if (!state) return null;
+  // `state` is whatever the GRAPHIC's own noacgMachineState() returned, and an emitted or
+  // imported template may hand-write that function with a shape of its own - the 2026-08-19
+  // drive proof found one returning `{ stepsPlayed: 1 }`, which crashed this formatter and
+  // painted the whole control page white. A shape this surface does not know reads as "the
+  // graphic has not answered", never as a crash.
+  if (!state || !state.groups) return null;
   const entries = Object.entries(state.groups);
   if (entries.length === 0) return null;
   return entries
@@ -179,12 +184,15 @@ export function eventLegality(js: string): Record<string, Record<string, string[
 export function isEventLegal(
   legality: Record<string, Record<string, string[]>>,
   event: string,
-  state: { groups: Record<string, string> } | null | undefined,
+  state: { groups?: Record<string, string> } | null | undefined,
 ): boolean {
-  if (!state) return true;
+  // A state without `groups` (a template's own hand-written noacgMachineState) is treated
+  // exactly like no answer yet - every button live, the structural guard decides.
+  if (!state || !state.groups) return true;
+  const groups = state.groups;
   const perGroup = legality[event];
   if (!perGroup) return false;
-  return Object.entries(perGroup).some(([groupId, froms]) => froms.includes(state.groups[groupId]));
+  return Object.entries(perGroup).some(([groupId, froms]) => froms.includes(groups[groupId]));
 }
 
 // ── The control ⇄ graphic message protocol ──────────────────────────────────
@@ -209,7 +217,7 @@ export type ControlMessage =
  *  and `graphic-online` once at boot, so a panel can rebuild a refreshed graphic from its
  *  event log (send the latest data, then snap to the last known state). */
 export type ControlReply =
-  | { t: 'state'; state: { groups: Record<string, string> } }
+  | { t: 'state'; state: { groups?: Record<string, string> } }
   | { t: 'graphic-online' };
 
 /** The channel name a template's control panel and graphic share (derived from its name). */

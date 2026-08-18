@@ -7,6 +7,7 @@
 import type { SpxTemplate } from './types';
 import type { GenerationSpec } from './generationSpec';
 import type { AiThread } from './aiThread';
+import type { ProjectLegibility } from './designRules';
 import { durable } from './durableStore';
 import { uuid } from './id';
 
@@ -32,6 +33,11 @@ export interface SavedProject {
    *  so the graphic carries the reasoning that produced it. Additive optional — same rails as
    *  aiSpec. */
   aiThread?: AiThread | null;
+  /** The project's legibility settings (viewing target + the size-floor tri-state,
+   *  model/designRules.ts). Additive optional, same rails as aiSpec — and the default state
+   *  serializes to NOTHING (normalizeLegibility), so an untouched project's record is
+   *  unchanged. */
+  legibility?: ProjectLegibility | null;
   /** Soft-delete tombstone (for cloud sync parity — see Packet.deleted). */
   deleted?: boolean;
 }
@@ -66,6 +72,7 @@ export function saveProject(
   link?: { graphicId: string | null; dirty: boolean },
   aiSpec?: GenerationSpec | null,
   aiThread?: AiThread | null,
+  legibility?: ProjectLegibility | null,
 ): void {
   try {
     const existing = loadProject();
@@ -82,6 +89,8 @@ export function saveProject(
       aiSpec: aiSpec === undefined ? existing?.aiSpec ?? null : aiSpec,
       // Same rule for the conversation: carry it over on a plain autosave, clear on explicit null.
       aiThread: aiThread === undefined ? existing?.aiThread ?? null : aiThread,
+      // Same rule again; an explicit null (the default state) drops the key entirely.
+      legibility: (legibility === undefined ? existing?.legibility : legibility) ?? undefined,
     };
     durable.setItem(STORAGE_KEY, JSON.stringify(rec));
     notifyDataChanged();

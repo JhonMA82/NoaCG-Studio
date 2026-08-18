@@ -21,6 +21,7 @@ import { formatTemplate } from '../../format/formatCode';
 import { paletteById } from '../../model/wizard';
 import WizardPreview from './WizardPreview';
 import BrandLogo from '../BrandLogo';
+import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import EntryStep from './steps/EntryStep';
 import ImportStep from './steps/ImportStep';
 import ImportDesignStep from './steps/ImportDesignStep';
@@ -724,6 +725,7 @@ export default function CreationWizard() {
     // result's own so both ride the autosave slot + the next Save. Both Finish doors reach here.
     useTemplateStore.getState().setAiSpec(aiResult.spec ?? null);
     useTemplateStore.getState().setAiThread(aiThread);
+    useTemplateStore.getState().setLegibility(draft.legibility);
     clearSpecDraft();
     if (aiResult.generationId) {
       void recordLiteOutcome({
@@ -792,6 +794,10 @@ export default function CreationWizard() {
     if (variant.category === 'imported-design') {
       setTimeout(() => useTemplateStore.getState().setActivePanel('data'), 0);
     }
+    // AFTER the whole-project swap (which clears it): the project's legibility settings ride
+    // the store exactly like the AI path's aiSpec, so the autosave slot and every Save carry
+    // them (an untouched draft normalizes to nothing).
+    useTemplateStore.getState().setLegibility(draft.legibility);
     // Remember this look as the project brand so the next graphic matches it.
     saveBrand({
       styleTag: variant.styleTag,
@@ -1213,6 +1219,13 @@ export default function CreationWizard() {
             </span>
           )}
 
+          {/* The feedback door belongs to the HEADER, so it is reachable from the first step
+              rather than only from the one at the end - the wizard is the student release's
+              own surface, and somebody who gets lost on Browse never reaches Finish to say so.
+              Its push is the chain in styles.css (.wz-stepcount ~ .fb-open ~ .gallery-close),
+              since the step counter is absent on Entry and this button is absent offline. */}
+          <BetaFeedbackButton area="wizard" />
+
           <button
             className="gallery-close"
             onClick={leaveStep}
@@ -1351,6 +1364,8 @@ export default function CreationWizard() {
                 <AiStep
                   format={draftFormatSelection(draft)}
                   onFormat={(selection) => patch(formatDraftPatch(selection))}
+                  legibility={draft.legibility}
+                  onLegibility={(legibility) => patch({ legibility })}
                   brandPalette={matchBrand && brand ? brand.palette : null}
                   result={aiResult?.template ?? null}
                   onResult={(template, valid, spec, generationId, path, pack) =>

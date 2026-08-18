@@ -143,12 +143,24 @@ export const PRO_GRAPHICS: Record<ProGraphicId, ProGraphicSpec> = {
     takesMark: false,
     instruments: {
       spacing: {
-        // MEASURED: gt05, the HOUSE countdown, reads 0.26 type sizes of top padding against a
-        // 0.28 floor - 21px over an 80px clock. The floor is a strap's, where the unit is a 54px
-        // name; a clock panel's unit is a display element half again as tall, so the same
-        // absolute air measures tighter. Phase A's tightest density puts 27px there (0.34), so
-        // this covers the catalog and never covers the composer.
-        paddingFloorRatio: 0.24,
+        // MEASURED TWICE, and the second reading is the owner's. The 0.24 floor that stood here
+        // was read off the four gameTimers alone (gt05's 0.26 top padding); the 2026-08-19 blind
+        // read then AIRED both frames it stopped - cd-launch and cd-results, padding 0.11-0.23 -
+        // two false stops, zero true ones (docs/NOACG_PRO_PLAN.md §23.1). The full shipped
+        // countdown family (game-timer + starting-soon, scripts/spike-countdown-calibrate.mjs,
+        // 25 designs) reads 0.2-1.06 where a panel resolves at all, so the catalog alone cannot
+        // justify a floor under 0.2 - the owner's aired frames are what set it: under the
+        // tightest AIRED reading (0.11), above the bleed cut (0.06), so a panel genuinely
+        // crammed against its content still fails while everything the owner has accepted
+        // passes. Mutation-controlled in pro-iterate-spike --control on both sides.
+        paddingFloorRatio: 0.1,
+        // The strap's 1.4 "stopped reading as one block" ceiling does not describe this family:
+        // measured over the same 25 shipped designs, 12 space their lines 1.5-3.3 type sizes
+        // apart - a holding screen parks a clock a long way under its title on purpose, and
+        // both aired dirty stops (1.55-1.92) sat squarely in that shipped range. Ceiling read
+        // off the catalog with the mark-gap rule's ~1.3x headroom over the widest shipped
+        // reading (ss10 at 3.3), so a genuinely orphaned line still fails.
+        lineGapCeilingRatio: 4.3,
       },
       proportion: {
         // The catalog's own timers step their label further down from the clock than a strap ever

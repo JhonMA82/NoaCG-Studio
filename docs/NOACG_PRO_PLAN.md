@@ -2782,3 +2782,382 @@ The guard that parks browser work also counted `scripts/dev-bench.mjs` as a runn
 finite job - so did `bench-dispatcher.mjs`, the module that server preloads and which therefore
 shares its command line, which made one bench server report as two active jobs. Fixed first, as
 its own commit: `SERVER_SCRIPTS` carves the three server scripts back out of the alternation.
+
+
+## 21. The free-form coder round on four checkpoints - 2026-08-17, machine half only
+
+Premise 1 (§15.4) had been measured to fail only on non-reasoning open-weight checkpoints, and
+panel layout is a spatial-reasoning problem - so the untested argument was "a 2026 reasoning
+model composes where those could not". Four checkpoints ran the identical protocol: the 12-brief
+bank, the `none` arm (the free-form coder, no exemplars), assigned brands, pinned decoding, no
+divergence cell, one out-dir per checkpoint, cheapest first. The blind page (64 items - all four
+rounds interleaved with the accepted Phase A set, ids reissued) and `machine-columns.md` are in
+the round archive; **the owner's blind read is OWED and nothing here is a verdict on the look.**
+
+What the machine half already says:
+
+- **The device proxy is approximately zero on every checkpoint** - 1, 1, 0 and 2 of 12
+  (`deviceCheck.ts`, mutation-checked both directions before any spend). Four models across
+  three vendors, one of them a frontier reasoning model, and the two live lines land as two
+  rows in one plain box on ~92% of cells. Per the round's own pre-registered reading: when the
+  device rate is flat across checkpoints INCLUDING the frontier ceiling, the SPINE is what
+  flattens it, not the checkpoint - the structure-spine contract hands every model the same
+  safe plain-panel answer. **A `bare` arm (drop the spine, keep the field contract) is the next
+  session's build, with the editability trade written down.**
+- **Contract compliance is no longer the differentiator**: 10, 10, 12 and 12 of 12 scaffold-ok,
+  and claude-opus-5 needed zero repair rounds across the bank - the first checkpoint ever to.
+- **Output volume answers the owner's second question, and rate-is-not-cost holds again**:
+  ~6.6k/6.9k/6.7k/5.1k output tokens per graphic - nobody near the modelled 12k, and the
+  frontier model emits the LEAST. Reasoning share where reported: 35% / 58% / 49% (the
+  anthropic route reports no split, stated as not-recorded rather than zero). Cost per
+  graphic: $0.0097 / $0.0274 / $0.0310 / $0.169-priced - 17x between cheapest and dearest for
+  the same contract compliance and the same flat device rate.
+- **grok-4.3 has a reasoning runaway**: `portrait-logo.sunbeam` and `non-latin.aldervale`
+  truncated at a 25,000-token output ceiling and AGAIN at 41,000 after
+  `REASONING_HEADROOM_TOKENS` was raised to the newly measured worst case - >41k tokens of
+  thinking with no complete answer, twice, on briefs its siblings finish in ~7k. Its round is
+  10 of 12 and says so.
+
+### 21.1 The owner's blind read, and the verdict - premise 1 is RETIRED
+
+The read came back the same day, 59 of 64 items rated, notes written before any reveal
+(`notes.md` in the round archive holds them verbatim plus the join). Airable rates over rated
+items: **the platform-composed Phase A control 14 of 15 - and the four coder arms 3/11, 2/9,
+5/12 and 3/11 (~30% together)**, on one interleaved blind page, same briefs, same brands. The
+frontier reasoning model is not an outlier: claude-opus-5 landed 3 of 11 beside minimax's 3 of
+11 at 17x the price.
+
+- **The dominant defect class was predicted by the instruments before anyone looked**: "the
+  line is on top of the text" accounts for ~13 of the 30 coder failures, and `text-over-rule`
+  had already fired on almost exactly those cells (grok 6 of 6, gemini 6 of 6). The remaining
+  classes are mark plates (the class the composer's knock rule closed a round ago), junk
+  furniture above the strap, and undersized or misaligned marks - plus minimax's two
+  runtime-dead cells, which are exactly its two blocking-error cells. Machine and human agree
+  everywhere they measure the same dimension.
+- **A device did not buy a pass**: of the 5 coder cells carrying one, 1 passed - and the opus
+  monogram-K device is one of the pieces of furniture the owner rejected by name. The §20
+  spine question stands as a fact about the harness, but it no longer carries a product
+  premise: even where a device exists, the composition fails on collisions and mark treatment.
+- **So premise 1 (§15.4) retires on the strongest evidence it will ever get**: a 2026 frontier
+  reasoning model, inside the shipped harness, with the repair loop, lands at a quarter of the
+  platform-composed acceptance rate for 17-50x the cost of a Phase A language call. Phase A is
+  not a compromise; it is the answer. The `bare` arm remains a research option for the spine
+  question and is NOT a product path - running it would be spending money to refine the size
+  of a gap the product has already routed around.
+
+### 21.2 The iterate arm - the custom lane earns its test read, 2026-08-17
+
+The owner redirected the retired premise the same day: Pro's custom lane should let the model
+ITERATE - render, measure, fix - as long as it needs, fail closed on anything still flawed, and
+cost little enough to beat opening a code assistant by hand. `src/ai/spike/iterate.ts` +
+`scripts/pro-iterate-spike.mjs` are the smallest honest version: the one-shot coder protocol,
+then up to four rounds of every instrument finding plus a downscaled screenshot of the model's
+own frame, `deliverable: false` a first-class result. The loop's own control run proves the
+collector is quiet on a known-good frame and loud on a forced overlap (moving a field inside
+its own mask is INVISIBLE - the mask is what must move; the check failed honestly first).
+
+**The blind read (42 items - both iterate arms + the accepted Phase A set interleaved):**
+
+| round | blind-airable | cost/graphic | calls/graphic |
+| --- | --- | --- | --- |
+| Phase A composed set | 18 of 18 | $0.006 | 1 |
+| gemini-3.7-flash iterate (vision on) | **9 of 12** | $0.128 | 2.8 |
+| minimax-m2.7 iterate (findings only) | **9 of 12** | **$0.0155** | 2.7 |
+
+Same models one-shot that morning: 5/12 and 3/12. Three readings that decide what gets built:
+
+- **The findings ARE the signal.** Minimax, shown no screenshot at all, matched
+  gemini-with-vision at an eighth of the price. The instruments' words move the model; the
+  picture adds little the words did not already say. The custom lane can run on a cheap
+  checkpoint.
+- **The fail-closed gate is roughly calibrated but over-strict on marginal findings**: of 4
+  dirty-stopped cells the owner failed 2 and forgave 2; of 19 delivered-clean cells the owner
+  passed 15. The four escapes name the missing instruments, all measurable: junk furniture
+  above the strap, a live field that never paints (compose `fieldPaints` into the spike
+  validator - the Lite lesson repeating), the mark centred in its own white space (the read's
+  most repeated nit), and a painted-text readability floor (size + contrast "for TV").
+- **Phase A stays the standard lane untouched** - 18/18 on its third consecutive blind read,
+  still 1 call and half a cent. The iterate loop is the CUSTOM lane behind the same Pro door,
+  slower and ~3-25x dearer, for briefs the catalog's structures cannot carry.
+
+## 22. The custom-lane TYPE SWEEP - 2026-08-18, machine half only
+
+The §21.2 redirect asked whether the loop GENERALIZES: does render-measure-feed-back hold past
+lower thirds, do the two surviving checkpoints separate on harder types, and does an emitted
+multi-step graphic drive through the SHIPPED control layer. One night answered the machine
+half; **the owner's blind read of the 49-item page is OWED and nothing here is a verdict on
+the look.** Protocol: the same iterate loop, 21 fresh briefs over seven types (3 each:
+lower-third, scoreboard, quiz-board, ticker, stat-panel, countdown, podium-score -
+benchmarks/pro/v1/custom/briefs.json), six brands (two NEW: Pulse Arena, Boreal), max 4
+iterations, fail-closed. The platform-authors-machines rule held: a stepper brief declares its
+steps as the SPX default path, the model implements `window.next()`, no machine key exists
+anywhere in the round. Round archive: `benchmarks/pro/evidence/round-2026-08-18-typesweep/`
+(the frames and blind page are in the external eval archive, `typesweep-*-2026-08-18`).
+
+Four instruments the §21.2 escapes named ran for the first time, each calibrated or
+mutation-checked free before any spend: fieldPaints composed into the loop's validator (with a
+sentinel step-walk where one state is not the whole answer), a readability floor - which the
+control IMMEDIATELY recalibrated from 22px to 18px because lt27 ships a 20px supporting line,
+the mark-gap lesson arriving on schedule - step capture along the declared path, and per-type
+thresholds with spacing/proportion findings on uncalibrated types fed as ADVISORY so a
+lower-third number cannot bully a scoreboard.
+
+What the machine half says:
+
+- **The loop generalizes unevenly, and the gap is the TYPE, not the contract.** Both models
+  went 3/3 clean on scoreboards and stat panels - live fields through update() are the easy
+  half of the custom lane. Both went 1/3 on podium reveals; minimax went 0/3 on quiz boards
+  and tickers where gemini managed 1/3 and 2/3. Deliverable-clean overall: **minimax 10/21 at
+  $0.0328/graphic (findings-only), gemini 14/21 at $0.1712/graphic (vision)** - the §21.2
+  "findings are the signal" reading survives on the easy types and BREAKS on steppers and
+  crawls, where the dearer model's extra rounds actually converge. Cost separation is 5.2x
+  for a 4-cell advantage.
+- **The backend-integration question has a measured answer: yes.** Every deliverable
+  scoreboard took two score bumps and a clock write through the SHIPPED control page's own
+  Update, and the quiz boards advanced their reveal walk on the panel's Next - 5 of 6
+  quiz+scoreboard cells drivable in BOTH rounds, through fieldDescriptors + the implicit
+  machine, nothing bespoke (`custom-lane-drive-spike.mjs`, drive-report.json per out-dir).
+  The one refusal both rounds (qz-campus) genuinely does not advance its frame.
+- **One instrument mis-signal, caught by the drive proof and recorded rather than hidden:**
+  the step capture read `next()` returning undefined as "does not advance", but a
+  hand-written next() may do its work and return nothing - two quiz cells the loop called
+  step-broken drive fine under the real panel. The finding class needs a markup-diff check,
+  not a return-value check, before the next round trusts it to block.
+- **The dominant dirty-stop causes are now instrument classes, not runtime crashes**: minimax
+  still loses cells to `buildInTimeline`/`animSpeed` referenced outside the region (5 cells
+  with blocking errors vs gemini's 0), but the persistent stoppers on BOTH models are
+  alignment near-misses on dense grids (quiz answer ladders, podium columns - up to 9 per
+  frame, cosmetically marginal) and marginal mark-gap readings (cd-show stuck 0.34 vs 0.35
+  floor for three rounds). Whether those stops were RIGHT is exactly what the blind read of
+  the dirty cells decides - §21.2 measured the same gate over-strict on marginal findings
+  once already.
+- **The new instruments earned their place on the paid round itself**: the readability floor
+  drove real fixes (11-17px labels raised to floor) on most cells that then delivered clean,
+  and the ticker overflow class fed minimax's 0/3 - its crawls genuinely painted off-canvas.
+  fieldPaints caught 4 unpainted-field rounds on minimax tickers, the §21.2 escape 2 class,
+  before any human looked.
+
+
+### 22.1 The owner's blind read, and what it decides - 2026-08-18
+
+The read came back the same morning, all 49 items, notes written against the page before any
+reveal (`notes.md` in the round archive holds them verbatim plus the join). Airable = "would
+air" + "okay as-is":
+
+| round | airable | of |
+| --- | --- | --- |
+| catalog anchors | 5 | 7 |
+| gemini-3.7-flash iterate (vision) | **10** | 21 |
+| minimax-m2.7 iterate (findings-only) | **3** | 21 |
+
+- **The §21.2 minimax-parity reading does NOT survive the wider types.** On lower thirds
+  alone, findings-only minimax matched vision gemini 9/12 vs 9/12; over seven types the read
+  splits 3/21 vs 10/21. The words carry the easy types (both models 3/3 machine-clean on
+  scoreboards and stat panels); on steppers, crawls and dense layouts the picture is what
+  converges. The custom lane's checkpoint question is answered: it runs on gemini-class
+  vision or it does not generalize.
+- **The gate's DELIVER signal leaks on the new types; its STOP signal held.** Of 24
+  delivered-clean cells the owner would air 12 (§21.2's lower-third round: 15 of 19); of 18
+  dirty stops the owner agreed with 15 and forgave 3. Every escape names a measurable class,
+  recorded in the round's notes.md: a collision finding demoted to advisory on uncalibrated
+  types (the accent-over-text class, §21.1's dominant defect, let back in by the demotion
+  policy), the logo breaking the composition (the sweep's dominant cross-type defect - the
+  owner's ruling: SKIP the model-placed logo on the new types; mark placement is the
+  platform's, the Phase A knock rule), a minimum-text-size RULE (18px calibrated to the
+  catalog's smallest line is below what the owner calls readable for broadcast - one shipped
+  catalog anchor took the same note), per-step GEOMETRY (a stepper whose boxes grow
+  misaligned and overflow the background passed a paint-only step walk), the fixture stress
+  frame being captured but never fed, tinted-on-tinted contrast, and ticker margins
+  (full-bleed or equal both sides).
+- **Two catalog anchors took notes of their own** - ig01's smallest text and tk01's
+  red-on-black with uneven margins - so two of the seven classes bind the CATALOG, not just
+  the lane.
+- **What this round does NOT change**: Phase A stays the standard lane. The custom lane
+  stays fail-closed and does not ship until the deliver-signal fixes above are built and a
+  re-read clears; the next round runs no model-placed logos, blocks collision findings on
+  every type, raises the size floor to the owner's broadcast rule, runs the instruments per
+  step frame, and feeds the fixture stress capture.
+
+## 23. The design-rules re-read - 2026-08-18, machine half only
+
+The §22.1 escape classes became the DESIGN RULES program (docs/DESIGN_RULES_PLAN.md, ratified
+the same day), and this round is its R1-R3 slice: one canonical rules module, the loop fixes
+the read paid for, an audit before enforcement, a calibrated critic, and the SAME 21 briefs
+re-run under the rules. **The owner's blind read of the 28-item page is OWED and nothing here
+is a verdict on the look.**
+
+What was built (R1, all mutation-controlled in `pro-iterate-spike.mjs --control`):
+
+- **`src/model/designRules.ts`** - the owner's ratified size table (roles x standard/safe mode
+  x viewing profile, % of the short side), weight/stroke/safe-area/contrast+protection rules,
+  and `designRulesPromptBlock`, which rides the USER message - the frozen coder system prompt
+  stays frozen. Math pinned by `scripts/design-rules.test.mjs` in the build gate. The
+  readability instrument classifies roles and reads every floor from the module; a ticker
+  instrument enforces full-bleed-or-equal margins; collisions block on EVERY type; the full
+  instrument pass runs on EVERY step frame; the stress capture and a zero/empty/Nordic/
+  all-caps edge frame FEED the loop; step advance is a markup diff, never next()'s return
+  value; alignment near-misses group into one advisory; the custom bank runs NO model-placed
+  logos (the brand still conditions palette, type and world).
+- **The audit** (`scripts/design-rules-audit-sweep.mjs`, report
+  `benchmarks/design-rules/AUDIT-2026-08-19.md`): 489 shipped variants + the 49 archived
+  sweep cells re-rendered and joined against the §22.1 verdicts. Headline disagreements,
+  stated while the table stays binding: the 50px primary floor fails **312 of 489 shipped
+  designs** and would have stopped **14 of the 17 airable cells** (all four AIRs included);
+  the 96px safe area stops two aired corner scoreboards; the collision rule scored **7 true
+  positives / 0 false positives** on the sweep cells but fires on 21 shipped credits/ticker
+  designs whose text legitimately crosses rules mid-travel; the 20px secondary floor is the
+  one floor the catalog already meets.
+- **The critic calibration** (`benchmarks/design-rules/CRITIC-CALIBRATION-2026-08-19.md`,
+  $0.247 over the archived 49): only `lineOnText` calibrated (100% precision, 80% recall) and
+  is wired as a once-per-round ADVISORY; logo/size/overflow/contrast/alignment questions sat
+  at or near chance and stay out - the Lite-judge lesson repeats, and the deterministic
+  instruments own those classes.
+
+What the machine half of the re-read says (`rules-reread-{gemini,anchors,blind}-2026-08-19`
+in the eval archive; $2.472, ~$0.118/graphic, gemini-3.7-flash vision only - minimax stayed
+out per §22.1):
+
+- **21 of 21 completed, 19 delivered clean** against §22's 14 of 21 - and the two dirty stops
+  are both countdowns held by the CALIBRATED spacing thresholds (padding-tight, lines-adrift),
+  not the new rules. Whether 19 clean ≈ 19 airable is exactly what the read decides; the §22
+  target is delivered-clean ≈ airable.
+- **The rules did real work in the loop**: per the escape-class columns
+  (machine-columns.md), the size floor fed 49 blocking findings across the round, the stress
+  frames 43, the safe area 33 (27 on podiums - the §22.1 X-24 class), contrast 12, step-frame
+  geometry 5 (all on quiz boards), collisions 3. Ticker margins fed ZERO because every
+  emitted ticker came back full-bleed or equal-margined - the prompt block alone closed the
+  X-21 class before the instrument had anything to catch.
+- **Drive proof: 5 of 6** quiz+scoreboard cells through the SHIPPED control page (§22's
+  rate); qz-primetime is the one genuine refusal - its control page throws
+  ("Cannot convert undefined or null to object") and paints nothing, a runtime-environment
+  defect the loop's bench did not surface. One harness lesson recorded: a broken graphic
+  WEDGED the shared drive page and read two healthy cells as undrivable; the spike now
+  isolates every cell in a fresh page.
+- **Cost went down while coverage went up**: $0.118/graphic against §22's $0.171, despite
+  three extra captures per round and the critic call - the rules block up front means fewer,
+  shorter repair rounds (33 total vs the sweep's heavier tails).
+
+What is NOT settled here: whether the owner airs what the gate now delivers. The blind page
+(21 cells + the same 7 catalog anchors, step frames, verdictless) is the accept gate; if the
+read shows the primary floor forcing oversized type or the safe area fighting corner
+graphics, the audit's named rows are what the owner re-ratifies. R4 (wizard viewing-target
+UI, product validator warn-first, catalog migration notes) stays gated behind that read.
+
+### 23.1 The owner's blind read, and what it settles - 2026-08-19
+
+The read came back the next morning, all 28 items (verbatim notes + join: the round archive's
+notes.md, `rules-reread-blind-final-2026-08-19`). Airable = "would air" + "okay as-is":
+
+| round | airable | of |
+| --- | --- | --- |
+| gemini-3.7-flash iterate under the rules | **21** | 21 |
+| catalog anchors | 5 | 7 |
+
+- **The deliver signal no longer leaks.** All 19 delivered-clean cells were judged airable -
+  §22 leaked 12 of 24, §21.2 leaked 4 of 19, this round leaked ZERO. The seven §22.1 escape
+  classes were closed by measurement, and the owner's summary was "for the most part all of
+  these pass - I'm happy." Every remaining note on a model cell is a nit (a glow, a
+  banner-balance preference, first-frame real estate), not a defect class.
+- **The stop signal is now the over-strict side.** Both dirty stops (cd-launch, cd-results)
+  were AIRED: they stopped on the countdown's calibrated spacing thresholds (padding-tight
+  0.11-0.23 vs floor 0.24; lines-adrift 1.55-1.92 vs ceiling 1.4). Two false stops, zero
+  true ones - the countdown instrument numbers in PRO_GRAPHICS are the named thing to relax
+  before the lane ships.
+- **The catalog took the same two notes a THIRD time**: tk01 failed again on red-on-black +
+  one-sided overflow (the ticker-margin rule the model cells now obey), and ig01's percent
+  number is again "way too small". sb01 adds stress truncation + an uneven number backing.
+  The rules the lane is held to now indict three shipped anchors - catalog fixes owed in R4.
+- **One cell-level defect survives**: qz-primetime is airable on the page and NOT DRIVABLE
+  through the shipped control page (runtime throw). The visual gate and the drive proof
+  disagree; a control-page smoke belongs in the loop before the lane ships (the drive spike
+  exists - compose it in).
+- **What this settles**: the R3 accept gate is CLEARED. R4 (productize) is unblocked -
+  viewing-target wizard UI, legibility-mode persistence, the product validator running the
+  new checks warn-first on catalog/imported/community templates, and migration notes for the
+  indicted catalog designs. The primary-size-floor disagreement (AUDIT-2026-08-19.md: 50px
+  fails 312/489 shipped designs) did NOT bite the round - the models simply designed larger
+  type and the owner liked it - but it still stands between the rules and the product
+  validator until the owner re-ratifies the number for CATALOG enforcement.
+
+## 24. R4 opening slice - the catalog fixes the read demanded, and the checks it exposed
+
+The §23.1 read left four named debts; this slice pays them, all free (no model call).
+
+**Two of the three "catalog" failures were the blind page's own field mapping.** The catalog
+anchors assigned brief values to fields purely BY POSITION, and two briefs order their fields
+differently from the designs they landed on: the scoreboard brief lists name/name/score/score
+against sb01's name/score/name/score, so "NORTHBRIDGE ALBION" sat on a score chip while a
+score stood bare in a name slot ("one number has a yellow background and the other doesn't");
+the ticker brief leads with its label while tk01 declares its items textarea first, so the
+whole headlines block landed in the 23px label and blew the strip 333px past the right edge
+(5312px under stress) - the very frame the owner failed twice. `mapBriefValues`
+(src/ai/spike/anchors.ts) now assigns by what each FIELD IS - textarea takes the multiline
+value, a number field only a numeric one, text fields the words, order preserved within each
+class - and the probe (`scripts/spike-catalog-fix-probe.mjs`) pins that the four anchors the
+owner AIRED (lt27, gt05, qz01, sb21) map byte-identically under both rules. Measured on the
+instruments: tk01's band goes L120/R-333.5 + `ticker-margins-uneven` + a text escape under the
+positional map to L120/R120, no margin finding, no escape under the semantic one.
+
+**The design fixes that remain real, with before/after readings:**
+
+- **tk01** (FAIL twice: "red background, black text… overflows to the right"): the label ink
+  was the family accent-ink (the panel hue) on the signal red - measured 4.46:1, and the
+  owner's eye is the binding instrument here. The label is now light ink
+  (`var(--text-color)`, 4.17:1 - bold ≥24px is LARGE text, floor 3:1), one size step up
+  (23 -> 24px, clearing the secondary warning band), and BOUNDED: `max-width` + ellipsis on
+  the label, `overflow: hidden` on the strip, so no operator value can push the band out of
+  its equal margins again (stress reading: L120/R120 under both mappings, was R-5312).
+- **ig01** (OK* twice: "the percent number is way too small… we need a minimum of what size
+  text we can use"): the 21px label - where the blind data lands the percent - sat in the
+  secondary warning band and fired `lines-adrift` on the design's own defaults (37px gap /
+  21px type = 1.76 over the 1.4 ceiling). It is now held to the PRIMARY floor of the owner's
+  table: 50px (4.6% of 1080). After: no size warning, no weight advisory, no lines-adrift -
+  the label clears every band and a percent landing there reads.
+- **sb01** (TWEAKS: "on the stress test the left text gets cut off"): a long club name
+  wrapped and hard-clipped mid-glyph ("KESTR / CITY") because sb01 never adopted the sb06
+  one-line clip. `clipOneLineCss('.scoreboard-team', 420)` now trims with a visible ellipsis;
+  the uneven "yellow backing" half of the note was the mapping defect above - both scores sit
+  on identical accent chips once scores land in score fields.
+
+**The control-page smoke the drive proof demanded (§23.1's qz-primetime).** The iterate loop
+now runs every round's emit through the SHIPPED control page - createGraphic, `#/control/<id>`,
+the panel's own play press, in a fresh page (the drive spike's isolation lesson) - and a
+failure is a BLOCKING finding ("the graphic breaks the shipped control page"). Detection is
+two channels because the page's command handler deliberately swallows lifecycle throws: any
+page-level error or a page that never renders, plus zero VISIBLY painted text after play
+(computed visibility - opacity keeps innerText, so text is counted only when it actually
+paints). Mutation-controlled in `--control`: a lifecycle that throws is loud, the shipped
+anchor and all six type cells stay quiet.
+
+**qz-primetime's throw, diagnosed.** Its emitted interpreter hand-writes
+`noacgMachineState()` returning `{ stepsPlayed: 1 }` - no `groups` - and the receivers
+forward that verbatim, so `formatMachineState`'s `Object.entries(state.groups)` threw
+"Cannot convert undefined or null to object" and the whole React page died. NOT a pattern:
+43 of the round's 44 emitted templates write the correct `{ groups: {} }` shape; one cell
+invented its own. The prompt block therefore does not change; instead every consumer of a
+reported machine state (`formatMachineState`, `isEventLegal`, the exported controlpanel.html,
+GraphicControlPage, PlayoutSimulator, MachineGraph, the hosted receivers) now treats a
+groups-less state as "the graphic has not answered yet" - chip absent, buttons live, page up -
+and `PreviewMachineState.groups` is typed optional so the compiler holds the door shut. A
+`--control` fixture pins the degradation: a groups-less state must leave the smoke quiet.
+
+**The countdown thresholds, recalibrated on the whole shipped countdown family.** The R3
+round's only dirty stops were two AIRED countdowns held by `padding-tight` (0.11-0.23 vs a
+0.24 floor) and `lines-adrift` (1.55-1.92 vs the inherited 1.4 ceiling) - two false stops,
+zero true ones. The 0.24 floor was read off the four gameTimers alone;
+`scripts/spike-countdown-calibrate.mjs` now sweeps the catalog's whole countdown family
+(game-timer + starting-soon, 25 shipped designs, the two clock-bearing `subtype: 'countdown'`
+types). What it measures: panel padding 0.2-1.06 where a panel resolves, line gaps 0.33-3.3 -
+TWELVE shipped designs space their lines past the strap's 1.4 ceiling, because a holding
+screen parks its clock a long way under its title on purpose. The retuned numbers in
+`PRO_GRAPHICS.countdown.instruments`: **paddingFloorRatio 0.1** (under the tightest
+owner-AIRED reading, 0.11, above the 0.06 bleed cut - the catalog alone bottoms at ss06's
+0.2, so the aired frames are the binding half of this calibration) and
+**lineGapCeilingRatio 4.3** (the mark-gap rule's ~1.3x headroom over the widest shipped
+reading, ss10's 3.3). Both are mutation-controlled from BOTH sides in
+`pro-iterate-spike --control`: a fixture at the aired frames' own readings (0.12 padding,
+1.9 gap) must be quiet under the countdown thresholds AND loud under the strap defaults, and
+fixtures at 0.08 padding / 4.6 gap must still stop. Observed in passing, not acted on: the
+sweep reads `text-over-rule` on gt03/gt04 (clock digits over their own decorative ring) -
+a shipped-design instrument artifact to keep in mind if a collision ever stops an emitted
+ring timer.

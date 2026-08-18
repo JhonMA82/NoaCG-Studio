@@ -18,8 +18,9 @@ import { RENDER_RUNTIME_JS, GSAP_DETACH_JS } from '../../render/runtimeScript';
 import { addReferencedFonts, projectFormatReadme, slug } from '../common';
 import { fieldReferenceMd } from '../fieldReference';
 import type { ExportTarget, GraphicUsage } from '../registry';
+import { OGRAF_SCHEMA_URL, validateOgrafManifest, validateOgrafPackage } from './ografSchema';
 
-export const OGRAF_SCHEMA_URL = 'https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json';
+export { OGRAF_SCHEMA_URL, validateOgrafManifest, validateOgrafPackage };
 
 // ── Manifest ─────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,19 @@ function schemaType(ftype: Ftype): 'string' | 'number' | 'boolean' {
   return 'string';
 }
 
+/**
+ * A field's default, TYPED as the schema declares it. SPX field values are always strings, and
+ * OGraf's gdd/basic-types.json types `default` by the property's own `type` — so a checkbox
+ * declared `"type": "boolean"` with the string `"true"` is an invalid manifest, and the kind of
+ * mismatch a host either rejects outright or silently coerces into something else on air.
+ * `true`/`false` is the on/off wire form the field reference already documents.
+ */
+function schemaDefault(field: SpxField): string | number | boolean {
+  if (field.ftype === 'number') return Number(field.value) || 0;
+  if (field.ftype === 'checkbox') return /^(?:true|1|yes|on|checked)$/i.test(field.value.trim());
+  return field.value;
+}
+
 /** Build the OGraf data schema from the template's DataFields (one property per fN). */
 function dataSchema(fields: SpxField[]) {
   const properties: Record<string, unknown> = {};
@@ -38,7 +52,7 @@ function dataSchema(fields: SpxField[]) {
     properties[f.field] = {
       type: schemaType(f.ftype),
       title: f.title || f.field,
-      default: f.ftype === 'number' ? Number(f.value) || 0 : f.value,
+      default: schemaDefault(f),
       ...(f.ftype === 'dropdown' && f.items?.length ? { enum: f.items.map((i) => i.value) } : {}),
       ...(f.ftype === 'hidden' ? { hidden: true } : {}),
     };
@@ -54,7 +68,10 @@ function dataSchema(fields: SpxField[]) {
  * schema, titled from the template's own fields.
  */
 function customActions(template: SpxTemplate): Array<Record<string, unknown>> {
-  const titles = new Map(template.fields.map((f) => [f.field, f.title || f.field]));
+  // The payload keys ARE field ids, so each one is declared with its own field's type and
+  // title — a number field described as a string would have the host's generated form send
+  // text where the graphic expects a number.
+  const byId = new Map(template.fields.map((f) => [f.field, f]));
   return eventButtons(template.js).map((button: ControlButton) => ({
     id: button.event,
     name: button.label,
@@ -64,12 +81,76 @@ function customActions(template: SpxTemplate): Array<Record<string, unknown>> {
           schema: {
             type: 'object',
             properties: Object.fromEntries(
-              button.payload.map((key) => [key, { type: 'string', title: titles.get(key) ?? key }]),
+              button.payload.map((key) => {
+                const field = byId.get(key);
+                return [
+                  key,
+                  field
+                    ? { type: schemaType(field.ftype), title: field.title || key, default: schemaDefault(field) }
+                    : { type: 'string', title: key },
+                ];
+              }),
             ),
           },
         }
       : {}),
   }));
+}
+
+/**
+ * `actionDurations` — how long each action animates, in milliseconds, read off the graphic's
+ * OWN timeline rather than guessed. A playout host uses these to pre-roll a take and to know
+ * when a step has landed, so they are worth emitting exactly: `steps[i]` is the timeline of
+ * default-path waypoint `i` (the positional binding), which is the same `i` OGraf calls a
+ * step, and the last step is the exit — the duration of `stopAction`.
+ *
+ * Speed-relative seconds become wall-clock ms by dividing by the block's `speed` knob, the
+ * same arithmetic the interpreter does at playback.
+ *
+ * Omitted entirely for a template whose timeline we cannot read (hand-written GSAP, an
+ * imported foreign template): the spec's answer to "unknown" is to say nothing, not to guess.
+ * A custom action's duration DOES depend on where the machine is when it fires, so those are
+ * declared `-1` — the spec's own value for dynamic.
+ */
+function actionDurations(template: SpxTemplate, stepCount: number, actionIds: string[]): Array<Record<string, unknown>> {
+  const data = parseAnimData(template.js);
+  if (!data || data.steps.length < 2) return [];
+  const speed = data.speed > 0 ? data.speed : 1;
+  const ms = (seconds: number) => Math.max(0, Math.round((seconds / speed) * 1000));
+  const steps = data.steps;
+  const perStep: Array<{ step: number; duration: number }> = [];
+  for (let i = 0; i < stepCount && i < steps.length - 1; i++) perStep.push({ step: i, duration: ms(steps[i].duration) });
+  return [
+    {
+      type: 'playAction',
+      // The action-level value is the fallback for any step the list below does not name.
+      duration: perStep[0]?.duration ?? 0,
+      ...(perStep.length ? { steps: perStep } : {}),
+    },
+    { type: 'stopAction', duration: ms(steps[steps.length - 1].duration) },
+    // update() writes field values into the DOM; nothing animates on a data change.
+    { type: 'updateAction', duration: 0 },
+    ...actionIds.map((id) => ({ type: 'customAction', customActionId: id, duration: -1 })),
+  ];
+}
+
+/**
+ * `renderRequirements` — the canvas and frame rate the graphic was AUTHORED for. Declared as
+ * `ideal` rather than `exact`: the spec treats these as matching constraints, and an exact
+ * 1920×1080 would read as "refuse to render me anywhere else" for a graphic that scales
+ * perfectly well. This states the authored format (the same statement the package README and
+ * the `noacg-project-format` meta tag carry) without excluding a renderer.
+ */
+function renderRequirements(template: SpxTemplate): Array<Record<string, unknown>> {
+  return [
+    {
+      resolution: {
+        width: { ideal: template.resolution.width },
+        height: { ideal: template.resolution.height },
+      },
+      frameRate: { ideal: template.fps },
+    },
+  ];
 }
 
 /** The .ograf.json manifest (required fields per spec §2 + the field-driven data schema). */
@@ -79,6 +160,7 @@ export function buildOgrafManifest(
 ): Record<string, unknown> {
   const stepCount = Math.max(1, Number(template.settings.steps) || 1);
   const actions = customActions(template);
+  const durations = actionDurations(template, stepCount, actions.map((a) => a.id as string));
   return {
     $schema: OGRAF_SCHEMA_URL,
     id: slug(template.name), // slugs never contain "/" (spec forbids it in ids)
@@ -91,6 +173,8 @@ export function buildOgrafManifest(
     schema: dataSchema(template.fields),
     stepCount,
     ...(actions.length ? { customActions: actions } : {}),
+    ...(durations.length ? { actionDurations: durations } : {}),
+    renderRequirements: renderRequirements(template),
   };
 }
 
@@ -131,19 +215,6 @@ export function validateOgrafOfflineCompatibility(template: SpxTemplate): OgrafO
     warnings.push('Lottie is driven by the virtual frame clock; verify the exported package in the target renderer.');
   }
   return { compatible: errors.length === 0, errors, warnings };
-}
-
-/** Deterministic self-check on the manifest we just built (spec §6 requirements). */
-export function validateOgrafManifest(manifest: Record<string, unknown>): string[] {
-  const errors: string[] = [];
-  if (manifest.$schema !== OGRAF_SCHEMA_URL) errors.push('$schema must be the exact OGraf v1 schema URL.');
-  for (const key of ['id', 'name', 'main']) {
-    if (typeof manifest[key] !== 'string' || !(manifest[key] as string).length) errors.push(`Missing required field "${key}".`);
-  }
-  if (typeof manifest.id === 'string' && manifest.id.includes('/')) errors.push('The id must not contain "/".');
-  if (typeof manifest.supportsRealTime !== 'boolean') errors.push('supportsRealTime must be a boolean.');
-  if (typeof manifest.supportsNonRealTime !== 'boolean') errors.push('supportsNonRealTime must be a boolean.');
-  return errors;
 }
 
 // ── The Web Component entry point ────────────────────────────────────────────
@@ -304,14 +375,79 @@ ${template.js.replace(/^/gm, '  ')}
   return {
     play: play, stop: stop, update: update, next: next,
     machineState: (typeof noacgMachineState === 'function') ? noacgMachineState : null,
-    dispatch: (typeof noacgDispatch === 'function') ? noacgDispatch : null
+    dispatch: (typeof noacgDispatch === 'function') ? noacgDispatch : null,
+    // How a skipAnimation action lands instantly: noacgSnap() composes a state's settled pose
+    // with GSAP callbacks suppressed. Absent on a template with no state machine.
+    snap: (typeof noacgSnap === 'function') ? noacgSnap : null
   };
 }
 
 class Graphic extends HTMLElement {
-  async load(params) {
-    this._renderType = (params && params.renderType) || 'realtime';
-    this._initialData = Object.assign({}, (params && params.data) || {});
+  constructor() {
+    super();
+    // OGraf §"Concurrency": a Graphic MUST accept an action call at any time, even while a
+    // previous action's Promise is still pending, and MUST NOT ignore it. Every action runs
+    // through this one chain, so overlapping calls are honoured in arrival order instead of
+    // interleaving their DOM writes (and, in non-real-time mode, instead of two seeks
+    // rebuilding the render frame on top of each other).
+    this._chain = Promise.resolve();
+    this._runtime = null;
+    this._renderType = 'realtime';
+    this._initialData = {};
+    this._schedule = [];
+    this._step = -1;
+    this._disposed = false;
+  }
+
+  // Queue one action and report its outcome as a ReturnPayload. A thrown error becomes a 500
+  // rather than a rejected Promise: the spec models failure as an HTTP-style status code, and
+  // a renderer awaiting an action should get something it can log, not an unhandled rejection.
+  _serial(run) {
+    const settled = this._chain.then(
+      () => run(),
+      () => run(),
+    ).catch((err) => ({ statusCode: 500, statusMessage: String((err && err.message) || err) }));
+    this._chain = settled.then(() => undefined);
+    return settled;
+  }
+
+  // Actions only make sense between a completed load() and dispose().
+  _notReady() {
+    if (this._disposed) return { statusCode: 409, statusMessage: 'This Graphic has been disposed.' };
+    if (this._renderType === 'non-realtime') return null; // the offline path holds no runtime
+    if (!this._runtime) return { statusCode: 409, statusMessage: 'load() has not completed yet.' };
+    return null;
+  }
+
+  // skipAnimation: the action still happens, it just lands instantly. The template's own
+  // runtime knows how — noacgSnap() composes a state's settled pose by replaying the route to
+  // it with GSAP callbacks suppressed — so re-snapping to wherever the action left the machine
+  // IS the finished frame. Pointers move synchronously inside the runtime, so by the time an
+  // action returns, "where the machine is" is already the destination. A template with no
+  // state machine (hand-written GSAP) falls back to forcing running tweens to their end.
+  _settle() {
+    if (this._runtime && this._runtime.snap && this._runtime.machineState) {
+      this._runtime.snap(this._runtime.machineState().groups);
+      return;
+    }
+    if (window.gsap) {
+      window.gsap.globalTimeline.getChildren(true, true, true).forEach(function (tl) { tl.progress(1); });
+    }
+  }
+
+  load(params) { return this._serial(() => this._load(params || {})); }
+  dispose() { return this._serial(() => this._dispose()); }
+  playAction(params) { return this._serial(() => this._playAction(params || {})); }
+  stopAction(params) { return this._serial(() => this._stopAction(params || {})); }
+  updateAction(params) { return this._serial(() => this._updateAction(params || {})); }
+  customAction(params) { return this._serial(() => this._customAction(params || {})); }
+  goToTime(params) { return this._serial(() => this._goToTime(params || {})); }
+  setActionsSchedule(params) { return this._serial(() => this._setActionsSchedule(params || {})); }
+
+  async _load(params) {
+    this._disposed = false;
+    this._renderType = params.renderType || 'realtime';
+    this._initialData = Object.assign({}, params.data || {});
     this._schedule = [];
     if (this._renderType === 'non-realtime') {
       await this._renderOfflineFrame(0);
@@ -333,23 +469,31 @@ class Graphic extends HTMLElement {
     return { statusCode: 200 };
   }
 
-  async dispose() {
+  async _dispose() {
     if (window.gsap) window.gsap.killTweensOf('*');
+    if (this._frame) { this._frame.remove(); this._frame = null; }
     this.innerHTML = '';
     this._runtime = null;
+    this._schedule = [];
+    this._step = -1;
+    this._disposed = true;
     return { statusCode: 200 };
   }
 
-  async setActionsSchedule(params) {
-    this._schedule = Array.isArray(params && params.schedule) ? params.schedule.slice() : [];
+  async _setActionsSchedule(params) {
+    const notReady = this._notReady();
+    if (notReady) return notReady;
+    this._schedule = Array.isArray(params.schedule) ? params.schedule.slice() : [];
     return { statusCode: 200 };
   }
 
-  async goToTime(params) {
+  async _goToTime(params) {
+    const notReady = this._notReady();
+    if (notReady) return notReady;
     if (this._renderType !== 'non-realtime') {
       return { statusCode: 409, statusMessage: 'goToTime() requires load({renderType:"non-realtime"}).' };
     }
-    var timestamp = Math.max(0, Number(params && params.timestamp) || 0);
+    var timestamp = Math.max(0, Number(params.timestamp) || 0);
     await this._renderOfflineFrame(timestamp);
     return { statusCode: 200 };
   }
@@ -388,24 +532,29 @@ class Graphic extends HTMLElement {
     if (errors.length) throw new Error('OGraf non-real-time render failed: ' + errors.join('; '));
   }
 
-  async updateAction(params) {
+  async _updateAction(params) {
+    const notReady = this._notReady();
+    if (notReady) return notReady;
     if (this._renderType === 'non-realtime') {
       await this._applyOfflineAction('updateAction', params);
       return { statusCode: 200 };
     }
     this._runtime.update(JSON.stringify(params.data || {}));
+    if (params.skipAnimation) this._settle();
     return { statusCode: 200 };
   }
 
-  async playAction(params) {
+  async _playAction(params) {
+    const notReady = this._notReady();
+    if (notReady) return notReady;
     if (this._renderType === 'non-realtime') {
       await this._applyOfflineAction('playAction', params);
       return { statusCode: 200, currentStep: this._offlineStep >= 0 ? this._offlineStep : undefined };
     }
     const stepCount = ${stepCount};
-    const target = params && params.goto != null && params.goto >= 0
+    const target = params.goto != null && params.goto >= 0
       ? params.goto
-      : this._step + ((params && params.delta) != null ? params.delta : 1);
+      : this._step + (params.delta != null ? params.delta : 1);
     if (this._step < 0) {
       // First play: run the entrance (which shows step 0).
       this._runtime.play();
@@ -422,6 +571,7 @@ class Graphic extends HTMLElement {
       // graphic off air and reset its own pointers. OGraf reports no current step off air.
       if (this._offAir()) {
         this._step = -1;
+        if (params.skipAnimation) this._settle();
         return { statusCode: 200, currentStep: undefined };
       }
     }
@@ -429,8 +579,10 @@ class Graphic extends HTMLElement {
       // Past the last step = go to the end (animate out, per the OGraf step model).
       this._runtime.stop();
       this._step = -1;
+      if (params.skipAnimation) this._settle();
       return { statusCode: 200, currentStep: undefined };
     }
+    if (params.skipAnimation) this._settle();
     return { statusCode: 200, currentStep: this._step };
   }
 
@@ -442,32 +594,37 @@ class Graphic extends HTMLElement {
     return Object.keys(state.groups).every(function (id) { return state.groups[id] === OFF_STATES[id]; });
   }
 
-  async stopAction() {
+  async _stopAction(params) {
+    const notReady = this._notReady();
+    if (notReady) return notReady;
     if (this._renderType === 'non-realtime') {
-      await this._applyOfflineAction('stopAction', {});
+      await this._applyOfflineAction('stopAction', params);
       return { statusCode: 200 };
     }
     this._runtime.stop();
     this._step = -1;
+    if (params.skipAnimation) this._settle();
     return { statusCode: 200 };
   }
 
-  async customAction(params) {
+  async _customAction(params) {
+    const notReady = this._notReady();
+    if (notReady) return notReady;
     if (this._renderType === 'non-realtime') {
-      if (CUSTOM_ACTION_IDS.indexOf(params && params.id) === -1) {
-        return { statusCode: 400, statusMessage: 'This graphic defines no custom action "' + (params && params.id) + '".' };
+      if (CUSTOM_ACTION_IDS.indexOf(params.id) === -1) {
+        return { statusCode: 400, statusMessage: 'This graphic defines no custom action "' + params.id + '".' };
       }
       await this._applyOfflineAction('customAction', params);
       return { statusCode: 200, currentStep: this._offlineStep >= 0 ? this._offlineStep : undefined };
     }
-    const id = params && params.id;
+    const id = params.id;
     if (!this._runtime || !this._runtime.dispatch || CUSTOM_ACTION_IDS.indexOf(id) === -1) {
       return { statusCode: 400, statusMessage: 'This graphic defines no custom action "' + id + '".' };
     }
     // Fire the operator event through the template's own SERIAL queue. The payload is the
     // flat {field: value} map the action's schema declares — applied only if the machine
     // accepts the event (the structural guard), exactly like every other control surface.
-    this._runtime.dispatch(id, (params && params.payload) || undefined);
+    this._runtime.dispatch(id, params.payload || undefined);
     // The event may have moved the machine — follow it. On the walk, the pointer becomes
     // that waypoint's index; off air (an arrow into the exit) it clears; a branch state
     // keeps the last on-path pointer (the walk resumes from there).
@@ -479,6 +636,7 @@ class Graphic extends HTMLElement {
         if (at !== -1) this._step = at;
       }
     }
+    if (params.skipAnimation) this._settle();
     return { statusCode: 200, currentStep: this._step >= 0 ? this._step : undefined };
   }
 
@@ -499,8 +657,10 @@ export default Graphic;
 
 /**
  * Write the complete OGraf Graphic package (manifest, graphic.mjs, bundled GSAP, fonts,
- * assets — everything except a README) into `root`. Validates the manifest first and
- * throws on errors, so every target built on this package inherits the gate. The LiveOS
+ * assets — everything except a README) into `root`. The manifest is validated against the
+ * spec's own schema rules BEFORE it is written, and the finished package is then checked to
+ * contain every file the manifest names — so conformance is a build gate every target built
+ * on this package inherits, rather than something a reviewer has to remember. The LiveOS
  * target reuses this verbatim: LiveOS's HTML5 graphics engine is OGraf-compliant.
  */
 export async function addOgrafPackage(
@@ -518,11 +678,20 @@ export async function addOgrafPackage(
   const errors = validateOgrafManifest(manifest);
   if (errors.length) throw new Error(`OGraf manifest invalid: ${errors.join(' ')}`);
 
-  root.file(`${slug(template.name)}.ograf.json`, JSON.stringify(manifest, null, 2));
-  root.file('graphic.mjs', graphicModule(template));
+  // Every path this package contains, package-relative — what the manifest's `main` and any
+  // thumbnail have to resolve against. Collected as we write rather than read back off the
+  // zip, whose keys carry the enclosing project folder.
+  const packaged: string[] = [];
+  const write = (path: string, data: string | Blob, options?: JSZip.JSZipFileOptions) => {
+    packaged.push(path);
+    root.file(path, data, options);
+  };
+
+  write(`${slug(template.name)}.ograf.json`, JSON.stringify(manifest, null, 2));
+  write('graphic.mjs', graphicModule(template));
   // The ID table travels with every package (LiveOS inherits it here too): an OGraf host's
   // data keys ARE these field ids, and only the package can say what each one means.
-  root.file(
+  write(
     'FIELDS.md',
     fieldReferenceMd(
       template,
@@ -530,18 +699,21 @@ export async function addOgrafPackage(
         'declares, and what `updateAction({ data })` carries.',
     ),
   );
-  root.file('lib/gsap.min.js', gsapSource);
-  if (templateUsesLottie(template)) root.file('lib/lottie.min.js', lottieSource);
+  write('lib/gsap.min.js', gsapSource);
+  if (templateUsesLottie(template)) write('lib/lottie.min.js', lottieSource);
   await addReferencedFonts(root, template);
   for (const asset of template.assets) {
     if (typeof asset.data === 'string') {
       const parsed = parseDataUrl(asset.data);
-      if (parsed) root.file(asset.path, parsed.base64, { base64: true });
-      else root.file(asset.path, asset.data);
+      if (parsed) write(asset.path, parsed.base64, { base64: true });
+      else write(asset.path, asset.data);
     } else {
-      root.file(asset.path, asset.data);
+      write(asset.path, asset.data);
     }
   }
+
+  const missing = validateOgrafPackage(manifest, packaged);
+  if (missing.length) throw new Error(`OGraf package incomplete: ${missing.join(' ')}`);
 }
 
 // ── The target ────────────────────────────────────────────────────────────────

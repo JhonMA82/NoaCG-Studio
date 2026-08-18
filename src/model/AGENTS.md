@@ -57,6 +57,14 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   preset without a row is a type error), style-family labels, and the search alias table
   (aliases resolve to SETS of facet values). Pure data; derivation lives in
   src/templates/templateMeta.ts, the browse engine in src/templates/search.ts.
+- **designRules.ts** - the CANONICAL on-air legibility rules (docs/DESIGN_RULES_PLAN.md): the
+  owner's size table (role x standard/safe mode x viewing profile, % of the frame's short
+  side), weight/stroke/safe-area/contrast floors, the prompt blocks GENERATED from those
+  constants, and the per-project `ProjectLegibility` settings (viewing target + the
+  'relaxed'/'safe' floors tri-state; `normalizeLegibility` makes the default serialize to
+  NOTHING). Prompting, the spike instruments and the product validator's warn-first checks
+  (validation/designRulesWarnings.ts) all READ this module; nothing copies a number. Math
+  pinned by `scripts/design-rules.test.mjs` in the build gate. Extend additively.
 - **wizard.ts** - categories, variants, WizardOptions, palettes. A variant declares its
   CAPABILITIES - `maxLines` (1-5 line capacity), `logo: 'none' | 'optional' | 'built-in'`,
   `animationPresets`, `defaultSteps` - which drive the wizard's Fields/Animation options AND the

@@ -198,9 +198,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  the same answer: the local PROGRAM monitor's own state replies (fresh — the stage posts
    *  one after every applied command), and the wire's {t:'live'} report rows, which also cover
    *  what happened before this page opened. The event buttons grey against this. */
-  const [machineStates, setMachineStates] = useState<Record<string, { groups: Record<string, string> } | null>>({});
+  const [machineStates, setMachineStates] = useState<Record<string, { groups?: Record<string, string> } | null>>({});
   const noteMachineState = useCallback(
-    (graphic: string, state: { groups: Record<string, string> } | null) => {
+    (graphic: string, state: { groups?: Record<string, string> } | null) => {
       setMachineStates((m) => {
         if (JSON.stringify(m[graphic] ?? null) === JSON.stringify(state)) return m;
         return { ...m, [graphic]: state };
@@ -312,7 +312,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // opening onto a production another operator drove mid-sequence.
       for (const [graphic, report] of Object.entries(resolved.live)) {
         if (report && typeof report === 'object' && 'state' in report) {
-          noteMachineState(graphic, (report as { state?: { groups: Record<string, string> } | null }).state ?? null);
+          noteMachineState(graphic, (report as { state?: { groups?: Record<string, string> } | null }).state ?? null);
         }
       }
       const history = await hostedControlTail(hostedSlug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));

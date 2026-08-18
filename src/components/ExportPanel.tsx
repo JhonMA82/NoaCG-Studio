@@ -13,6 +13,7 @@ export default function ExportPanel() {
   const graphicId = useTemplateStore((s) => s.saved.graphicId);
   const previewError = useTemplateStore((s) => s.previewError);
   const setValidation = useTemplateStore((s) => s.setValidation);
+  const legibility = useTemplateStore((s) => s.legibility);
 
   return (
     <ExportSurface
@@ -21,6 +22,7 @@ export default function ExportPanel() {
       graphicId={graphicId}
       runtimeError={previewError}
       onValidation={setValidation}
+      legibility={legibility}
     />
   );
 }

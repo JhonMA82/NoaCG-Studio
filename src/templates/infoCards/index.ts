@@ -84,6 +84,10 @@ import { card76 } from './card76';
 import { card77 } from './card77';
 import { card78 } from './card78';
 import { card79 } from './card79';
+import { card80 } from './card80';
+import { card81 } from './card81';
+import { card82 } from './card82';
+import { card83 } from './card83';
 
 export const INFO_CARDS: TemplateVariant[] = [
   // ── Information cards ──
@@ -171,6 +175,11 @@ export const INFO_CARDS: TemplateVariant[] = [
   card69, // Documentary Quote - long quotation + source
   card70, // Location Scrim - place + context
   card71, // Prepared Lyric - prepared caption / lyric
+  // Typographic voices - the pack answering docs/CATALOG_VARIETY.md §3's missing voices.
+  card80, // Broadsheet Title - serif headline on paper, two-column standfirst (sibling lt59)
+  card81, // Lowercase Title - no capitals anywhere, on paper (sibling lt60)
+  card82, // Poster Topic - outlined index numeral beside a condensed topic (sibling lt61)
+  card83, // Stacked Words - the type IS the composition, with a vertical spine label
 ];
 
 export function infoCardById(id: string): TemplateVariant | undefined {

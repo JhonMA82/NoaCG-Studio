@@ -57,9 +57,13 @@ export function postPreviewCmd(win: Window | null | undefined, msg: PreviewCmd):
   win?.postMessage({ type: PREVIEW_CMD_TYPE, ...msg }, '*');
 }
 
-/** The graphic's machine pointers — what a state chip names and what greys an event button. */
+/** The graphic's machine pointers — what a state chip names and what greys an event button.
+ *  `groups` is OPTIONAL because the value is whatever the template's own noacgMachineState()
+ *  returned: an emitted or imported template may hand-write that function with another shape
+ *  (the 2026-08-19 drive proof found `{ stepsPlayed: 1 }`), and every consumer must read that
+ *  as "no answer yet" rather than crash the operator surface on it. */
 export interface PreviewMachineState {
-  groups: Record<string, string>;
+  groups?: Record<string, string>;
 }
 
 export interface PreviewBoxMessage {

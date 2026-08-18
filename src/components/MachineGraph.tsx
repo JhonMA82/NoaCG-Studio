@@ -530,7 +530,7 @@ export default function MachineGraph({ iframeRef, data, onOpenStep, onOpenStateT
       if (ev.source !== iframeRef.current?.contentWindow) return;
       const msg = ev.data as PreviewStateMessage | undefined;
       if (!msg || msg.type !== PREVIEW_STATE_TYPE) return;
-      const next = msg.state ? msg.state.groups : null;
+      const next = msg.state && msg.state.groups ? msg.state.groups : null;
       const prev = currentRef.current;
       if (JSON.stringify(next) !== JSON.stringify(prev)) setCurrent(next);
     };

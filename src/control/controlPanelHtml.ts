@@ -477,8 +477,10 @@ GRAPHICS.forEach(function (g) {
   // guard decides.
   var machineState = log.state; // last known — honest until the live graphic answers hello
   var eventBtns = [];
+  // A state without .groups is a template's own hand-written noacgMachineState() - treat it
+  // as "not answered yet" everywhere below rather than crashing the whole panel on it.
   function legalNow(ev) {
-    if (!machineState) return true;
+    if (!machineState || !machineState.groups) return true;
     var perGroup = g.legal[ev];
     if (!perGroup) return false;
     for (var gid in perGroup) {
@@ -487,7 +489,7 @@ GRAPHICS.forEach(function (g) {
     return false;
   }
   function paintState() {
-    if (machineState) {
+    if (machineState && machineState.groups) {
       // The author's NAMES, not the runtime's ids — the same line the app's chip shows.
       // g.stateNames is baked in at export (controlModel.ts machineStateNames); an id it does
       // not know falls back to itself, which is what a hand-edited machine gets.
@@ -592,7 +594,7 @@ GRAPHICS.forEach(function (g) {
     // logged and replays nothing.
     else if (m.t === 'graphic-online') {
       if (log.data) post({ t: 'update', data: log.data });
-      if (log.state) post({ t: 'snap', snap: log.state.groups });
+      if (log.state && log.state.groups) post({ t: 'snap', snap: log.state.groups });
       // Snap resets the graphic before composing the pose, clearing every inline style —
       // including the data layer's own (an image field with no picture hides itself inline).
       if (log.state && log.data) post({ t: 'update', data: log.data });

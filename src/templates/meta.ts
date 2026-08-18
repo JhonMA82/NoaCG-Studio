@@ -320,7 +320,7 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   card70: { category: 'bug', subtype: 'location', structures: ['multi-line'], coverage: 'overlay', positionalSemantics: ['location', 'location', 'description'] },
   card71: { category: 'caption', subtype: 'lyrics', structures: ['strip', 'multi-line'], coverage: 'strip', positionalSemantics: ['description', 'description', 'source'] },
 
-  // ── The SPECIALIST lower thirds (templates/lowerThirds/specialist, ls01…ls32) ──
+  // ── The SPECIALIST lower thirds (templates/lowerThirds/specialist, ls01…ls40) ──
   //
   // These are declared per variant rather than left to the lower-third fallback, because the
   // fallback's single value is exactly what they are not: it calls every strap a two-field
@@ -375,6 +375,17 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   // Creator — handles and stream identity.
   ls31: { category: 'lower-third', subtype: 'name-tag', structures: ['multi-line', 'single-line'], positionalSemantics: ['name', 'description', 'social-handle', 'social-handle', 'social-handle'] },
   ls32: { category: 'lower-third', subtype: 'name-tag', structures: ['name-role', 'multi-line'], positionalSemantics: ['social-handle', 'name', 'headline', 'amount'] },
+  // Broadcast journalism — straps whose subject is the WORDS or their status, not the person.
+  ls33: { category: 'lower-third', subtype: 'speaker', structures: ['multi-line', 'name-role'], positionalSemantics: ['headline', 'name', 'role'] },
+  ls34: { category: 'lower-third', subtype: 'speaker', structures: ['multi-line'], positionalSemantics: ['topic', 'description', 'topic', 'description'] },
+  ls35: { category: 'lower-third', subtype: 'speaker', structures: ['name-role', 'multi-line'], positionalSemantics: ['topic', 'name', 'location'] },
+  // ls36's fourth field is the hidden UTC offset the clock runtime reads — an input-only
+  // value, but a real DataField, so the positional array has to account for it.
+  ls36: { category: 'lower-third', subtype: 'locator', structures: ['multi-line', 'single-line'], positionalSemantics: ['location', 'location', 'time', 'duration'] },
+  ls37: { category: 'lower-third', subtype: 'live-tag', structures: ['single-line', 'multi-line'], positionalSemantics: ['topic', 'headline'] },
+  ls38: { category: 'lower-third', subtype: 'live-tag', structures: ['multi-line'], positionalSemantics: ['topic', 'headline', 'time'] },
+  ls39: { category: 'lower-third', subtype: 'name-tag', structures: ['multi-line'], positionalSemantics: ['answer', 'headline', 'source'] },
+  ls40: { category: 'lower-third', subtype: 'speaker', structures: ['name-role', 'multi-line'], positionalSemantics: ['name', 'organization', 'role', 'topic'] },
 
   // ── The PUBLIC-SERVICE pack's tickers (tk11…tk17, tk20) ────────────────────
   //
@@ -424,6 +435,31 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   pi06: { category: 'info', subtype: 'explainer', structures: ['multi-line'], coverage: 'panel', positionalSemantics: ['headline', 'description', 'description', 'organization'] },
   pi07: { category: 'caption', subtype: 'translation', structures: ['multi-line'], coverage: 'panel', positionalSemantics: ['headline', 'description', 'headline', 'description', 'organization'] },
   pi10: { category: 'bug', subtype: 'source', structures: ['corner-chip', 'multi-line'], coverage: 'overlay', positionalSemantics: ['source', 'description'] },
+
+  // ── The TYPOGRAPHIC VOICES pack (docs/CATALOG_VARIETY.md §3, "what is missing entirely") ──
+  //
+  // Declared where the design's fields are NOT what its category's fallback assumes. The
+  // lower-third fallback reads every strap as name / role / organization, and none of these
+  // three is: a byline leads with its section, a poster billing splits one name across two
+  // fields, and the quiet strap's third line is a show rather than an employer. The four cards
+  // are titles and topics rather than the 'explainer' an undeclared info card falls back to.
+  lt59: { category: 'lower-third', subtype: 'speaker', structures: ['name-role', 'multi-line'], positionalSemantics: ['topic', 'name', 'role', 'organization'] },
+  lt60: { category: 'lower-third', subtype: 'speaker', structures: ['name-role', 'multi-line'], positionalSemantics: ['name', 'role', 'topic'] },
+  lt61: { category: 'lower-third', subtype: 'name-tag', structures: ['multi-line', 'name-role'], positionalSemantics: ['topic', 'name', 'name', 'description'] },
+  card80: { category: 'title', subtype: 'segment-title', structures: ['multi-line'], positionalSemantics: ['topic', 'headline', 'description', 'source'] },
+  card81: { category: 'title', subtype: 'session-title', structures: ['multi-line'], positionalSemantics: ['topic', 'headline', 'description'] },
+  // The index ("03") is an ORDINAL, and the semantic vocabulary has no ordinal: 'topic' is the
+  // nearest honest answer (it is the chapter marker), and it is better than leaving the card on
+  // the info fallback, which would read the poster's topic word as a description.
+  card82: { category: 'topic', subtype: 'topic', structures: ['multi-line'], positionalSemantics: ['topic', 'headline', 'description'] },
+  card83: { category: 'title', subtype: 'show-open', structures: ['multi-line'], positionalSemantics: ['headline', 'headline', 'headline', 'description'] },
+  // The holding fallback's third field is a DURATION; on both of these it is the countdown's
+  // LABEL, and ss19 is a break card rather than a front door. Both run to the FULL field list,
+  // not just the visible lines: the starting-soon assembler appends the clock's own fields after
+  // them (a 'minutes' number, and a wall-clock start time on ss18), and the factory gate compares
+  // a declaration against the compiled schema rather than against the line count.
+  ss18: { category: 'holding', subtype: 'starting', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['headline', 'description', 'headline', 'duration', 'time'], extraCapabilities: ['countdown', 'loop'] },
+  ss19: { category: 'holding', subtype: 'break', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['headline', 'topic', 'description', 'duration'], extraCapabilities: ['countdown', 'loop'] },
 };
 
 // ── Per-assembler fallback (single-valued, proposal §4) ─────────────────────

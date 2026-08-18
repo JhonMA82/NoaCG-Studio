@@ -468,7 +468,7 @@ function HostedCueEditor({
   values: Record<string, string>;
   live: boolean;
   layer: number | null;
-  liveState: { groups: Record<string, string> } | null;
+  liveState: { groups?: Record<string, string> } | null;
   onPreview: (values: Record<string, string>) => void;
   onError: (message: string) => void;
 }) {

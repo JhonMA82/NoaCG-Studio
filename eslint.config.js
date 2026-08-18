@@ -77,6 +77,11 @@ export default tseslint.config(
       'lite-bench-out*/',
       'lite-eval-out*/',
       'pro-bench-out*/',
+      'pro-spike-out*/',
+      'pro-iterate-out*/', // the iterate/type-sweep rounds save every emit round to disk
+      'pro-freeform-blind/',
+      'pro-iterate-blind/',
+      'pro-typesweep-blind/',
       'lite-on-pro-out*/',
       'pro-machine-out*/',
       'video-bench-out*/',

@@ -437,7 +437,7 @@ swapped from `/output` to the user's own hosting. The long-term output model:
 3. **Portable package export** — the six targets (existing; offline, archival, restricted
    networks).
 
-## 7. The automatic-data direction (design constraint, not built)
+## 7. The automatic-data direction (the first slice is built)
 
 The browser-output architecture must not need replacing when external data arrives. What this
 milestone fixes in place:
@@ -458,6 +458,17 @@ milestone fixes in place:
 - **Local venue data** (timing/scoring systems on closed networks) will need a small local
   bridge maintaining an outbound connection that writes the same log — nothing in this
   design assumes a source is cloud-reachable.
+
+**Built (the first slice): the Production Data API** - `POST /api/data/update`
+(`api/data/[...path].ts`, migration 0047, integrator docs in **`docs/DATA_API.md`**). It is
+exactly the ingress above: a per-production data key (update-only, revocable - deliberately
+NOT the control slug, which is a full operator capability and, since 0040, unrotatable)
+authorizes a server-side write of ordinary `update` rows through `control_data_send`
+(control_send's ingest twin: same checks, rows marked `src:'api'`), with field values
+addressed by the graphic's own field LABELS (the dataset binding's normalization) and an
+ingest budget - 25 of any 5 s window, the operator keeping the rest - enforced in the
+DATABASE, so operator headroom holds globally rather than per serverless instance.
+Connectors (pollers, venue bridges) are CALLERS of this endpoint, not new paths.
 
 Recommended first experiments, after this MVP is proven in a real production:
 **A.** a published-CSV Google Sheet driving a ticker through a server-side poller (validates
@@ -490,7 +501,25 @@ last-known-good). Choose concrete providers only after licensing/cost review.
    1920×1080, survives a CasparCG channel restart.
 8. Unpublish → output URL and control URL both go dead honestly; re-publish → same record,
    new session, output URL unchanged only if the row was updated rather than deleted.
-9. **Pictures — NOT YET RUN.** The picture graphic (§ pool list, `src/templates/picture.ts`)
+9. **The Data API (migration 0047 + `/api/data/update`) — NOT YET RUN LIVE.** A green build
+   proves the function compiles, NOT that the platform routes it (the hosted-Pro lesson):
+   after the deploy, curl the deployed URL before trusting anything else.
+   - `supabase db push` applies 0047; `supabase migration list --linked` shows it; existing
+     `control_shows` rows all have a `data_key` (the volatile-default backfill ran).
+   - `curl -X POST https://<host>/api/data/update` with no token → the app's own JSON 401
+     (routed); a platform NOT_FOUND here means the route never deployed.
+   - With a wrong token → 401 "Unknown data key". With the production's real `data_key` and
+     `{"values": {"Score A": 1}}` → 200 with `applied: {"f1": "1"}`, and the score changes on
+     the open `/output` page and on the operator surfaces within a second.
+   - Operator precedence: take a cue, run `scripts/data-api-demo.mjs`, then type a different
+     score on the production page and Update - the operator's value lands and stays (later
+     log rows win; the feed's next tick overwrites again, which is also correct - freeze is
+     stopping the feed).
+   - Hammer the endpoint (a loop without sleep) → 429 with `Retry-After`, and the operator
+     page keeps working while the feed is refused.
+   - Unpublish + re-publish → the old data key answers 401, the new one works (rotation);
+     the output and control URLs are unchanged (0040 identity).
+10. **Pictures — NOT YET RUN.** The picture graphic (§ pool list, `src/templates/picture.ts`)
    ships covered by `e2e/productions.spec.ts`, which is the LOCAL half: it never publishes,
    so the one thing pictures add to the wire — a multi-megabyte base64 payload in the
    published `output` row, read whole by the renderer AND by every hosted operator page — has

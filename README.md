@@ -78,6 +78,7 @@ See [`.env.example`](.env.example) for what turns each optional piece on.
 | [`AGENTS.md`](AGENTS.md) | The authoritative project contract — architecture, conventions, non-negotiables |
 | [`docs/GOALS.md`](docs/GOALS.md) | North star and the open road ahead (shipped work: [`docs/GOALS_ARCHIVE.md`](docs/GOALS_ARCHIVE.md)) |
 | [`docs/SPX_TEMPLATE_FORMAT.md`](docs/SPX_TEMPLATE_FORMAT.md) | The SPX template contract |
+| [`docs/OGRAF.md`](docs/OGRAF.md) | The EBU OGraf v1 export: manifest, Web Component, limits |
 | [`docs/STATE_MACHINE_SCHEMA.md`](docs/STATE_MACHINE_SCHEMA.md) | What a graphic *is*: states, transitions, the default path |
 | [`docs/CONTROL_LAYER.md`](docs/CONTROL_LAYER.md) | Operator panels, rundowns, hosted control |
 | [`docs/RENDER.md`](docs/RENDER.md) | The video/image render service |
