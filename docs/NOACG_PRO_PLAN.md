@@ -3042,3 +3042,39 @@ What is NOT settled here: whether the owner airs what the gate now delivers. The
 read shows the primary floor forcing oversized type or the safe area fighting corner
 graphics, the audit's named rows are what the owner re-ratifies. R4 (wizard viewing-target
 UI, product validator warn-first, catalog migration notes) stays gated behind that read.
+
+### 23.1 The owner's blind read, and what it settles - 2026-08-19
+
+The read came back the next morning, all 28 items (verbatim notes + join: the round archive's
+notes.md, `rules-reread-blind-final-2026-08-19`). Airable = "would air" + "okay as-is":
+
+| round | airable | of |
+| --- | --- | --- |
+| gemini-3.7-flash iterate under the rules | **21** | 21 |
+| catalog anchors | 5 | 7 |
+
+- **The deliver signal no longer leaks.** All 19 delivered-clean cells were judged airable -
+  §22 leaked 12 of 24, §21.2 leaked 4 of 19, this round leaked ZERO. The seven §22.1 escape
+  classes were closed by measurement, and the owner's summary was "for the most part all of
+  these pass - I'm happy." Every remaining note on a model cell is a nit (a glow, a
+  banner-balance preference, first-frame real estate), not a defect class.
+- **The stop signal is now the over-strict side.** Both dirty stops (cd-launch, cd-results)
+  were AIRED: they stopped on the countdown's calibrated spacing thresholds (padding-tight
+  0.11-0.23 vs floor 0.24; lines-adrift 1.55-1.92 vs ceiling 1.4). Two false stops, zero
+  true ones - the countdown instrument numbers in PRO_GRAPHICS are the named thing to relax
+  before the lane ships.
+- **The catalog took the same two notes a THIRD time**: tk01 failed again on red-on-black +
+  one-sided overflow (the ticker-margin rule the model cells now obey), and ig01's percent
+  number is again "way too small". sb01 adds stress truncation + an uneven number backing.
+  The rules the lane is held to now indict three shipped anchors - catalog fixes owed in R4.
+- **One cell-level defect survives**: qz-primetime is airable on the page and NOT DRIVABLE
+  through the shipped control page (runtime throw). The visual gate and the drive proof
+  disagree; a control-page smoke belongs in the loop before the lane ships (the drive spike
+  exists - compose it in).
+- **What this settles**: the R3 accept gate is CLEARED. R4 (productize) is unblocked -
+  viewing-target wizard UI, legibility-mode persistence, the product validator running the
+  new checks warn-first on catalog/imported/community templates, and migration notes for the
+  indicted catalog designs. The primary-size-floor disagreement (AUDIT-2026-08-19.md: 50px
+  fails 312/489 shipped designs) did NOT bite the round - the models simply designed larger
+  type and the owner liked it - but it still stands between the rules and the product
+  validator until the owner re-ratifies the number for CATALOG enforcement.
