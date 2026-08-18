@@ -182,13 +182,14 @@ const MAP = [
   [/^src\/components\/MachineGraph/, ['machine-graph.spec.ts', 'state-machine.spec.ts', 'timeline-v2.spec.ts']],
   [/^src\/components\/(fields|SampleDataPanel|ControlPanel|HostedControlPage)/, ['control.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'images.spec.ts', 'ux.spec.ts', 'video-inputs.spec.ts', 'import-graphic.spec.ts']],
   [/^src\/components\/(AssetsPanel|assetInfo|InsertTemplateDialog)/, ['assets.spec.ts', 'images.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
-  // The production PACKAGE round trip (model/productionPack.ts): the export half lives in the
-  // export dialog, the import half in the Productions grid, and one spec drives the whole loop
-  // through the real UI - so every file on that loop selects it.
-  [/^src\/(model\/productionPack|components\/home\/(importProductionPack|ProductionExportDialog|sections\/ProductionsSection))/, ['production-pack.spec.ts']],
+  // The graphics-pack ROUND TRIP (src/packs/graphicsPack.ts buildPack + the export dialog's
+  // download): one spec drives export -> re-import through the real UI, plus the shipped
+  // Fight Night pack's install (rundown order included) - so the format owner and both UI
+  // ends select it, unioning with the pack-import rules below.
+  [/^src\/(packs\/|components\/home\/(ProductionExportDialog|sections\/ProductionsSection))/, ['production-pack.spec.ts']],
   // The pack CONTENT and its builder: the sample-import test drives the built file end to
   // end (import gate included), so editing a pack graphic or the assembler selects it.
-  [/^(packs\/|public\/packs\/|scripts\/build-production-pack)/, ['production-pack.spec.ts']],
+  [/^(packs\/|public\/packs\/|scripts\/build-production-pack)/, ['production-pack.spec.ts', 'pack-import.spec.ts']],
   // wizard-kit rides along: the kit's export door lands on ProductionPage and asks it to open
   // THE production export dialog (templateStore `pendingProductionExport`), so a change to
   // that page can break a wizard flow whose name says nothing about productions.

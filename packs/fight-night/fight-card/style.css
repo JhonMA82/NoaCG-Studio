@@ -87,6 +87,11 @@ html, body {
   flex-direction: column;
 }
 
+/* The bout-list holder is input-only data, never shown. */
+.fc-holder {
+  display: none;
+}
+
 .fc-row {
   display: flex;
   flex-direction: column;

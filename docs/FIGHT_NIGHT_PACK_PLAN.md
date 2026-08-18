@@ -1,13 +1,19 @@
 # Fight Night production package - plan
 
-Status: **BUILT through Phase 3, 2026-08-17** (owner approved the vision check and §9 defaults).
-The format + import/export round trip is `src/model/productionPack.ts` +
-`src/components/home/importProductionPack.ts`; the twelve graphics live in
-`packs/fight-night/` and assemble via `scripts/build-production-pack.mjs` (in the build gate)
-into `public/packs/fight-night.noacgpack.json`, offered as "Try the Fight Night sample" in
-Home → Productions. `e2e/production-pack.spec.ts` covers the round trip, the sample import
-through the validation gate, and refusals. Still open: the live cloud walk (§7 Phase 4's
-backend half) and the owner's look at the rendered set.
+Status: **BUILT, 2026-08-17** (owner approved the vision check and §9 defaults) - and
+**UNIFIED onto the graphics-pack system** that landed on main in parallel (`noacg-pack`,
+`src/packs/graphicsPack.ts`, `docs/GRAPHICS_PACKS.md` - the Uutishuone pack). §3 as first
+written described a second format; it was not built twice. What this branch ADDS to that
+system: the optional top-level ORDERED cue rundown (the whole-show walk across graphics -
+`GraphicsPack.rundown`, installed through `model/shows.ts setShowCues`), the EXPORT half
+(`buildPack` + the export dialog's "Graphics pack" download - any production round-trips),
+and the Fight Night pack itself: twelve graphics in `packs/fight-night/` (file-based
+sources), assembled by `scripts/build-production-pack.mjs` (in the build gate, gates matching
+`build-news-pack.mjs`) into `public/packs/fight-night.noacgpack.json`, listed beside
+Uutishuone in the pack index with one-click Install. `e2e/production-pack.spec.ts` covers the
+round trip, the Fight Night install through the validation gate (rundown order pinned), and
+refusals. Still open: the live cloud walk (§7 Phase 4's backend half) and the owner's look at
+the rendered set.
 
 **One scope amendment against §4 as first written:** v1 ships the steppy graphics
 (scorecards, fight card) on hand-written SPX `next()` logic and the fight bug's clock as

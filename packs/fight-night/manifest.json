@@ -1,18 +1,20 @@
 {
   "name": "Fight Night",
+  "description": "A complete combat-sports package: event slate, fight card, matchup, tale of the tape, fight bug with a running round clock, round cards, live stats, judges' scorecards, result, lower thirds and a stinger — with a ready-to-run three-bout rundown.",
+  "indexDescription": "Combat-sports package — matchup, tale of the tape, fight bug & clock, scorecards, result",
   "graphics": [
-    { "slug": "event-slate", "name": "Event slate", "layer": 5 },
-    { "slug": "fight-card", "name": "Fight card", "layer": 6 },
-    { "slug": "matchup", "name": "Matchup", "layer": 7 },
-    { "slug": "tale-of-the-tape", "name": "Tale of the tape", "layer": 8 },
-    { "slug": "official-result", "name": "Official result", "layer": 9 },
-    { "slug": "judges-scorecards", "name": "Judges' scorecards", "layer": 10 },
-    { "slug": "live-stats", "name": "Live stats", "layer": 12 },
-    { "slug": "fight-bug", "name": "Fight bug", "layer": 14 },
-    { "slug": "fighter-lower-third", "name": "Fighter intro", "layer": 15 },
-    { "slug": "generic-lower-third", "name": "Lower third", "layer": 16 },
-    { "slug": "round-card", "name": "Round card", "layer": 17 },
-    { "slug": "stinger", "name": "Stinger", "layer": 19 }
+    { "slug": "event-slate", "name": "Event slate", "type": "starting-soon", "layer": 5 },
+    { "slug": "fight-card", "name": "Fight card", "type": "infographic", "layer": 6 },
+    { "slug": "matchup", "name": "Matchup", "type": "matchup", "layer": 7 },
+    { "slug": "tale-of-the-tape", "name": "Tale of the tape", "type": "matchup", "layer": 8 },
+    { "slug": "official-result", "name": "Official result", "type": "results-board", "layer": 9 },
+    { "slug": "judges-scorecards", "name": "Judges' scorecards", "type": "results-board", "layer": 10 },
+    { "slug": "live-stats", "name": "Live stats", "type": "scoreboard", "layer": 12 },
+    { "slug": "fight-bug", "name": "Fight bug", "type": "scoreboard", "layer": 14 },
+    { "slug": "fighter-lower-third", "name": "Fighter intro", "type": "lower-third", "layer": 15 },
+    { "slug": "generic-lower-third", "name": "Lower third", "type": "lower-third", "layer": 16 },
+    { "slug": "round-card", "name": "Round card", "type": "info-card", "layer": 17 },
+    { "slug": "stinger", "name": "Stinger", "type": "transition", "layer": 19 }
   ],
   "cues": [
     { "graphic": "Event slate", "label": "Opening slate", "note": "Full-frame holding screen - Out before the show starts." },
