@@ -534,6 +534,62 @@ function feedFindings({ blocking, advisory }) {
   ];
 }
 
+// ── The calibrated vision critic (docs/DESIGN_RULES_PLAN.md §4, calibrated 2026-08-19 in
+// benchmarks/design-rules/CRITIC-CALIBRATION-2026-08-19.md). ONLY strong-precision questions
+// are wireable, and every answer feeds as ADVISORY - the deterministic instruments gate,
+// the critic is a second opinion on the one class it is proven on. `--critic=` disables.
+const CRITIC_QUESTIONS = {
+  lineOnText: 'Is any accent line, rule or bar drawn ON TOP of text (overlapping the letters)?',
+};
+const CRITIC = paid
+  ? (value('critic') ?? 'lineOnText').split(',').filter((q) => q && CRITIC_QUESTIONS[q])
+  : [];
+
+async function criticAdvisories(jpegB64) {
+  if (!CRITIC.length || !jpegB64) return { advisories: [], costUsd: 0 };
+  const res = await page.evaluate(async ({ route, jpeg, questions }) => {
+    const bust = '?t=' + Date.now();
+    const { callModelDetailed } = await import('/src/ai/modelGateway.ts' + bust);
+    const [provider, ...model] = route.split(':');
+    try {
+      const result = await callModelDetailed({
+        system: 'You inspect broadcast graphics for objective visual defects. Answer strictly from the frame; never guess a defect you cannot see.',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: `One rendered broadcast graphic frame at 1920x1080.\n${questions.map((q) => `- ${q.id}: ${q.ask}`).join('\n')}` },
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: jpeg } },
+          ],
+        }],
+        tool: {
+          name: 'report_defects',
+          description: 'Binary defect answers for this frame.',
+          input_schema: {
+            type: 'object',
+            additionalProperties: false,
+            required: questions.map((q) => q.id),
+            properties: Object.fromEntries(questions.map((q) => [q.id, { type: 'boolean', description: q.ask }])),
+          },
+        },
+        route: { provider, model: model.join(':') },
+        surface: 'spike',
+        temperature: 0,
+        maxTokens: 800,
+      });
+      return { answers: result.output, costUsd: result.usage?.estimatedCost?.amount ?? 0 };
+    } catch (e) {
+      return { error: String(e?.message ?? e).slice(0, 200) };
+    }
+  }, { route, jpeg: jpegB64, questions: CRITIC.map((id) => ({ id, ask: CRITIC_QUESTIONS[id] })) });
+  if (res.error) {
+    console.log(`  critic error (advisory lost, round continues): ${res.error}`);
+    return { advisories: [], costUsd: 0 };
+  }
+  const advisories = CRITIC.filter((id) => res.answers?.[id]).map((id) =>
+    `ADVISORY vision check (${id}): the judge answered YES to "${CRITIC_QUESTIONS[id]}" - verify on your render and fix it where real`);
+  return { advisories, costUsd: res.costUsd ?? 0 };
+}
+
 /** Downscale the 1920x1080 hold to a model-sized JPEG inside the page. */
 async function downscale(shotBuffer) {
   return page.evaluate(async (pngB64) => new Promise((resolve) => {
@@ -988,6 +1044,7 @@ async function writeLedger() {
     readabilityMode: READABILITY_MODE,
     legibilityMode: LEGIBILITY_MODE,
     viewingProfile: VIEWING_PROFILE,
+    critic: CRITIC,
     maxIterations: MAX_ITERATIONS,
     vision,
     maxCost,
@@ -1170,6 +1227,16 @@ for (const entry of briefs) {
         break;
       }
       const screenshot = vision ? await downscale(capture.shot) : null;
+      const critic = await criticAdvisories(screenshot);
+      if (critic.costUsd) {
+        spentUsd += critic.costUsd;
+        cost += critic.costUsd;
+      }
+      if (critic.advisories.length) {
+        findings.push(...critic.advisories);
+        iterationLog[iterationLog.length - 1].critic = critic.advisories;
+        console.log(`    critic: ${critic.advisories.length} advisory`);
+      }
       previous = {
         template: emitRes.template,
         findings,
