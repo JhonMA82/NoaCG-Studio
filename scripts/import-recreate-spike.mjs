@@ -373,29 +373,74 @@ async function similarity(referenceB64, renderB64) {
     // scored 97.4% that way, which certifies anything. Active-area scoring is what makes the
     // wrong design score low.
     const BG = 0x33;
+
+    // The render is compared at its BEST SMALL OFFSET (±4 blocks = ±32 source px): a perfect
+    // rebuild parked a strap's width off its reference position mismatched every block, the
+    // loop then read "everything differs" and rewrote a good design. A viewer does not care
+    // about a 30px offset and the operator repositions anyway - the offset is REPORTED as its
+    // own finding instead of poisoning every cell.
+    const scoreAt = (dx, dy) => {
+      let okN = 0;
+      let activeN = 0;
+      for (let y = 0; y < H; y++) {
+        const sy = y + dy;
+        if (sy < 0 || sy >= H) continue;
+        for (let x = 0; x < W; x++) {
+          const sx = x + dx;
+          if (sx < 0 || sx >= W) continue;
+          const p = (y * W + x) * 4;
+          const q = (sy * W + sx) * 4;
+          let d = 0;
+          let offBgA = 0;
+          let offBgB = 0;
+          for (let c = 0; c < 3; c++) {
+            d = Math.max(d, Math.abs(a[p + c] - b[q + c]));
+            offBgA = Math.max(offBgA, Math.abs(a[p + c] - BG));
+            offBgB = Math.max(offBgB, Math.abs(b[q + c] - BG));
+          }
+          if (offBgA > 12 || offBgB > 12) {
+            activeN++;
+            if (d <= TOL) okN++;
+          }
+        }
+      }
+      return { ok: okN, active: activeN, score: activeN ? okN / activeN : 0 };
+    };
+    let best = { dx: 0, dy: 0, ...scoreAt(0, 0) };
+    for (let dy = -4; dy <= 4; dy++) {
+      for (let dx = -4; dx <= 4; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const s = scoreAt(dx, dy);
+        // A shifted score must beat the centred one by a margin, and a smaller shift beats a
+        // larger equal one - drift toward big offsets on noise ties would misreport position.
+        const margin = 0.02 + 0.002 * (Math.abs(dx) + Math.abs(dy));
+        if (s.score > best.score + margin) best = { dx, dy, ...s };
+      }
+    }
+
     const COLS = 8;
     const ROWS = 5;
     const cells = Array.from({ length: COLS * ROWS }, () => ({
       diff: 0, n: 0, active: 0, ra: [0, 0, 0], rb: [0, 0, 0],
     }));
-    let ok = 0;
-    let active = 0;
+    const ok = best.ok;
+    const active = best.active;
     for (let y = 0; y < H; y++) {
+      const sy = y + best.dy;
       for (let x = 0; x < W; x++) {
+        const sx = x + best.dx;
+        const inShift = sy >= 0 && sy < H && sx >= 0 && sx < W;
         const p = (y * W + x) * 4;
+        const q = inShift ? (sy * W + sx) * 4 : p;
         let d = 0;
         let offBgA = 0;
         let offBgB = 0;
         for (let c = 0; c < 3; c++) {
-          d = Math.max(d, Math.abs(a[p + c] - b[p + c]));
+          d = Math.max(d, Math.abs(a[p + c] - b[q + c]));
           offBgA = Math.max(offBgA, Math.abs(a[p + c] - BG));
-          offBgB = Math.max(offBgB, Math.abs(b[p + c] - BG));
+          offBgB = Math.max(offBgB, Math.abs(b[q + c] - BG));
         }
-        const isActive = offBgA > 12 || offBgB > 12;
-        if (isActive) {
-          active++;
-          if (d <= TOL) ok++;
-        }
+        const isActive = inShift && (offBgA > 12 || offBgB > 12);
         const cell = cells[Math.floor(y / (H / ROWS)) * COLS + Math.floor(x / (W / COLS))];
         cell.n++;
         if (isActive) {
@@ -404,7 +449,7 @@ async function similarity(referenceB64, renderB64) {
         }
         for (let c = 0; c < 3; c++) {
           cell.ra[c] += a[p + c];
-          cell.rb[c] += b[p + c];
+          cell.rb[c] += b[q + c];
         }
       }
     }
@@ -426,8 +471,11 @@ async function similarity(referenceB64, renderB64) {
       });
     // Under 0.2% active = one side is essentially empty against the other - score 0, never a
     // division-by-nothing pass.
-    if (active < W * H * 0.002) return { score: 0, worst: ['the render paints almost nothing where the reference has a graphic'] };
-    return { score: ok / active, worst };
+    if (active < W * H * 0.002) return { score: 0, offset: null, worst: ['the render paints almost nothing where the reference has a graphic'] };
+    const offset = (best.dx || best.dy)
+      ? { x: best.dx * 8, y: best.dy * 8 }
+      : null;
+    return { score: ok / active, offset, worst };
   }, { referenceB64, renderB64 });
 }
 
@@ -532,6 +580,12 @@ async function runGraphic(slug, reference, emitRound) {
       (f) => `advisory (matching the reference may justify it): ${f.detail}`,
     );
     findings.push(...reactionFindings(emitRes.template, hold.fields, stress.fields, data, stressed));
+    if (sim.offset) {
+      findings.push(`the whole graphic sits about ${Math.abs(sim.offset.x)}px `
+        + `${sim.offset.x > 0 ? 'right' : 'left'} and ${Math.abs(sim.offset.y)}px `
+        + `${sim.offset.y > 0 ? 'below' : 'above'} its position in the reference - keep the `
+        + `design, move the whole graphic to match`);
+    }
     if (sim.score < MIN_SIMILARITY) {
       findings.push(`the render matches only ${(sim.score * 100).toFixed(1)}% of the reference `
         + `(the floor is ${(MIN_SIMILARITY * 100).toFixed(0)}%). Where it differs most:`);
