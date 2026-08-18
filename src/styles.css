@@ -6312,6 +6312,37 @@ h2 + .lib-row,
   border-radius: 6px;
   padding: 6px 8px;
 }
+/* ── The links panel's rows: one line each, the explanation behind a small arrow ──────────
+   The ▸ is a 22px square at the END of every row, so the eye finds the same control in the
+   same place down the column - and it stays the same size on a quiet row, because a shrinking
+   hit target is how a control becomes decoration. */
+.prod-link-item + .prod-link-item { margin-top: 2px; }
+.prod-link-help-toggle {
+  flex: none;
+  width: 22px;
+  padding: 0;
+  min-height: 26px;
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1;
+}
+.prod-link-help-toggle:hover:not(:disabled) { color: var(--text); }
+.prod-link-help { margin: 2px 0 8px; }
+/* A QUIET row: the SPX file and the readable name are secondary to the three links an operator
+   copies every show. Dimmed and smaller, never hidden - the download has to stay findable. */
+.prod-link-item.quiet .prod-link-row > .mono { font-size: 10.5px; }
+.prod-link-item.quiet button { font-size: 11px; padding: 4px 8px; min-height: 26px; }
+.prod-link-item.quiet .prod-link-help-toggle { padding: 0; }
+.prod-link-file {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-dim);
+}
 /* The ACTIVITY LOG. A fixed-width time column and a nowrap graphic name on the right keep the
    TEXT column aligned down the list, which is what makes a feed scannable rather than merely
    present. Capped in height so an afternoon's traffic scrolls inside the panel instead of

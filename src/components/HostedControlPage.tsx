@@ -27,6 +27,7 @@ import { detectPrefix } from '../model/structure';
 import { graphicKindLabel } from '../model/types';
 import { FieldControl } from './fields/FieldControl';
 import PayloadStage, { type PayloadStageHandle } from './home/PayloadStage';
+import { revealCue, stepSelection, usePlayoutVerbKeys, type PlayoutVerb } from './playoutKeys';
 
 /**
  * The HOSTED control page — the operator surface at `<app-url>?control=<slug>`. No login, no
@@ -259,6 +260,32 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     previewCue(cue, cueValues(cue));
   };
 
+  /**
+   * ONE dispatcher for the verbs, whether they arrive from a button or from a key — the same
+   * shape the in-app dashboard uses, so the two surfaces cannot disagree about what a press
+   * means. TAKE is the TOGGLE (docs/PLAYOUT_DASHBOARD.md §2): it airs the selected cue and, on
+   * a cue that is already live, takes it off. Re-take is its own verb.
+   */
+  const runVerb = (verb: PlayoutVerb) => {
+    if (verb === 'preview' && selectedCue) selectCue(selectedCue);
+    if (verb === 'take') {
+      if (selectedIsLive) outLayer();
+      else if (selectedCue) void takeCue(selectedCue);
+    }
+    if (verb === 'retake' && selectedIsLive && selectedCue) void takeCue(selectedCue);
+    if (verb === 'update' && selectedIsLive) updateLive();
+    if (verb === 'next' && selectedLayerCueId) nextLayer();
+    if (verb === 'out' && selectedLayerCueId) outLayer();
+    // Walk the rundown. Selecting a cue is the same act as clicking it — it goes to PREVIEW,
+    // nothing airs — so an operator can line the next item up and take it without a mouse.
+    if (verb === 'select-prev' || verb === 'select-next') {
+      const next = stepSelection(cues, selectedCue?.id ?? null, verb === 'select-next' ? 1 : -1);
+      if (!next) return;
+      selectCue(next);
+      revealCue(`hosted-cue-${next.id}`);
+    }
+  };
+
   const elapsedText = (() => {
     const total = Math.max(0, Math.floor((now - openedAt) / 1000));
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -320,60 +347,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             </div>
           </div>
 
-          <div className="pd-verbs" data-testid="hosted-verbs">
-            <button
-              className="pd-verb pd-verb-preview"
-              disabled={!selectedCue}
-              onClick={() => selectedCue && selectCue(selectedCue)}
-              title="Show the selected cue on PREVIEW — nothing airs"
-            >
-              → Preview
-            </button>
-            <button
-              className="pd-verb pd-verb-take"
-              disabled={!selectedCue}
-              onClick={() => selectedCue && void takeCue(selectedCue)}
-              title="Air the previewed cue"
-              data-testid="hosted-take-cue"
-            >
-              ⟳ TAKE
-            </button>
-            <button
-              className="pd-verb pd-verb-update"
-              disabled={!selectedIsLive}
-              onClick={updateLive}
-              title="Push the staged values to air without replaying"
-            >
-              ✎ Update
-            </button>
-            <button
-              className="pd-verb"
-              disabled={!selectedLayerCueId}
-              onClick={nextLayer}
-              title="Advance the on-air graphic one step"
-              data-testid="hosted-next-cue"
-            >
-              » Next
-            </button>
-            <button
-              className="pd-verb"
-              disabled={!selectedLayerCueId}
-              onClick={outLayer}
-              title="Play this layer off — the others stay up"
-              data-testid="hosted-out-cue"
-            >
-              ■ Out
-            </button>
-            <span className="pd-onair-line" data-testid="hosted-live-chip">
-              {liveLayers.length === 0 ? (
-                <span className="muted">○ nothing on air</span>
-              ) : (
-                <>
-                  on air: <span className="pd-onair">● {liveLayers.map((l) => l.label).join(' · ')}</span>
-                </>
-              )}
-            </span>
-          </div>
+          <HostedVerbs
+            selectedIsLive={selectedIsLive}
+            hasSelection={!!selectedCue}
+            layerLive={!!selectedLayerCueId}
+            liveLabels={liveLayers.map((l) => l.label)}
+            onKey={runVerb}
+          />
 
           {selectedCue && spec && (
             <HostedCueEditor
@@ -441,6 +421,103 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           </div>
         </aside>
       </main>
+    </div>
+  );
+}
+
+/**
+ * THE VERB BAR, with the keys that fire them — the in-app dashboard's bar, rendered for the page
+ * an operator actually runs a show from. It is a component of its own so it can bind the shared
+ * keymap: the hooks rule forbids binding it in the page body, which returns early while the show
+ * is still resolving.
+ *
+ * The keys were MISSING here entirely until 2026-08-18 — the exported controller and the in-app
+ * page both had them, so the surface a class operates from was the one where ↑/↓ did nothing and
+ * SPACE did nothing, and TAKE re-took a live cue instead of taking it off. Both are §2 contracts.
+ */
+function HostedVerbs({
+  selectedIsLive,
+  hasSelection,
+  layerLive,
+  liveLabels,
+  onKey,
+}: {
+  selectedIsLive: boolean;
+  hasSelection: boolean;
+  layerLive: boolean;
+  liveLabels: string[];
+  onKey: (verb: PlayoutVerb) => void;
+}) {
+  usePlayoutVerbKeys(onKey);
+  return (
+    <div className="pd-verbs" data-testid="hosted-verbs">
+      <button
+        className="pd-verb pd-verb-preview"
+        disabled={!hasSelection}
+        onClick={() => onKey('preview')}
+        title="Show the selected cue on PREVIEW — nothing airs"
+        data-testid="hosted-verb-preview"
+      >
+        → Preview <kbd>P</kbd>
+      </button>
+      {/* THE TOGGLE: the button IS the key, on when the cue is off and off when it is on. */}
+      <button
+        className={`pd-verb pd-verb-take${selectedIsLive ? ' pd-verb-live' : ''}`}
+        disabled={!hasSelection}
+        onClick={() => onKey('take')}
+        title={selectedIsLive ? 'Take this cue OFF air — the same thing SPACE does' : 'Air the previewed cue'}
+        data-testid="hosted-take-cue"
+      >
+        {selectedIsLive ? <>■ TAKE OFF <kbd>SPACE</kbd></> : <>⟳ TAKE <kbd>SPACE</kbd></>}
+      </button>
+      {/* RE-TAKE is secondary and always present, greying out like every other verb — a control
+          that appeared only while a cue was live would move the bar sideways at the moment a
+          graphic goes to air. */}
+      <button
+        className="pd-verb pd-verb-secondary"
+        disabled={!selectedIsLive}
+        onClick={() => onKey('retake')}
+        title="Re-take: play this cue’s entrance again from the start"
+        data-testid="hosted-retake-cue"
+      >
+        ⟳ Re-take <kbd>R</kbd>
+      </button>
+      <button
+        className="pd-verb pd-verb-update"
+        disabled={!selectedIsLive}
+        onClick={() => onKey('update')}
+        title="Push the staged values to air without replaying"
+        data-testid="hosted-update-cue"
+      >
+        ✎ Update <kbd>U</kbd>
+      </button>
+      <button
+        className="pd-verb"
+        disabled={!layerLive}
+        onClick={() => onKey('next')}
+        title="Advance the on-air graphic one step"
+        data-testid="hosted-next-cue"
+      >
+        » Next <kbd>N</kbd>
+      </button>
+      <button
+        className="pd-verb"
+        disabled={!layerLive}
+        onClick={() => onKey('out')}
+        title="Play this layer off — the others stay up"
+        data-testid="hosted-out-cue"
+      >
+        ■ Out <kbd>0</kbd>
+      </button>
+      <span className="pd-onair-line" data-testid="hosted-live-chip">
+        {liveLabels.length === 0 ? (
+          <span className="muted">○ nothing on air</span>
+        ) : (
+          <>
+            on air: <span className="pd-onair">● {liveLabels.join(' · ')}</span>
+          </>
+        )}
+      </span>
     </div>
   );
 }

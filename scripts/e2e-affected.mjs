@@ -187,6 +187,12 @@ const MAP = [
   [/^src\/components\/(StepTimeline|TimelineDock|LegacyTimeline|Inspector|PlayoutSimulator)/, ['timeline-v2.spec.ts', 'legacy-timeline.spec.ts', 'inspector.spec.ts', 'anim-engine.spec.ts', 'canvas-keyframe.spec.ts', 'ux.spec.ts', 'import-graphic.spec.ts', 'machine-graph.spec.ts', 'asset-workflow.spec.ts']],
   [/^src\/components\/MachineGraph/, ['machine-graph.spec.ts', 'state-machine.spec.ts', 'timeline-v2.spec.ts']],
   [/^src\/components\/(fields|SampleDataPanel|ControlPanel|HostedControlPage)/, ['control.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'images.spec.ts', 'ux.spec.ts', 'video-inputs.spec.ts', 'import-graphic.spec.ts']],
+  // The playout dashboard's VERB KEYS, shared by the in-app production page and the hosted
+  // control page. Named here rather than left to the components fallback because the spec that
+  // actually presses them (playout-drills) is not in either surface's own row - the keymap is a
+  // foundation two surfaces read, which is exactly the shape that gets mapped as a helper and
+  // then verified by specs that never touch it.
+  [/^src\/components\/playoutKeys\.ts$/, ['playout-drills.spec.ts', 'production-controls.spec.ts', 'productions.spec.ts', 'hosted-control.spec.ts']],
   [/^src\/components\/(AssetsPanel|assetInfo|InsertTemplateDialog)/, ['assets.spec.ts', 'images.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
   // The graphics-pack ROUND TRIP (src/packs/graphicsPack.ts buildPack + the export dialog's
   // download): one spec drives export -> re-import through the real UI, plus the shipped

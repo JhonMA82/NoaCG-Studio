@@ -143,6 +143,7 @@ the other way round:
 | Buttons grouped by section | yes | yes | yes | yes |
 | State shown as | state NAME | state NAME | state NAME | state NAME |
 | Snap to a state (recovery) | **no** | via the graph | recovery replay on reboot | production page: **yes** (`.pd-snap`, with a reset-visual-state option); hosted page: no |
+| Verb keys (P · SPACE · R · U · N · 0 · ↑↓) | – | – | yes | yes on both since 2026-08-18 - one keymap, `components/playoutKeys.ts` (the hosted page had none at all before, and its TAKE re-took a live cue instead of taking it off) |
 | Entries | authored here | – | baked in, read-only | read-only picker |
 | Staged vs aired | Update/Play only | Live toggle | staged + ⟳ Take | staged + ⟳ Take |
 
