@@ -19,6 +19,7 @@ import {
 } from '../../audience/joinSurface';
 import { createSupabaseAudience } from '../../audience/audienceData';
 import { isBackendConfigured } from '../../backend/config';
+import type { SpxField } from '../../model/types';
 
 /**
  * The production's AUDIENCE workspace (route `#/production/<id>/audience`, the third tab of the
@@ -413,21 +414,44 @@ export default function ProductionAudienceWorkspace({
    * is honest: the operator can see where it went.
    */
   const sendToRundown = (row: AudienceSubmission) => {
-    const target = show.graphics[0];
-    if (!target) {
-      setNote('This production has no graphics yet — add one, then send a question to it.');
-      return;
-    }
-    const { author, body } = broadcastValues(row);
-    const fields = target.template.fields ?? [];
-    const byTitle = (...wanted: string[]): string | null => {
+    const titled = (fields: SpxField[], ...wanted: string[]): string | null => {
       for (const f of fields) {
         const title = (f.title ?? '').trim().toLowerCase();
         if (wanted.some((w) => title === w)) return f.field;
       }
       return null;
     };
-    const bodyField = byTitle('message', 'question', 'comment', 'body', 'text') ?? fields.find((f) => f.ftype === 'textfield' || f.ftype === 'textarea')?.field ?? null;
+    const BODY_TITLES = ['message', 'question', 'comment', 'body', 'text'] as const;
+    // THE POOL IS SEARCHED, not indexed, AND THE TITLES RANK IT. `graphics[0]` is the
+    // BACKMOST LAYER, which has nothing to do with where a viewer's words belong: a
+    // production carrying the news kit put every approved question into its TICKER, because
+    // the ticker happens to be the bottom of the stack, while the chat-highlight card built
+    // for exactly this sat unused two layers up. `stageTally` right above already searches
+    // the pool for a graphic whose fields fit; this is the same move over the same
+    // by-the-words titles.
+    //
+    // A VOTE BOARD IS NOT WHERE A MESSAGE GOES, even though it answers to the same word. The
+    // audience cards title their body "Question" or "Comment", and a live-vote board titles
+    // ITS question "Question" too - so a plain title search hands every viewer message to the
+    // vote board whenever one was added to the production first. `pollFieldMap` is this
+    // module's own definition of "this graphic is a vote board" (stageTally aims AT it with
+    // the same function), so the message search steps around exactly that shape and needs no
+    // per-template knowledge of its own. A vote board still beats the blind index if it is
+    // the only thing in the pool that can hold text at all.
+    const messageTarget = (pool: typeof show.graphics) =>
+      pool.find((g) => titled(g.template.fields ?? [], ...BODY_TITLES) !== null);
+    const target =
+      messageTarget(show.graphics.filter((g) => pollFieldMap(g.template.fields ?? []) === null)) ??
+      messageTarget(show.graphics) ??
+      show.graphics[0];
+    if (!target) {
+      setNote('This production has no graphics yet — add one, then send a question to it.');
+      return;
+    }
+    const { author, body } = broadcastValues(row);
+    const fields = target.template.fields ?? [];
+    const byTitle = (...wanted: string[]): string | null => titled(fields, ...wanted);
+    const bodyField = byTitle(...BODY_TITLES) ?? fields.find((f) => f.ftype === 'textfield' || f.ftype === 'textarea')?.field ?? null;
     const authorField = byTitle('name', 'author', 'from', 'sender');
     const values: Record<string, string> = {};
     if (bodyField) values[bodyField] = body;

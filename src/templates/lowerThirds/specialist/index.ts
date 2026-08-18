@@ -43,6 +43,14 @@ import { ls29 } from './ls29';
 import { ls30 } from './ls30';
 import { ls31 } from './ls31';
 import { ls32 } from './ls32';
+import { ls33 } from './ls33';
+import { ls34 } from './ls34';
+import { ls35 } from './ls35';
+import { ls36 } from './ls36';
+import { ls37 } from './ls37';
+import { ls38 } from './ls38';
+import { ls39 } from './ls39';
+import { ls40 } from './ls40';
 
 export const SPECIALIST_LOWER_THIRDS: TemplateVariant[] = [
   // Interview — two people, equal billing
@@ -89,4 +97,13 @@ export const SPECIALIST_LOWER_THIRDS: TemplateVariant[] = [
   // Creator — handles and stream identity
   ls31, // Creator Stack — a row of handle chips, one per platform (noacg)
   ls32, // Stream Identity — handle, live dot, and a goal figure (sport)
+  // Broadcast journalism — the words, their status, and the record around them
+  ls33, // Quote Strap — the quoted line leads, ruled off from its attribution (editorial)
+  ls34, // Translation Strap — spoken line over translation, a language tag per line (minimal)
+  ls35, // Caller Strap — call-type chip and a drawn waveform for a voice-only guest (noacg)
+  ls36, // Dateline Slate — place, monospaced coordinates, computed local hour (cinematic)
+  ls37, // Breaking Line — the restrained breaking strap: outlined label, one headline (minimal)
+  ls38, // Developing Story — kicker and updated-at stamp over a running headline (editorial)
+  ls39, // Fact Check — the claim on a slab, the desk's ruling on a skewed plate (sport)
+  ls40, // Chamber Strap — speaker, affiliation or case, and the item of business (editorial)
 ];

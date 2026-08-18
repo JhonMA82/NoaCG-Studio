@@ -453,9 +453,13 @@ and a new parallel-group type needs its own - nothing mechanical will remind you
 
 ## Categories
 
-- **lowerThirds/specialist/** - ls01…ls32, the SPECIALIST pack: lower thirds drawn for ONE
+- **lowerThirds/specialist/** - ls01…ls40, the SPECIALIST pack: lower thirds drawn for ONE
   production rather than for any show (interview duos, host-and-guest, commentary booths,
-  athletes, esports, worship, academic, politics, analysis, music, live-and-location, creator).
+  athletes, esports, worship, academic, politics, analysis, music, live-and-location, creator,
+  and the BROADCAST-JOURNALISM group ls33-ls40, whose subject is the words or their status
+  rather than the person: a quotation, an interpreted line with a language tag per line, a
+  caller on the line, a location slate with a computed hour, breaking and developing marks, a
+  fact-check ruling, and the parliamentary register).
   Mechanically ordinary - same category, assembler, preset bank, export path - and they carry NO
   discovery metadata of their own: browse/search facets come from the ONE taxonomy
   (model/taxonomy.ts + templates/templateMeta.ts), so a design is declared there like any other.

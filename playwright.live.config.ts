@@ -7,7 +7,15 @@ import { livePort } from './scripts/dev-port.mjs';
 // (E2E_EMAIL / E2E_PASSWORD / SUPABASE_SERVICE_ROLE_KEY, plus VITE_SUPABASE_URL for the moderator
 // admin client) instead of the command line. Inline env vars still win — we only fill what's missing.
 const fileEnv = loadEnv('development', process.cwd(), '');
-for (const key of ['E2E_EMAIL', 'E2E_PASSWORD', 'SUPABASE_SERVICE_ROLE_KEY', 'VITE_SUPABASE_URL']) {
+// VITE_SUPABASE_ANON_KEY is here for the analytics specs, which gate on BOTH halves of the
+// Supabase pair: without it they skipped themselves on every run of this suite, silently.
+for (const key of [
+  'E2E_EMAIL',
+  'E2E_PASSWORD',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'VITE_SUPABASE_URL',
+  'VITE_SUPABASE_ANON_KEY',
+]) {
   if (!process.env[key] && fileEnv[key]) process.env[key] = fileEnv[key];
 }
 

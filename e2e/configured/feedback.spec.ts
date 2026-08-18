@@ -152,19 +152,24 @@ test.describe('beta feedback (configured, anonymous)', () => {
     const close = page.getByTestId('beta-feedback-close');
     await expect(close).toHaveClass(/gallery-close/);
     const geometry = await page.getByTestId('beta-feedback-dialog').evaluate((el) => {
-      const header = el.querySelector('.wz-header')!.getBoundingClientRect();
+      const headerEl = el.querySelector('.wz-header')!;
+      const header = headerEl.getBoundingClientRect();
       const button = el.querySelector('[data-testid="beta-feedback-close"]')!.getBoundingClientRect();
       const title = el.querySelector('.wz-header strong')!.getBoundingClientRect();
       return {
         size: [Math.round(button.width), Math.round(button.height)],
         gapToRight: Math.round(header.right - button.right),
+        // The shared header's own right padding IS "hard right" — a fixed number here is a
+        // second, competing definition of the same edge (it was 20 against a 28px padding,
+        // so this assertion could only ever have failed).
+        padRight: Math.round(parseFloat(getComputedStyle(headerEl).paddingRight)),
         // Hard right means far from the title, not one gap after it.
         clearOfTitle: button.left - title.right,
         headerWidth: header.width,
       };
     });
     expect(geometry.size).toEqual([32, 32]);
-    expect(geometry.gapToRight).toBeLessThanOrEqual(20);
+    expect(geometry.gapToRight).toBe(geometry.padRight);
     expect(geometry.clearOfTitle).toBeGreaterThan(geometry.headerWidth * 0.3);
   });
 });
