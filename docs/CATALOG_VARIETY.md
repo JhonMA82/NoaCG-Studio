@@ -4,11 +4,11 @@ Investigation, 2026-08-09, against `main` at `a02d36b0` (459 designs, 65 graphic
 **Nothing here was built at the time of writing.** It is the measurement, the triage, and a
 proposal with a price on it.
 
-**Re-measured 2026-08-18 (490 designs, 66 types, 21 packs).** Three things changed and each is
+**Re-measured 2026-08-18 (493 designs, 66 types, 21 packs).** Three things changed and each is
 recorded where it belongs, not by rewriting the original numbers: the instrument was reading the
 two full-frame categories blind and now is not ("How it was measured"); eleven designs have since
 been built against §3's absence list, closing seven of the twelve lines in Browse and none of them
-in any kit (§3, §4.5); and the orphan count is now 148 of 490 (§2). Undated figures in this
+in any kit (§3, §4.5); and the orphan count is now 151 of 493 (§2). Undated figures in this
 document are the 2026-08-09 ones.
 
 It supersedes the measurement half of `LOOKS_AND_PALETTES.md`, which counted the three DECLARED
@@ -112,9 +112,9 @@ graphic CATEGORY predicts most of the rest.
 
 **Two rows carry the blind-instrument artefact** (2026-08-18, see "How it was measured"): the
 `panel treatment` and `drawn parts` axes both read 32 full-frame designs as one constant value,
-which is an axis a CATEGORY explains perfectly by construction. Re-measured over 490 designs,
-panel treatment is family **19.4%** / category **37.6%** (was 16.7 / 49.7) and drawn parts family
-**5.1%** / category **33.2%** (was 5.2 / 36.3). The finding is unchanged in direction and smaller
+which is an axis a CATEGORY explains perfectly by construction. Re-measured over 493 designs,
+panel treatment is family **19.5%** / category **37.6%** (was 16.7 / 49.7) and drawn parts family
+**5.1%** / category **33.0%** (was 5.2 / 36.3). The finding is unchanged in direction and smaller
 in size: the category still explains roughly twice what the family does.
 
 Read the last three rows twice. **The style family explains 1–3% of a design's typography.** It
@@ -240,10 +240,10 @@ thirds are bottom-left.
 
 ## 2. The 119 kit-unreachable designs, triaged
 
-**Now 148 of 490** (re-measured 2026-08-18): **D 73** (was 59), **A 52** (was 37), B 12 and C 11
+**Now 151 of 493** (re-measured 2026-08-18): **D 76** (was 59), **A 52** (was 37), B 12 and C 11
 both unchanged. Every count in this section is the 2026-08-09 one; the mechanisms and their order
-are not affected, and the two config-shaped buckets absorbed all 29 additions — which is the
-triage below holding, not being overturned. §3's status block accounts for eleven of the 29.
+are not affected, and the two config-shaped buckets absorbed all 32 additions — which is the
+triage below holding, not being overturned. §3's status block accounts for eleven of the 32.
 
 ### 2.1 They are not a pile of near-duplicates
 
@@ -321,7 +321,7 @@ Twenty-two orphans sit under 0.10 from a reachable sibling. **Ninety-seven do no
 
 Read off §1.6 and §1.7 — every line here is an absence the measurement found, not a wish list.
 
-**Status, re-measured 2026-08-18 against 490 designs** (the original numbers below are from 459;
+**Status, re-measured 2026-08-18 against 493 designs** (the original numbers below are from 459;
 `scripts/catalog-sameness.mjs` with the prefix fix above, plus a per-absence sweep of the emitted
 CSS). Ten designs have since been built AGAINST this list — `lt59` `lt60` `lt61` (lower thirds),
 `card80`–`card83` (info cards), `ss18` `ss19` (starting soon), `cr13` (end credits) — and one more,
@@ -349,8 +349,8 @@ round. Together they move seven of the twelve:
 graphic type and no pack lists them as an extra (mechanism D: `lt60` `lt61` `card81` `card82`
 `ss19`). So the absences are answered in BROWSE and in no kit: a user who picks a pack still
 cannot get a serif, a paper surface or a poster numeral. That is §4.2(a), the widened family
-contract, and it has not landed. Total orphans are now **148 of 490**, up from 119 of 459 — these
-eleven are eleven of the 29 added, which is what §2.2 predicts for anything built in `editorial`
+contract, and it has not landed. Total orphans are now **151 of 493**, up from 119 of 459 — these
+eleven are eleven of the 32 added, which is what §2.2 predicts for anything built in `editorial`
 before the contract widens.
 
 **Typographic voices with no design at all**

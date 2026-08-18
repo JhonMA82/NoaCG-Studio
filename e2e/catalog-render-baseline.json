@@ -3115,7 +3115,7 @@
       "body>script[2]": "a09c79f61a84b019"
     },
     "cr13": {
-      "#count": "47",
+      "#count": "45",
       "body": "ada5a4d591442907",
       "body>div.credits.credits--editorial[1]": "ada5a4d591442907",
       "body>div.credits.credits--editorial[1]>div.credits-background[1]": "2f55605020497446",
@@ -3123,7 +3123,7 @@
       "body>div.credits.credits--editorial[1]>div.credits-background[1]>div.credits-grid[1]": "013ffb33377d7300",
       "body>div.credits.credits--editorial[1]>div.credits-content[1]": "2806f463167ec1cd",
       "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]": "4abc1bb2fa33ed25",
-      "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]": "252136473721bd89",
+      "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]": "6f736a8aa26ea1fc",
       "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-page[1]": "729b3939c7b303da",
       "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-page[1]>div.credits-heading[1]": "e3d06024f030c877",
       "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-page[1]>div.credits-row[1]": "91d401db3fa3e3f8",
@@ -3154,13 +3154,11 @@
       "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-page[2]>div.credits-row[3]>div.credits-name[1]": "0ac399341a96fdc9",
       "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-page[3]": "0711ba397327dd3a",
       "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-page[3]>div.credits-heading[1]": "63ef931c4f1fe0da",
-      "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-end[1]": "3ee35ee98fa16071",
+      "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-end[1]": "237748f20f73fddd",
       "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-end[1]>div.credits-rule[1]": "ad014f29d59b09f4",
-      "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-end[1]>div.credits-logo-slot[1]": "2dbf778316398198",
-      "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-end[1]>div.credits-year[1]": "7c16247f1c3081aa",
+      "body>div.credits.credits--editorial[1]>div.credits-content[1]>div.credits-box[1]>div[1]>div.credits-end[1]>div.credits-year[1]": "1903531f9ef37516",
       "body>div.credits.credits--editorial[1]>div.noacg-data-source[1]": "c1a76e365ed48687",
       "body>div.credits.credits--editorial[1]>div.noacg-data-source[2]": "c1a76e365ed48687",
-      "body>div.credits.credits--editorial[1]>div.noacg-data-source[3]": "c1a76e365ed48687",
       "body>script[1]": "c1a76e365ed48687",
       "body>script[2]": "c1a76e365ed48687"
     },
