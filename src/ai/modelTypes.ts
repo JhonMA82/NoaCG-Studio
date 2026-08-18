@@ -93,8 +93,15 @@ export interface StructuredOutput {
  *
  * Set to roughly twice the measured worst case: the number is a per-route unknown, and this is
  * the wrong place to be precise.
+ *
+ * RAISED 8,000 -> 24,000 on 2026-08-17, measured again rather than guessed: `xai/grok-4.3`
+ * blew through the whole 25,000 budget (17,000 expected + 8,000 headroom) on 4 of 12 free-form
+ * coder briefs - its COMPLETED cells averaged 4,000 reasoning tokens, so the worst case is an
+ * outlier several times the average, not a fatter average. The same rule as before: ~2x the
+ * observed worst (>13,000 on the truncated cells), because a truncation destroys a paid call
+ * while an unused ceiling costs nothing.
  */
-export const REASONING_HEADROOM_TOKENS = 8000;
+export const REASONING_HEADROOM_TOKENS = 24000;
 
 /**
  * The `maxTokens` for a call whose ANSWER is at most `expectedOutputTokens`.

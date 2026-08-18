@@ -23,6 +23,8 @@ import { ss14 } from './ss14';
 import { ss15 } from './ss15';
 import { ss16 } from './ss16';
 import { ss17 } from './ss17';
+import { ss18 } from './ss18';
+import { ss19 } from './ss19';
 
 export const STARTING_SOON: TemplateVariant[] = [
   // ── Before the show ──
@@ -33,11 +35,13 @@ export const STARTING_SOON: TemplateVariant[] = [
   ss05, // minimal — counts to a wall-clock start time
   ss10, // minimal — the quiet ceremony hold
   ss11, // sport — the venue / doors-open hold
+  ss18, // editorial - the printed paper programme, counting to a start time
   // ── During the show ──
   ss06, // noacg — the BRB break card
   ss12, // glass — the compact returning-soon capsule over the picture
   ss07, // glass — the scheduled intermission
   ss13, // noacg — the between-items schedule hold
+  ss19, // sport - the poster break card, built around the clock itself
   ss08, // minimal — the technical pause, deliberately clockless
   // ── After the show ──
   ss09, // noacg — the sign-off / offline card

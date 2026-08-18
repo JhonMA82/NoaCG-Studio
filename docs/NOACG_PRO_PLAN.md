@@ -2782,3 +2782,100 @@ The guard that parks browser work also counted `scripts/dev-bench.mjs` as a runn
 finite job - so did `bench-dispatcher.mjs`, the module that server preloads and which therefore
 shares its command line, which made one bench server report as two active jobs. Fixed first, as
 its own commit: `SERVER_SCRIPTS` carves the three server scripts back out of the alternation.
+
+
+## 21. The free-form coder round on four checkpoints - 2026-08-17, machine half only
+
+Premise 1 (§15.4) had been measured to fail only on non-reasoning open-weight checkpoints, and
+panel layout is a spatial-reasoning problem - so the untested argument was "a 2026 reasoning
+model composes where those could not". Four checkpoints ran the identical protocol: the 12-brief
+bank, the `none` arm (the free-form coder, no exemplars), assigned brands, pinned decoding, no
+divergence cell, one out-dir per checkpoint, cheapest first. The blind page (64 items - all four
+rounds interleaved with the accepted Phase A set, ids reissued) and `machine-columns.md` are in
+the round archive; **the owner's blind read is OWED and nothing here is a verdict on the look.**
+
+What the machine half already says:
+
+- **The device proxy is approximately zero on every checkpoint** - 1, 1, 0 and 2 of 12
+  (`deviceCheck.ts`, mutation-checked both directions before any spend). Four models across
+  three vendors, one of them a frontier reasoning model, and the two live lines land as two
+  rows in one plain box on ~92% of cells. Per the round's own pre-registered reading: when the
+  device rate is flat across checkpoints INCLUDING the frontier ceiling, the SPINE is what
+  flattens it, not the checkpoint - the structure-spine contract hands every model the same
+  safe plain-panel answer. **A `bare` arm (drop the spine, keep the field contract) is the next
+  session's build, with the editability trade written down.**
+- **Contract compliance is no longer the differentiator**: 10, 10, 12 and 12 of 12 scaffold-ok,
+  and claude-opus-5 needed zero repair rounds across the bank - the first checkpoint ever to.
+- **Output volume answers the owner's second question, and rate-is-not-cost holds again**:
+  ~6.6k/6.9k/6.7k/5.1k output tokens per graphic - nobody near the modelled 12k, and the
+  frontier model emits the LEAST. Reasoning share where reported: 35% / 58% / 49% (the
+  anthropic route reports no split, stated as not-recorded rather than zero). Cost per
+  graphic: $0.0097 / $0.0274 / $0.0310 / $0.169-priced - 17x between cheapest and dearest for
+  the same contract compliance and the same flat device rate.
+- **grok-4.3 has a reasoning runaway**: `portrait-logo.sunbeam` and `non-latin.aldervale`
+  truncated at a 25,000-token output ceiling and AGAIN at 41,000 after
+  `REASONING_HEADROOM_TOKENS` was raised to the newly measured worst case - >41k tokens of
+  thinking with no complete answer, twice, on briefs its siblings finish in ~7k. Its round is
+  10 of 12 and says so.
+
+### 21.1 The owner's blind read, and the verdict - premise 1 is RETIRED
+
+The read came back the same day, 59 of 64 items rated, notes written before any reveal
+(`notes.md` in the round archive holds them verbatim plus the join). Airable rates over rated
+items: **the platform-composed Phase A control 14 of 15 - and the four coder arms 3/11, 2/9,
+5/12 and 3/11 (~30% together)**, on one interleaved blind page, same briefs, same brands. The
+frontier reasoning model is not an outlier: claude-opus-5 landed 3 of 11 beside minimax's 3 of
+11 at 17x the price.
+
+- **The dominant defect class was predicted by the instruments before anyone looked**: "the
+  line is on top of the text" accounts for ~13 of the 30 coder failures, and `text-over-rule`
+  had already fired on almost exactly those cells (grok 6 of 6, gemini 6 of 6). The remaining
+  classes are mark plates (the class the composer's knock rule closed a round ago), junk
+  furniture above the strap, and undersized or misaligned marks - plus minimax's two
+  runtime-dead cells, which are exactly its two blocking-error cells. Machine and human agree
+  everywhere they measure the same dimension.
+- **A device did not buy a pass**: of the 5 coder cells carrying one, 1 passed - and the opus
+  monogram-K device is one of the pieces of furniture the owner rejected by name. The §20
+  spine question stands as a fact about the harness, but it no longer carries a product
+  premise: even where a device exists, the composition fails on collisions and mark treatment.
+- **So premise 1 (§15.4) retires on the strongest evidence it will ever get**: a 2026 frontier
+  reasoning model, inside the shipped harness, with the repair loop, lands at a quarter of the
+  platform-composed acceptance rate for 17-50x the cost of a Phase A language call. Phase A is
+  not a compromise; it is the answer. The `bare` arm remains a research option for the spine
+  question and is NOT a product path - running it would be spending money to refine the size
+  of a gap the product has already routed around.
+
+### 21.2 The iterate arm - the custom lane earns its test read, 2026-08-17
+
+The owner redirected the retired premise the same day: Pro's custom lane should let the model
+ITERATE - render, measure, fix - as long as it needs, fail closed on anything still flawed, and
+cost little enough to beat opening a code assistant by hand. `src/ai/spike/iterate.ts` +
+`scripts/pro-iterate-spike.mjs` are the smallest honest version: the one-shot coder protocol,
+then up to four rounds of every instrument finding plus a downscaled screenshot of the model's
+own frame, `deliverable: false` a first-class result. The loop's own control run proves the
+collector is quiet on a known-good frame and loud on a forced overlap (moving a field inside
+its own mask is INVISIBLE - the mask is what must move; the check failed honestly first).
+
+**The blind read (42 items - both iterate arms + the accepted Phase A set interleaved):**
+
+| round | blind-airable | cost/graphic | calls/graphic |
+| --- | --- | --- | --- |
+| Phase A composed set | 18 of 18 | $0.006 | 1 |
+| gemini-3.7-flash iterate (vision on) | **9 of 12** | $0.128 | 2.8 |
+| minimax-m2.7 iterate (findings only) | **9 of 12** | **$0.0155** | 2.7 |
+
+Same models one-shot that morning: 5/12 and 3/12. Three readings that decide what gets built:
+
+- **The findings ARE the signal.** Minimax, shown no screenshot at all, matched
+  gemini-with-vision at an eighth of the price. The instruments' words move the model; the
+  picture adds little the words did not already say. The custom lane can run on a cheap
+  checkpoint.
+- **The fail-closed gate is roughly calibrated but over-strict on marginal findings**: of 4
+  dirty-stopped cells the owner failed 2 and forgave 2; of 19 delivered-clean cells the owner
+  passed 15. The four escapes name the missing instruments, all measurable: junk furniture
+  above the strap, a live field that never paints (compose `fieldPaints` into the spike
+  validator - the Lite lesson repeating), the mark centred in its own white space (the read's
+  most repeated nit), and a painted-text readability floor (size + contrast "for TV").
+- **Phase A stays the standard lane untouched** - 18/18 on its third consecutive blind read,
+  still 1 call and half a cent. The iterate loop is the CUSTOM lane behind the same Pro door,
+  slower and ~3-25x dearer, for briefs the catalog's structures cannot carry.
