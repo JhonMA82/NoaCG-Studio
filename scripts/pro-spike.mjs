@@ -635,6 +635,7 @@ async function captureHold(item, measure = false) {
     const { measureAxes } = await import('/src/ai/spike/axisCheck.ts' + bust);
     const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts' + bust);
     const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts' + bust);
+    const { measureDevice } = await import('/src/ai/spike/deviceCheck.ts' + bust);
     const doc = document.getElementById('spike-hold-frame')?.contentDocument;
     if (!doc) return null;
     // THE THRESHOLDS ARE THE GRAPHIC TYPE's (`PRO_GRAPHICS[id].instruments`, §15.9). Every number
@@ -648,6 +649,9 @@ async function captureHold(item, measure = false) {
       // reads keep naming (docs/DESIGN_PRINCIPLES.md §4, §9).
       spacing: measureSpacing(doc, { ...base, ...(instruments?.spacing ?? {}) }),
       proportion: measureProportion(doc, { ...base, ...(instruments?.proportion ?? {}) }),
+      // The DEVICE-EXISTS proxy (docs/MODEL_VS_HARNESS_STUDY.md §6, level 2). Reported,
+      // never gated - a plain box can be the right answer; this makes it a visible one.
+      device: measureDevice(doc),
       mark: markFieldId && markProbe ? measureRenderedMark(doc, markFieldId, markProbe) : null,
     };
   }, {
@@ -1027,6 +1031,7 @@ async function captureSet(item) {
     ...(measured?.axis ? { axisReport: summarizeAxis(measured.axis) } : {}),
     ...(measured?.spacing ? { spacingReport: measured.spacing } : {}),
     ...(measured?.proportion ? { proportionReport: measured.proportion } : {}),
+    ...(measured?.device ? { deviceReport: measured.device } : {}),
     ...(measured?.mark ? { markReport: measured.mark } : {}),
     ...motion,
   };
@@ -1184,7 +1189,12 @@ if (paid) {
   // brand, so on a design-language round it is the one measurement that says whether a brand
   // actually moves the answer or whether four brands get one look with different colours - the
   // named sameness failure (src/ai/AGENTS.md).
-  const divergenceArm = value('divergence-arm') ?? brandsFixture?.divergence?.arm;
+  // `--no-divergence` drops the cell entirely: a multi-checkpoint round that budgets 12 cells
+  // per checkpoint would otherwise silently plan 18 - the fixture's default arm is `none`, so
+  // the cell rides along on exactly the arm the free-form coder round runs, and on the dearest
+  // checkpoint the extra six cells are the difference between fitting the ceiling and the
+  // ceiling cutting the round's last briefs mid-run.
+  const divergenceArm = flag('no-divergence') ? null : (value('divergence-arm') ?? brandsFixture?.divergence?.arm);
   if (divergenceArm && !KNOWN_ARMS.includes(divergenceArm)) {
     console.error(`--divergence-arm names an unknown arm "${divergenceArm}".`);
     process.exit(1);
@@ -1697,6 +1707,18 @@ if (paid) {
         + `${contract.editabilityDemoted ? ' · read-only timeline' : ''}`
         + ` · repairs ${record.repairRounds} · $${(record.costUsd ?? 0).toFixed(4)}`
         + ` · ${record.frames.length} motion frames · ${clipsCell(record)} · ${record.ms} ms`);
+      // OUTPUT VOLUME IS A HEADLINE READING on a multi-checkpoint round, not a footnote:
+      // rate and volume cancel or compound, and only the tokens say which (plan §19.3).
+      if (record.usage) {
+        const u = record.usage;
+        const share = u.reasoning ? ` (${u.reasoning} reasoning, ${Math.round((100 * u.reasoning) / Math.max(1, u.output))}%)` : '';
+        console.log(`    tokens: ${u.input} in / ${u.output} out${share}`);
+      }
+      if (record.deviceReport) {
+        console.log(`    device: ${record.deviceReport.present
+          ? record.deviceReport.channels.map((c) => c.channel).join('+')
+          : 'none (plain box)'}`);
+      }
       for (const error of contract.blockingErrors) console.log(`    ✗ ${error}`);
       if (outcome.language) {
         const l = outcome.language;
