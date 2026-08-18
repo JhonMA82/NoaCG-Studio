@@ -286,41 +286,67 @@ async function similarity(referenceB64, renderB64) {
     const a = draw(ref);
     const b = draw(ren);
     const TOL = 32;
+    // Score over the ACTIVE area only: pixels where either side differs from the shared
+    // backdrop. A lower third covers a twentieth of the frame, so a whole-frame score is
+    // dominated by empty-vs-empty agreement - the control's mutation (two DIFFERENT designs)
+    // scored 97.4% that way, which certifies anything. Active-area scoring is what makes the
+    // wrong design score low.
+    const BG = 0x33;
     const COLS = 8;
     const ROWS = 5;
     const cells = Array.from({ length: COLS * ROWS }, () => ({
-      diff: 0, n: 0, ra: [0, 0, 0], rb: [0, 0, 0],
+      diff: 0, n: 0, active: 0, ra: [0, 0, 0], rb: [0, 0, 0],
     }));
     let ok = 0;
+    let active = 0;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const p = (y * W + x) * 4;
         let d = 0;
-        for (let c = 0; c < 3; c++) d = Math.max(d, Math.abs(a[p + c] - b[p + c]));
-        if (d <= TOL) ok++;
+        let offBgA = 0;
+        let offBgB = 0;
+        for (let c = 0; c < 3; c++) {
+          d = Math.max(d, Math.abs(a[p + c] - b[p + c]));
+          offBgA = Math.max(offBgA, Math.abs(a[p + c] - BG));
+          offBgB = Math.max(offBgB, Math.abs(b[p + c] - BG));
+        }
+        const isActive = offBgA > 12 || offBgB > 12;
+        if (isActive) {
+          active++;
+          if (d <= TOL) ok++;
+        }
         const cell = cells[Math.floor(y / (H / ROWS)) * COLS + Math.floor(x / (W / COLS))];
         cell.n++;
-        if (d > TOL) cell.diff++;
+        if (isActive) {
+          cell.active++;
+          if (d > TOL) cell.diff++;
+        }
         for (let c = 0; c < 3; c++) {
           cell.ra[c] += a[p + c];
           cell.rb[c] += b[p + c];
         }
       }
     }
+    // A cell is named by the share of its ACTIVE pixels that disagree (a small graphic in a
+    // big empty cell must still be nameable), but only when the cell holds enough active
+    // pixels to mean anything.
     const worst = cells
       .map((cell, i) => ({ ...cell, i }))
-      .filter((cell) => cell.diff / cell.n > 0.25)
-      .sort((x, y) => y.diff / y.n - x.diff / x.n)
+      .filter((cell) => cell.active > cell.n * 0.03 && cell.diff / cell.active > 0.25)
+      .sort((x, y) => y.diff / y.active - x.diff / x.active)
       .slice(0, 5)
       .map((cell) => {
         const cx = Math.round(((cell.i % COLS) + 0.5) * (1920 / COLS));
         const cy = Math.round((Math.floor(cell.i / COLS) + 0.5) * (1080 / ROWS));
         const mean = (sum) =>
           '#' + sum.map((v) => Math.round(v / cell.n).toString(16).padStart(2, '0')).join('');
-        return `around x=${cx}, y=${cy}: ${Math.round((cell.diff / cell.n) * 100)}% of pixels differ - `
+        return `around x=${cx}, y=${cy}: ${Math.round((cell.diff / cell.active) * 100)}% of the graphic pixels differ - `
           + `the reference reads ~${mean(cell.ra)} there, your render ~${mean(cell.rb)}`;
       });
-    return { score: ok / (W * H), worst };
+    // Under 0.2% active = one side is essentially empty against the other - score 0, never a
+    // division-by-nothing pass.
+    if (active < W * H * 0.002) return { score: 0, worst: ['the render paints almost nothing where the reference has a graphic'] };
+    return { score: ok / active, worst };
   }, { referenceB64, renderB64 });
 }
 
@@ -347,6 +373,9 @@ function reactionFindings(template, holdFields, stressFields, data, stressed) {
   const findings = [];
   for (const f of template.fields ?? []) {
     if ((data[f.field] ?? '') === (stressed[f.field] ?? '')) continue;
+    // Numeric fields (scores, clocks) are exempt: a fixed digit box is that class's own
+    // contract - a scoreboard's score cell is SUPPOSED to be a fixed plate.
+    if (/^[\d\s.:+-]+$/.test(data[f.field] ?? '')) continue;
     const a = holdFields[f.field];
     const b = stressFields[f.field];
     if (!a || !b) continue;
@@ -413,12 +442,13 @@ async function runGraphic(slug, reference, emitRound) {
     const findings = [];
     if (hold.playError) findings.push(`the template threw at play(): ${hold.playError}`);
     findings.push(...(emitRes.validation?.errors ?? []));
-    // Readability BLOCKS feed the loop (the type-sweep ruling: the broadcast size floor is a
-    // rule, not advice); 'advise' findings stay out of the feed to keep it focused.
-    findings.push(
-      ...(hold.readability?.findings ?? [])
-        .filter((f) => f.severity === 'block')
-        .map((f) => f.detail),
+    // Readability is ADVISORY here, unlike the generation sweeps: in a RECREATION the
+    // reference sets the type sizes, and a floor the reference itself sits under would
+    // deadlock the loop against its own ground truth (the control measured it: catalog sb01
+    // paints its team labels at 40px against the 50px primary floor, itself pending
+    // re-ratification). Advisories reach the ledger and the gallery; the owner reads them.
+    const advisories = (hold.readability?.findings ?? []).map(
+      (f) => `advisory (matching the reference may justify it): ${f.detail}`,
     );
     findings.push(...reactionFindings(emitRes.template, hold.fields, stress.fields, data, stressed));
     if (sim.score < MIN_SIMILARITY) {
@@ -434,6 +464,7 @@ async function runGraphic(slug, reference, emitRound) {
       similarity: sim.score,
       worst: sim.worst,
       findings: findings.slice(0, 30),
+      advisories,
       validationOk: emitRes.validation?.ok ?? null,
       model: emitRes.model ?? null,
       costUsd: emitRes.costUsd ?? 0,
@@ -453,7 +484,8 @@ async function runGraphic(slug, reference, emitRound) {
     }
     previous = {
       template: emitRes.template,
-      findings,
+      // Advisories ride along for the model to weigh; only `findings` gate deliverable.
+      findings: [...findings, ...advisories],
       screenshot: { mediaType: 'image/png', base64: await downscaleForModel(hold.shotB64) },
     };
   }
