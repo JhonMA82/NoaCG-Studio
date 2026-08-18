@@ -33,6 +33,28 @@ ships starting points, and the two share no generator code.
 `SPXGCTemplateDefinition` inside the HTML, the same source-of-truth rule as everywhere else.
 The first cue REPLACES the auto-seeded default cue; the rest append in order.
 
+**The whole-show rundown (optional, additive).** A pack may carry ONE top-level `cues` list
+instead of per-graphic cues — the same cue shape plus a `graphic` name reference:
+
+```jsonc
+"cues": [
+  { "graphic": "Fight bug", "label": "Round 1 - bug up", "values": { "f2": "1" } },
+  { "graphic": "Round card", "label": "Round 1 card" },
+  { "graphic": "Fight bug", "label": "Round 2 - bug up", "values": { "f2": "2" } }
+]
+```
+
+Per-graphic cues can only append in pool order; a real show walk INTERLEAVES graphics (bug
+up, round card, stats, bug again), which only one ordered list can express. It installs
+through `model/shows.ts setShowCues` (one write); a pool graphic the rundown never names
+keeps a seeded default cue at the end, so nothing becomes unreachable in the rundown. A file
+carrying BOTH forms is refused. A pack without the list behaves exactly as before.
+
+**The export half.** Any production round-trips: `buildPack(show)` serializes the live
+records back into this shape (rundown as the top-level list), downloadable from the
+production export dialog ("Graphics pack (.noacgpack.json)") — so the format is how whole
+productions are shared, not only how shipped packs arrive.
+
 ## The three pieces
 
 - **`src/packs/graphicsPack.ts`** — the owner: `parsePack` (refuse-with-reason, never coerce),
@@ -65,6 +87,18 @@ mark and wording are our own), bundled Outfit, Finnish sample content:
 Rotator, not marquee, on purpose: a rotator survives live edits (`update()` re-reads the
 list and holds its index — editing headlines on air never restarts the loop), and its
 timers are killable GSAP calls the render clock can drive.
+
+## Fight Night (the second pack)
+
+Twelve graphics, one look — a combat-sports package (carbon/steel, one signal-orange accent,
+Archivo + Saira, fictional promotion and fighters), with a ready-to-run three-bout rundown
+that uses the top-level cue list (rounds interleave the bug, round cards and stats). Sources
+are FILE-BASED — `packs/fight-night/<graphic>/{template.html,style.css,logic.js}` +
+`manifest.json` — assembled by `scripts/build-production-pack.mjs` (same gates as the news
+builder; runs in `npm run build`, so the emitted JSON can never go stale). Full plan and
+element inventory: `docs/FIGHT_NIGHT_PACK_PLAN.md`; pinned by `e2e/production-pack.spec.ts`.
+The fight bug's round clock counts down from its field, starts on Take, stops at 0:00 and
+re-syncs when the operator types a new time + ✎ Update.
 
 ## Operating it (the demo walk)
 

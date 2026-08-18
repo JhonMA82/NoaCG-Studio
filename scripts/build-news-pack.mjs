@@ -9,7 +9,7 @@
 // time — this script only guards what node can check without the app: the format shape,
 // the SPX contract's presence, and the CasparCG-CEF ES5 rule for template JS.
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -90,15 +90,19 @@ mkdirSync(outDir, { recursive: true });
 const packPath = join(outDir, 'uutishuone.noacgpack.json');
 writeFileSync(packPath, JSON.stringify(PACK, null, 2) + '\n', 'utf8');
 
-// The index the Productions section lists installable packs from.
+// The index the Productions section lists installable packs from. UPSERT this pack's
+// entry - the index is shared with every other pack builder (build-production-pack.mjs),
+// so overwriting it wholesale would silently drop their entries.
 const indexPath = join(outDir, 'index.json');
-const index = [
-  {
-    file: 'uutishuone.noacgpack.json',
-    name: 'Uutishuone',
-    description: 'Modern news package — opener, straps, ticker, bug & clock, endboard',
-  },
-];
+const index = existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, 'utf8')) : [];
+const entry = {
+  file: 'uutishuone.noacgpack.json',
+  name: 'Uutishuone',
+  description: 'Modern news package — opener, straps, ticker, bug & clock, endboard',
+};
+const at = index.findIndex((p) => p.file === entry.file);
+if (at >= 0) index[at] = entry;
+else index.push(entry);
 writeFileSync(indexPath, JSON.stringify(index, null, 2) + '\n', 'utf8');
 
 const bytes = JSON.stringify(PACK).length;

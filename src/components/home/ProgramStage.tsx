@@ -22,7 +22,7 @@ const ProgramStage = forwardRef<
     library: GraphicDoc[];
     empty: boolean;
     /** Machine-state replies from the monitor's documents — see PayloadStage. */
-    onState?: (graphic: string, state: { groups: Record<string, string> } | null) => void;
+    onState?: (graphic: string, state: { groups?: Record<string, string> } | null) => void;
     /** A fresh stage exists and knows nothing about air — see PayloadStage.onReady. */
     onReady?: () => void;
   }

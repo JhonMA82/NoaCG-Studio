@@ -107,7 +107,7 @@ export type LiveReportMap = Record<
   string,
   {
     data?: Record<string, string>;
-    state?: { groups: Record<string, string> } | null;
+    state?: { groups?: Record<string, string> } | null;
     at?: string;
     event?: number;
   }
@@ -168,7 +168,7 @@ export interface ControlEventRow {
     | ControlMessage
     | CueStatusMsg
     | { t: 'staged'; data: Record<string, string> }
-    | { t: 'live'; data?: Record<string, string>; state?: { groups: Record<string, string> } | null };
+    | { t: 'live'; data?: Record<string, string>; state?: { groups?: Record<string, string> } | null };
 }
 
 /** The stored operator spec for a show — one entry per graphic, no template payload. The
@@ -526,7 +526,7 @@ export async function controlOutputReport(
   outputSlug: string,
   graphic: string,
   data: Record<string, string>,
-  state: { groups: Record<string, string> } | null,
+  state: { groups?: Record<string, string> } | null,
   /** The last log row applied when this truth was captured — the graphic's recovery baseline. */
   lastEventId: number | null = null,
 ): Promise<void> {

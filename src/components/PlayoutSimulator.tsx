@@ -155,7 +155,7 @@ export default function PlayoutSimulator({ iframeRef }: Props) {
       // Worn as WORDS, through the one formatter every operator surface uses: the runtime
       // reports ids, and "sealed" is the author's vocabulary rather than the operator's.
       setMachineState(formatMachineState(stateNamesRef.current, msg.state) ?? '');
-      setMachineGroups(msg.state.groups);
+      setMachineGroups(msg.state.groups ?? null);
     };
     window.addEventListener('message', onMessage);
     const tick = () => postPreviewCmd(win(), { cmd: 'state' });

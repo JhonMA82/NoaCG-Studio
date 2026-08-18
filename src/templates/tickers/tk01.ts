@@ -58,23 +58,39 @@ export const tk01: TemplateVariant = defineTickerVariant(
   align-items: stretch;            /* the label block spans the full strip height */
   width: calc(1680px * var(--scale));  /* near full-width, inside the safe areas */
   height: calc(90px * var(--scale));   /* the strip's fixed height */
+  overflow: hidden;                /* nothing paints past the band - a ticker runs full-bleed
+                                      or carries EQUAL margins, never one (the owner rule the
+                                      2026-08-19 read restated on this design) */
   background: var(--panel-bg);     /* near-black bar — never pure #000 */
   border-top: var(--accent-weight) solid var(--accent);  /* the strip's authored accent weight */
   will-change: opacity;            /* hint the browser: the preset fades this */
 }
 
-/* The label block — solid accent, dark ink (the panel hue doubles as ink, like lt06). */
+/* The label block — solid accent, light ink. The family's accent-ink (the panel hue) sat on
+   the signal red at 4.46:1 and the 2026-08-19 blind read failed it twice in the same words:
+   "red background, black text - I don't think that works". White on that red is the newsroom
+   convention (every BREAKING band), and at this size and weight it clears the large-text
+   floor. The block is also BOUNDED: an operator label longer than a third of the strip trims
+   with an ellipsis instead of displacing the viewport out of the band. */
 .ticker-label {
   display: flex;                   /* center the label text inside the block */
   align-items: center;             /* vertical centering */
   flex-shrink: 0;                  /* never squeezed by the scrolling viewport */
+  max-width: calc(560px * var(--scale));  /* a label is a tag - it never becomes the strip */
   padding: 0 calc(35px * var(--scale));  /* generous horizontal breathing room */
   background: var(--accent);       /* the one solid accent surface */
-  font-size: calc(23px * var(--scale) * var(--type-scale)); /* kicker scale — clearly a label, not a headline */
+  font-size: calc(24px * var(--scale) * var(--type-scale)); /* kicker scale — clear of the size warning band */
   font-weight: 700;                /* bold so the small caps carry */
   letter-spacing: var(--label-tracking);  /* the label block's authored tracking */
   text-transform: uppercase;       /* reads as a tag, whatever the operator types */
-  color: var(--accent-ink);        /* the family's ink on an accent-filled block */
+  color: var(--text-color);        /* light ink on the accent block - the read's ruling */
+}
+
+/* The label text itself: one line, trimmed with an ellipsis past the block's cap. */
+.ticker-label > span {
+  overflow: hidden;                /* everything past the cap is cut... */
+  text-overflow: ellipsis;         /* ...and the cut is marked */
+  white-space: nowrap;             /* a tag is one line, whatever is typed into it */
 }
 
 /* The scrolling window — items travel through it and clip at its edges. */

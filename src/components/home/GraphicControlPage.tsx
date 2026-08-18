@@ -179,7 +179,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
   const [aired, setAired] = useState(false);
   /** The lifecycle group is `main` on every template (a derived machine has only it); a
    *  parallel group's own state (an alert level, a language) says nothing about being up. */
-  const machineOff = !!machineState &&
+  const machineOff = !!machineState && !!machineState.groups &&
     ('main' in machineState.groups
       ? machineState.groups.main === 'off'
       : Object.values(machineState.groups).every((s) => s === 'off'));

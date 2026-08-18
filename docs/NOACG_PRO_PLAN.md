@@ -3078,3 +3078,86 @@ notes.md, `rules-reread-blind-final-2026-08-19`). Airable = "would air" + "okay 
   fails 312/489 shipped designs) did NOT bite the round - the models simply designed larger
   type and the owner liked it - but it still stands between the rules and the product
   validator until the owner re-ratifies the number for CATALOG enforcement.
+
+## 24. R4 opening slice - the catalog fixes the read demanded, and the checks it exposed
+
+The §23.1 read left four named debts; this slice pays them, all free (no model call).
+
+**Two of the three "catalog" failures were the blind page's own field mapping.** The catalog
+anchors assigned brief values to fields purely BY POSITION, and two briefs order their fields
+differently from the designs they landed on: the scoreboard brief lists name/name/score/score
+against sb01's name/score/name/score, so "NORTHBRIDGE ALBION" sat on a score chip while a
+score stood bare in a name slot ("one number has a yellow background and the other doesn't");
+the ticker brief leads with its label while tk01 declares its items textarea first, so the
+whole headlines block landed in the 23px label and blew the strip 333px past the right edge
+(5312px under stress) - the very frame the owner failed twice. `mapBriefValues`
+(src/ai/spike/anchors.ts) now assigns by what each FIELD IS - textarea takes the multiline
+value, a number field only a numeric one, text fields the words, order preserved within each
+class - and the probe (`scripts/spike-catalog-fix-probe.mjs`) pins that the four anchors the
+owner AIRED (lt27, gt05, qz01, sb21) map byte-identically under both rules. Measured on the
+instruments: tk01's band goes L120/R-333.5 + `ticker-margins-uneven` + a text escape under the
+positional map to L120/R120, no margin finding, no escape under the semantic one.
+
+**The design fixes that remain real, with before/after readings:**
+
+- **tk01** (FAIL twice: "red background, black text… overflows to the right"): the label ink
+  was the family accent-ink (the panel hue) on the signal red - measured 4.46:1, and the
+  owner's eye is the binding instrument here. The label is now light ink
+  (`var(--text-color)`, 4.17:1 - bold ≥24px is LARGE text, floor 3:1), one size step up
+  (23 -> 24px, clearing the secondary warning band), and BOUNDED: `max-width` + ellipsis on
+  the label, `overflow: hidden` on the strip, so no operator value can push the band out of
+  its equal margins again (stress reading: L120/R120 under both mappings, was R-5312).
+- **ig01** (OK* twice: "the percent number is way too small… we need a minimum of what size
+  text we can use"): the 21px label - where the blind data lands the percent - sat in the
+  secondary warning band and fired `lines-adrift` on the design's own defaults (37px gap /
+  21px type = 1.76 over the 1.4 ceiling). It is now held to the PRIMARY floor of the owner's
+  table: 50px (4.6% of 1080). After: no size warning, no weight advisory, no lines-adrift -
+  the label clears every band and a percent landing there reads.
+- **sb01** (TWEAKS: "on the stress test the left text gets cut off"): a long club name
+  wrapped and hard-clipped mid-glyph ("KESTR / CITY") because sb01 never adopted the sb06
+  one-line clip. `clipOneLineCss('.scoreboard-team', 420)` now trims with a visible ellipsis;
+  the uneven "yellow backing" half of the note was the mapping defect above - both scores sit
+  on identical accent chips once scores land in score fields.
+
+**The control-page smoke the drive proof demanded (§23.1's qz-primetime).** The iterate loop
+now runs every round's emit through the SHIPPED control page - createGraphic, `#/control/<id>`,
+the panel's own play press, in a fresh page (the drive spike's isolation lesson) - and a
+failure is a BLOCKING finding ("the graphic breaks the shipped control page"). Detection is
+two channels because the page's command handler deliberately swallows lifecycle throws: any
+page-level error or a page that never renders, plus zero VISIBLY painted text after play
+(computed visibility - opacity keeps innerText, so text is counted only when it actually
+paints). Mutation-controlled in `--control`: a lifecycle that throws is loud, the shipped
+anchor and all six type cells stay quiet.
+
+**qz-primetime's throw, diagnosed.** Its emitted interpreter hand-writes
+`noacgMachineState()` returning `{ stepsPlayed: 1 }` - no `groups` - and the receivers
+forward that verbatim, so `formatMachineState`'s `Object.entries(state.groups)` threw
+"Cannot convert undefined or null to object" and the whole React page died. NOT a pattern:
+43 of the round's 44 emitted templates write the correct `{ groups: {} }` shape; one cell
+invented its own. The prompt block therefore does not change; instead every consumer of a
+reported machine state (`formatMachineState`, `isEventLegal`, the exported controlpanel.html,
+GraphicControlPage, PlayoutSimulator, MachineGraph, the hosted receivers) now treats a
+groups-less state as "the graphic has not answered yet" - chip absent, buttons live, page up -
+and `PreviewMachineState.groups` is typed optional so the compiler holds the door shut. A
+`--control` fixture pins the degradation: a groups-less state must leave the smoke quiet.
+
+**The countdown thresholds, recalibrated on the whole shipped countdown family.** The R3
+round's only dirty stops were two AIRED countdowns held by `padding-tight` (0.11-0.23 vs a
+0.24 floor) and `lines-adrift` (1.55-1.92 vs the inherited 1.4 ceiling) - two false stops,
+zero true ones. The 0.24 floor was read off the four gameTimers alone;
+`scripts/spike-countdown-calibrate.mjs` now sweeps the catalog's whole countdown family
+(game-timer + starting-soon, 25 shipped designs, the two clock-bearing `subtype: 'countdown'`
+types). What it measures: panel padding 0.2-1.06 where a panel resolves, line gaps 0.33-3.3 -
+TWELVE shipped designs space their lines past the strap's 1.4 ceiling, because a holding
+screen parks its clock a long way under its title on purpose. The retuned numbers in
+`PRO_GRAPHICS.countdown.instruments`: **paddingFloorRatio 0.1** (under the tightest
+owner-AIRED reading, 0.11, above the 0.06 bleed cut - the catalog alone bottoms at ss06's
+0.2, so the aired frames are the binding half of this calibration) and
+**lineGapCeilingRatio 4.3** (the mark-gap rule's ~1.3x headroom over the widest shipped
+reading, ss10's 3.3). Both are mutation-controlled from BOTH sides in
+`pro-iterate-spike --control`: a fixture at the aired frames' own readings (0.12 padding,
+1.9 gap) must be quiet under the countdown thresholds AND loud under the strap defaults, and
+fixtures at 0.08 padding / 4.6 gap must still stop. Observed in passing, not acted on: the
+sweep reads `text-over-rule` on gt03/gt04 (clock digits over their own decorative ring) -
+a shipped-design instrument artifact to keep in mind if a collision ever stops an emitted
+ring timer.

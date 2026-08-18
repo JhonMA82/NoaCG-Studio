@@ -400,6 +400,91 @@ async function paintWalk(template, entry) {
   }, { template, fields, steps });
 }
 
+/**
+ * THE CONTROL-PAGE SMOKE - does the SHIPPED control page run this graphic at all?
+ *
+ * The one class the 2026-08-19 round's gates could not see (docs/NOACG_PRO_PLAN.md §23.1):
+ * qz-primetime delivered clean, the owner would air it, and #/control/<id> threw
+ * ("Cannot convert undefined or null to object") and painted nothing. The loop's bench mounts
+ * the graphic in its OWN iframe; this mounts it the way an operator meets it - createGraphic
+ * (the real save door), the real control page, the real play press - in a FRESH page, because
+ * a throwing graphic can wedge the shared shell (the drive spike's own lesson).
+ *
+ * Detection is two channels, because the page's command handler deliberately swallows a
+ * play()/update() throw inside the stage iframe: any PAGE-level error or a control page that
+ * never renders is the crash class, and ZERO visibly painted text after the play press is the
+ * silent class (a template whose lifecycle died leaves its CSS-hidden root hidden - opacity
+ * keeps innerText, so visibility is computed, not read).
+ *
+ * Returns null when the panel runs the graphic, else one blocking-finding sentence. FREE.
+ */
+async function controlPageSmoke(template, name) {
+  const smokePage = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  smokePage.on('pageerror', (error) => errors.push(String(error?.message ?? error).split('\n')[0]));
+  try {
+    await smokePage.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
+    await smokePage.locator('.topbar').waitFor({ timeout: 15_000 });
+    await smokePage.locator('.wz-modal').waitFor({ state: 'visible', timeout: 8_000 }).catch(() => undefined);
+    await smokePage.keyboard.press('Escape');
+    const made = await smokePage.evaluate(async ({ template, name }) => {
+      const bust = '?t=' + Date.now();
+      const { createGraphic } = await import('/src/model/library.ts' + bust);
+      const { doc, error } = createGraphic(template, { name });
+      if (error || !doc) return { error: error ?? 'createGraphic returned nothing' };
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts' + bust);
+      const failure = await commitDurableWrites();
+      if (failure) return { error: `durable write refused: ${failure}` };
+      return { id: doc.id };
+    }, { template, name });
+    if (made.error) return `the graphic breaks the shipped control page: it cannot be saved for it (${made.error})`;
+    await smokePage.goto(`${BASE}/app#/control/${made.id}`, { waitUntil: 'domcontentloaded' });
+    try {
+      await smokePage.locator('[data-testid="graphic-control-page"]').waitFor({ timeout: 15_000 });
+    } catch {
+      return `the graphic breaks the shipped control page: the page never renders${errors.length ? ` (${errors[0]})` : ''}`;
+    }
+    await smokePage.locator('[data-testid="control-play"]').click({ timeout: 10_000 });
+    await smokePage.waitForTimeout(2200);
+    if (errors.length) return `the graphic breaks the shipped control page: it throws there (${errors[0]})`;
+    const painted = await smokePage
+      .frameLocator('[data-testid="control-stage"] iframe')
+      .locator('body')
+      .evaluate((body) => {
+        const win = body.ownerDocument.defaultView;
+        let count = 0;
+        for (const el of body.querySelectorAll('*')) {
+          let hasOwn = false;
+          for (const n of el.childNodes) {
+            if (n.nodeType === 3 && (n.textContent ?? '').trim()) { hasOwn = true; break; }
+          }
+          if (!hasOwn) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width < 1 || r.height < 1) continue;
+          let visible = true;
+          for (let a = el; a && a !== body; a = a.parentElement) {
+            const s = win.getComputedStyle(a);
+            if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity) < 0.05) {
+              visible = false;
+              break;
+            }
+          }
+          if (visible) count += 1;
+        }
+        return count;
+      })
+      .catch(() => -1);
+    if (painted === -1) return 'the graphic breaks the shipped control page: its stage frame cannot be read';
+    if (painted === 0) return 'the graphic breaks the shipped control page: after the panel\'s own play press it paints no visible text at all';
+    return null;
+  } catch (error) {
+    const detail = errors[0] ?? String(error?.message ?? error).split('\n')[0];
+    return `the graphic breaks the shipped control page: ${detail}`;
+  } finally {
+    await smokePage.close().catch(() => undefined);
+  }
+}
+
 /** Everything the loop feeds back, as teaching strings - split into BLOCKING (counts against
  *  deliverability) and ADVISORY (shown to the model with a judgement note, never counted:
  *  spacing/proportion thresholds on a type they were never calibrated for). The device
@@ -858,6 +943,81 @@ if (control) {
   );
   expectLoud('inert stepper (markup diff)', inert.stepFindings, (f) => f.includes('changed NOTHING'));
 
+  // ── COUNTDOWN THRESHOLD MUTATIONS (the §23.1 recalibration). Both retuned numbers are
+  // pinned from BOTH sides against the countdown overrides themselves: a fixture built at the
+  // AIRED frames' readings (padding 0.12, line gap 1.9 - the two dirty stops the owner aired)
+  // must be QUIET under the countdown thresholds and LOUD under the strap defaults (proof the
+  // override does the separating), and fixtures below the new floor / above the new ceiling
+  // must be LOUD under the countdown thresholds.
+  {
+    const spacingUnder = async (template, data) => page.evaluate(async ({ template, data }) => {
+      const bust = '?t=' + Date.now();
+      const { composeDocument } = await import('/src/preview/composeDocument.ts' + bust);
+      const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts' + bust);
+      const { PRO_GRAPHICS } = await import('/src/ai/pro/language/graphics.ts' + bust);
+      document.getElementById('iterate-hold-frame')?.remove();
+      const frame = document.createElement('iframe');
+      frame.id = 'iterate-hold-frame';
+      frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;z-index:99999;background:#333;color-scheme:dark;';
+      document.body.appendChild(frame);
+      frame.srcdoc = composeDocument(template);
+      await new Promise((resolve) => { frame.onload = resolve; });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      try {
+        frame.contentWindow.update(JSON.stringify(data));
+        frame.contentWindow.play();
+      } catch { /* static fixture */ }
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      const doc = frame.contentDocument;
+      const countdown = measureSpacing(doc, PRO_GRAPHICS.countdown.instruments.spacing ?? {}).findings;
+      const strap = measureSpacing(doc, {}).findings;
+      frame.remove();
+      return { countdown, strap };
+    }, { template, data });
+
+    // The aired shape: a 100px clock over a 100px readout 190px below it (a 1.9 gap in the
+    // smaller line's type sizes - cd-results' own reading), 12px of panel padding (0.12 -
+    // inside cd-launch's 0.11-0.23 band).
+    const airedLike = await spacingUnder(
+      mini('<div class="cd"><span id="f0">19:00</span><span class="cd-label">DOORS OPEN</span></div>',
+        '.cd{position:fixed;left:660px;top:240px;display:flex;flex-direction:column;background:#101216;padding:12px}'
+        + '.cd span{display:block;color:#fff}#f0{font:700 100px/1 sans-serif}'
+        + '.cd-label{font:600 100px/1 sans-serif;margin-top:190px}'),
+      { f0: '19:00' },
+    );
+    const airedCountdownSpacing = airedLike.countdown.filter((f) => f.code === 'padding-tight' || f.code === 'lines-adrift');
+    if (airedCountdownSpacing.length) {
+      console.error(`MUTATION CHECK FAILED: the aired-frame fixture still stops under the countdown thresholds (${airedCountdownSpacing[0].code}: ${airedCountdownSpacing[0].detail}).`);
+      failed = true;
+    } else {
+      console.log('mutation countdown thresholds (aired-frame fixture): quiet under the countdown overrides');
+    }
+    expectLoud('countdown-vs-strap separation (the same fixture under strap defaults)',
+      airedLike.strap, (f) => f.code === 'padding-tight' || f.code === 'lines-adrift');
+
+    // Below the retuned floor: 8px of padding on the same 100px clock (0.08 - past bleed, under 0.1).
+    const crammed = await spacingUnder(
+      mini('<div class="cd"><span id="f0">19:00</span><span class="cd-label">DOORS OPEN</span></div>',
+        '.cd{position:fixed;left:760px;top:340px;display:flex;flex-direction:column;background:#101216;padding:8px}'
+        + '.cd span{display:block;color:#fff}#f0{font:700 100px/1 sans-serif}'
+        + '.cd-label{font:600 40px/1 sans-serif;margin-top:60px}'),
+      { f0: '19:00' },
+    );
+    expectLoud('countdown padding floor (0.08 type sizes of padding)', crammed.countdown,
+      (f) => f.code === 'padding-tight');
+
+    // Above the retuned ceiling: the label parked 460px under a 100px clock (4.6 > 4.3).
+    const adrift = await spacingUnder(
+      mini('<div class="cd"><span id="f0">19:00</span><span class="cd-label">DOORS OPEN</span></div>',
+        '.cd{position:fixed;left:760px;top:140px;display:flex;flex-direction:column;background:#101216;padding:30px}'
+        + '.cd span{display:block;color:#fff}#f0{font:700 100px/1 sans-serif}'
+        + '.cd-label{font:600 100px/1 sans-serif;margin-top:460px}'),
+      { f0: '19:00' },
+    );
+    expectLoud('countdown line-gap ceiling (4.6 type sizes of gap)', adrift.countdown,
+      (f) => f.code === 'lines-adrift');
+  }
+
   // ── ONE KNOWN-GOOD CATALOG CELL PER NEW TYPE, through the EXTENDED capture: if step
   // capture or the field-paint validator misfires on a shipped scoreboard or quiz, the
   // harness is broken - fix it before paying (the Phase 0 lesson, standing).
@@ -909,14 +1069,57 @@ if (control) {
         .map((w) => w.message.slice(0, 160))
         .filter((m) => !skipPaint.some((id) => m.includes(`(${id})`)));
     }, { template: made.template, skipPaint: cell.skipPaint ?? [] });
+    // The control-page smoke must stay QUIET on every shipped type cell - a smoke whose
+    // false positives are the catalog is one the loop would teach the model to ignore.
+    const cellSmoke = await controlPageSmoke(made.template, `control smoke ${cell.variant}`);
     const loud = [
       ...(cap.playError ? [`play() threw: ${cap.playError}`] : []),
       ...cap.stepFindings.map((f) => `step: ${f}`),
       ...paint.map((p) => `unpainted: ${p}`),
+      ...(cellSmoke ? [`control-page smoke: ${cellSmoke}`] : []),
     ];
     console.log(`type cell ${cell.type} (${cell.variant}): steps ${cap.stepFrames.length}/${Math.min(made.presses, 6)}, ${loud.length} harness finding(s)`);
     for (const f of loud) console.log(`  - ${f}`);
     if (loud.length > 0) failed = true;
+  }
+
+  // ── CONTROL-PAGE SMOKE MUTATIONS (the §23.1 qz-primetime class). Three fixtures on the
+  // control anchor's own template:
+  //   - a lifecycle that THROWS on the panel must be LOUD (play/update throws are swallowed
+  //     by the page's command handler, so the smoke reads painted visibility instead);
+  //   - a hand-written noacgMachineState() returning a groups-less shape must be QUIET now -
+  //     the control surfaces were hardened to read it as "not answered yet", and this fixture
+  //     pins that a malformed state shape no longer takes the whole page down;
+  //   - the anchor itself must be QUIET (the shipped lower third is the seventh type cell).
+  {
+    const throwing = {
+      ...anchor.template,
+      js: `${anchor.template.js}\n;window.buildInTimeline=function(){throw new Error('lifecycle throws on purpose');};`
+        + `window.play=function(){throw new Error('lifecycle throws on purpose');};`
+        + `window.update=function(){throw new Error('lifecycle throws on purpose');};`,
+    };
+    const loudSmoke = await controlPageSmoke(throwing, 'control smoke throwing fixture');
+    expectLoud('control-page smoke (throwing lifecycle)', loudSmoke ? [loudSmoke] : [], () => true);
+
+    const groupless = {
+      ...anchor.template,
+      js: `${anchor.template.js}\n;window.noacgMachineState=function(){return {stepsPlayed:1};};`,
+    };
+    const stateSmoke = await controlPageSmoke(groupless, 'control smoke groups-less state');
+    if (stateSmoke) {
+      console.error(`MUTATION CHECK FAILED: a groups-less noacgMachineState() still breaks the control page (${stateSmoke}).`);
+      failed = true;
+    } else {
+      console.log('mutation control-page smoke (groups-less state): quiet - the panel degrades honestly');
+    }
+
+    const anchorSmoke = await controlPageSmoke(anchor.template, 'control smoke anchor');
+    if (anchorSmoke) {
+      console.error(`MUTATION CHECK FAILED: the smoke is loud on the shipped control anchor (${anchorSmoke}).`);
+      failed = true;
+    } else {
+      console.log('mutation control-page smoke (shipped anchor): quiet');
+    }
   }
 
   await browser.close();
@@ -957,14 +1160,13 @@ if (anchors) {
       const variant = variantById(variantId);
       if (!variant) return { error: `variant ${variantId} is gone from the catalog` };
       const template = variant.create({});
-      // The brief's own words onto the design's text fields, by order - the same driveData
-      // idea the §0.2 anchors use, across a type whose field count may differ.
+      // The brief's own words onto the design's fields BY WHAT EACH FIELD IS (mapBriefValues) -
+      // the purely positional map put "NORTHBRIDGE ALBION" on sb01's score chip and the whole
+      // headlines block in tk01's label, and the 2026-08-19 blind read judged both frames as
+      // the DESIGN's failure (docs/NOACG_PRO_PLAN.md §23.1).
       const sample = Object.values(spikeAnchors.dataFor(brief));
       const stressVals = Object.values(spikeAnchors.stressFor(brief));
-      const text = template.fields.filter((f) => ['textfield', 'textarea', 'number'].includes(f.ftype));
-      const map = (vals) => Object.fromEntries(
-        text.map((f, i) => [f.field, vals[i] ?? String(f.value ?? '')]),
-      );
+      const map = (vals) => spikeAnchors.mapBriefValues(template.fields, vals);
       return {
         template,
         variantName: variant.name,
@@ -1183,6 +1385,10 @@ for (const entry of briefs) {
       // The sentinel step-walk covers what the validator's one-state read cannot (steppers,
       // transform fields) - a quiz that never reveals its answer must fail the loop.
       const paintFindings = validatorFieldPaints(entry) ? [] : await paintWalk(emitRes.template, entry);
+      // The shipped-control-page smoke: free, per round, the one check that runs the graphic
+      // where an OPERATOR meets it (§23.1's qz-primetime class - airable on the page, not
+      // drivable through the panel).
+      const controlSmoke = await controlPageSmoke(emitRes.template, `${slug} round ${round}`);
       lastCapture = { ...capture, data, round };
 
       const frames = [
@@ -1192,6 +1398,7 @@ for (const entry of briefs) {
         { label: 'under edge-case values (zero/empty/Nordic/all-caps)', measured: edgeCapture.measured },
       ];
       const extraBlocking = [];
+      if (controlSmoke) extraBlocking.push(controlSmoke);
       if (stressCapture.playError) extraBlocking.push(`under stress values the template threw: ${stressCapture.playError}`);
       if (edgeCapture.playError) extraBlocking.push(`under edge-case values the template threw: ${edgeCapture.playError}`);
       // The owner's no-model-placed-logos ruling, enforced deterministically: a brief that

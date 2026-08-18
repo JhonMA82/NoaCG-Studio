@@ -196,8 +196,10 @@ scripts/       dev-port + port-registry (the per-worktree RESERVATION), the cata
                ai-compare + ai-bench (both SPEND TOKENS), render-smoke, worktree-activity (who else
                is in flight), merge-order (which branch should land FIRST), hooks/
 api/           server-only Vercel functions: the render service, the AI model gateway, Lite
-               profile/allowance, sealed user-key endpoints, api/admin/* behind _lib/adminAuth.ts
-               (404 for every refusal). Typechecked by tsconfig.api.json
+               profile/allowance, sealed user-key endpoints, the production DATA API
+               (docs/DATA_API.md - external data as update rows in the control log),
+               api/admin/* behind _lib/adminAuth.ts (404 for every refusal). Typechecked by
+               tsconfig.api.json
 render-worker/ the Remotion renderer, and player-host/ the preview host - own exact-pinned packages
 player-host/   so the non-OSI licence never enters the AGPL bundle. Built into public/player-host/
                as ONE self-contained page, loaded with sandbox="allow-scripts" ONLY (never add
