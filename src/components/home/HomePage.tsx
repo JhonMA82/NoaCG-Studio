@@ -21,7 +21,9 @@ import {
   type MySubmission,
 } from '../../community/communityData';
 import { publishGate } from '../../community/gate';
-import type { ValidationResult } from '../../validation/validateTemplate';
+import { checkTemplateLegibility } from '../../validation/designRulesWarnings';
+import type { ProjectLegibility } from '../../model/designRules';
+import type { ValidationIssue, ValidationResult } from '../../validation/validateTemplate';
 import type { SpxTemplate } from '../../model/types';
 import BrandLogo from '../BrandLogo';
 import AuthStatus from '../auth/AuthStatus';
@@ -103,7 +105,7 @@ export default function HomePage({ route }: { route: Route }) {
   const [signedIn, setSignedIn] = useState(false);
   useEffect(() => subscribeAuth((s) => setSignedIn(s.status === 'signed-in' && !!s.user)), []);
   const communityOn = backendConfigured && signedIn;
-  const [publish, setPublish] = useState<{ name: string; template: SpxTemplate; gate: ValidationResult } | null>(null);
+  const [publish, setPublish] = useState<{ name: string; template: SpxTemplate; gate: ValidationResult; legibility: ProjectLegibility | null } | null>(null);
   const [mySubs, setMySubs] = useState<MySubmission[]>([]);
   // Which share link was just copied. A clipboard write is invisible — without this the button
   // looks broken and gets pressed again.
@@ -140,7 +142,7 @@ export default function HomePage({ route }: { route: Route }) {
   };
 
   const onPublish = communityOn
-    ? (g: GraphicDoc) => setPublish({ name: g.name, template: g.template, gate: publishGate(g.template) })
+    ? (g: GraphicDoc) => setPublish({ name: g.name, template: g.template, gate: publishGate(g.template), legibility: g.legibility ?? null })
     : undefined;
 
   const searchRow = (
@@ -359,12 +361,24 @@ function PublishSheet({
   target,
   onDone,
 }: {
-  target: { name: string; template: SpxTemplate; gate: ValidationResult };
+  target: { name: string; template: SpxTemplate; gate: ValidationResult; legibility: ProjectLegibility | null };
   onDone: (published: boolean) => void;
 }) {
   const [summary, setSummary] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The design-rules legibility warnings (R4, warn-first): measured under the graphic's own
+  // saved viewing settings, shown to the author, never blocking the publish.
+  const [ruleWarnings, setRuleWarnings] = useState<ValidationIssue[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void checkTemplateLegibility(target.template, target.legibility).then((w) => {
+      if (alive) setRuleWarnings(w);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [target]);
   const confirm = async () => {
     if (!target.gate.ok) return;
     setBusy(true);
@@ -381,6 +395,14 @@ function PublishSheet({
           <strong>Fix before sharing:</strong>
           <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
             {target.gate.errors.map((e, i) => <li key={i}>{e.message}</li>)}
+          </ul>
+        </div>
+      )}
+      {ruleWarnings.length > 0 && (
+        <div className="hint" data-testid="publish-legibility-warnings">
+          <strong>Worth a look (does not block sharing):</strong>
+          <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+            {ruleWarnings.map((w, i) => <li key={i}>{w.message}</li>)}
           </ul>
         </div>
       )}

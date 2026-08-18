@@ -12,6 +12,7 @@ import type { GenerationSpec } from '../model/generationSpec';
 import type { CreativeAiProfileId } from './liteTypes';
 import type { StyleReference } from '../model/imagePurpose';
 import type { GenerationMode, RouteDecision, StructuralIntent } from '../model/structuralIntent';
+import type { ResolvedLegibility } from '../model/designRules';
 
 /** Extra inputs for generation: uploaded images (logo / still), brand colors, canvas. */
 export interface GenerateContext {
@@ -45,6 +46,13 @@ export interface GenerateContext {
    * template to return three tints of.
    */
   seed?: DesignSpec;
+  /**
+   * The project's RESOLVED legibility settings (model/designRules.ts): viewing target,
+   * standard/safe mode, and whether the size floors bind. `contextText` renders them as the
+   * design-rules prompt block on the user message — generated from the canonical module, so
+   * prompt and measurement cannot drift. Absent = no block (bench controls stay bit-stable).
+   */
+  legibility?: ResolvedLegibility;
   resolution: Resolution;
   fps: number;
 }

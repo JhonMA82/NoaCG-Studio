@@ -129,3 +129,51 @@ test('a mobile-profile prompt block carries the multiplied floors', () => {
   assert.match(block, /62px or larger/); // 49.68 * 1.25 = 62.1
   assert.match(block, /25px or larger/); // 19.98 * 1.25 = 24.975
 });
+
+// ── R4: the per-project settings (ProjectLegibility) ────────────────────────────────────
+
+test('resolveLegibility fills every default: tv, standard, floors binding', () => {
+  for (const settings of [undefined, null, {}]) {
+    const r = rules.resolveLegibility(settings);
+    assert.equal(r.target.profile, 'tv');
+    assert.equal(r.mode, 'standard');
+    assert.equal(r.floorsBlocking, true);
+  }
+  const relaxed = rules.resolveLegibility({ floors: 'relaxed' });
+  assert.equal(relaxed.mode, 'standard');
+  assert.equal(relaxed.floorsBlocking, false);
+  const safe = rules.resolveLegibility({ floors: 'safe' });
+  assert.equal(safe.mode, 'safe');
+  assert.equal(safe.floorsBlocking, true);
+  const custom = rules.resolveLegibility({ viewing: { profile: 'custom', note: 'lecture hall' } });
+  assert.equal(custom.target.profile, 'custom');
+  assert.equal(custom.target.note, 'lecture hall');
+});
+
+test('normalizeLegibility: the DEFAULT state serializes to nothing', () => {
+  assert.equal(rules.normalizeLegibility(undefined), undefined);
+  assert.equal(rules.normalizeLegibility(null), undefined);
+  assert.equal(rules.normalizeLegibility({}), undefined);
+  assert.equal(rules.normalizeLegibility({ viewing: { profile: 'tv' } }), undefined);
+  // A note on a non-custom profile means nothing and is dropped.
+  assert.deepEqual(rules.normalizeLegibility({ viewing: { profile: 'streaming', note: 'x' } }), {
+    viewing: { profile: 'streaming' },
+  });
+  assert.deepEqual(rules.normalizeLegibility({ floors: 'relaxed' }), { floors: 'relaxed' });
+  assert.deepEqual(
+    rules.normalizeLegibility({ viewing: { profile: 'custom', note: ' lecture hall ' }, floors: 'safe' }),
+    { viewing: { profile: 'custom', note: 'lecture hall' }, floors: 'safe' },
+  );
+});
+
+test('legibilityPromptBlock: relaxed keeps the rules as guidance and states the customer chose it', () => {
+  const standard = rules.legibilityPromptBlock(rules.resolveLegibility({}), HD);
+  assert.equal(standard, rules.designRulesPromptBlock(TV, 'standard', HD));
+  const relaxed = rules.legibilityPromptBlock(rules.resolveLegibility({ floors: 'relaxed' }), HD);
+  assert.match(relaxed, /SIZE FLOORS RELAXED BY THE CUSTOMER/);
+  assert.match(relaxed, /keep it as legible as you can at their scale/);
+  assert.match(relaxed, /50px or larger/); // the guidance numbers still ride along
+  const safe = rules.legibilityPromptBlock(rules.resolveLegibility({ floors: 'safe' }), HD);
+  assert.match(safe, /GUARANTEED-READABLE MODE/);
+  assert.doesNotMatch(safe, /RELAXED/);
+});

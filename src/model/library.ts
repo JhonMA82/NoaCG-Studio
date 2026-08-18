@@ -14,6 +14,7 @@
 import type { SpxTemplate, TemplateType } from './types';
 import type { GenerationSpec } from './generationSpec';
 import type { AiThread } from './aiThread';
+import type { ProjectLegibility } from './designRules';
 import { loadAllPackets, upsertPacket, type Packet, type SavedGraphic } from './packets';
 import { durable } from './durableStore';
 import { uuid } from './id';
@@ -63,6 +64,10 @@ export interface GraphicDoc {
    *  just a name). Absent/undefined = unfiled. Additive optional, same rails as aiSpec
    *  (no version bump: rule 6; rides the sync record unchanged). */
   folder?: string;
+  /** The project's legibility settings (viewing target + size-floor tri-state,
+   *  model/designRules.ts). Additive optional, same rails as aiSpec — the default state
+   *  serializes to nothing, so pre-existing records are untouched. */
+  legibility?: ProjectLegibility | null;
 }
 
 const GRAPHICS_KEY = 'spx-gfx-graphics';
@@ -138,6 +143,7 @@ export function createGraphic(
     activeEntryId?: string | null;
     aiSpec?: GenerationSpec | null;
     aiThread?: AiThread | null;
+    legibility?: ProjectLegibility | null;
   },
 ): { doc: GraphicDoc; error: string | null } {
   const doc: GraphicDoc = {
@@ -152,6 +158,7 @@ export function createGraphic(
     activeEntryId: opts.activeEntryId ?? null,
     aiSpec: opts.aiSpec ?? null,
     aiThread: opts.aiThread ?? null,
+    ...(opts.legibility ? { legibility: opts.legibility } : {}),
     createdAt: nowIso(),
     updatedAt: nowIso(),
   };
@@ -163,7 +170,7 @@ export function createGraphic(
 /** Update fields of an existing graphic (the Save path, rename, move, entries…). */
 export function updateGraphic(
   id: string,
-  patch: Partial<Pick<GraphicDoc, 'name' | 'packageId' | 'template' | 'baseline' | 'entries' | 'activeEntryId' | 'aiSpec' | 'aiThread' | 'folder'>>,
+  patch: Partial<Pick<GraphicDoc, 'name' | 'packageId' | 'template' | 'baseline' | 'entries' | 'activeEntryId' | 'aiSpec' | 'aiThread' | 'folder' | 'legibility'>>,
 ): { doc: GraphicDoc | null; error: string | null } {
   const all = rawGraphics();
   const doc = all.find((g) => g.id === id && !g.deleted);

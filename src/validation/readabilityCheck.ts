@@ -1,13 +1,18 @@
 // THE READABILITY INSTRUMENT - is painted text big enough, heavy enough, contrasted enough
 // and inside the safe area, per the CANONICAL rules module?
 //
-// BENCH-ONLY (the spike directory's standing rule; its callers are the spike runners). The
-// first version carried its own fixed 18px floor, calibrated to the catalog's smallest line -
-// and the owner's blind read named exactly that as escape class 3 (docs/NOACG_PRO_PLAN.md
-// §22.1): "18px let through text the owner calls unreadable for broadcast". The floors now
-// come from `src/model/designRules.ts` (the owner's ratified table - roles x mode x viewing
-// profile, as % of the reference size); this file only classifies and measures. Nothing here
-// copies a number.
+// Lived in src/ai/spike/ while it was bench-only; moved here in R4 (docs/DESIGN_RULES_PLAN.md
+// §5) so the PRODUCT validator and the spike runners measure through the SAME code - the
+// spike scripts import it from this path now. The first version carried its own fixed 18px
+// floor, calibrated to the catalog's smallest line - and the owner's blind read named exactly
+// that as escape class 3 (docs/NOACG_PRO_PLAN.md §22.1): "18px let through text the owner
+// calls unreadable for broadcast". The floors come from `src/model/designRules.ts` (the
+// owner's ratified table - roles x mode x viewing profile, as % of the reference size); this
+// file only classifies and measures. Nothing here copies a number.
+//
+// The `detail` strings are the LOOP's teaching copy (fed back to a model in a repair round)
+// and stay as they calibrated. Product surfaces read the STRUCTURED fields on each finding
+// and phrase their own plain-language warnings (designRulesWarnings.ts).
 //
 // ROLE CLASSIFICATION (designRules' stated limitation, restated where it runs): field-bound
 // text (an `#fN` element or its descendants) is informational ALWAYS; standalone static text
@@ -38,7 +43,7 @@ import {
   type LegibilityMode,
   type ViewingTarget,
   type TextRole,
-} from '../../model/designRules';
+} from '../model/designRules';
 
 export interface ReadabilityReading {
   /** First characters of the text, for the finding and the calibration table. */
@@ -56,6 +61,19 @@ export interface ReadabilityFinding {
   /** 'block' feeds the loop as a contract; 'advise' rides with a judgement note. */
   severity: 'block' | 'advise';
   detail: string;
+  /** Structured measurement behind the sentence, for surfaces that phrase their own copy
+   *  (the product validator's plain-language warnings). Absent on grouped findings. */
+  snippet?: string;
+  el?: string;
+  role?: TextRole;
+  fontPx?: number;
+  /** The composed hard floor (size findings) in px. */
+  floorPx?: number;
+  /** The warning-band top (size warnings) in px. */
+  warnPx?: number;
+  /** Measured contrast ratio and its floor (contrast findings). */
+  ratio?: number;
+  ratioFloor?: number;
 }
 
 export interface ReadabilityOptions {
@@ -269,6 +287,12 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
         detail: `"${c.snippet}" (${role}) is painted at ${Math.round(c.fontPx)}px (${describe(c.el)})`
           + ` - under the ${Math.round(size.floor.hardPx)}px broadcast floor for ${role} text`
           + ` (${mode} mode, ${target.profile} viewing)`,
+        snippet: c.snippet,
+        el: describe(c.el),
+        role,
+        fontPx: c.fontPx,
+        floorPx: size.floor.hardPx,
+        warnPx: size.floor.warnPx ?? undefined,
       });
     } else if (size.status === 'warn' && size.floor?.warnPx) {
       findings.push({
@@ -277,6 +301,12 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
         detail: `"${c.snippet}" (${role}) at ${Math.round(c.fontPx)}px sits in the warning band`
           + ` (${Math.round(size.floor.hardPx)}-${Math.round(size.floor.warnPx)}px) - prefer`
           + ` ${Math.round(size.floor.warnPx)}px+ for comfortable ${target.profile} reading`,
+        snippet: c.snippet,
+        el: describe(c.el),
+        role,
+        fontPx: c.fontPx,
+        floorPx: size.floor.hardPx,
+        warnPx: size.floor.warnPx,
       });
     }
 
@@ -289,6 +319,11 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
           severity: 'block',
           detail: `"${c.snippet}" reads at ${contrast.toFixed(2)}:1 against its surface`
             + ` (${describe(c.el)}) - under the ${floor}:1 floor for on-air text`,
+          snippet: c.snippet,
+          el: describe(c.el),
+          role,
+          ratio: contrast,
+          ratioFloor: floor,
         });
       }
     } else if (role !== 'decorative' && ink && ink.a >= 0.1) {
@@ -300,6 +335,9 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
           detail: `"${c.snippet}" (${describe(c.el)}) sits on a transparent stack over the picture`
             + ' with no visible protection - add a panel, scrim gradient, text-shadow or outline'
             + ' so it survives any footage behind it',
+          snippet: c.snippet,
+          el: describe(c.el),
+          role,
         });
       }
     }
@@ -331,6 +369,8 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
           code: 'text-outside-safe-area',
           severity: 'block',
           detail: `field text "${c.snippet}" (${describe(c.el)}) leaves the ${Math.round(inset.x)}/${Math.round(inset.y)}px safe area: ${out.join(', ')} inset boundary`,
+          snippet: c.snippet,
+          el: describe(c.el),
         });
       }
     }

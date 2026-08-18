@@ -113,9 +113,9 @@ await page.evaluate(async () => {
   window.__comp = await import('/src/preview/composeDocument.ts' + bust);
   window.__wiz = await import('/src/model/wizard.ts' + bust);
   window.__anchors = await import('/src/ai/spike/anchors.ts' + bust);
-  const { measureReadability } = await import('/src/ai/spike/readabilityCheck.ts' + bust);
+  const { measureReadability } = await import('/src/validation/readabilityCheck.ts' + bust);
   const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts' + bust);
-  const { measureTickerMargins } = await import('/src/ai/spike/tickerCheck.ts' + bust);
+  const { measureTickerMargins } = await import('/src/validation/tickerCheck.ts' + bust);
   window.__measureDoc = (doc, ticker) => {
     const readability = measureReadability(doc, { mode: 'standard', target: { profile: 'tv' } });
     const spacing = measureSpacing(doc, {});

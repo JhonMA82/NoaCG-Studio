@@ -210,6 +210,70 @@ export const PROTECTION_REQUIRED_OVER_UNKNOWABLE = true;
  *  so a tiny ornament is exempt while an undersized real label still fails its floor. */
 export const STATIC_INFORMATIONAL_MIN_RATIO = 0.009;
 
+// ── Per-project legibility settings (R4 productize) ─────────────────────────────────────
+
+/** What the wizard's two legibility controls mean, as ONE tri-state - they are mirrors and
+ *  cannot both be on. 'relaxed' is the "Broadcast text sizes" toggle switched OFF: the size
+ *  floors demote to warnings and the prompt says honestly that the customer wants a denser,
+ *  smaller composition. 'safe' is the "Guaranteed readable size" checkbox switched ON (the
+ *  LegibilityMode 'safe' table above). Absent = 'standard'. */
+export type LegibilityFloors = 'relaxed' | 'safe';
+
+/**
+ * The per-project legibility settings, persisted as an ADDITIVE OPTIONAL field on
+ * SavedProject and GraphicDoc (rule 6: additive fields never bump the version). The DEFAULT
+ * state serializes to NOTHING - `normalizeLegibility` returns undefined for it - so an
+ * untouched project's record is byte-identical to one saved before this existed.
+ */
+export interface ProjectLegibility {
+  /** Where the graphic will be watched. Absent = tv. */
+  viewing?: ViewingTarget;
+  /** The size-floor tri-state. Absent = 'standard'. */
+  floors?: LegibilityFloors;
+}
+
+/** The settings resolved for consumers: never absent, every default filled in. */
+export interface ResolvedLegibility {
+  target: ViewingTarget;
+  mode: LegibilityMode;
+  /** False only in 'relaxed' - the AI path's size floors demote to warnings, and the
+   *  prompt carries the small-by-request note. A deliberate act with a paper trail. */
+  floorsBlocking: boolean;
+}
+
+export function resolveLegibility(settings?: ProjectLegibility | null): ResolvedLegibility {
+  return {
+    target: settings?.viewing ?? { profile: 'tv' },
+    mode: settings?.floors === 'safe' ? 'safe' : 'standard',
+    floorsBlocking: settings?.floors !== 'relaxed',
+  };
+}
+
+/** The persisted shape, or undefined when everything sits at the default - which is what
+ *  keeps an untouched project serializing to nothing. A 'custom' note is kept only on the
+ *  custom profile, where it means something. */
+export function normalizeLegibility(settings?: ProjectLegibility | null): ProjectLegibility | undefined {
+  if (!settings) return undefined;
+  const profile = settings.viewing?.profile ?? 'tv';
+  const note = profile === 'custom' ? settings.viewing?.note?.trim() || undefined : undefined;
+  const viewing: ViewingTarget | undefined =
+    profile === 'tv' && !note ? undefined : note ? { profile, note } : { profile };
+  const floors = settings.floors;
+  if (!viewing && !floors) return undefined;
+  return { ...(viewing ? { viewing } : {}), ...(floors ? { floors } : {}) };
+}
+
+/** The user-facing words for each profile - one list, so the wizard select and any read-back
+ *  cannot drift. 'venue' is honest about being a stub (treated as tv until distance math
+ *  exists - owner brief §19). */
+export const VIEWING_PROFILE_LABELS: ReadonlyArray<{ id: ViewingProfileId; label: string; hint: string }> = [
+  { id: 'tv', label: 'TV', hint: 'living-room distance - the broadcast default' },
+  { id: 'streaming', label: 'Streaming overlay', hint: 'desktop and laptop screens' },
+  { id: 'mobile', label: 'Mobile', hint: 'phone screens - the largest floors' },
+  { id: 'venue', label: 'Venue screen', hint: 'sized as TV for now; describe the room in a note' },
+  { id: 'custom', label: 'Custom', hint: 'your own environment - the note travels to the AI' },
+];
+
 // ── The prompt block ────────────────────────────────────────────────────────────────────
 
 const px = (n: number) => `${Math.round(n)}px`;
@@ -253,4 +317,25 @@ export function designRulesPromptBlock(
     );
   }
   return lines.join('\n');
+}
+
+/**
+ * The prompt block for a PROJECT's resolved legibility settings - what the product AI
+ * surfaces render into the user message. Standard and safe modes are the rules block above
+ * verbatim. 'relaxed' (the "Broadcast text sizes" toggle OFF) keeps the block as guidance
+ * and states the owner-ratified honesty line: small-by-request is a deliberate act with a
+ * paper trail, never a silent bypass.
+ */
+export function legibilityPromptBlock(
+  legibility: ResolvedLegibility,
+  format: { width: number; height: number },
+): string {
+  const block = designRulesPromptBlock(legibility.target, legibility.mode, format);
+  if (legibility.floorsBlocking) return block;
+  return (
+    `${block}\n`
+    + '- SIZE FLOORS RELAXED BY THE CUSTOMER: the customer explicitly wants a denser/smaller '
+    + 'composition - keep it as legible as you can at their scale. The size floors above are '
+    + 'guidance here, not hard limits; everything else still binds.'
+  );
 }

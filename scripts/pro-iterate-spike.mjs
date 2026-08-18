@@ -200,8 +200,8 @@ async function measureCurrentFrame(opts = {}) {
     const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts' + bust);
     const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts' + bust);
     const { measureDevice } = await import('/src/ai/spike/deviceCheck.ts' + bust);
-    const { measureReadability } = await import('/src/ai/spike/readabilityCheck.ts' + bust);
-    const { measureTickerMargins } = await import('/src/ai/spike/tickerCheck.ts' + bust);
+    const { measureReadability } = await import('/src/validation/readabilityCheck.ts' + bust);
+    const { measureTickerMargins } = await import('/src/validation/tickerCheck.ts' + bust);
     const doc = document.getElementById('iterate-hold-frame')?.contentDocument;
     if (!doc) return null;
     // The per-type thresholds are PRO_GRAPHICS' own (measured, docs/NOACG_PRO_PLAN.md §21.2
@@ -746,7 +746,7 @@ if (control) {
   const dualModes = await page.evaluate(async ({ template, data }) => {
     const bust = '?t=' + Date.now();
     const { composeDocument } = await import('/src/preview/composeDocument.ts' + bust);
-    const { measureReadability } = await import('/src/ai/spike/readabilityCheck.ts' + bust);
+    const { measureReadability } = await import('/src/validation/readabilityCheck.ts' + bust);
     document.getElementById('iterate-hold-frame')?.remove();
     const frame = document.createElement('iframe');
     frame.id = 'iterate-hold-frame';

@@ -35,6 +35,7 @@ import { PALETTES, paletteById } from '../../model/wizard';
 import type { EasingId } from '../../model/easings';
 import { ensureFontFace, fontByStack, type CustomFont } from '../../model/fonts';
 import type { EraseRect, RegionInk } from '../../assets/eraseRegion';
+import type { ProjectLegibility } from '../../model/designRules';
 
 /** ONE applied baked-text erase: the marked rectangle (in the artwork's SOURCE pixels) and
  *  the sampling verdict it ran with. Its measured ink seeds a real text field per LINE it
@@ -169,6 +170,11 @@ export interface WizardDraft {
   /** The Text step's placed fields (Import Graphic). Ordered; each becomes a real placed
    *  field at build, AFTER the erase-seeded ones. */
   designFields: DesignFieldSpec[];
+  /** The project's legibility settings (model/designRules.ts): viewing target + the two
+   *  size-floor toggles. PROJECT METADATA, never template CSS — draftToOptions does not read
+   *  it; the create paths land it on the store, which persists it with the project. An
+   *  untouched draft is `{}` and serializes to nothing. */
+  legibility: ProjectLegibility;
 }
 
 /** A draft update: top-level fields replace; `animation` and `nudge` deep-merge. */
@@ -214,6 +220,7 @@ export function initialDraft(): WizardDraft {
     designOriginal: null,
     designErases: [],
     designFields: [],
+    legibility: {},
   };
 }
 
