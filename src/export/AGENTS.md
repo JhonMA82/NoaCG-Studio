@@ -113,6 +113,11 @@ export-time reflow, stretching, or cropping.
   either rejects it or coerces it into something else on air. `validateOgrafPackage` is the
   dangling-refs doctrine for OGraf: a `main` (or thumbnail) the package does not contain fails at
   the renderer as a network error the operator reads as "the graphic is broken".
+  It also carries the ONE rule that is not in the schema: the manifest `id` must be something
+  `customElements.define` accepts. A renderer may register the Graphic by its id (SuperFly.tv's
+  OGraf server does), and the HTML standard wants a leading ASCII lowercase letter plus a hyphen -
+  so `hairline` is a spec-valid id that no browser can register, and the load fails before the
+  Graphic is mounted. That is why ids are `noacg-<slug>` (`ografGraphicId`).
   `addOgrafPackage` runs BOTH - manifest before writing, package after - so every target built on
   it inherits the gate. Coverage is `e2e/ograf-conformance.spec.ts`, which sweeps the WHOLE
   catalog in all three export intents (a single category's field mix can be the only invalid one)
@@ -133,6 +138,17 @@ export-time reflow, stretching, or cropping.
   forbids ignoring a call that arrives while a previous one is pending, and no action ever
   rejects: too early or after `dispose()` answers `409`, an internal failure `500`. A renderer
   can log a status code; it cannot log an unhandled rejection.
+  TWO MORE, both found only by loading a package into a renderer we did not write (docs/OGRAF.md
+  "What an external renderer said", 2026-08-18), because a Graphic is a COMPONENT INSIDE SOMEBODY
+  ELSE'S DOCUMENT while under SPX the template IS the document - which is why the local specs and
+  the SPX targets could never see either. Relative asset references in the injected CSS/markup are
+  resolved against `import.meta.url` (`withPackageUrls`) - a package-relative `fonts/x.woff2` was
+  fetched from the RENDERER's directory, 404'd, and `font-display: swap` aired the graphic in the
+  fallback face with no error anywhere. And the template's runtime is handed a `document` SCOPED
+  to its own element (`scopedDocument`, passed as the `document` parameter of `initTemplate`, so
+  the template's code text is still untouched) - the field convention is `getElementById('fN')`
+  with the same ids in every design, so with two graphics on two layers of one renderer, updating
+  one rewrote the other. `dispose()` kills tweens on its own subtree for the same reason.
   The broadcaster-facing summary is `docs/OGRAF.md` - keep it in agreement with this target.
   Non-real-time seeks rebuild an isolated document and replay the OGraf action schedule through
   `render/runtimeScript.ts`'s virtual clock, so timestamp order cannot leak state. The target's

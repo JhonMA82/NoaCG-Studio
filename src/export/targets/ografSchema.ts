@@ -39,6 +39,16 @@ function isInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value);
 }
 
+/**
+ * A number the manifest can actually carry. `typeof NaN === 'number'` and so is `Infinity`,
+ * but neither survives `JSON.stringify` - both serialize to `null`, which is not a number at
+ * all, so a manifest that passed the check would fail the renderer's. JSON has no syntax for
+ * them, so "finite" is what "number" means in a JSON Schema.
+ */
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 // ── lib/constraints/number.json + boolean.json ───────────────────────────────
 
 function checkNumberConstraint(value: unknown, at: string, errors: string[]): void {
@@ -51,7 +61,7 @@ function checkNumberConstraint(value: unknown, at: string, errors: string[]): vo
   }
   for (const [key, entry] of Object.entries(value)) {
     if (key.startsWith('v_')) continue;
-    if (typeof entry !== 'number') errors.push(`${at}.${key}: must be a number.`);
+    if (!isFiniteNumber(entry)) errors.push(`${at}.${key}: must be a finite number.`);
   }
 }
 
@@ -77,7 +87,7 @@ const GDD_TYPES = ['boolean', 'string', 'number', 'integer', 'array', 'object'] 
 function defaultMatchesType(type: string, value: unknown): boolean {
   if (type === 'boolean') return typeof value === 'boolean';
   if (type === 'string') return typeof value === 'string';
-  if (type === 'number') return typeof value === 'number';
+  if (type === 'number') return isFiniteNumber(value);
   if (type === 'integer') return isInteger(value);
   if (type === 'array') return Array.isArray(value);
   if (type === 'object') return isPlainObject(value);
@@ -100,7 +110,7 @@ function checkGddObject(value: unknown, at: string, errors: string[]): void {
     return;
   }
   if ('hidden' in value && typeof value.hidden !== 'boolean') errors.push(`${at}.hidden: must be a boolean.`);
-  if ('order' in value && typeof value.order !== 'number') errors.push(`${at}.order: must be a number.`);
+  if ('order' in value && !isFiniteNumber(value.order)) errors.push(`${at}.order: must be a finite number.`);
   if ('default' in value && !defaultMatchesType(type, value.default)) {
     errors.push(`${at}.default: a "${type}" property cannot default to ${JSON.stringify(value.default)}.`);
   }
@@ -325,6 +335,34 @@ const ROOT_KEYS = [
   'thumbnails',
 ] as const;
 
+/** Reserved by the HTML standard — hyphenated, but `customElements.define` refuses them. */
+const RESERVED_ELEMENT_NAMES = [
+  'annotation-xml',
+  'color-profile',
+  'font-face',
+  'font-face-src',
+  'font-face-uri',
+  'font-face-format',
+  'font-face-name',
+  'missing-glyph',
+];
+
+/**
+ * Is this id something `customElements.define()` will accept?
+ *
+ * NOT a schema rule — the manifest schema types `id` as any string without "/". It is here
+ * because a real renderer makes it one: SuperFly.tv's OGraf server registers the Graphic as
+ * `customElements.define(manifest.id, class)`, so a schema-valid id with no hyphen throws
+ * before the Graphic is mounted, and the operator sees a broken graphic with a manifest that
+ * validates. The rule this encodes is the HTML standard's `PotentialCustomElementName`,
+ * narrowed to the ASCII subset an export can actually produce.
+ */
+function isCustomElementName(id: string): boolean {
+  if (RESERVED_ELEMENT_NAMES.includes(id)) return false;
+  if (!/^[a-z]/.test(id) || !id.includes('-')) return false;
+  return !/[A-Z\s"'`/\\[\]<>=]/.test(id);
+}
+
 /**
  * Validate one `.ograf.json` manifest against the OGraf v1 schema. Returns the list of
  * violations — empty means conformant. Every message names the offending path, so a failure
@@ -344,6 +382,13 @@ export function validateOgrafManifest(manifest: unknown): string[] {
   }
   // The spec forbids "/" in an id: a renderer may address a Graphic by id in a path.
   if (typeof manifest.id === 'string' && manifest.id.includes('/')) errors.push('id: must not contain "/".');
+  if (typeof manifest.id === 'string' && manifest.id.length && !isCustomElementName(manifest.id)) {
+    errors.push(
+      `id: "${manifest.id}" is not a legal custom element name, so a renderer that registers the Graphic `
+      + 'by its id cannot load it. It must start with an ASCII lowercase letter, contain a hyphen, and '
+      + 'use no uppercase letters.',
+    );
+  }
   if (typeof manifest.supportsRealTime !== 'boolean') errors.push('supportsRealTime: required, a boolean.');
   if (typeof manifest.supportsNonRealTime !== 'boolean') errors.push('supportsNonRealTime: required, a boolean.');
   if ('version' in manifest && typeof manifest.version !== 'string') errors.push('version: must be a string.');
