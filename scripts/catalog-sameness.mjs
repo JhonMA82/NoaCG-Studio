@@ -119,7 +119,16 @@ function rules(css) {
   }
   return out;
 }
-const prefixOf = (v) => v.emitted.html.match(/<body>[\s\S]*?<div class="([a-z0-9-]+)"/)?.[1] ?? v.category;
+// The design's own class prefix: the FIRST class of the FIRST element in <body>.
+//
+// `[^"]*` before the closing quote is load-bearing. Without it the pattern only matched a
+// SINGLE-class root, so a root written `<div class="credits credits--editorial">` was skipped
+// and the lazy scan landed on the next single-class div instead — the category's full-frame
+// `.credits-background`. Both full-frame categories write their root that way, so all 13
+// end-credits and all 19 starting-soon designs read back with the same two values: the box
+// lookup found the background's opaque literal (panel `solid-literal`) and the painted-parts
+// scan matched only the background itself (`['-root']`). 32 designs, one look, no signal.
+const prefixOf = (v) => v.emitted.html.match(/<body>[\s\S]*?<div class="([a-z0-9-]+)[^"]*"/)?.[1] ?? v.category;
 const pxOf = (s) => { const m = String(s).match(/(-?[\d.]+)\s*px/); return m ? Number(m[1]) : null; };
 const bucket = (n, steps) => {
   if (n == null) return 'na';
