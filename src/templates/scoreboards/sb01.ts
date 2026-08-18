@@ -8,6 +8,7 @@
 // two-digit scores never get chopped at 1.35x).
 
 import { paletteById, type TemplateVariant } from '../../model/wizard';
+import { clipOneLineCss } from './scorebugShared';
 import { defineScoreboardVariant } from './shared';
 
 export const sb01: TemplateVariant = defineScoreboardVariant(
@@ -131,6 +132,12 @@ export const sb01: TemplateVariant = defineScoreboardVariant(
   text-transform: uppercase;       /* team names are shouted, not spoken */
   color: var(--text-color);        /* primary text on the dark slab */
 }
+
+/* A long club name trims on ONE line instead of wrapping and clipping mid-glyph - the
+   2026-08-19 blind read's stress frame cut "KESTREL CITY" to "KESTR / CITY" ("the left text
+   gets cut off"). A match strip is a fixed band on air for the whole match, so the sb06 rule
+   applies here too: trim with a visible ellipsis, never grow or chop. */
+${clipOneLineCss('.scoreboard-team', 420)}
 
 /* The score chip: a wrapper no preset ever animates - safe home for the painted lean. */
 .scoreboard-chip {

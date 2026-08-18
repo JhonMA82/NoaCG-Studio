@@ -657,8 +657,8 @@
   "clip": [
    ".scoreboard-mask:y",
    ".scoreboard-mask:y",
-   ".scoreboard-mask:y",
-   ".scoreboard-mask:y"
+   ".scoreboard-team:y",
+   ".scoreboard-team:y"
   ]
  },
  "sb03": {

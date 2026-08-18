@@ -75,9 +75,14 @@ export const ig01: TemplateVariant = defineInfographicVariant(
   background: var(--accent);       /* the one small, sharp dose of accent color */
 }
 
-/* The label — quiet tracking-wide caps, clearly subordinate to the figure. */
+/* The label — tracking-wide caps, subordinate to the figure but genuinely READABLE.
+   21px sat in the secondary warning band, and the 2026-08-19 blind read called the value
+   that lands here "way too small" for the second read running ("we need a minimum of what
+   size text we can use"). A stat panel's second line regularly carries the stat itself, so
+   it is held to the PRIMARY floor of the owner's size table (designRules.ts: 4.6% of the
+   short side, 50px at 1080p) rather than nursed through the secondary band. */
 .infographic-label {
-  font-size: calc(21px * var(--scale) * var(--type-scale)); /* kicker scale — a caption, not a headline */
+  font-size: calc(50px * var(--scale) * var(--type-scale)); /* primary-tier — the read's minimum-size rule */
   font-weight: 400;                /* light; the figure carries all the weight */
   line-height: 1.35;               /* relaxed leading in case it wraps */
   letter-spacing: var(--label-tracking);  /* the family's label tracking */
