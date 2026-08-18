@@ -301,6 +301,11 @@
       "css": "d5be456954f50b6e",
       "js": "83b6e8e488759b43"
     },
+    "bug37": {
+      "html": "12d37666cf82edab",
+      "css": "11a68d06beb52523",
+      "js": "c1bcd82048c840e6"
+    },
     "card01": {
       "html": "fc19ee90cf31ced2",
       "css": "1e9b589540cd0746",
@@ -1121,6 +1126,11 @@
       "css": "349ff3a1e34e5b80",
       "js": "dacc974cf3c2f2a2"
     },
+    "ig37": {
+      "html": "6ad2473fc4aa6ec1",
+      "css": "03fdfd32219f09ff",
+      "js": "1a3eae27f8c635e2"
+    },
     "imp01": {
       "html": "78c380061bf3aae3",
       "css": "04e7d4aeca721e69",
@@ -1630,6 +1640,11 @@
       "html": "0eba413462c1e54d",
       "css": "1a3620bc2926ecd6",
       "js": "9bff32869004255f"
+    },
+    "lt62": {
+      "html": "8e893dc5d5b91d56",
+      "css": "5ce95f8f714bff56",
+      "js": "fa8026790daef5c6"
     },
     "mr01": {
       "html": "0321d02acb60d99b",

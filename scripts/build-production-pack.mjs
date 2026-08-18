@@ -22,6 +22,11 @@ const outFile = join(outDir, `${slug}.noacgpack.json`);
 const failures = [];
 const fail = (msg) => failures.push(msg);
 
+// Template sources reach the working tree with platform line endings (core.autocrlf), but
+// the emitted JSON is a committed artifact - normalize to LF so a build on any platform
+// reproduces the same bytes.
+const readSource = (path) => readFileSync(path, 'utf8').replace(/\r\n?/g, '\n');
+
 const manifest = JSON.parse(readFileSync(join(packDir, 'manifest.json'), 'utf8'));
 if (!manifest.name || !Array.isArray(manifest.graphics) || manifest.graphics.length === 0) {
   console.error('build-production-pack: manifest.json needs a name and a non-empty graphics list');
@@ -36,9 +41,9 @@ const graphics = manifest.graphics.map((entry) => {
   names.add(entry.name);
 
   const dir = join(packDir, entry.slug);
-  const html = readFileSync(join(dir, 'template.html'), 'utf8');
-  const css = readFileSync(join(dir, 'style.css'), 'utf8');
-  const js = readFileSync(join(dir, 'logic.js'), 'utf8');
+  const html = readSource(join(dir, 'template.html'));
+  const css = readSource(join(dir, 'style.css'));
+  const js = readSource(join(dir, 'logic.js'));
 
   if (!html.includes('window.SPXGCTemplateDefinition')) {
     fail(`${where}: no SPXGCTemplateDefinition in the HTML`);
