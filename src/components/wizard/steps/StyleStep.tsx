@@ -5,6 +5,7 @@ import { contrastRatio, listCssVariables, parseCssColor } from '../../../blocks/
 import FontPicker from '../FontPicker';
 import StyleControls from '../../style/StyleControls';
 import ColorField from '../../style/ColorField';
+import ViewingControls from '../ViewingControls';
 import { PALETTE_VARS, SIZE_STEPS, TYPE_SIZE_STEPS } from '../../../model/styleVocabulary';
 import type { DraftPatch, WizardDraft } from '../draft';
 
@@ -416,6 +417,13 @@ export default function StyleStep({ variant, draft, onDraft, builtCss, markWarni
           </div>
         </div>
       </details>
+
+      {/* PROJECT METADATA, not template CSS: the viewing target and the two size-floor
+          toggles ride the draft's `legibility` and land on the store at create — the Style
+          panel's `:root` contract never carries them (docs/DESIGN_RULES_PLAN.md §5 R4). A
+          top-level section, not part of the Size & position disclosure: a choice made here
+          must never hide behind a summary that does not name it. */}
+      <ViewingControls value={draft.legibility} onChange={(legibility) => onDraft({ legibility })} />
     </div>
   );
 }

@@ -725,6 +725,7 @@ export default function CreationWizard() {
     // result's own so both ride the autosave slot + the next Save. Both Finish doors reach here.
     useTemplateStore.getState().setAiSpec(aiResult.spec ?? null);
     useTemplateStore.getState().setAiThread(aiThread);
+    useTemplateStore.getState().setLegibility(draft.legibility);
     clearSpecDraft();
     if (aiResult.generationId) {
       void recordLiteOutcome({
@@ -793,6 +794,10 @@ export default function CreationWizard() {
     if (variant.category === 'imported-design') {
       setTimeout(() => useTemplateStore.getState().setActivePanel('data'), 0);
     }
+    // AFTER the whole-project swap (which clears it): the project's legibility settings ride
+    // the store exactly like the AI path's aiSpec, so the autosave slot and every Save carry
+    // them (an untouched draft normalizes to nothing).
+    useTemplateStore.getState().setLegibility(draft.legibility);
     // Remember this look as the project brand so the next graphic matches it.
     saveBrand({
       styleTag: variant.styleTag,
@@ -1359,6 +1364,8 @@ export default function CreationWizard() {
                 <AiStep
                   format={draftFormatSelection(draft)}
                   onFormat={(selection) => patch(formatDraftPatch(selection))}
+                  legibility={draft.legibility}
+                  onLegibility={(legibility) => patch({ legibility })}
                   brandPalette={matchBrand && brand ? brand.palette : null}
                   result={aiResult?.template ?? null}
                   onResult={(template, valid, spec, generationId, path, pack) =>

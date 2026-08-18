@@ -62,6 +62,10 @@ templateStore.ts (zustand) holds the template plus editor UI state.
   (SavedProject.aiThread) and every Save (GraphicDoc.aiThread), cleared by a whole-project swap,
   reset from the record by openGraphicDoc. Additive optional; NO version bump. Shown read-only
   by components/AIPromptPanel.tsx.
+- **legibility / setLegibility** - the project's `ProjectLegibility` settings
+  (model/designRules.ts; null = the defaults). EXACT same rails as aiSpec: the autosave slot
+  and every Save (GraphicDoc.legibility), cleared by a whole-project swap, set by the wizard's
+  create paths and openGraphicDoc. The setter normalizes, so the default state stores null.
 - **saved** - the save LINK `{ graphicId, dirty, status }` (docs/SAVED_CONTENT_MODEL.md §2):
   the autosave subscription flips `dirty` on any template change; a whole-project swap
   (applyTemplate with resetSampleData) SEVERS the link (graphicId null) so a fresh creation

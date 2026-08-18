@@ -10,7 +10,9 @@ import PlayoutCompatibility from './PlayoutCompatibility';
 import { graphicById } from '../model/library';
 import { trackEvent } from '../backend/events';
 import type { SpxTemplate } from '../model/types';
-import { validateTemplate, type ValidationResult } from '../validation/validateTemplate';
+import type { ProjectLegibility } from '../model/designRules';
+import { validateTemplate, type ValidationIssue, type ValidationResult } from '../validation/validateTemplate';
+import { checkTemplateLegibility } from '../validation/designRulesWarnings';
 
 interface Props {
   /** The graphic being exported. The EXPORT SURFACE never reads the store: the same targets,
@@ -32,6 +34,11 @@ interface Props {
    *  section and the export gate share one verdict); the standalone window does not, so
    *  exporting a saved graphic never overwrites the open project's status. */
   onValidation?: (result: ValidationResult) => void;
+  /** The project's legibility settings the design-rules WARNINGS are computed under
+   *  (model/designRules.ts). Absent = read them off the library record (`graphicId`), else
+   *  the defaults (TV viewing, standard floors). Warnings only — export never blocks on them
+   *  (the ratified R4 severity policy). */
+  legibility?: ProjectLegibility | null;
 }
 
 /**
@@ -47,6 +54,7 @@ export default function ExportSurface({
   graphicId,
   runtimeError = null,
   onValidation,
+  legibility,
 }: Props) {
   // The target preselects from the remembered preference (Settings, or simply the last pick).
   const [targetId, setTargetId] = useState(() => {
@@ -71,11 +79,35 @@ export default function ExportSurface({
     targetId === 'ograf' && graphicUsage !== 'live';
   const targetCompatible = !offlineRequested || ografCompatibility.compatible;
 
-  // Live validation: re-runs when the template (or a preview runtime error) changes.
-  const validation = useMemo(
-    () => validateTemplate(template, { runtimeError }),
-    [template, runtimeError],
+  // The design-rules legibility warnings (R4, warn-first): measured on a settled offscreen
+  // render, debounced so typing in the editor does not mount a frame per keystroke. Under
+  // the project's own viewing settings — the store's for the open project, the saved
+  // record's for a Home-card export, the defaults otherwise.
+  const [ruleWarnings, setRuleWarnings] = useState<ValidationIssue[]>([]);
+  // Serialized so the effect keys on the VALUE — the object is re-derived every render.
+  const ruleSettingsKey = JSON.stringify(
+    legibility ?? (graphicId ? graphicById(graphicId)?.legibility ?? null : null),
   );
+  useEffect(() => {
+    let cancelled = false;
+    const settings = ruleSettingsKey ? (JSON.parse(ruleSettingsKey) as ProjectLegibility | null) : null;
+    const timer = setTimeout(() => {
+      void checkTemplateLegibility(template, settings).then((w) => {
+        if (!cancelled) setRuleWarnings(w);
+      });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [template, ruleSettingsKey]);
+
+  // Live validation: re-runs when the template (or a preview runtime error) changes. The
+  // legibility warnings merge in as WARNINGS — they can never gate the download.
+  const validation = useMemo(() => {
+    const base = validateTemplate(template, { runtimeError });
+    return ruleWarnings.length ? { ...base, warnings: [...base.warnings, ...ruleWarnings] } : base;
+  }, [template, runtimeError, ruleWarnings]);
   // Block body on purpose: an arrow returning the callback's result would hand React whatever
   // the host returns as a CLEANUP function.
   useEffect(() => {

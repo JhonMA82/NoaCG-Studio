@@ -19,6 +19,8 @@ import type { SpxTemplate } from '../model/types';
 import type { ValidationIssue, ValidationResult } from './validateTemplate';
 import { unreachableFields } from './fieldPaint';
 import { markLegibilityFindings, markLegibilityMessage } from './markLegibility';
+import { designRulesWarnings } from './designRulesWarnings';
+import type { ProjectLegibility } from '../model/designRules';
 
 export interface RuntimeBenchOptions {
   /** Hard cap on the whole bench run (iframe load + every phase). */
@@ -72,6 +74,15 @@ export interface RuntimeBenchOptions {
    * defect they can see and we cannot fix for them.
    */
   fieldPaints?: boolean;
+  /**
+   * The project's legibility settings (viewing target + size-floor tri-state) the design
+   * rules are computed under. Absent = the defaults (TV viewing, standard floors) - the
+   * checks still run, because they are WARNINGS on every product surface (the ratified R4
+   * severity policy, docs/DESIGN_RULES_PLAN.md §5) and a template with no project context
+   * still airs on a TV. Pass `false` to skip them entirely (a caller measuring something
+   * else, e.g. a fixture bench that would drown in them).
+   */
+  legibility?: ProjectLegibility | null | false;
 }
 
 /** Merge validation results: errors and warnings concatenate, ok = no errors anywhere. */
@@ -889,6 +900,16 @@ export async function benchTemplateRuntime(
     const flow = overflowIssues(leaves, exempt, win, { width, height }, 'with the default field values');
     errors.push(...flow.errors);
     warnings.push(...flow.warnings);
+
+    // ── The design rules, as plain-language warnings (R4: warn-first, never blocking) ──
+    // Measured here, on the settled default look with the whole path walked - the frame
+    // that goes to air. Size vs role, contrast + protection, safe area for field-bound
+    // text, and the ticker-margin rule where a crawl exists; each warning states the
+    // viewing profile it was computed under.
+    if (opts.legibility !== false) {
+      phase = 'design rules';
+      warnings.push(...designRulesWarnings(win.document, template, opts.legibility ?? null));
+    }
 
     // ── Can the brand mark be SEEN where the design puts it? ─────────────────────────
     // Here, on the settled default look, for the same reason the field-paint drive is: this is

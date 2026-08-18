@@ -18,6 +18,7 @@ import { startAiRun, type AiRunKind, type AiRunRecorder } from './telemetry';
 import { parseDefinition } from '../model/spxDefinition';
 import { type SpxTemplate, type TemplateType, DEFAULT_SETTINGS } from '../model/types';
 import { DEFAULT_GRAPHICS_FORMAT, DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
+import { legibilityPromptBlock } from '../model/designRules';
 import { parseDataUrl } from '../assets/assetUtils';
 import type { ReferencePurpose } from '../model/imagePurpose';
 import { validateTemplate, type ValidationResult } from '../validation/validateTemplate';
@@ -597,6 +598,13 @@ export function contextText(prompt: string, ctx?: GenerateContext): string {
   const parts = [`Create a broadcast graphics template.\n\nUser brief: ${prompt}`];
   if (ctx) {
     parts.push(`Canvas: ${ctx.resolution.width}×${ctx.resolution.height} @ ${ctx.fps} fps.`);
+    // The project's legibility settings, as prose GENERATED from the canonical rules module
+    // (model/designRules.ts - one module, zero drift). Rides the USER message here, never a
+    // system prompt; absent when the caller carries no settings, so bench controls and
+    // callers that predate it are byte-identical.
+    if (ctx.legibility) {
+      parts.push(legibilityPromptBlock(ctx.legibility, ctx.resolution));
+    }
     if (ctx.palette) {
       parts.push(
         `Brand colors (use EXACTLY these as the :root vars): --accent: ${ctx.palette.accent}; ` +

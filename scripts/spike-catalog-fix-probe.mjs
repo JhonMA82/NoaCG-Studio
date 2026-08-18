@@ -56,9 +56,9 @@ await page.evaluate(async () => {
   const bust = '?t=' + Date.now();
   const cat = await import('/src/templates/catalog.ts' + bust);
   const { composeDocument } = await import('/src/preview/composeDocument.ts' + bust);
-  const { measureReadability } = await import('/src/ai/spike/readabilityCheck.ts' + bust);
+  const { measureReadability } = await import('/src/validation/readabilityCheck.ts' + bust);
   const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts' + bust);
-  const { measureTickerMargins } = await import('/src/ai/spike/tickerCheck.ts' + bust);
+  const { measureTickerMargins } = await import('/src/validation/tickerCheck.ts' + bust);
   const anchors = await import('/src/ai/spike/anchors.ts' + bust);
   window.__cat = cat;
   window.__anchors = anchors;

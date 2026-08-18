@@ -1,0 +1,298 @@
+import { test, expect, type Page, type Route } from '@playwright/test';
+import { createProject, enableAdvancedMode } from './_create';
+import { pickDesign } from './_browse';
+import { settleDurableWrites, awaitDurableReady } from './_durable';
+
+// THE DESIGN RULES AS A PRODUCT PROPERTY (docs/DESIGN_RULES_PLAN.md §5 R4).
+//
+// What is pinned here, per the ratified severity policy (owner, 2026-08-19):
+//   · the wizard's viewing-target select and the two size-floor toggles PERSIST with the
+//     project (additive optional - the default state serializes to nothing);
+//   · switching "Broadcast text sizes" OFF changes the AI REQUEST - the design-rules block
+//     on the user message carries the relaxed-floors honesty line (no tokens: the gateway is
+//     mocked at the network level, the ai.spec pattern);
+//   · undersized text yields a plain-language WARNING in the editor's export panel and the
+//     export still runs - warnings never block (the catalog's 312 audit-indicted designs
+//     stay shipped and simply warn);
+//   · the computed floors scale off the template's OWN frame (short side), so 16:9 and 9:16
+//     share one floor while 720p gets a smaller one - the math is node-tested
+//     (scripts/design-rules.test.mjs); this pins the product wiring.
+
+// A house-shaped template whose ONE text line renders at 24px - under every profile's
+// primary floor (~50px at 1080p, ~33px at 720p), while passing validation and the bench.
+const SMALL_TEMPLATE = {
+  name: 'Tiny Slate',
+  type: 'info-card',
+  summary: 'A slate whose primary line is deliberately under the broadcast floor.',
+  html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tiny Slate</title>
+  <script src="js/gsap.min.js"></script>
+  <link rel="stylesheet" href="css/template.css" />
+  <script src="js/template.js"></script>
+  <script>window.SPXGCTemplateDefinition = {
+    "description": "Tiny Slate",
+    "playserver": "OVERLAY", "playchannel": "1", "playlayer": "7",
+    "webplayout": "7", "out": "manual", "dataformat": "json",
+    "DataFields": [ { "field": "f0", "ftype": "textfield", "title": "Name", "value": "Hello Tiny" } ]
+  };</script>
+</head>
+<body>
+  <div class="slate">
+    <div class="slate-box"><span id="f0">Hello Tiny</span></div>
+  </div>
+</body>
+</html>`,
+  css: `:root { --accent: #e8c547; --text-color: #ffffff; --text-dim: rgba(255,255,255,0.7); --panel-bg: rgba(12,14,18,0.92); --font-heading: sans-serif; --scale: 1; }
+.slate { position: absolute; left: 120px; bottom: 120px; opacity: 0; }
+.slate-box { color: var(--text-color); background: var(--panel-bg); font-size: 24px; padding: calc(20px * var(--scale)); width: fit-content; max-width: calc(900px * var(--scale)); overflow-wrap: break-word; }`,
+  js: `function update(data) {
+  var fields = (typeof data === 'string') ? JSON.parse(data) : data;
+  for (var key in fields) { var el = document.getElementById(key); if (el) el.textContent = fields[key]; }
+}
+/* == ANIMATION (generated — the timeline edits the data block below) == */
+var NOACG_ANIM = {
+  "version": 1,
+  "root": ".slate",
+  "speed": 1,
+  "steps": [
+    { "name": "In", "duration": 0.5, "ease": "power2.out", "layers": { ".slate": { "opacity": [ { "time": 0, "value": 0 }, { "time": 0.5, "value": 1 } ] } } },
+    { "name": "Out", "duration": 0.3, "ease": "power2.in", "layers": { ".slate": { "opacity": [ { "time": 0.3, "value": 0 } ] } } }
+  ]
+};
+function buildInTimeline() { var tl = gsap.timeline(); tl.to('.slate', { opacity: 1, duration: 0.5, ease: 'power2.out' }); return tl; }
+function buildOutTimeline() { var tl = gsap.timeline(); tl.to('.slate', { opacity: 0, duration: 0.3, ease: 'power2.in' }); return tl; }
+/* == END ANIMATION == */
+function play() { gsap.killTweensOf('*'); buildInTimeline(); }
+function stop() { gsap.killTweensOf('*'); buildOutTimeline(); }
+function next() {}`,
+};
+
+/** The whole text of a mocked gateway request - what the model was actually told. */
+function requestText(route: Route): string {
+  const body = route.request().postDataJSON() as {
+    request: { messages: { content: { type: string; text?: string }[] | string }[] };
+  };
+  return body.request.messages
+    .map((m) => (Array.isArray(m.content) ? m.content.map((c) => c.text ?? '').join(' ') : m.content))
+    .join(' ');
+}
+
+function toolUse(input: unknown) {
+  return {
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      output: input,
+      provider: 'anthropic',
+      model: 'claude-sonnet-5',
+      usage: { inputTokens: 4200, outputTokens: 1100, totalTokens: 5300 },
+      attempts: [{ route: { provider: 'anthropic', model: 'claude-sonnet-5' }, attempts: 1 }],
+    }),
+  };
+}
+
+/** Raw one-shot config (useHarness false): ONE mocked call, straight to the coder tool. */
+async function rawAiConfig(page: Page): Promise<void> {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'spx-gfx-ai',
+      JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: false }),
+    ),
+  );
+}
+
+async function openAiStep(page: Page) {
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="ai"]').click();
+}
+
+// A generation runs the real quality gate (live bench); same honest budget ai.spec carries.
+const GENERATED = { timeout: 25_000 };
+
+test.beforeEach(async ({ page }) => {
+  test.setTimeout(60_000);
+  await enableAdvancedMode(page);
+});
+
+test('the wizard viewing settings persist with the project across a reload', async ({ page }) => {
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await page.locator('[data-entry="template"]').click();
+  await pickDesign(page, 'Hairline');
+  // Fields → Style: the Viewing section lives with the other look decisions.
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await expect(page.getByTestId('wz-viewing')).toBeVisible();
+
+  await page.getByTestId('wz-viewing-profile').selectOption('streaming');
+  // "Broadcast text sizes" OFF = the deliberate small-by-request act ('relaxed').
+  await page.getByTestId('wz-broadcast-sizes').uncheck();
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.getByTestId('wz-finish-editor').click();
+  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+
+  // The create landed the settings on the store; the debounced autosave persists them with
+  // the working slot. Poll the mirror rather than sleeping out the debounce.
+  await expect
+    .poll(async () =>
+      page.evaluate(async () => {
+        const { loadProject } = await import('/src/model/project.ts');
+        return loadProject()?.legibility ?? null;
+      }),
+    )
+    .toEqual({ viewing: { profile: 'streaming' }, floors: 'relaxed' });
+
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.locator('.topbar')).toBeVisible();
+  await awaitDurableReady(page);
+  const restored = await page.evaluate(async () => {
+    const { loadProject } = await import('/src/model/project.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return { slot: loadProject()?.legibility ?? null, store: useTemplateStore.getState().legibility };
+  });
+  expect(restored.slot).toEqual({ viewing: { profile: 'streaming' }, floors: 'relaxed' });
+  expect(restored.store).toEqual({ viewing: { profile: 'streaming' }, floors: 'relaxed' });
+});
+
+test('an untouched project serializes NO legibility key at all', async ({ page }) => {
+  await createProject(page, 'Hairline');
+  await expect
+    .poll(async () =>
+      page.evaluate(async () => {
+        const { loadProject } = await import('/src/model/project.ts');
+        const p = loadProject();
+        return p ? 'legibility' in p && p.legibility !== undefined && p.legibility !== null : null;
+      }),
+    )
+    .toBe(false);
+});
+
+test('switching Broadcast text sizes OFF changes the AI request to the relaxed mode', async ({ page }) => {
+  await rawAiConfig(page);
+  const requests: string[] = [];
+  await page.route('/api/ai/generate', (route: Route) => {
+    requests.push(requestText(route));
+    return route.fulfill(toolUse(SMALL_TEMPLATE));
+  });
+  await openAiStep(page);
+
+  await page.getByTestId('wz-viewing-profile').selectOption('streaming');
+  await page.getByTestId('wz-broadcast-sizes').uncheck();
+  await page.locator('.wz-step textarea').fill('A dense stats panel, small type is fine');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
+
+  // The request the model actually received: the rules block rides the user message, and the
+  // relaxed line states honestly that the customer chose the smaller scale.
+  expect(requests.length).toBe(1);
+  expect(requests[0]).toContain('BROADCAST LEGIBILITY RULES');
+  expect(requests[0]).toContain('viewed on streaming');
+  expect(requests[0]).toContain('SIZE FLOORS RELAXED BY THE CUSTOMER');
+  // The result card stamps what its request carried - the wizard-to-request wiring, visible.
+  await expect(page.locator('.change-preview')).toHaveAttribute('data-legibility', 'relaxed:streaming');
+});
+
+test('with the defaults the AI request carries the binding rules and no relaxed line', async ({ page }) => {
+  await rawAiConfig(page);
+  const requests: string[] = [];
+  await page.route('/api/ai/generate', (route: Route) => {
+    requests.push(requestText(route));
+    return route.fulfill(toolUse(SMALL_TEMPLATE));
+  });
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A clean news lower third');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
+
+  expect(requests[0]).toContain('BROADCAST LEGIBILITY RULES');
+  expect(requests[0]).toContain('viewed on tv');
+  expect(requests[0]).not.toContain('SIZE FLOORS RELAXED');
+  await expect(page.locator('.change-preview')).toHaveAttribute('data-legibility', 'standard:tv');
+});
+
+test('undersized primary text warns in the editor in plain language and still exports', async ({ page }) => {
+  await rawAiConfig(page);
+  await page.route('/api/ai/generate', (route: Route) => route.fulfill(toolUse(SMALL_TEMPLATE)));
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A tiny slate');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page.locator('.wz-step .status-ok')).toContainText('Passes SPX validation', GENERATED);
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await page.getByTestId('wz-finish-editor').click();
+  await expect(page.locator('.topbar .tpl-name')).toHaveText('Tiny Slate');
+
+  // The export panel: the design-rules warning, in the ratified plain-language copy, naming
+  // the viewing context it was computed under.
+  await page.getByTestId('dock-tab-export').click();
+  const warning = page.locator('.issue.warn', { hasText: 'legibility-size' });
+  await expect(warning.first()).toContainText('smaller than the ~50px we recommend for TV viewing distance', {
+    timeout: 15_000,
+  });
+  await expect(warning.first()).toContainText('may be hard to read from a couch');
+
+  // WARN-FIRST: no errors, and the download is live - export never blocks on these.
+  await expect(page.locator('.issue.error')).toHaveCount(0);
+  const download = page.getByRole('button', { name: /Validate & download/i });
+  await expect(download).toBeEnabled();
+  const saved = page.waitForEvent('download');
+  await download.click();
+  expect((await saved).suggestedFilename()).toMatch(/\.zip$/);
+});
+
+test('a shipped catalog design warns under the same rule and is not blocked', async ({ page }) => {
+  // lt14 is one of the audit's named rows (primary at 38px against the ~50px floor,
+  // benchmarks/design-rules/AUDIT-2026-08-19.md) - it stays shipped and simply warns.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const name = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    return variantById('lt14')?.name ?? null;
+  });
+  expect(name).toBeTruthy();
+  await createProject(page, name!);
+
+  await page.getByTestId('dock-tab-export').click();
+  const warning = page.locator('.issue.warn', { hasText: 'legibility-size' });
+  await expect(warning.first()).toContainText('we recommend for TV viewing distance', { timeout: 15_000 });
+  await expect(page.locator('.issue.error')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Validate & download/i })).toBeEnabled();
+});
+
+test('the computed floors scale off the template frame: 16:9 = 9:16, 720p smaller', async ({ page }) => {
+  // The math is node-tested (scripts/design-rules.test.mjs); this pins the PRODUCT wiring:
+  // checkTemplateLegibility computes each warning off the template's own resolution.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const floors = await page.evaluate(async (tpl) => {
+    const { checkTemplateLegibility } = await import('/src/validation/designRulesWarnings.ts');
+    const { DEFAULT_SETTINGS } = await import('/src/model/types.ts');
+    const at = async (width: number, height: number) => {
+      const template = {
+        ...tpl,
+        assets: [],
+        fields: [{ field: 'f0', ftype: 'textfield', title: 'Name', value: 'Hello Tiny' }],
+        settings: DEFAULT_SETTINGS,
+        resolution: { width, height },
+        fps: 50,
+      };
+      const warnings = await checkTemplateLegibility(template, null);
+      const size = warnings.find((w) => w.rule === 'legibility-size');
+      return size ? /~(\d+)px we recommend/.exec(size.message)?.[1] ?? null : null;
+    };
+    return {
+      landscape: await at(1920, 1080),
+      portrait: await at(1080, 1920),
+      hd720: await at(1280, 720),
+    };
+  }, SMALL_TEMPLATE);
+  // One table serves 16:9 and 9:16 - the short side is 1080 in both - while a 720p frame
+  // composes a proportionally smaller floor (4.6% of 720 ≈ 33px).
+  expect(floors.landscape).toBe('50');
+  expect(floors.portrait).toBe('50');
+  expect(floors.hd720).toBe('33');
+});

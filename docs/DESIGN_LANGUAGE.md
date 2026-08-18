@@ -51,6 +51,12 @@ user-facing facet names rather than CSS jargon (`docs/TEMPLATE_TAXONOMY_PROPOSAL
   on any violation, so a design that wants a quieter voice gets it through weight, color and
   tracking, never through size. If a design cannot make its hierarchy work above the floor, the
   design is too dense - cut a line rather than shrink one.
+- **The binding legibility numbers live in `src/model/designRules.ts`** (the owner's ratified
+  size table by role x mode x viewing profile, plus the weight, stroke, safe-area and
+  contrast+protection floors - docs/DESIGN_RULES_PLAN.md). This document is the taste; that
+  module is the measurement, read by the AI prompts, the iterate loop's instruments and the
+  product validator's warn-first checks alike. Never copy one of its numbers into prose here -
+  point at it.
 - **A live number never changes the shape of its graphic.** A clock, a countdown, a score, a
   tally, a percentage and a count-up all repaint several times a second; with proportional
   figures "11:11" is narrower than "00:00", so the box twitches on every tick. That is the most

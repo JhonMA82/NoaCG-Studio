@@ -3,9 +3,13 @@
 // on the right and not on the left: a ticker goes full-bleed or carries equal margins both
 // sides", X-45's off-centre box).
 //
-// BENCH-ONLY (the spike directory's standing rule). A statable, measurable, BLOCKING rule:
-// unlike the calibrated spacing thresholds this is binary geometry, so it blocks on the
-// ticker type without calibration - the same argument that makes a collision block everywhere.
+// Lived in src/ai/spike/ while it was bench-only; moved here in R4 (docs/DESIGN_RULES_PLAN.md
+// §5) so the product validator and the spike runners measure through the SAME code. In the
+// LOOP it is a statable, measurable, BLOCKING rule: unlike the calibrated spacing thresholds
+// this is binary geometry, so it blocks on the ticker type without calibration - the same
+// argument that makes a collision block everywhere. On PRODUCT surfaces it lands as a
+// warning, like every R4 check (the ratified severity policy: hard where the machine
+// decides, warning where a human does).
 //
 // WHAT COUNTS AS THE BAND: the widest painted surface spanning at least half the frame. A
 // ticker without such a band has no band to measure, and this instrument stays silent - the
