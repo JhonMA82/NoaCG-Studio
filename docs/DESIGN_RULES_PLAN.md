@@ -160,3 +160,38 @@ safe area, hierarchy, density, stress survival, strokes, motion-readability, out
 function, screen suitability. Success = the fail-closed gate's DELIVER signal agrees with
 the owner's read (delivered-clean ≈ airable), with zero collision-class or size-class
 escapes. Then R4 makes the rules a permanent property of every generation surface.
+
+## 8. R4 landed - 2026-08-18, under the ratified severity policy
+
+The owner's severity ruling (2026-08-19): **HARD where the MACHINE decides, WARNING where a
+HUMAN decides, and moving between them is an explicit, visible act.** What shipped:
+
+- **Per-project legibility settings** (`ProjectLegibility`, model/designRules.ts): viewing
+  target `{profile, note?}` plus ONE tri-state `floors: 'relaxed' | 'safe'` (absent =
+  standard) - the "Broadcast text sizes" toggle OFF is 'relaxed', the "Guaranteed readable
+  size" checkbox ON is 'safe'; they are mirrors and the interlock lives in the shared
+  wizard control. Persisted as additive optional fields on SavedProject and GraphicDoc
+  (`legibility`), and the DEFAULT state serializes to nothing. Venue stays a tv-alias stub.
+- **Wizard UI** (`components/wizard/ViewingControls.tsx`): the viewing single select +
+  both toggles, on the Style step (catalog walk) and the Create-with-AI step. Format/aspect
+  stays its own control. A custom profile carries a free-text note to the prompt.
+- **The prompt block rides every product generation**: `GenerateContext.legibility` ->
+  `contextText` renders `legibilityPromptBlock` on the USER message. Relaxed floors state
+  honestly that the customer chose a denser scale - a paper trail, never a silent bypass.
+- **The product validator warns first, everywhere**: `readabilityCheck.ts` and
+  `tickerCheck.ts` MOVED from the spike into src/validation (one instrument for loop and
+  product; the spike runners import the new path), and `designRulesWarnings.ts` phrases
+  their structured findings as plain-language warnings naming the viewing profile
+  ("Primary text is 38px - smaller than the ~50px we recommend for TV viewing distance…").
+  Composed into the runtime bench, the editor's export panel (offscreen settled frame) and
+  the community publish sheet. Export never blocks on them; the catalog's 20px hard
+  type-floor gate is unchanged and the 312 audit-indicted designs stay shipped, warning.
+- **Pins**: scripts/design-rules.test.mjs (resolve/normalize/prompt-block math, build gate)
+  + e2e/design-rules-product.spec.ts (persistence across reload, the request-level relaxed
+  mode over the mocked gateway, editor warning + non-blocking export, the catalog warning,
+  16:9 = 9:16 = one floor while 720p composes ~33px).
+
+Still owed from §23.1, not part of this slice: the catalog fixes for tk01/ig01/sb01, the
+countdown spacing-threshold relaxation, the control-page smoke in the loop, and the owner's
+re-ratification of the 50px primary floor for CATALOG enforcement (until then it reaches
+shipped designs only as the warning above).

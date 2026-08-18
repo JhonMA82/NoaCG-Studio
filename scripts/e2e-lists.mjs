@@ -14,6 +14,7 @@ export const FOCUS = [
   'advanced-mode.spec.ts',
   'auth.spec.ts',
   'control.spec.ts',
+  'design-rules-product.spec.ts',
   'exports.spec.ts',
   'feedback.spec.ts',
   'flows.spec.ts',
