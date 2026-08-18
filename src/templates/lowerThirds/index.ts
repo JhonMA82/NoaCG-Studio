@@ -87,6 +87,7 @@ import { lt58 } from './lt58';
 import { lt59 } from './lt59';
 import { lt60 } from './lt60';
 import { lt61 } from './lt61';
+import { lt62 } from './lt62';
 
 
 /** The matrix above, in browse order: the generalist straps, grouped by style family. */
@@ -146,6 +147,7 @@ const GENERAL_LOWER_THIRDS: TemplateVariant[] = [
   lt57, // Volt Call — leaning call-to-action slab (call-to-action type, sport)
   lt58, // Clean Call - minimal hairline call-to-action strap
   lt61, // Poster Slab - a condensed poster billing on a cut slab
+  lt62, // House Weather - current conditions: place, tabular temperature, condition, wind
   // Modern social / glass
   lt08, // Frosted Card — backdrop-blur glass card (logo slot)
   lt09, // Gradient Pill — compact pill, name + handle inline

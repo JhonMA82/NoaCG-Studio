@@ -172,6 +172,12 @@
    ".lower-third-mask:y"
   ]
  },
+ "lt62": {
+  "off": [],
+  "clip": [
+   ".lower-third-mask:y"
+  ]
+ },
  "lt08": {
   "off": [],
   "clip": [
@@ -1547,6 +1553,12 @@
   ]
  },
  "bug27": {
+  "off": [],
+  "clip": [
+   ".corner-bug-mask:y"
+  ]
+ },
+ "bug37": {
   "off": [],
   "clip": [
    ".corner-bug-mask:y"
