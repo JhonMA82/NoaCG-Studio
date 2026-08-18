@@ -47,7 +47,10 @@ const resume = flag('resume');
 const IMAGES = path.resolve(value('images') ?? 'example-import-graphics');
 const OUT = path.resolve(value('out') ?? 'recreate-out');
 const MAX_ITERATIONS = Number(value('max-iterations') ?? 4);
-const MIN_SIMILARITY = Number(value('min-similarity') ?? 0.85);
+// 0.7 of active blocks, not higher: an independent HTML rebuild of a rasterised design tops
+// out well under identity even when a viewer calls it the same graphic (textures, glyph
+// rasterisation, soft shadows). The floor gates the LOOP; the owner's gallery read judges.
+const MIN_SIMILARITY = Number(value('min-similarity') ?? 0.7);
 const DECODING = path.resolve('benchmarks/pro/v1/spike/decoding.json');
 
 if (!control && !paid) {
@@ -152,22 +155,52 @@ async function loadReference(file) {
     };
     const greyish = ([r, g, b]) => Math.max(r, g, b) - Math.min(r, g, b) <= 12 && r >= 90;
     const close = (a, b, tol) => Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2])) <= tol;
+    // Several anchors, because the checker is only visible where the GRAPHIC is not - a HUD
+    // frame decorates every corner, a glow tints one - and a single-corner probe missed 3 of
+    // the 5 real files. The first anchor whose neighbourhood walks like a checker wins.
     let checker = null; // { g1, g2, period }
-    const c0 = at(2, 2);
-    if (greyish(c0)) {
+    const anchors = [
+      [2, 2], [sc.width - 120, 2], [2, sc.height - 120], [sc.width - 120, sc.height - 120],
+      [Math.floor(sc.width / 2), 2], [2, Math.floor(sc.height / 2)],
+      [sc.width - 120, Math.floor(sc.height / 2)], [Math.floor(sc.width / 2), sc.height - 120],
+    ];
+    for (const [ax, ay] of anchors) {
+      if (checker || ax < 0 || ay < 0) continue;
+      const c0 = at(ax, ay);
+      if (!greyish(c0)) continue;
       // Walk right until the tone changes: that run length is the tile period candidate.
       let p = 0;
-      for (let x = 3; x < Math.min(sc.width, 200); x++) {
-        if (!close(at(x, 2), c0, 14)) { p = x - 2; break; }
+      for (let x = ax + 1; x < Math.min(sc.width, ax + 200); x++) {
+        if (!close(at(x, ay), c0, 14)) { p = x - ax; break; }
       }
-      if (p >= 4 && p <= 96) {
-        const c1 = at(2 + p, 2);
-        const diagonal = at(2 + p, 2 + p);
-        const below = at(2, 2 + p);
-        if (greyish(c1) && !close(c0, c1, 10) && close(diagonal, c0, 14) && close(below, c1, 14)) {
-          checker = { g1: c0, g2: c1, period: p };
-        }
+      if (p < 4 || p > 96 || ax + 2 * p >= sc.width || ay + 2 * p >= sc.height) continue;
+      const c1 = at(ax + p, ay);
+      const diagonal = at(ax + p, ay + p);
+      const below = at(ax, ay + p);
+      if (greyish(c1) && !close(c0, c1, 10) && close(diagonal, c0, 14) && close(below, c1, 14)) {
+        checker = { g1: c0, g2: c1, period: p };
       }
+    }
+
+    // The reference's own FLAT outer backdrop is a stand-in too (the light grey or dark
+    // navy design tools export behind an overlay) - the contract tells the model not to
+    // paint it, so the diff must not score it either. Round 1 measured the cost of skipping
+    // this: an excellent recreation scored 18%, the whole verdict eaten by grey-vs-empty.
+    // Detected on the border ring, and only when NEAR-UNIFORM there - a gradient or textured
+    // border (a full-screen design's own background) stays, because there the background IS
+    // the design and the model must rebuild it.
+    let backdrop = null;
+    if (!checker) {
+      const ring = [];
+      const step = Math.max(2, Math.floor(Math.min(sc.width, sc.height) / 200));
+      for (let x = 0; x < sc.width; x += step) ring.push(at(x, 1), at(x, sc.height - 2));
+      for (let y = 0; y < sc.height; y += step) ring.push(at(1, y), at(sc.width - 2, y));
+      const med = [0, 1, 2].map((c) => {
+        const s = ring.map((p) => p[c]).sort((m, n) => m - n);
+        return s[Math.floor(s.length / 2)];
+      });
+      const covered = ring.filter((p) => close(p, med, 10)).length / ring.length;
+      if (covered >= 0.6) backdrop = med;
     }
 
     const canvas = document.createElement('canvas');
@@ -177,16 +210,58 @@ async function loadReference(file) {
     g.fillStyle = '#333333';
     g.fillRect(0, 0, W, H);
     g.drawImage(img, ox, oy, w, h);
-    if (checker) {
-      // Neutralise every checker-toned pixel to the backdrop. Tone-based (not grid-phase),
-      // so slight JPEG blur on tile borders lands inside the tolerance too.
+    // Neutralise the stand-in by FLOOD FILL from the frame border, never by tone alone: only
+    // the outer CONNECTED region is the export's backdrop. A global tone match ate a design's
+    // white subtitle bar sitting 8 counts from the grey backdrop - and the loop then
+    // faithfully taught the model to paint the bar dark, converging on the corrupted
+    // reference. Interior pixels sharing the backdrop's tone are design and stay.
+    if (backdrop || checker) {
+      const standIn = (r, gg, b) => {
+        const px = [r, gg, b];
+        if (backdrop) return close(px, backdrop, 12);
+        return (
+          Math.max(r, gg, b) - Math.min(r, gg, b) <= 14 &&
+          (close(px, checker.g1, 16) || close(px, checker.g2, 16))
+        );
+      };
       const id = g.getImageData(0, 0, W, H);
       const d = id.data;
-      for (let i = 0; i < d.length; i += 4) {
-        const px = [d[i], d[i + 1], d[i + 2]];
-        if (Math.max(...px) - Math.min(...px) <= 14 && (close(px, checker.g1, 16) || close(px, checker.g2, 16))) {
-          d[i] = 0x33; d[i + 1] = 0x33; d[i + 2] = 0x33;
-        }
+      const seen = new Uint8Array(W * H);
+      const queue = [];
+      const push = (x, y) => {
+        if (x < 0 || y < 0 || x >= W || y >= H) return;
+        const i = y * W + x;
+        if (seen[i]) return;
+        const p = i * 4;
+        // The #333 letterbox around a non-16:9 fit is part of the outer region too.
+        const letterbox = d[p] === 0x33 && d[p + 1] === 0x33 && d[p + 2] === 0x33;
+        if (!letterbox && !standIn(d[p], d[p + 1], d[p + 2])) return;
+        seen[i] = 1;
+        queue.push(i);
+      };
+      for (let x = 0; x < W; x++) {
+        push(x, 0);
+        push(x, H - 1);
+      }
+      for (let y = 0; y < H; y++) {
+        push(0, y);
+        push(W - 1, y);
+      }
+      while (queue.length) {
+        const i = queue.pop();
+        const x = i % W;
+        const y = (i / W) | 0;
+        push(x + 1, y);
+        push(x - 1, y);
+        push(x, y + 1);
+        push(x, y - 1);
+      }
+      for (let i = 0; i < seen.length; i++) {
+        if (!seen[i]) continue;
+        const p = i * 4;
+        d[p] = 0x33;
+        d[p + 1] = 0x33;
+        d[p + 2] = 0x33;
       }
       g.putImageData(id, 0, 0);
     }
@@ -194,6 +269,7 @@ async function loadReference(file) {
     return {
       fittedBase64: fitted.split(',')[1],
       checkerboard: Boolean(checker),
+      backdrop: backdrop ? `#${backdrop.map((v) => v.toString(16).padStart(2, '0')).join('')}` : null,
       sourceWidth: img.naturalWidth,
       sourceHeight: img.naturalHeight,
     };
@@ -257,10 +333,15 @@ async function capture(template, data, file) {
 }
 
 /**
- * The SIMILARITY read: the rendered hold against the fitted reference, both at 480x270 over
- * the same backdrop. Score = share of pixels within tolerance; findings name the worst grid
- * cells in frame coordinates with both sides' mean colour, so the model is told WHERE and
- * WHAT rather than "differs".
+ * The SIMILARITY read: the rendered hold against the fitted reference, both downscaled to
+ * 240x135 - every pixel is the MEAN of an 8x8 source block, which is the "same design at
+ * viewing distance" question. Per-pixel identity at higher resolution was measured too
+ * harsh: an excellent recreation scored 31% because no independent HTML rebuild matches a
+ * reference's glyph rasterisation, antialiased edges or texture grain pixel-for-pixel -
+ * block means average those away while a wrong colour, a missing element or a shifted panel
+ * still moves whole blocks. Score = share of ACTIVE blocks within tolerance; findings name
+ * the worst grid cells in frame coordinates with both sides' mean colour, so the model is
+ * told WHERE and WHAT rather than "differs".
  */
 async function similarity(referenceB64, renderB64) {
   return page.evaluate(async ({ referenceB64, renderB64 }) => {
@@ -271,8 +352,8 @@ async function similarity(referenceB64, renderB64) {
       i.src = 'data:image/png;base64,' + b64;
     });
     const [ref, ren] = await Promise.all([load(referenceB64), load(renderB64)]);
-    const W = 480;
-    const H = 270;
+    const W = 240;
+    const H = 135;
     const draw = (img) => {
       const c = document.createElement('canvas');
       c.width = W;
@@ -285,7 +366,7 @@ async function similarity(referenceB64, renderB64) {
     };
     const a = draw(ref);
     const b = draw(ren);
-    const TOL = 32;
+    const TOL = 28;
     // Score over the ACTIVE area only: pixels where either side differs from the shared
     // backdrop. A lower third covers a twentieth of the frame, so a whole-frame score is
     // dominated by empty-vs-empty agreement - the control's mutation (two DIFFERENT designs)
@@ -667,6 +748,7 @@ if (control) {
       continue;
     }
     if (reference.checkerboard) console.log('  painted transparency checkerboard detected - masked.');
+    if (reference.backdrop) console.log(`  flat stand-in backdrop ${reference.backdrop} detected - masked.`);
     try {
       const result = await runGraphic(slug, reference, async (previous) => {
         return page.evaluate(async (input) => {
