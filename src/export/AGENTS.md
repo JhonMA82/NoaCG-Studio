@@ -101,8 +101,39 @@ export-time reflow, stretching, or cropping.
   + controlpanel.html bundled.
 - **targets/h2r.ts** - H2R Custom HTML: GDD block from DataFields + play()-toggle shim.
 - **targets/casparcg.ts** - selfContained + JSON/XML data shim.
+- **targets/ografSchema.ts** - THE CONFORMANCE GATE, and the reason "we export to the EBU's open
+  standard" is a checkable claim rather than a slogan. The published manifest schema is seven
+  JSON-Schema files; they are transcribed here as a validator (one function per schema file, same
+  names, so a spec revision is a readable diff) because shipping a JSON-Schema engine for one
+  manifest is the no-unnecessary-dependencies rule read backwards. Two rules it exists for, both
+  silent when broken: EVERY object in the spec is `additionalProperties: false` with a
+  `^v_.*` escape, so any field we invent that is not `v_`-prefixed invalidates the whole
+  manifest; and `gdd/basic-types.json` types a property's `default` BY ITS DECLARED TYPE, so a
+  checkbox declared `"type": "boolean"` carrying the SPX string `"true"` is invalid - a host
+  either rejects it or coerces it into something else on air. `validateOgrafPackage` is the
+  dangling-refs doctrine for OGraf: a `main` (or thumbnail) the package does not contain fails at
+  the renderer as a network error the operator reads as "the graphic is broken".
+  `addOgrafPackage` runs BOTH - manifest before writing, package after - so every target built on
+  it inherits the gate. Coverage is `e2e/ograf-conformance.spec.ts`, which sweeps the WHOLE
+  catalog in all three export intents (a single category's field mix can be the only invalid one)
+  and mutation-tests the validator itself.
 - **targets/ograf.ts** - EBU OGraf v1: manifest from DataFields + graphic.mjs Web Component;
   AMD-guarded gsap loader. Export intent maps to live/non-real-time manifest capabilities.
+  The manifest also declares `renderRequirements` (the authored canvas + fps as `ideal`
+  constraints - a statement of what it was designed for, never `exact`, which would tell a 1080p
+  renderer to refuse a 4K-authored graphic) and `actionDurations` MEASURED off the graphic's own
+  NOACG_ANIM timeline (entrance, per-step, exit; speed-corrected to ms) so a host can pre-roll a
+  take. A custom action's duration is `-1` (the spec's "dynamic") because it depends on the
+  machine's current state, and a template whose timeline we cannot read emits no durations at all
+  - the spec's answer to unknown is silence, not a guess.
+  Three MUSTs of the Web Component contract live in the generated class, and each is invisible
+  when missing: `skipAnimation` lands an action instantly (via the template's OWN `noacgSnap`,
+  which composes a state's settled pose with callbacks suppressed - so a skipped play is
+  pixel-identical to a finished one), every action runs through ONE serial chain because the spec
+  forbids ignoring a call that arrives while a previous one is pending, and no action ever
+  rejects: too early or after `dispose()` answers `409`, an internal failure `500`. A renderer
+  can log a status code; it cannot log an unhandled rejection.
+  The broadcaster-facing summary is `docs/OGRAF.md` - keep it in agreement with this target.
   Non-real-time seeks rebuild an isolated document and replay the OGraf action schedule through
   `render/runtimeScript.ts`'s virtual clock, so timestamp order cannot leak state. The target's
   conservative compatibility gate must pass before `supportsNonRealTime` is advertised.
