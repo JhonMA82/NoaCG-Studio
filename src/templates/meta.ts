@@ -454,9 +454,12 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   card82: { category: 'topic', subtype: 'topic', structures: ['multi-line'], positionalSemantics: ['topic', 'headline', 'description'] },
   card83: { category: 'title', subtype: 'show-open', structures: ['multi-line'], positionalSemantics: ['headline', 'headline', 'headline', 'description'] },
   // The holding fallback's third field is a DURATION; on both of these it is the countdown's
-  // LABEL, and ss19 is a break card rather than a front door.
-  ss18: { category: 'holding', subtype: 'starting', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['headline', 'description', 'headline'], extraCapabilities: ['countdown', 'loop'] },
-  ss19: { category: 'holding', subtype: 'break', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['headline', 'topic', 'description'], extraCapabilities: ['countdown', 'loop'] },
+  // LABEL, and ss19 is a break card rather than a front door. Both run to the FULL field list,
+  // not just the visible lines: the starting-soon assembler appends the clock's own fields after
+  // them (a 'minutes' number, and a wall-clock start time on ss18), and the factory gate compares
+  // a declaration against the compiled schema rather than against the line count.
+  ss18: { category: 'holding', subtype: 'starting', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['headline', 'description', 'headline', 'duration', 'time'], extraCapabilities: ['countdown', 'loop'] },
+  ss19: { category: 'holding', subtype: 'break', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['headline', 'topic', 'description', 'duration'], extraCapabilities: ['countdown', 'loop'] },
 };
 
 // ── Per-assembler fallback (single-valued, proposal §4) ─────────────────────
