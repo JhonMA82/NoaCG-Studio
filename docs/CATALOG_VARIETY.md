@@ -110,6 +110,13 @@ graphic CATEGORY predicts most of the rest.
 | weight steps | 5 | 2 40.3% | 2.5% | 26.1% |
 | type size steps | 5 | 3 34.4% | 1.1% | 30.2% |
 
+**Two rows carry the blind-instrument artefact** (2026-08-18, see "How it was measured"): the
+`panel treatment` and `drawn parts` axes both read 32 full-frame designs as one constant value,
+which is an axis a CATEGORY explains perfectly by construction. Re-measured over 490 designs,
+panel treatment is family **19.4%** / category **37.6%** (was 16.7 / 49.7) and drawn parts family
+**5.1%** / category **33.2%** (was 5.2 / 36.3). The finding is unchanged in direction and smaller
+in size: the category still explains roughly twice what the family does.
+
 Read the last three rows twice. **The style family explains 1–3% of a design's typography.** It
 owns a blur, a skew and a radius. Composition, hierarchy, weight, tracking, drawn furniture — the
 things that make one broadcaster's package unmistakable — are decided by *what kind of graphic it
@@ -323,9 +330,9 @@ round. Together they move seven of the twelve:
 
 | absence | was | now | what closed it |
 |---|---|---|---|
-| **1. a serif** | 0 | **5** | `lt59` `ls33` `card80` `cr13` in playfair-display / source-serif-4, `ss18` |
-| 2. a light, airy voice | 5 | 7 | `lt60` only; still effectively open |
-| **3. a quiet, lower-case voice** | 0 designs built without capitals | **4 deliberate** | `lt60` `card81` `cr13` `ss18` force no capitals anywhere; catalog-wide uppercase is unmoved at 88.2% |
+| **1. a serif** | 0 | **5** | `lt59` `ls33` `card80` `ss18` on playfair-display, `cr13` on source-serif-4 — the two bundled serifs are finally in use |
+| 2. a light, airy voice | 5 designs at weight ≤ 300 | 7 | only `lt60` was built for this line; still effectively open |
+| **3. a quiet, lower-case voice** | 88.5% force capitals somewhere | 88.2% — **unmoved** | the aggregate is the wrong measure here: `lt60` `card81` `cr13` `ss18` are the first four designs whose whole hierarchy is stated as a no-capitals decision in their own file |
 | **4. condensed-poster typography** | 4 | **8** | `lt61` `card82` `card83` `ss19` on anton / big-shoulders |
 | **5. a light package** | 0 designs, 2 palettes | **6 designs drawn on paper** | `lt59` `ls33` `card80` `card81` `ss18` `cr13` repaint the reading surface itself rather than take a light palette |
 | **6. print and texture** | 7 repeating gradients, 1 blend | **14** repeating gradients, 1 blend | the print register on `lt59` `lt61` `card80` `card82` `ss18` `cr13`; still 0 image surfaces |

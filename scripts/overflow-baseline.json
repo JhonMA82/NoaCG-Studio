@@ -1391,7 +1391,6 @@
    ".credits-leader:B",
    ".credits-leader:B",
    ".credits-leader:B",
-   ".credits-logo-slot:B",
    ".credits-name:B",
    ".credits-name:B",
    ".credits-name:B",
@@ -2543,43 +2542,6 @@
    ".credits-row:T",
    ".credits-rule:B",
    ".credits-year:B",
-   ".credits-year:B"
-  ],
-  "clip": [
-   ".credits-box:y"
-  ]
- },
- "cr13@image": {
-  "off": [
-   "#credits-track:B",
-   ".credits-end:B",
-   ".credits-heading:B",
-   ".credits-heading:B",
-   ".credits-leader:B",
-   ".credits-leader:B",
-   ".credits-leader:B",
-   ".credits-leader:B",
-   ".credits-leader:B",
-   ".credits-logo:B",
-   ".credits-name:B",
-   ".credits-name:B",
-   ".credits-name:B",
-   ".credits-name:B",
-   ".credits-name:B",
-   ".credits-page:B",
-   ".credits-page:B",
-   ".credits-page:B",
-   ".credits-role:B",
-   ".credits-role:B",
-   ".credits-role:B",
-   ".credits-role:B",
-   ".credits-role:B",
-   ".credits-row:B",
-   ".credits-row:B",
-   ".credits-row:B",
-   ".credits-row:B",
-   ".credits-row:B",
-   ".credits-rule:B",
    ".credits-year:B"
   ],
   "clip": [

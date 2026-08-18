@@ -54,10 +54,11 @@ export const cr13: TemplateVariant = defineCreditsVariant(
       { title: 'Credits', sample: SAMPLE },
       { title: 'Year / copyright', sample: '© 2026 Your Production' },
     ],
-    // Built-in, and structural rather than chosen: the end-credits assembler declares the f2
-    // logo field for every design in the category (endCredits/shared.ts), so a roll that said
-    // 'none' would be describing a field it still emits.
-    logo: 'built-in',
+    // A printed programme signs off with a rule and a line of small print, not with a mark -
+    // a colophon is the printer's business, not the company's. The category used to declare
+    // the f2 logo field for every design regardless, which made 'none' a lie; it is now
+    // conditional on this capability (endCredits/shared.ts), so the roll carries two fields.
+    logo: 'none',
     animationPresets: ['credits-roll'],
     defaultPalette: paletteById('broadsheet'),
     defaultFontId: 'source-serif-4',
@@ -194,7 +195,8 @@ export const cr13: TemplateVariant = defineCreditsVariant(
   overflow-wrap: break-word;  /* break very long unbroken names */
 }
 
-/* The end block - the colophon: a rule, the mark, the year. */
+/* The end block - the colophon: a rule and the year. This design takes no logo (see the
+   variant's logo: 'none'), so there is no mark and no placeholder slot to style. */
 .credits-end {
   padding-top: calc(64px * var(--scale));  /* a long breath before the sign-off */
   padding-bottom: calc(16px * var(--scale));  /* a small tail so the measurement is not flush */
@@ -207,27 +209,6 @@ export const cr13: TemplateVariant = defineCreditsVariant(
   height: var(--accent-weight);  /* the family's printed-rule weight */
   margin: 0 auto calc(38px * var(--scale));  /* centred, with air before the mark */
   background: var(--accent);  /* the accent's last appearance */
-}
-
-/* The delivered mark - modest, the way a colophon sets a printer's device. */
-.credits-logo {
-  max-width: calc(330px * var(--scale));  /* wide marks shrink into the measure */
-  max-height: calc(120px * var(--scale));  /* tall marks cap here - proportions preserved */
-  margin-bottom: calc(28px * var(--scale));  /* air between the mark and the year line */
-}
-
-/* No mark picked yet - a quiet dashed slot, so the space is visibly reserved. */
-.credits-logo-slot {
-  display: inline-flex;  /* shrinks to its frame and centres its label */
-  align-items: center;  /* the label sits in the vertical middle… */
-  justify-content: center;  /* …and the horizontal middle */
-  width: calc(260px * var(--scale));  /* a believable mark footprint */
-  height: calc(110px * var(--scale));  /* roughly 2.4:1 - generic mark proportions */
-  margin-bottom: calc(28px * var(--scale));  /* the same air the real mark would get */
-  border: 1px dashed color-mix(in srgb, var(--text-color) 34%, transparent);  /* clearly a placeholder */
-  font-size: calc(20px * var(--scale) * var(--type-scale));  /* the smallest type on the page */
-  letter-spacing: 0.04em;  /* the same small-print tracking the year line takes */
-  color: var(--text-dim);  /* dimmed - the placeholder never competes */
 }
 
 /* The year line - the very last thing on the page. */
@@ -259,14 +240,12 @@ function renderCreditRow(entry) {
          '</div>';
 }
 
-// renderEndBlock(yearHtml, logoSrc): the colophon the roll stops on — a rule, the mark, the year.
-function renderEndBlock(yearHtml, logoSrc) {
-  var logo = logoSrc
-    ? '<img class="credits-logo" src="' + logoSrc + '" alt="Logo">'
-    : '<div class="credits-logo-slot">Your logo</div>';
+// renderEndBlock(yearHtml): the colophon the roll stops on — a printed rule and the year.
+// This design takes no logo, so it has no f2 field and draws no mark: the second argument the
+// category passes every row builder is always null here (see endCredits/shared.ts).
+function renderEndBlock(yearHtml) {
   return '<div class="credits-end">' +
            '<div class="credits-rule"></div>' +
-           logo +
            '<div class="credits-year">' + yearHtml + '</div>' +
          '</div>';
 }`,
