@@ -13,9 +13,11 @@
 // re-sides its accent, because a right-anchored graphic with a left-hand accent bar points its
 // loudest element into the middle of the picture.
 //
-// Beyond the matrix sits the SPECIALIST pack (./specialist, ls01…ls32): straps drawn for ONE
+// Beyond the matrix sits the SPECIALIST pack (./specialist, ls01…ls40): straps drawn for ONE
 // production each — interview duos, host-and-guest pairings, commentary booths, athletes,
-// esports, worship, academic, politics, analysis, music, live-and-location, creator identity.
+// esports, worship, academic, politics, analysis, music, live-and-location, creator identity,
+// and broadcast journalism (a quotation, a translation, a caller, a location slate, breaking
+// and developing marks, a fact check, the parliamentary register).
 // They are the same kind of thing mechanically, and they answer the matrix's questions too;
 // what sets them apart is that the production decides their hierarchy (a squad number set
 // larger than the name, a party colour leading the candidate, a scripture reference outranking
@@ -82,6 +84,9 @@ import { lt55 } from './lt55';
 import { lt56 } from './lt56';
 import { lt57 } from './lt57';
 import { lt58 } from './lt58';
+import { lt59 } from './lt59';
+import { lt60 } from './lt60';
+import { lt61 } from './lt61';
 
 
 /** The matrix above, in browse order: the generalist straps, grouped by style family. */
@@ -109,6 +114,7 @@ const GENERAL_LOWER_THIRDS: TemplateVariant[] = [
   lt23, // Mark Left — logo mark, accent divider, name and role (leading logo)
   lt24, // Credential Strap — five inputs: two headlines over a ruled meta band
   lt18, // Line Handle — compact minimal social mark (social-handle type, minimal)
+  lt60, // Lowercase Quiet - no capitals, no accent bar: weight and a hairline carry it
   // Editorial (the magazine / newsroom voice: rules, kickers, printed hierarchy)
   lt25, // Masthead — a rule across the top, name, tracked accent kicker
   lt26, // Byline — publication kicker printed above the name and role
@@ -117,6 +123,7 @@ const GENERAL_LOWER_THIRDS: TemplateVariant[] = [
   lt29, // Imprint — name and role, divider, then the publication mark (trailing logo)
   lt30, // Dateline — four inputs, closing on a ruled dateline in accent caps
   lt31, // Standfirst — name only on a flat ink panel, opened by a short rule
+  lt59, // Byline Serif - the catalog's first serif strap, printed on paper stock
   // Cinematic (the documentary voice: scrims, hairlines, wide light caps)
   lt32, // Scrim — name and role on a scrim that fades into the shot
   lt33, // Wide Caps — one name in very wide tracked caps, centred
@@ -138,6 +145,7 @@ const GENERAL_LOWER_THIRDS: TemplateVariant[] = [
   lt17, // Volt Handle — compact sport social mark (social-handle type, sport)
   lt57, // Volt Call — leaning call-to-action slab (call-to-action type, sport)
   lt58, // Clean Call - minimal hairline call-to-action strap
+  lt61, // Poster Slab - a condensed poster billing on a cut slab
   // Modern social / glass
   lt08, // Frosted Card — backdrop-blur glass card (logo slot)
   lt09, // Gradient Pill — compact pill, name + handle inline

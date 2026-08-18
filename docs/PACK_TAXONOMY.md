@@ -224,7 +224,7 @@ sponsor boards and crawls, ceremony rolls), and the set-piece cards (card50-card
 lyrics, quotations, translations, orders of service, award, graduate, wedding and memorial).
 They ship without a state machine beyond the derived one, which is correct for what they are.
 
-The SPECIALIST lower thirds (ls01-ls32) join the same way, and they are the extras a kit is
+The SPECIALIST lower thirds (ls01-ls40) join the same way, and they are the extras a kit is
 most likely to be opened for: a strap drawn for ONE production rather than for any show. The
 `lower-third` TYPE stays in every pack that had it - it is the general strap, and it is what a
 non-technical user should still land on first - so these sit beside it as the graphic that

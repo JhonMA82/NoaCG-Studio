@@ -54,12 +54,38 @@ import { brandBlock, fillBrandMark, type BrandFillReport, type SpikeBrand } from
  *  ONE block of the user message and in nothing else. */
 export type SpikeArm = 'exemplar' | 'none' | 'grammar';
 
-/** One brief from the 12-brief bank (benchmarks/pro/v1/briefs.json). */
+/** One live operator field of a NON-lower-third brief (the custom-lane type sweep,
+ *  docs/NOACG_PRO_PLAN.md §21.2 follow-on). `stress` is the long-content value the stress
+ *  frame drives; absent = the sample with a generic long suffix. `paintExpected: false`
+ *  marks a field whose value is TRANSFORMED rather than painted verbatim (a countdown's
+ *  seconds, a quiz's locked-answer index) - the paint instruments skip it, because a
+ *  sentinel written into it legitimately reaches no pixels. */
+export interface SpikeFieldSpec {
+  id: string;
+  title: string;
+  sample: string;
+  stress?: string;
+  paintExpected?: boolean;
+}
+
+/** One brief from the 12-brief bank (benchmarks/pro/v1/briefs.json) - or, when
+ *  `graphicType` is present, one entry of the custom-lane type-sweep bank
+ *  (benchmarks/pro/v1/custom/briefs.json). A brief WITHOUT `graphicType` renders the
+ *  original lower-third message byte-identically, so every §21 result stays comparable. */
 export interface SpikeBrief {
   brief: string;
   name: string;
   title: string;
   includeLogo?: boolean;
+  /** Human-readable graphic type label ("SCOREBOARD"), switching the message to the
+   *  general field-contract shape below. */
+  graphicType?: string;
+  /** The type's live operator fields, stated as the field contract. */
+  fields?: SpikeFieldSpec[];
+  /** Declared operator steps along the SPX default path, in order. THE PLATFORM AUTHORS
+   *  STATE MACHINES, NOT THE MODEL (owner 2026-08-17): the model implements window.next()
+   *  advancing through these, never a machine key. */
+  steps?: string[];
 }
 
 /** Decoding parameters, PINNED IN THE FIXTURE rather than defaulted here - a round whose
@@ -97,7 +123,12 @@ export interface SpikeRunResult {
    *  the bundled path, and whether the model broke the no-src contract. */
   fill?: BrandFillReport;
   costUsd: number;
-  usage: { input: number; output: number };
+  /** `reasoning` is the slice of `output` the model spent THINKING, when the provider reports
+   *  it separately (the same carry `pro/language/generate.ts` records). A free-form emit is
+   *  ~12k tokens of code, and a reasoning checkpoint can spend multiples of that before the
+   *  first code token - billed at the completion rate. A round comparing checkpoints on cost
+   *  alone cannot see which one it is without this. */
+  usage: { input: number; output: number; reasoning: number };
   model: string;
 }
 
@@ -108,6 +139,9 @@ export interface SpikeRunResult {
  * otherwise fail results for a reason that has nothing to do with the eye.
  */
 export function spikeUserMessage(brief: SpikeBrief, armBlock: string, brand?: SpikeBrand): ContentBlock[] {
+  if (brief.graphicType && brief.fields) {
+    return [{ type: 'text', text: generalUserMessage(brief, armBlock, brand) }];
+  }
   // On a brand round the mark is always present and its contract is the brand block's; the
   // bare filelist line is the generic Phase 0 shape, kept for brand-less runs.
   const logoLine = brand
@@ -144,6 +178,65 @@ ${judged}
 
 ${armBlock}`;
   return [{ type: 'text', text }];
+}
+
+/**
+ * The TYPE-SWEEP message: the same judgement framing as the lower-third message, with the
+ * brief's own field contract and - for steppers - its declared SPX step contract in place of
+ * the fixed two-line strap contract. The step contract is stated as the SPX LIFECYCLE the
+ * operator drives (play/next/update), never as a machine to author: the platform owns state
+ * machines, and a stepper here is steps along the default path.
+ */
+function generalUserMessage(brief: SpikeBrief, armBlock: string, brand?: SpikeBrand): string {
+  const fields = brief.fields ?? [];
+  const fieldLines = fields
+    .map((f) => `- ${f.id} · ${f.title}, sample value: ${JSON.stringify(f.sample)}`)
+    .join('\n');
+  const logoLine = brand
+    ? '\n- The customer\'s brand mark, in the slot you declare (see "The brand mark\'s slot" below).'
+    : brief.includeLogo
+      ? '\n- A brand mark: one `filelist` image field, with a visible placeholder when empty.'
+      : '';
+  const brandSection = brand ? `${brandBlock(brand)}\n\n` : '';
+  const steps = brief.steps ?? [];
+  const stepSection = steps.length
+    ? `## The operator steps (the SPX default path)
+This graphic is operated over SPX: \`play()\` brings it in showing its opening state, and each
+press of Continue calls your \`window.next()\`, which must advance EXACTLY ONE step along this
+fixed order:
+${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+After the last step, \`next()\` returns null. \`update(data)\` writes field values and NEVER
+advances a step. In your SPXGCTemplateDefinition, set \`"steps": "${steps.length + 1}"\` (the
+opening state plus the ${steps.length} advances). Do not invent a state-machine framework -
+implement the steps directly, each one an animated, deliberate transition.
+
+`
+    : '';
+  const judged = brand
+    ? `The rendered graphic, on air, over real footage: hierarchy, proportion, spacing, the
+composition as a whole, whether the motion serves the reading order - and whether the result
+is unmistakably ${brand.name}'s graphic rather than anyone's. Answer the brief's own world.`
+    : `The rendered graphic, on air, over real footage: hierarchy, proportion, spacing, the
+composition as a whole, and whether the motion serves the reading order. Answer the brief's
+own world.`;
+  return `Design and build a ${brief.graphicType} for this brief.
+
+## The brief
+${brief.brief}
+
+## What it must carry (the field contract)
+${fieldLines}${logoLine}
+
+Every field above is a LIVE operator field (\`id="fN"\` maps to the element painting it) - the
+sample values are what an operator types on the day, so the composition has to hold values of
+roughly that length and a good deal longer without breaking. A field whose value is an index
+or a duration may live in a hidden holder, but every other field's value must reach the
+screen.
+
+${stepSection}${brandSection}## What is being judged
+${judged}
+
+${armBlock}`;
 }
 
 /** The system prompt both arms share: the shipped coder prompt around the NEUTRAL skeleton. */
@@ -189,10 +282,11 @@ export async function runSpikeBrief(options: SpikeRunOptions): Promise<SpikeRunR
   // Provider-reported where the gateway reports it, operator-priced otherwise; an
   // unreported cost counts as zero, which is the same honest limit the Pro ceiling carries.
   let costUsd = 0;
-  const usage = { input: 0, output: 0 };
+  const usage = { input: 0, output: 0, reasoning: 0 };
   const account = (u: ModelUsage | undefined) => {
     usage.input += u?.inputTokens ?? 0;
     usage.output += u?.outputTokens ?? 0;
+    usage.reasoning += u?.reasoningTokens ?? 0;
     costUsd += u?.estimatedCost?.amount ?? 0;
   };
   account(first.usage);
