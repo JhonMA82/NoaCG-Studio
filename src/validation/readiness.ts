@@ -48,6 +48,22 @@ const ROWS: { id: string; label: string; rules: string[]; live: boolean }[] = [
     live: true,
   },
   {
+    // The design rules as an operator-facing verdict (docs/DESIGN_RULES_PLAN.md §5 R4). The
+    // measurement is the same one every product surface runs — designRulesWarnings composed
+    // into the bench — so this row can only ever agree with the export panel. `live` because
+    // it needs the settled render: an unplayed graphic has no computed sizes to measure.
+    id: 'legibility',
+    label: 'Reads where it will be watched',
+    rules: [
+      'legibility-size',
+      'legibility-contrast',
+      'legibility-protection',
+      'legibility-safe-area',
+      'legibility-ticker-margins',
+    ],
+    live: true,
+  },
+  {
     id: 'stress',
     label: 'Survives text twice as long',
     rules: ['bench-stress'],
