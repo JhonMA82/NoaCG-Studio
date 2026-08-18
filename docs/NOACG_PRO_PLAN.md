@@ -2977,3 +2977,68 @@ air" + "okay as-is":
   re-read clears; the next round runs no model-placed logos, blocks collision findings on
   every type, raises the size floor to the owner's broadcast rule, runs the instruments per
   step frame, and feeds the fixture stress capture.
+
+## 23. The design-rules re-read - 2026-08-18, machine half only
+
+The §22.1 escape classes became the DESIGN RULES program (docs/DESIGN_RULES_PLAN.md, ratified
+the same day), and this round is its R1-R3 slice: one canonical rules module, the loop fixes
+the read paid for, an audit before enforcement, a calibrated critic, and the SAME 21 briefs
+re-run under the rules. **The owner's blind read of the 28-item page is OWED and nothing here
+is a verdict on the look.**
+
+What was built (R1, all mutation-controlled in `pro-iterate-spike.mjs --control`):
+
+- **`src/model/designRules.ts`** - the owner's ratified size table (roles x standard/safe mode
+  x viewing profile, % of the short side), weight/stroke/safe-area/contrast+protection rules,
+  and `designRulesPromptBlock`, which rides the USER message - the frozen coder system prompt
+  stays frozen. Math pinned by `scripts/design-rules.test.mjs` in the build gate. The
+  readability instrument classifies roles and reads every floor from the module; a ticker
+  instrument enforces full-bleed-or-equal margins; collisions block on EVERY type; the full
+  instrument pass runs on EVERY step frame; the stress capture and a zero/empty/Nordic/
+  all-caps edge frame FEED the loop; step advance is a markup diff, never next()'s return
+  value; alignment near-misses group into one advisory; the custom bank runs NO model-placed
+  logos (the brand still conditions palette, type and world).
+- **The audit** (`scripts/design-rules-audit-sweep.mjs`, report
+  `benchmarks/design-rules/AUDIT-2026-08-19.md`): 489 shipped variants + the 49 archived
+  sweep cells re-rendered and joined against the §22.1 verdicts. Headline disagreements,
+  stated while the table stays binding: the 50px primary floor fails **312 of 489 shipped
+  designs** and would have stopped **14 of the 17 airable cells** (all four AIRs included);
+  the 96px safe area stops two aired corner scoreboards; the collision rule scored **7 true
+  positives / 0 false positives** on the sweep cells but fires on 21 shipped credits/ticker
+  designs whose text legitimately crosses rules mid-travel; the 20px secondary floor is the
+  one floor the catalog already meets.
+- **The critic calibration** (`benchmarks/design-rules/CRITIC-CALIBRATION-2026-08-19.md`,
+  $0.247 over the archived 49): only `lineOnText` calibrated (100% precision, 80% recall) and
+  is wired as a once-per-round ADVISORY; logo/size/overflow/contrast/alignment questions sat
+  at or near chance and stay out - the Lite-judge lesson repeats, and the deterministic
+  instruments own those classes.
+
+What the machine half of the re-read says (`rules-reread-{gemini,anchors,blind}-2026-08-19`
+in the eval archive; $2.472, ~$0.118/graphic, gemini-3.7-flash vision only - minimax stayed
+out per §22.1):
+
+- **21 of 21 completed, 19 delivered clean** against §22's 14 of 21 - and the two dirty stops
+  are both countdowns held by the CALIBRATED spacing thresholds (padding-tight, lines-adrift),
+  not the new rules. Whether 19 clean ≈ 19 airable is exactly what the read decides; the §22
+  target is delivered-clean ≈ airable.
+- **The rules did real work in the loop**: per the escape-class columns
+  (machine-columns.md), the size floor fed 49 blocking findings across the round, the stress
+  frames 43, the safe area 33 (27 on podiums - the §22.1 X-24 class), contrast 12, step-frame
+  geometry 5 (all on quiz boards), collisions 3. Ticker margins fed ZERO because every
+  emitted ticker came back full-bleed or equal-margined - the prompt block alone closed the
+  X-21 class before the instrument had anything to catch.
+- **Drive proof: 5 of 6** quiz+scoreboard cells through the SHIPPED control page (§22's
+  rate); qz-primetime is the one genuine refusal - its control page throws
+  ("Cannot convert undefined or null to object") and paints nothing, a runtime-environment
+  defect the loop's bench did not surface. One harness lesson recorded: a broken graphic
+  WEDGED the shared drive page and read two healthy cells as undrivable; the spike now
+  isolates every cell in a fresh page.
+- **Cost went down while coverage went up**: $0.118/graphic against §22's $0.171, despite
+  three extra captures per round and the critic call - the rules block up front means fewer,
+  shorter repair rounds (33 total vs the sweep's heavier tails).
+
+What is NOT settled here: whether the owner airs what the gate now delivers. The blind page
+(21 cells + the same 7 catalog anchors, step frames, verdictless) is the accept gate; if the
+read shows the primary floor forcing oversized type or the safe area fighting corner
+graphics, the audit's named rows are what the owner re-ratifies. R4 (wizard viewing-target
+UI, product validator warn-first, catalog migration notes) stays gated behind that read.

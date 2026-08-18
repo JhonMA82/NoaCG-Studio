@@ -60,13 +60,22 @@ try {
 }
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
-page.on('pageerror', (error) => console.log('  pageerror:', error.message));
-await page.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
-await page.locator('.topbar').waitFor();
-await page.locator('.wz-modal').waitFor({ state: 'visible', timeout: 20_000 }).catch(() => undefined);
-await page.keyboard.press('Escape');
-await page.locator('.wz-modal').waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => undefined);
+// ONE FRESH PAGE PER CELL. A graphic that throws on the control page can wedge the app
+// shell, and a shared page then times out every LATER cell's navigation - measured
+// 2026-08-18: qz-primetime's own runtime error made both healthy quiz cells read NOT
+// DRIVABLE in a shared run while each drove fine solo. A refusal must stay one cell's fact.
+let page = null;
+async function freshPage() {
+  if (page) await page.close().catch(() => undefined);
+  page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on('pageerror', (error) => console.log('  pageerror:', error.message));
+  await page.goto(`${BASE}/app`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.topbar').waitFor();
+  await page.locator('.wz-modal').waitFor({ state: 'visible', timeout: 20_000 }).catch(() => undefined);
+  await page.keyboard.press('Escape');
+  await page.locator('.wz-modal').waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => undefined);
+  return page;
+}
 
 const frame = () => page.frameLocator('[data-testid="control-stage"] iframe');
 const stageText = async () => {
@@ -95,6 +104,7 @@ for (const cell of cells) {
   const problems = [];
   let drivable = false;
   try {
+    await freshPage();
     const template = await finalTemplate(cell.slug);
     const docId = await page.evaluate(async ({ template, name }) => {
       const bust = '?t=' + Date.now();
