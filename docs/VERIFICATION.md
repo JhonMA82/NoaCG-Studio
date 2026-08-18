@@ -80,9 +80,16 @@ remains the final authority.
 ## The pre-merge gate belongs to CI, not the laptop
 
 `ci.yml` runs on every branch push and does strictly more than a local run can (build, the affected
-plan sharded eight ways, the factory gates, the catalog tripwire when raised) in six to nine
+plan sharded nine ways, the factory gates, the catalog tripwire when raised) in six to nine
 minutes, free, on a clean checkout. The safe-merge workflow's Phase 3 prefers a CI run green on
 exactly the commit being promoted and falls back to the local pair only when there isn't one.
+
+A shard that stops AT its 20-minute `timeout-minutes` is not a verdict on the change. Playwright
+shards by spec FILE, not by measured time, so the spread between the fastest and slowest shard is
+large and moves with the file list: on run 32178282707 the eight shards ran 7.4 to 14.2 minutes on
+identical work. Re-run the unchanged SHA before bisecting. The fix for a shard creeping toward its
+budget is a SHARD, never a looser timeout - a budget raised to accommodate the slowest healthy
+shard no longer distinguishes it from a hung one.
 
 ## One browser-driving job per MACHINE, not per worktree
 
