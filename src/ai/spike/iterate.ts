@@ -35,6 +35,11 @@ import type { ValidationResult } from '../../validation/validateTemplate';
 import type { SpxTemplate } from '../../model/types';
 import { fillBrandMark, type BrandFillReport, type SpikeBrand } from './brand';
 import { spikeSystemPrompt, spikeUserMessage, type SpikeBrief, type SpikeDecoding } from './run';
+import {
+  designRulesPromptBlock,
+  type LegibilityMode,
+  type ViewingTarget,
+} from '../../model/designRules';
 
 export interface IterateScreenshot {
   mediaType: string;
@@ -47,6 +52,14 @@ export interface IterateEmitOptions {
   decoding: SpikeDecoding;
   validate: SpxValidator;
   brand?: SpikeBrand;
+  /** The canonical design rules, rendered into the USER message (never the frozen system
+   *  prompt - the benchmark control stays a control). Generated from
+   *  `src/model/designRules.ts` so the prompt and the instruments cannot drift. */
+  rules?: {
+    target: ViewingTarget;
+    mode: LegibilityMode;
+    format?: { width: number; height: number };
+  };
   /** Absent on the first round. Present = an iteration: the previous emit's three files, the
    *  findings the render produced, and - where the route can see - the rendered frame. */
   previous?: {
@@ -95,8 +108,12 @@ ${template.js}`;
 }
 
 export async function iterateEmit(options: IterateEmitOptions): Promise<IterateEmitResult> {
-  const { brief, route, decoding, validate, brand, previous } = options;
+  const { brief, route, decoding, validate, brand, previous, rules } = options;
   const userContent = spikeUserMessage(brief, '', brand);
+  if (rules) {
+    const format = rules.format ?? { width: 1920, height: 1080 };
+    userContent.push({ type: 'text', text: designRulesPromptBlock(rules.target, rules.mode, format) });
+  }
 
   const messages: { role: 'user' | 'assistant'; content: ContentBlock[] | string }[] = [
     { role: 'user', content: userContent },
@@ -136,7 +153,9 @@ export async function iterateEmit(options: IterateEmitOptions): Promise<IterateE
   let fill: BrandFillReport | undefined;
   const converted = convertEmittedRegion(toTemplate(emitted));
   let template = converted;
-  if (brand) {
+  // includeLogo: false = the owner's no-model-placed-logos ruling (§22.1): the brand
+  // conditions the design and NO mark is filled - there is no slot to fill.
+  if (brand && brief.includeLogo !== false) {
     const filled = fillBrandMark(converted, brand);
     fill = filled.fill;
     template = filled.template;

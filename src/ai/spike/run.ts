@@ -142,14 +142,17 @@ export function spikeUserMessage(brief: SpikeBrief, armBlock: string, brand?: Sp
   if (brief.graphicType && brief.fields) {
     return [{ type: 'text', text: generalUserMessage(brief, armBlock, brand) }];
   }
-  // On a brand round the mark is always present and its contract is the brand block's; the
-  // bare filelist line is the generic Phase 0 shape, kept for brand-less runs.
-  const logoLine = brand
+  // On a brand round the mark rides the brand block - unless the brief says includeLogo:
+  // false, which the owner's §22.1 ruling makes the custom bank's standing state (no
+  // model-placed logos; the brand still conditions palette/type/world). The bare filelist
+  // line is the generic Phase 0 shape, kept for brand-less runs.
+  const withMark = Boolean(brand) && brief.includeLogo !== false;
+  const logoLine = withMark
     ? '\n- The customer\'s brand mark, in the slot you declare (see "The brand mark\'s slot" below).'
     : brief.includeLogo
       ? '\n- A brand mark: one `filelist` image field, with a visible placeholder when empty.'
       : '';
-  const brandSection = brand ? `${brandBlock(brand)}\n\n` : '';
+  const brandSection = brand ? `${brandBlock(brand, { mark: withMark })}\n\n` : '';
   const judged = brand
     ? `The rendered graphic, on air, over real footage: hierarchy, proportion, spacing, the
 composition as a whole, whether the motion serves the reading order - and whether the result
@@ -192,12 +195,13 @@ function generalUserMessage(brief: SpikeBrief, armBlock: string, brand?: SpikeBr
   const fieldLines = fields
     .map((f) => `- ${f.id} · ${f.title}, sample value: ${JSON.stringify(f.sample)}`)
     .join('\n');
-  const logoLine = brand
+  const withMark = Boolean(brand) && brief.includeLogo !== false;
+  const logoLine = withMark
     ? '\n- The customer\'s brand mark, in the slot you declare (see "The brand mark\'s slot" below).'
     : brief.includeLogo
       ? '\n- A brand mark: one `filelist` image field, with a visible placeholder when empty.'
       : '';
-  const brandSection = brand ? `${brandBlock(brand)}\n\n` : '';
+  const brandSection = brand ? `${brandBlock(brand, { mark: withMark })}\n\n` : '';
   const steps = brief.steps ?? [];
   const stepSection = steps.length
     ? `## The operator steps (the SPX default path)

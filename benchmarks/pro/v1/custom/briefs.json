@@ -9,7 +9,7 @@
         "brief": "Financial evening bulletin: precise, quiet authority, hairline rules, tabular calm - a desk that reports numbers without drama.",
         "name": "Tobias Ekholm",
         "title": "Markets Editor",
-        "includeLogo": true
+        "includeLogo": false
       },
       "expect": {
         "textFields": 2
@@ -22,7 +22,7 @@
         "brief": "Late-night talk show: confident, warm, a little theatrical - stage-light energy without clutter, generous type.",
         "name": "Rosa Delgado",
         "title": "Tonight's Guest · Author",
-        "includeLogo": true
+        "includeLogo": false
       },
       "expect": {
         "textFields": 2
@@ -35,7 +35,7 @@
         "brief": "Esports broadcast desk: sharp, kinetic, angular - reads instantly over fast gameplay, tournament-grade polish.",
         "name": "Yuki Tanaka",
         "title": "Play-by-play Caster",
-        "includeLogo": true
+        "includeLogo": false
       },
       "expect": {
         "textFields": 2
@@ -48,7 +48,7 @@
         "brief": "Top-flight club football: a permanent match scoreboard for the top corner of the frame - two clubs, running clock, scores that BUMP live. Compact, unmissable, never in the way of play.",
         "name": "Kestrel City",
         "title": "Match scoreboard",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "SCOREBOARD",
         "fields": [
           {
@@ -94,7 +94,7 @@
         "brief": "Best-of-five esports grand final: series scoreboard - two teams, maps won, a bold series state. Neon-grade contrast, angular, built for a busy HUD.",
         "name": "Pulse Arena",
         "title": "Series scoreboard",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "SCOREBOARD",
         "fields": [
           {
@@ -140,7 +140,7 @@
         "brief": "Saturday family game show: a warm, friendly two-family score strip along the bottom - big cheerful numbers, round indicator, nothing cold or sporty about it.",
         "name": "The Okafors",
         "title": "Family score strip",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "SCOREBOARD",
         "fields": [
           {
@@ -186,7 +186,7 @@
         "brief": "Primetime million-euro quiz: the question board - one question, four answers in a 2x2 or stacked ladder, dramatic but disciplined. The stakes should be visible in the design.",
         "name": "Question board",
         "title": "Primetime quiz",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "QUIZ BOARD",
         "fields": [
           {
@@ -251,7 +251,7 @@
         "brief": "Inter-university academic quiz league: scholarly, typographic, calm - a question board that respects the audience's intelligence. No gold, no glitz.",
         "name": "Question board",
         "title": "Academic quiz",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "QUIZ BOARD",
         "fields": [
           {
@@ -316,7 +316,7 @@
         "brief": "Esports trivia segment between maps: fast, loud, arena-screen energy - a quiz board that holds up on a jumbotron and on stream at once.",
         "name": "Question board",
         "title": "Arena trivia",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "QUIZ BOARD",
         "fields": [
           {
@@ -381,7 +381,7 @@
         "brief": "Investigative newsroom rolling ticker: a continuous bottom strip cycling short headlines - ink-on-paper discipline, a clear section label, headlines never truncated mid-word.",
         "name": "Ticker",
         "title": "News ticker",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "TICKER",
         "fields": [
           {
@@ -409,7 +409,7 @@
         "brief": "Nature documentary channel: a gentle facts ticker for live event coverage (migration night) - unhurried crawl, organic warmth, readable at a glance.",
         "name": "Ticker",
         "title": "Facts ticker",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "TICKER",
         "fields": [
           {
@@ -437,7 +437,7 @@
         "brief": "Transfer-deadline sports ticker: urgent, punchy, club-neutral dark strip with the network's volt energy - BREAKING items must visibly outrank routine ones.",
         "name": "Ticker",
         "title": "Transfer ticker",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "TICKER",
         "fields": [
           {
@@ -465,7 +465,7 @@
         "brief": "Election night: a full-screen headline statistic - one number the whole story turns on, with its claim and source. Institutional calm, data-driven confidence, generous canvas.",
         "name": "Stat panel",
         "title": "Election stat",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "FULL-SCREEN STAT PANEL",
         "fields": [
           {
@@ -505,7 +505,7 @@
         "brief": "Science documentary: a full-screen statistic that must feel vast and quiet - one measured number over an implied landscape, museum-plaque restraint.",
         "name": "Stat panel",
         "title": "Climate stat",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "FULL-SCREEN STAT PANEL",
         "fields": [
           {
@@ -545,7 +545,7 @@
         "brief": "Half-time football analysis: a full-screen match statistic with attitude - one dominant number, the claim it proves, sharp angular energy that still reads in a pub.",
         "name": "Stat panel",
         "title": "Match stat",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "FULL-SCREEN STAT PANEL",
         "fields": [
           {
@@ -585,7 +585,7 @@
         "brief": "Live rocket-launch special on a science channel: a countdown to the window opening - the clock is the hero, calm precision, and under one minute the design must visibly change gear (emphasis, not panic).",
         "name": "Countdown",
         "title": "Launch countdown",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "COUNTDOWN",
         "fields": [
           {
@@ -614,7 +614,7 @@
         "brief": "Election results programme: a countdown to the first exit poll at nine - typographic, newsroom-severe, the tension carried by type alone. Under a minute, the final seconds must land one by one.",
         "name": "Countdown",
         "title": "Exit poll countdown",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "COUNTDOWN",
         "fields": [
           {
@@ -643,7 +643,7 @@
         "brief": "Saturday family show: the audience-warm-up countdown to going live - playful, bouncing warmth, a clock children read as easily as adults. The last ten seconds should invite the room to count along.",
         "name": "Countdown",
         "title": "Show countdown",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "COUNTDOWN",
         "fields": [
           {
@@ -672,7 +672,7 @@
         "brief": "Athletics championship medal ceremony: the final top three, revealed third-to-first as the operator steps - podium heights matter, gold lands last and largest. Formal but electric.",
         "name": "Podium",
         "title": "Medal podium",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "PODIUM / TOP-3 REVEAL",
         "fields": [
           {
@@ -735,7 +735,7 @@
         "brief": "Election night: the three largest parties by projected seats, revealed third-to-first - sober institutional drama, the bar or panel heights proportional to the numbers.",
         "name": "Podium",
         "title": "Seats top three",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "PODIUM / TOP-3 REVEAL",
         "fields": [
           {
@@ -798,7 +798,7 @@
         "brief": "Esports season grand final: the tournament's final standings top three, revealed third-to-first with arena-screen swagger - prize money beside each team, champion treatment unmistakable.",
         "name": "Podium",
         "title": "Finals top three",
-        "includeLogo": true,
+        "includeLogo": false,
         "graphicType": "PODIUM / TOP-3 REVEAL",
         "fields": [
           {

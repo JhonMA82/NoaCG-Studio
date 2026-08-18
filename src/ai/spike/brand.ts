@@ -96,12 +96,39 @@ export function markFacts(probe: MarkProbe): string {
  * beyond the example (measured - src/ai/claudeProvider.ts teaches the :root vars and nothing
  * about @font-face), so the file name is a fact the model cannot guess and should not try.
  */
-export function brandBlock(brand: SpikeBrand): string {
+export function brandBlock(brand: SpikeBrand, options: { mark?: boolean } = {}): string {
   const font = fontById(brand.typeface);
   if (!font) throw new Error(`spike brand "${brand.id}": typeface ${brand.typeface} is not in the font registry`);
   const palette = brand.palette
     .map((c) => `- ${c.name} ${c.hex} - ${c.note}`)
     .join('\n');
+  // NO MODEL-PLACED LOGOS on the custom-lane types (owner ruling, docs/NOACG_PRO_PLAN.md
+  // §22.1 escape 2: the mark was the sweep's dominant cross-type defect - plates, floating
+  // beside the composition, oversized, pushing layouts sideways). The brand still conditions
+  // palette, type and world; mark placement is the platform's (the Phase A knock rule).
+  if (options.mark === false) {
+    return `## The customer's brand
+
+This graphic is for ONE specific customer, and their identity must DRIVE the design - the
+palette is the design's colour system, not a tint over someone else's. An answer that would
+look the same for any other organisation has not answered this brief.
+
+- Organisation: ${brand.name} - ${brand.world}.
+- Palette (build the graphic's colour system from these; derive shades where you need them):
+${palette}
+- Typeface: ${font.family}. Set \`--font-heading\` to the stack below and include the @font-face
+  verbatim in template.css - the file ships with the graphic:
+
+\`\`\`css
+${fontFaceCss(font)}
+\`\`\`
+
+  (the stack: \`--font-heading: ${fontStack(font)};\`)
+
+This graphic carries NO brand mark: do not add an image field, a logo placeholder or any
+reserved logo space - the platform owns mark placement and adds nothing here. The brand lives
+in the palette, the type and the design's world.`;
+  }
   return `## The customer's brand
 
 This graphic is for ONE specific customer, and their identity must DRIVE the design - the

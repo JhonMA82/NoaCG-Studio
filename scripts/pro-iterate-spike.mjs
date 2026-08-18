@@ -57,6 +57,10 @@ const OUT = path.resolve(value('out') ?? 'pro-iterate-out');
  *  catalog calibration is what decides which is honest (an instrument whose false positives
  *  are good designs gets ignored - the mark-gap lesson). */
 const READABILITY_MODE = value('readability') ?? 'feed';
+/** The canonical rules' knobs (src/model/designRules.ts), pinned standard/tv for the R3
+ *  round - the wizard UI for both is R4. Safe mode is exercised by controls + math tests. */
+const LEGIBILITY_MODE = value('legibility') ?? 'standard';
+const VIEWING_PROFILE = value('profile') ?? 'tv';
 
 // ── The sweep's type table ─────────────────────────────────────────────────────────────
 // Instrument thresholds exist calibrated for exactly two of the seven types: the lower third
@@ -185,11 +189,62 @@ if (paid) {
   }
 }
 
+/** The full instrument pass over whatever the iterate frame currently shows - shared by the
+ *  hold, the stress frames and EVERY step frame (§22.1 escape 4: X-25's growing, misaligned,
+ *  background-overflowing steps passed a paint-only step walk). */
+async function measureCurrentFrame(opts = {}) {
+  return page.evaluate(async ({ markFieldId, markProbe, proType, ticker, legibility, profile }) => {
+    const bust = '?t=' + Date.now();
+    const { measureRenderedMark } = await import('/src/ai/spike/brand.ts' + bust);
+    const { measureAxes } = await import('/src/ai/spike/axisCheck.ts' + bust);
+    const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts' + bust);
+    const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts' + bust);
+    const { measureDevice } = await import('/src/ai/spike/deviceCheck.ts' + bust);
+    const { measureReadability } = await import('/src/ai/spike/readabilityCheck.ts' + bust);
+    const { measureTickerMargins } = await import('/src/ai/spike/tickerCheck.ts' + bust);
+    const doc = document.getElementById('iterate-hold-frame')?.contentDocument;
+    if (!doc) return null;
+    // The per-type thresholds are PRO_GRAPHICS' own (measured, docs/NOACG_PRO_PLAN.md §21.2
+    // pre-flight d) - imported rather than copied, so they cannot drift from the product's.
+    let spacingOpts = {};
+    let proportionOpts = {};
+    if (proType) {
+      const { PRO_GRAPHICS } = await import('/src/ai/pro/language/graphics.ts' + bust);
+      const inst = PRO_GRAPHICS[proType]?.instruments ?? {};
+      spacingOpts = { ...(inst.spacing ?? {}) };
+      proportionOpts = { ...(inst.proportion ?? {}) };
+    }
+    const base = { markFieldId: markFieldId ?? null };
+    return {
+      axis: measureAxes(doc),
+      spacing: measureSpacing(doc, { ...spacingOpts, ...base }),
+      proportion: measureProportion(doc, { ...proportionOpts, ...base }),
+      device: measureDevice(doc),
+      mark: markFieldId && markProbe ? measureRenderedMark(doc, markFieldId, markProbe) : null,
+      // The floors come from the canonical rules module (roles x mode x profile), never a
+      // local constant - src/model/designRules.ts is the one source (§22.1 escape 3).
+      readability: measureReadability(doc, {
+        mode: legibility,
+        target: { profile },
+        markFieldId: markFieldId ?? null,
+      }),
+      ticker: ticker ? measureTickerMargins(doc) : null,
+    };
+  }, {
+    markFieldId: opts.markFieldId ?? null,
+    markProbe: opts.markProbe ?? null,
+    proType: opts.proType ?? null,
+    ticker: Boolean(opts.ticker),
+    legibility: LEGIBILITY_MODE,
+    profile: VIEWING_PROFILE,
+  });
+}
+
 /** Mount the settled hold, measure every instrument, screenshot it. The same compose path,
  *  wait and instrument set as the spike runner's hold capture. `opts.proType` selects a
  *  calibrated per-type instrument override (PRO_GRAPHICS); `opts.steps` > 0 additionally
- *  drives next() through the declared steps and shoots each settled step frame under
- *  `opts.stepPrefix`. */
+ *  drives next() through the declared steps, shoots each settled step frame under
+ *  `opts.stepPrefix` and runs the FULL instrument pass on it. */
 async function captureAndMeasure(template, data, markFieldId, markProbe, file, opts = {}) {
   const steps = opts.steps ?? 0;
   const playError = await page.evaluate(async ({ template, data }) => {
@@ -216,55 +271,32 @@ async function captureAndMeasure(template, data, markFieldId, markProbe, file, o
     await new Promise((resolve) => setTimeout(resolve, 1800));
     return error;
   }, { template, data });
-  const measured = await page.evaluate(async ({ markFieldId, markProbe, proType }) => {
-    const bust = '?t=' + Date.now();
-    const { measureRenderedMark } = await import('/src/ai/spike/brand.ts' + bust);
-    const { measureAxes } = await import('/src/ai/spike/axisCheck.ts' + bust);
-    const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts' + bust);
-    const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts' + bust);
-    const { measureDevice } = await import('/src/ai/spike/deviceCheck.ts' + bust);
-    const { measureReadability } = await import('/src/ai/spike/readabilityCheck.ts' + bust);
-    const doc = document.getElementById('iterate-hold-frame')?.contentDocument;
-    if (!doc) return null;
-    // The per-type thresholds are PRO_GRAPHICS' own (measured, docs/NOACG_PRO_PLAN.md §21.2
-    // pre-flight d) - imported rather than copied, so they cannot drift from the product's.
-    let spacingOpts = {};
-    let proportionOpts = {};
-    if (proType) {
-      const { PRO_GRAPHICS } = await import('/src/ai/pro/language/graphics.ts' + bust);
-      const inst = PRO_GRAPHICS[proType]?.instruments ?? {};
-      spacingOpts = { ...(inst.spacing ?? {}) };
-      proportionOpts = { ...(inst.proportion ?? {}) };
-    }
-    const base = { markFieldId: markFieldId ?? null };
-    return {
-      axis: measureAxes(doc),
-      spacing: measureSpacing(doc, { ...spacingOpts, ...base }),
-      proportion: measureProportion(doc, { ...proportionOpts, ...base }),
-      device: measureDevice(doc),
-      mark: markFieldId && markProbe ? measureRenderedMark(doc, markFieldId, markProbe) : null,
-      readability: measureReadability(doc),
-    };
-  }, { markFieldId: markFieldId ?? null, markProbe: markProbe ?? null, proType: opts.proType ?? null });
+  const measureOpts = {
+    markFieldId, markProbe, proType: opts.proType ?? null, ticker: opts.ticker ?? false,
+  };
+  const measured = await measureCurrentFrame(measureOpts);
   const shot = await page.frameLocator('#iterate-hold-frame').locator('body')
     .screenshot({ path: path.join(OUT, file) });
 
-  // STEP CAPTURE: drive next() along the DECLARED default path, shoot each settled frame.
-  // next() returning nothing before the declared count is a finding - the graphic does not
-  // implement its own step contract - and so is a missing next() entirely.
+  // STEP CAPTURE: drive next() along the DECLARED default path; shoot and MEASURE each
+  // settled frame. Advance is judged by MARKUP DIFF, never by next()'s return value - a
+  // hand-written next() may do its work and return nothing (the drive-proof lesson: two
+  // cells the loop called step-broken drove fine under the real panel).
   const stepFrames = [];
   const stepFindings = [];
+  const stepMeasures = [];
   for (let k = 1; k <= steps; k += 1) {
     const press = await page.evaluate(async () => {
       const win = document.getElementById('iterate-hold-frame')?.contentWindow;
       if (!win) return { error: 'frame gone' };
       if (typeof win.next !== 'function') return { missing: true };
+      const before = win.document.body.innerHTML;
       try {
-        const out = win.next();
-        return { returnedNull: out === null || out === undefined };
+        win.next();
       } catch (e) {
         return { error: String(e?.message ?? e).slice(0, 200) };
       }
+      return { before };
     });
     if (press.missing) {
       stepFindings.push(`the template declares ${steps} operator step(s) but window.next() does not exist`);
@@ -274,19 +306,23 @@ async function captureAndMeasure(template, data, markFieldId, markProbe, file, o
       stepFindings.push(`next() threw at step ${k} of ${steps}: ${press.error}`);
       break;
     }
-    if (press.returnedNull && k <= steps) {
-      stepFindings.push(`next() returned nothing at step ${k} of ${steps} - the graphic does not advance through its declared steps`);
+    await page.waitForTimeout(1400);
+    const after = await page.evaluate(() =>
+      document.getElementById('iterate-hold-frame')?.contentWindow?.document.body.innerHTML ?? null);
+    if (after !== null && after === press.before) {
+      stepFindings.push(`step ${k} of ${steps} changed NOTHING on screen (the markup is identical after next() settled) - the graphic does not advance through its declared steps`);
       break;
     }
-    await page.waitForTimeout(1400);
     const stepFile = `${opts.stepPrefix ?? file.replace(/\.png$/, '')}.step-${k}.png`;
     await page.frameLocator('#iterate-hold-frame').locator('body')
       .screenshot({ path: path.join(OUT, stepFile) });
     stepFrames.push(stepFile);
+    const stepMeasured = await measureCurrentFrame(measureOpts);
+    if (stepMeasured) stepMeasures.push({ step: k, measured: stepMeasured });
   }
 
   await page.evaluate(() => document.getElementById('iterate-hold-frame')?.remove());
-  return { playError, measured, shot, stepFrames, stepFindings };
+  return { playError, measured, shot, stepFrames, stepFindings, stepMeasures };
 }
 
 /**
@@ -342,9 +378,13 @@ async function paintWalk(template, entry) {
       const shows = (sentinel, painted) =>
         sentinel.split(/[\s|\n]+/).some((part) => part && painted.includes(part));
       let missing = driven.filter((d) => !shows(d.sentinel, visibleText(doc, win)));
+      // The walk presses through the DECLARED count - never gated on next()'s return value
+      // (a hand-written next() may do its work and return nothing; markup diff is the honest
+      // advance measure and the capture owns that question).
       for (let k = 1; k <= steps && missing.length; k += 1) {
         try {
-          if (typeof win.next !== 'function' || win.next() == null) break;
+          if (typeof win.next !== 'function') break;
+          win.next();
         } catch { break; }
         await new Promise((resolve) => setTimeout(resolve, 1200));
         const painted = visibleText(doc, win);
@@ -367,10 +407,65 @@ async function paintWalk(template, entry) {
  *  defects, it does not demand novelty. */
 const EDITABILITY_RULE = 'bench-editability';
 const UNPAINTED_RULE = 'bench-field-unpainted';
-function collectFindings(validation, playError, measured, ctx = {}) {
+/** A COLLISION is binary, not a calibrated threshold - it blocks on EVERY type (owner ruling,
+ *  docs/NOACG_PRO_PLAN.md §22.1 escape 1: the accent-over-text class let back in by the
+ *  advisory demotion). `lines-crowded` only ever fires on an actual overlap (its floor is 0). */
+const COLLISION_SPACING_CODES = new Set(['text-over-rule', 'lines-crowded']);
+
+/** One measured frame's findings, labeled and routed. Collisions, mark findings, ticker
+ *  margins and readability BLOCK findings always block; calibrated spacing/proportion
+ *  thresholds demote to advisory on types they were never calibrated for. Alignment
+ *  near-misses dedupe into ONE grouped advisory (the owner named zero of them across 49
+ *  items while they burned whole repair rounds on quiz/podium grids). */
+function frameFindings(measured, ctx = {}) {
   const blocking = [];
   const advisory = [];
+  if (!measured) return { blocking, advisory };
   const instruments = ctx.advisoryInstruments ? advisory : blocking;
+  for (const f of measured.spacing?.findings ?? []) {
+    const bucket = COLLISION_SPACING_CODES.has(f.code) ? blocking : instruments;
+    bucket.push(`spacing (${f.code}): ${f.detail}`);
+  }
+  for (const escape of measured.spacing?.escapes ?? []) {
+    if (escape.isText) blocking.push(`live text paints outside its panel: ${escape.desc} by ${escape.px}px past the ${escape.side} edge`);
+  }
+  for (const f of measured.proportion?.findings ?? []) instruments.push(`proportion (${f.code}): ${f.detail}`);
+  const misses = measured.axis?.nearMisses ?? [];
+  if (misses.length) {
+    const seen = new Set();
+    const parts = [];
+    for (const miss of misses) {
+      const key = [miss.a.el, miss.b.el].sort().join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      parts.push(`${miss.a.el} vs ${miss.b.el} ${miss.gapPx}px off on the ${miss.side}`);
+    }
+    advisory.push(`${seen.size} alignment near-miss(es), grouped: `
+      + `${parts.slice(0, 5).join('; ')}${seen.size > 5 ? ` (+${seen.size - 5} more)` : ''}`
+      + ' - align exactly or separate deliberately where the frame genuinely reads misaligned');
+  }
+  for (const f of measured.mark?.findings ?? []) blocking.push(`brand mark: ${f}`);
+  if (READABILITY_MODE === 'feed') {
+    for (const f of measured.readability?.findings ?? []) {
+      const bucket = f.severity === 'block' ? blocking : advisory;
+      bucket.push(`readability (${f.code}): ${f.detail}`);
+    }
+  }
+  // Full-bleed-or-equal-margins is binary geometry, so it blocks without calibration - the
+  // same argument that makes a collision block everywhere (§22.1 escape 7).
+  for (const f of measured.ticker?.findings ?? []) blocking.push(`ticker (${f.code}): ${f.detail}`);
+  return { blocking, advisory };
+}
+
+/** Everything the loop feeds back, as teaching strings - split into BLOCKING (counts against
+ *  deliverability) and ADVISORY (shown to the model with a judgement note, never counted).
+ *  `frames` is every measured frame of the round: the hold, each STEP frame, and the STRESS
+ *  frames (§22.1 escapes 4 and 5 - a stepper's geometry and the fixture stress capture are
+ *  measured signals, not decoration). The device instrument is deliberately ABSENT - a plain
+ *  panel is a legal answer; this loop repairs defects, it does not demand novelty. */
+function collectFindings(validation, playError, frames, ctx = {}) {
+  const blocking = [];
+  const advisory = [];
   for (const e of validation.errors) {
     if (!e.startsWith(`${EDITABILITY_RULE}:`)) blocking.push(`platform check failed - ${e}`);
   }
@@ -383,21 +478,50 @@ function collectFindings(validation, playError, measured, ctx = {}) {
   if (playError) blocking.push(`the template threw at play(): ${playError}`);
   for (const f of ctx.stepFindings ?? []) blocking.push(`step contract: ${f}`);
   for (const f of ctx.paintFindings ?? []) blocking.push(`field paint: ${f}`);
-  for (const f of measured?.spacing?.findings ?? []) instruments.push(`spacing (${f.code}): ${f.detail}`);
-  for (const escape of measured?.spacing?.escapes ?? []) {
-    if (escape.isText) blocking.push(`live text paints outside its panel: ${escape.desc} by ${escape.px}px past the ${escape.side} edge`);
+  for (const f of ctx.extraBlocking ?? []) blocking.push(f);
+  // The stress and step frames re-measure everything the hold measured, so a defect present
+  // on several frames would otherwise be fed repeatedly: dedupe on the unlabeled sentence,
+  // keeping the FIRST frame's labeling (the hold's, when it shows there).
+  const seenBlocking = new Set();
+  const seenAdvisory = new Set();
+  for (const frame of frames) {
+    const split = frameFindings(frame.measured, ctx);
+    const tag = frame.label ? `${frame.label} - ` : '';
+    for (const f of split.blocking) {
+      if (seenBlocking.has(f)) continue;
+      seenBlocking.add(f);
+      blocking.push(`${tag}${f}`);
+    }
+    for (const f of split.advisory) {
+      if (seenAdvisory.has(f)) continue;
+      seenAdvisory.add(f);
+      advisory.push(`${tag}${f}`);
+    }
   }
-  for (const f of measured?.proportion?.findings ?? []) instruments.push(`proportion (${f.code}): ${f.detail}`);
-  for (const miss of measured?.axis?.nearMisses ?? []) {
-    blocking.push(`alignment near-miss: ${miss.a.el} and ${miss.b.el} are ${miss.gapPx}px from sharing the ${miss.side} edge - align them exactly or separate them deliberately`);
+  return { blocking: blocking.slice(0, 16), advisory: advisory.slice(0, 8) };
+}
+
+/** Brief-§9 edge cases the long-content stress cannot see (docs/DESIGN_RULES_PLAN.md §3.3):
+ *  zero values, an emptied optional, Nordic accents, all-caps. Deterministic off the declared
+ *  fields; transform fields (paintExpected: false) keep their legal sample - a countdown fed
+ *  junk minutes measures the harness, not the design. */
+function edgeStressValues(entry) {
+  const fields = entry.brief.fields;
+  if (!fields) {
+    // The legacy two-line lower third: a Nordic all-caps name, and the supporting line EMPTY.
+    return { f0: 'ÅSA KJÆRGÅRD-ÖSTRÖM', f1: '' };
   }
-  for (const f of measured?.mark?.findings ?? []) blocking.push(`brand mark: ${f}`);
-  const readability = measured?.readability?.findings ?? [];
-  const readabilityTarget = READABILITY_MODE === 'feed' ? blocking : null;
-  if (readabilityTarget) {
-    for (const f of readability) readabilityTarget.push(`readability (${f.code}): ${f.detail}`);
-  }
-  return { blocking: blocking.slice(0, 14), advisory: advisory.slice(0, 6) };
+  const paintable = fields.filter((f) => f.paintExpected !== false);
+  const textFields = paintable.filter((f) => !/^[\d.]+$/.test(f.sample));
+  const firstText = textFields[0];
+  const lastText = textFields.length > 1 ? textFields[textFields.length - 1] : null;
+  return Object.fromEntries(fields.map((f) => {
+    if (f.paintExpected === false) return [f.id, f.sample];
+    if (/^[\d.]+$/.test(f.sample)) return [f.id, '0'];
+    if (f === lastText) return [f.id, ''];
+    if (f === firstText) return [f.id, 'ÅSA KJÆRGÅRD-ÖSTRÖM'];
+    return [f.id, f.sample.toUpperCase()];
+  }));
 }
 
 /** What the model is shown: the blocking findings as the contract, the advisory ones behind a
@@ -435,10 +559,19 @@ if (control) {
     const a = spikeAnchors.controlAnchor();
     return { template: a.template, data: a.data };
   });
+  // THE OWNER TABLE MAY INDICT SHIPPED DESIGNS, and that is evidence for the audit report,
+  // never a harness failure (docs/DESIGN_RULES_PLAN.md: the table wins; the report states the
+  // disagreement). Everything ELSE loud on a known-good frame is harness murk.
+  const isOwnerTableFinding = (f) =>
+    f.includes('readability (text-under-size-floor)') || f.includes('readability (text-size-warning-band)');
   const clean = await captureAndMeasure(anchor.template, anchor.data, null, null, 'control-clean.hold.png');
-  const cleanFindings = collectFindings({ errors: [], warnings: [] }, clean.playError, clean.measured);
-  console.log(`control (known-good): ${cleanFindings.blocking.length} blocking finding(s)`);
-  for (const f of cleanFindings.blocking) console.log(`  - ${f}`);
+  const cleanFindings = collectFindings({ errors: [], warnings: [] }, clean.playError, [{ label: '', measured: clean.measured }]);
+  const cleanTable = cleanFindings.blocking.filter(isOwnerTableFinding);
+  const cleanOther = cleanFindings.blocking.filter((f) => !isOwnerTableFinding(f));
+  console.log(`control (known-good): ${cleanOther.length} blocking finding(s)`
+    + `${cleanTable.length ? ` + ${cleanTable.length} owner-table size finding(s) (audit evidence, not harness murk)` : ''}`);
+  for (const f of cleanOther) console.log(`  - ${f}`);
+  for (const f of cleanTable) console.log(`  ~ ${f}`);
 
   // The MUTATION: pull the supporting line's MASK up over the primary line. Moving the field
   // itself is absorbed by the mask's own overflow clip (the first version of this check
@@ -449,7 +582,7 @@ if (control) {
     css: `${anchor.template.css}\n/* control mutation - forced overlap */\n[class*="-mask"]:has(#f1) { margin-top: -52px; }`,
   };
   const bad = await captureAndMeasure(broken, anchor.data, null, null, 'control-broken.hold.png');
-  const badFindings = collectFindings({ errors: [], warnings: [] }, bad.playError, bad.measured);
+  const badFindings = collectFindings({ errors: [], warnings: [] }, bad.playError, [{ label: '', measured: bad.measured }]);
   console.log(`control (forced overlap): ${badFindings.blocking.length} blocking finding(s)`);
   for (const f of badFindings.blocking) console.log(`  - ${f}`);
   if (badFindings.blocking.length === 0) {
@@ -479,17 +612,27 @@ if (control) {
     }
     return out;
   });
-  let calibrationFindings = 0;
+  let calibrationMurk = 0;
+  let calibrationTable = 0;
   for (const c of calibration) {
     if (c.error) { console.error(`  readability calibration: ${c.id} ${c.error}`); failed = true; continue; }
     const cap = await captureAndMeasure(c.template, { f0: 'Alexandra Riva', f1: 'Chief Political Correspondent' }, null, null, `control-readability-${c.id}.hold.png`);
     const report = cap.measured?.readability ?? { findings: [], readings: [] };
-    calibrationFindings += report.findings.length;
-    console.log(`readability calibration ${c.id}: ${report.findings.length} finding(s); readings: ${report.readings.map((r) => `${r.fontPx}px${r.contrast ? `/${r.contrast}:1` : ''}`).join(', ')}`);
-    for (const f of report.findings) console.log(`  - ${f.code}: ${f.detail}`);
+    // Owner-table size findings on a shipped design are the AUDIT's evidence (the table wins
+    // and the report states the disagreement); anything else loud here is instrument murk.
+    const table = report.findings.filter((f) => f.code === 'text-under-size-floor' || f.code === 'text-size-warning-band');
+    const murk = report.findings.filter((f) => !table.includes(f) && f.severity === 'block');
+    calibrationTable += table.length;
+    calibrationMurk += murk.length;
+    console.log(`readability calibration ${c.id}: ${murk.length} murk / ${table.length} owner-table finding(s); readings: ${report.readings.map((r) => `${r.fontPx}px(${r.role})${r.contrast ? `/${r.contrast}:1` : ''}`).join(', ')}`);
+    for (const f of murk) console.log(`  - ${f.code}: ${f.detail}`);
+    for (const f of table) console.log(`  ~ ${f.code}: ${f.detail}`);
   }
-  if (calibrationFindings > 0) {
-    console.error(`READABILITY CALIBRATION MURKY: ${calibrationFindings} finding(s) on shipped designs - run the paid round with --readability=report.`);
+  if (calibrationMurk > 0) {
+    console.error(`READABILITY CALIBRATION MURKY: ${calibrationMurk} non-size finding(s) on shipped designs - run the paid round with --readability=report.`);
+  }
+  if (calibrationTable > 0) {
+    console.log(`owner-table size findings on shipped designs: ${calibrationTable} (expected where the ratified table indicts the catalog - the audit report quantifies this).`);
   }
 
   // ── READABILITY MUTATION: a deliberately grey-on-grey, undersized supporting line must be
@@ -506,6 +649,158 @@ if (control) {
     console.error('READABILITY MUTATION FAILED: the grey-on-grey undersized line produced no findings.');
     failed = true;
   }
+
+  // ── MUTATION CONTROLS FOR EVERY NEW CHECK (the standing rule: a check enters the feed
+  // only after its control is loud on a broken fixture and quiet on shipped designs). Each
+  // fixture is a minimal hand-written template so the defect is unambiguous.
+  const mini = (body, css, extraJs = '') => ({
+    name: 'control fixture',
+    type: 'lower-third',
+    resolution: { width: 1920, height: 1080, label: '1080p' },
+    fps: 25,
+    html: `<!DOCTYPE html>\n<html><head><meta charset="utf-8"><link rel="stylesheet" href="css/template.css"><script>window.SPXGCTemplateDefinition={DataFields:[{field:"f0",ftype:"textfield",title:"Line",value:""}]};</script></head><body>${body}</body></html>`,
+    css,
+    js: `window.update=function(){};window.play=function(){};${extraJs}`,
+    fields: [{ field: 'f0', ftype: 'textfield', title: 'Line', value: '' }],
+    settings: {},
+    assets: [],
+    layers: [],
+  });
+  const expectLoud = (name, list, matcher) => {
+    const hit = list.filter(matcher);
+    console.log(`mutation ${name}: ${hit.length} finding(s)`);
+    for (const f of hit.slice(0, 3)) console.log(`  - ${typeof f === 'string' ? f : `${f.code}: ${f.detail}`}`);
+    if (!hit.length) {
+      console.error(`MUTATION CHECK FAILED: ${name} produced no findings - the check must not enter the feed.`);
+      failed = true;
+    }
+  };
+
+  // undersized-by-role: a 30px headline is the frame's primary and sits under the ~50px floor.
+  const primarySmall = await captureAndMeasure(
+    mini('<span id="f0">Undersized Primary Name</span>',
+      '#f0{position:fixed;left:400px;bottom:300px;font:700 30px sans-serif;color:#fff;background:#101216;padding:10px 16px}'),
+    { f0: 'Undersized Primary Name' }, null, null, 'control-primary-small.hold.png',
+  );
+  expectLoud('undersized-by-role (primary 30px)', primarySmall.measured?.readability?.findings ?? [],
+    (f) => f.code === 'text-under-size-floor' && f.detail.includes('(primary)'));
+
+  // standard-pass / safe-fail sizing: 70px + 30px passes STANDARD untouched and the 30px
+  // supporting line fails SAFE's 5% floor - measured directly against both modes.
+  const dualModes = await page.evaluate(async ({ template, data }) => {
+    const bust = '?t=' + Date.now();
+    const { composeDocument } = await import('/src/preview/composeDocument.ts' + bust);
+    const { measureReadability } = await import('/src/ai/spike/readabilityCheck.ts' + bust);
+    document.getElementById('iterate-hold-frame')?.remove();
+    const frame = document.createElement('iframe');
+    frame.id = 'iterate-hold-frame';
+    frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;z-index:99999;background:#333;color-scheme:dark;';
+    document.body.appendChild(frame);
+    frame.srcdoc = composeDocument(template);
+    await new Promise((resolve) => { frame.onload = resolve; });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    try {
+      frame.contentWindow.update(JSON.stringify(data));
+      frame.contentWindow.play();
+    } catch { /* static fixture */ }
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const doc = frame.contentDocument;
+    const std = measureReadability(doc, { mode: 'standard', target: { profile: 'tv' } }).findings;
+    const safe = measureReadability(doc, { mode: 'safe', target: { profile: 'tv' } }).findings;
+    frame.remove();
+    return { std, safe };
+  }, {
+    template: mini('<div class="sf"><span id="f0">Headline Seventy</span><span class="sf-sub">Supporting thirty line</span></div>',
+      '.sf{position:fixed;left:400px;bottom:300px;background:#101216;padding:20px 28px}'
+      + '.sf span{display:block;color:#fff}#f0{font:700 70px/1.15 sans-serif}.sf-sub{font:500 30px/1.2 sans-serif}'),
+    data: { f0: 'Headline Seventy' },
+  });
+  const stdSize = dualModes.std.filter((f) => f.code === 'text-under-size-floor');
+  if (stdSize.length) {
+    console.error(`MUTATION CHECK FAILED: the standard-pass fixture fails STANDARD mode (${stdSize[0].detail}).`);
+    failed = true;
+  }
+  expectLoud('standard-pass/safe-fail sizing (safe mode)', dualModes.safe,
+    (f) => f.code === 'text-under-size-floor' && f.detail.includes('Supporting thirty'));
+
+  // unprotected-over-video: white text straight over the picture, no panel/shadow/stroke.
+  const unprotected = await captureAndMeasure(
+    mini('<span id="f0">Floating Over Footage</span>',
+      '#f0{position:fixed;left:400px;bottom:300px;font:700 70px sans-serif;color:#fff}'),
+    { f0: 'Floating Over Footage' }, null, null, 'control-unprotected.hold.png',
+  );
+  expectLoud('unprotected-over-video', unprotected.measured?.readability?.findings ?? [],
+    (f) => f.code === 'text-unprotected-over-video');
+
+  // hairline functional stroke: a 1px rule right beside 30px text.
+  const hairline = await captureAndMeasure(
+    mini('<div class="hl"><div class="hl-rule"></div><span id="f0">Sources: Election Desk</span></div>',
+      '.hl{position:fixed;left:400px;bottom:240px}.hl-rule{width:400px;height:1px;background:#f6a623}'
+      + '#f0{display:block;font:600 30px sans-serif;color:#fff;background:#101216;padding:12px 16px}'),
+    { f0: 'Sources: Election Desk' }, null, null, 'control-hairline.hold.png',
+  );
+  expectLoud('hairline functional stroke', hairline.measured?.readability?.findings ?? [],
+    (f) => f.code === 'hairline-functional-stroke');
+
+  // field outside safe area: a field-bound line 20px from the left edge (inset is 96px).
+  const unsafeArea = await captureAndMeasure(
+    mini('<span id="f0">Left Edge Name</span>',
+      '#f0{position:fixed;left:20px;bottom:300px;font:700 60px sans-serif;color:#fff;background:#101216;padding:8px 14px}'),
+    { f0: 'Left Edge Name' }, null, null, 'control-unsafe-area.hold.png',
+  );
+  expectLoud('field outside safe area', unsafeArea.measured?.readability?.findings ?? [],
+    (f) => f.code === 'text-outside-safe-area');
+
+  // uneven ticker margins: loud on a lopsided band, quiet on equal margins and full bleed.
+  const band = (left, width) => mini(
+    `<div class="tkc-band"><span id="f0">Breaking: the margins rule is measured</span></div>`,
+    `.tkc-band{position:fixed;bottom:60px;left:${left}px;width:${width}px;height:72px;background:#101216;color:#fff;font:500 30px/72px sans-serif;padding-left:24px;box-sizing:border-box}`,
+  );
+  const uneven = await captureAndMeasure(band(100, 1700), { f0: 'Breaking' }, null, null, 'control-ticker-uneven.hold.png', { ticker: true });
+  expectLoud('uneven ticker margins', uneven.measured?.ticker?.findings ?? [],
+    (f) => f.code === 'ticker-margins-uneven');
+  for (const [name, fixture] of [['equal margins', band(110, 1700)], ['full bleed', band(0, 1920)]]) {
+    const cap = await captureAndMeasure(fixture, { f0: 'Breaking' }, null, null, `control-ticker-${name.replace(/\s+/g, '-')}.hold.png`, { ticker: true });
+    const loud = cap.measured?.ticker?.findings ?? [];
+    console.log(`ticker control (${name}): ${loud.length} finding(s)`);
+    if (loud.length) {
+      console.error(`MUTATION CHECK FAILED: the ${name} ticker fixture must be quiet (${loud[0].detail}).`);
+      failed = true;
+    }
+  }
+
+  // misaligned growing step (the X-25 class): step 2 grows the line past its panel - the
+  // per-step instrument pass must catch the escape on a STEP frame, not the hold.
+  const growing = await captureAndMeasure(
+    mini('<div class="stc-box"><div class="stc-accent"></div><span id="f0">Growing content stays put</span></div>',
+      '.stc-box{position:fixed;left:400px;top:400px;width:560px;background:#0d1117;padding:24px;overflow:visible}'
+      + '.stc-accent{width:120px;height:6px;background:#f6a623;margin-bottom:12px}'
+      + '#f0{display:inline-block;white-space:nowrap;font:600 34px sans-serif;color:#fff}',
+      'var k=0;window.next=function(){k+=1;document.getElementById("f0").style.fontSize=(34+k*30)+"px";};'),
+    { f0: 'Growing content stays put' }, null, null, 'control-growing-step.hold.png',
+    { steps: 2, stepPrefix: 'control-growing-step' },
+  );
+  const stepEscapes = growing.stepMeasures.flatMap((s) =>
+    (s.measured?.spacing?.escapes ?? []).filter((e) => e.isText).map((e) => `step ${s.step}: ${e.desc} ${e.px}px past ${e.side}`));
+  expectLoud('misaligned growing step (per-step instruments)', stepEscapes, () => true);
+
+  // no-advance stepper: next() exists, returns nothing AND changes nothing - the markup diff
+  // must call it, and a next() that does real work while returning undefined must NOT trip it
+  // (the growing fixture above returns undefined every press and walked both steps).
+  if (growing.stepFindings.length) {
+    console.error(`MUTATION CHECK FAILED: the growing stepper (working next(), undefined return) tripped the advance check: ${growing.stepFindings[0]}`);
+    failed = true;
+  }
+  const inert = await captureAndMeasure(
+    mini('<div class="stc-box"><div class="stc-accent"></div><span id="f0">Never advances</span></div>',
+      '.stc-box{position:fixed;left:400px;top:400px;background:#0d1117;padding:24px}'
+      + '.stc-accent{width:120px;height:6px;background:#f6a623;margin-bottom:12px}'
+      + '#f0{font:600 34px sans-serif;color:#fff}',
+      'window.next=function(){};'),
+    { f0: 'Never advances' }, null, null, 'control-inert-step.hold.png',
+    { steps: 1, stepPrefix: 'control-inert-step' },
+  );
+  expectLoud('inert stepper (markup diff)', inert.stepFindings, (f) => f.includes('changed NOTHING'));
 
   // ── ONE KNOWN-GOOD CATALOG CELL PER NEW TYPE, through the EXTENDED capture: if step
   // capture or the field-paint validator misfires on a shipped scoreboard or quiz, the
@@ -691,6 +986,8 @@ async function writeLedger() {
     bank: path.relative(process.cwd(), BANK),
     brands: path.relative(process.cwd(), BRANDS),
     readabilityMode: READABILITY_MODE,
+    legibilityMode: LEGIBILITY_MODE,
+    viewingProfile: VIEWING_PROFILE,
     maxIterations: MAX_ITERATIONS,
     vision,
     maxCost,
@@ -739,6 +1036,9 @@ for (const entry of briefs) {
           // sentinel step-walk instead.
           validate: productionSpxValidator(null, [input.brand.mark.path], input.benchOptions),
           brand: input.brand,
+          // The canonical rules ride the USER message, generated from designRules.ts - the
+          // frozen coder system prompt stays frozen (docs/DESIGN_RULES_PLAN.md §2).
+          rules: { target: { profile: input.profile }, mode: input.legibility },
           previous: input.previous ?? undefined,
         });
         return {
@@ -761,6 +1061,8 @@ for (const entry of briefs) {
         brand,
         previous,
         benchOptions: validatorFieldPaints(entry) ? { fieldPaints: true } : {},
+        profile: VIEWING_PROFILE,
+        legibility: LEGIBILITY_MODE,
       });
 
       totals.input += emitRes.usage.input;
@@ -790,24 +1092,61 @@ for (const entry of briefs) {
         return values;
       }, { briefEntry: entry.brief, fill: emitRes.fill });
 
+      const captureOpts = {
+        proType: proInstrumentType(entry),
+        ticker: sweepType(entry) === 'ticker',
+      };
       const capture = await captureAndMeasure(
         emitRes.template, data, emitRes.fill?.slotFieldId ?? null, brand.mark.probe,
         `${slug}.round-${round}.hold.png`,
         {
-          proType: proInstrumentType(entry),
+          ...captureOpts,
           steps: declaredSteps(entry),
           stepPrefix: `${slug}.round-${round}`,
         },
+      );
+      // THE STRESS FRAMES FEED THE LOOP (§22.1 escape 5: X-35 measured clean and broke under
+      // stress; the capture existed and the findings never entered the feed). Two frames: the
+      // brief's own long-content stress, and the brief-§9 edge cases.
+      const roundStressData = await page.evaluate(async ({ briefEntry, fill }) => {
+        const bust = '?t=' + Date.now();
+        const spikeAnchors = await import('/src/ai/spike/anchors.ts' + bust);
+        const values = spikeAnchors.stressFor(briefEntry);
+        if (fill?.slotFieldId && fill.path) values[fill.slotFieldId] = fill.path;
+        return values;
+      }, { briefEntry: entry.brief, fill: emitRes.fill });
+      const stressCapture = await captureAndMeasure(
+        emitRes.template, roundStressData, emitRes.fill?.slotFieldId ?? null, brand.mark.probe,
+        `${slug}.round-${round}.stress.png`, captureOpts,
+      );
+      const edgeCapture = await captureAndMeasure(
+        emitRes.template, edgeStressValues(entry), emitRes.fill?.slotFieldId ?? null, brand.mark.probe,
+        `${slug}.round-${round}.edge.png`, captureOpts,
       );
       // The sentinel step-walk covers what the validator's one-state read cannot (steppers,
       // transform fields) - a quiz that never reveals its answer must fail the loop.
       const paintFindings = validatorFieldPaints(entry) ? [] : await paintWalk(emitRes.template, entry);
       lastCapture = { ...capture, data, round };
 
-      const split = collectFindings(emitRes.validation, capture.playError, capture.measured, {
+      const frames = [
+        { label: '', measured: capture.measured },
+        ...capture.stepMeasures.map((s) => ({ label: `on step frame ${s.step}`, measured: s.measured })),
+        { label: 'under stress values (long content)', measured: stressCapture.measured },
+        { label: 'under edge-case values (zero/empty/Nordic/all-caps)', measured: edgeCapture.measured },
+      ];
+      const extraBlocking = [];
+      if (stressCapture.playError) extraBlocking.push(`under stress values the template threw: ${stressCapture.playError}`);
+      if (edgeCapture.playError) extraBlocking.push(`under edge-case values the template threw: ${edgeCapture.playError}`);
+      // The owner's no-model-placed-logos ruling, enforced deterministically: a brief that
+      // carries no mark must not grow a logo field or placeholder (§22.1 escape 2).
+      if (entry.brief.includeLogo === false && emitRes.template.fields.some((f) => f.ftype === 'filelist')) {
+        extraBlocking.push('this brief carries NO brand mark - remove the image/logo field and any reserved logo space (the platform owns mark placement)');
+      }
+      const split = collectFindings(emitRes.validation, capture.playError, frames, {
         advisoryInstruments: instrumentsAdvisory(entry),
         stepFindings: capture.stepFindings,
         paintFindings,
+        extraBlocking,
       });
       const findings = feedFindings(split);
       iterationLog.push({
@@ -860,7 +1199,7 @@ for (const entry of briefs) {
   }, { briefEntry: entry.brief, fill: current.fill });
   const stress = await captureAndMeasure(
     current.template, stressData, current.fill?.slotFieldId ?? null, brand.mark.probe, `${slug}.stress.hold.png`,
-    { proType: proInstrumentType(entry) },
+    { proType: proInstrumentType(entry), ticker: sweepType(entry) === 'ticker' },
   );
 
   const blockingErrors = current.validation.errors.filter((e) => !e.startsWith(`${EDITABILITY_RULE}:`));
@@ -885,10 +1224,11 @@ for (const entry of briefs) {
       textFields,
       expectedTextFields: entry.expect?.textFields ?? 2,
       fieldsOk: textFields >= (entry.expect?.textFields ?? 2),
-      logoExpected: true,
+      logoExpected: entry.brief.includeLogo !== false,
       logoSlot: Boolean(current.fill?.slotFieldId),
       blockingErrors,
-      scaffoldOk: blockingErrors.length === 0 && textFields >= (entry.expect?.textFields ?? 2) && Boolean(current.fill?.slotFieldId),
+      scaffoldOk: blockingErrors.length === 0 && textFields >= (entry.expect?.textFields ?? 2)
+        && (entry.brief.includeLogo === false || Boolean(current.fill?.slotFieldId)),
     },
     fill: current.fill,
     emitted: current.emitted,
