@@ -33,14 +33,26 @@ export const FLAT_BG_TOLERANCE = 10;
 const SAMPLE_OFFSET = 3;
 
 export interface EraseSampling {
-  /** The fill that was applied: the per-channel mean of the surviving edge samples. */
+  /** The fill that was applied: the per-channel mean of the surviving edge samples. On the
+   *  type-aware path this is the FIRST text segment's own background — the value a seeded
+   *  field's text colour is contrasted against, so it must describe the surface behind the
+   *  words, never an average of every surface the lasso happened to cross. */
   fill: { r: number; g: number; b: number; a: number };
-  /** Worst per-channel spread across the samples, alpha included (0–255). */
+  /** Worst per-channel spread that remains AFTER the best available background model: a flat
+   *  segment reports its raw spread, a gradient segment the spread left over once the fitted
+   *  gradient is subtracted. What "clean" was actually judged against, alpha included (0–255). */
   maxDeviation: number;
-  /** True when the background counts as flat: samples within FLAT_BG_TOLERANCE. */
+  /** True when every filled area had a clean background model: flat, or a smooth gradient the
+   *  linear fit reconstructs within FLAT_BG_TOLERANCE. */
   uniform: boolean;
   /** Ring points that actually landed on the image (a rect at the edge loses some). */
   sampleCount: number;
+  /** True when any filled area used a fitted gradient rather than one colour. */
+  gradient?: boolean;
+  /** The type-aware path's per-segment verdict: how many text areas were found in the box and
+   *  how many of them sat on a background clean enough to reconstruct. Absent on the legacy
+   *  whole-rect path (no type was detected in the box). */
+  segments?: { clean: number; total: number };
 }
 
 /**
@@ -131,6 +143,29 @@ function ringPoints(rect: EraseRect): Array<{ x: number; y: number }> {
   return pts;
 }
 
+/** One ring probe that landed on the image: where it sat and what it read. */
+interface RingProbe {
+  x: number;
+  y: number;
+  v: [number, number, number, number];
+}
+
+/** The probes of a rectangle's ring that exist on the image. */
+function collectRing(
+  px: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  rect: EraseRect,
+): RingProbe[] {
+  const probes: RingProbe[] = [];
+  for (const p of ringPoints(rect)) {
+    if (p.x < 0 || p.y < 0 || p.x >= imageWidth || p.y >= imageHeight) continue;
+    const at = (p.y * imageWidth + p.x) * 4;
+    probes.push({ x: p.x, y: p.y, v: [px[at], px[at + 1], px[at + 2], px[at + 3]] });
+  }
+  return probes;
+}
+
 /**
  * Sample the ring around a rectangle and turn it into the flatness verdict + the fill. One
  * implementation, because the erase and the baked-text SCAN below must never disagree about
@@ -144,21 +179,19 @@ function sampleRing(
   imageHeight: number,
   rect: EraseRect,
 ): EraseSampling {
+  const probes = collectRing(px, imageWidth, imageHeight, rect);
   const lo = [255, 255, 255, 255];
   const hi = [0, 0, 0, 0];
   const sum = [0, 0, 0, 0];
-  let sampleCount = 0;
-  for (const p of ringPoints(rect)) {
-    if (p.x < 0 || p.y < 0 || p.x >= imageWidth || p.y >= imageHeight) continue;
-    const at = (p.y * imageWidth + p.x) * 4;
+  for (const p of probes) {
     for (let c = 0; c < 4; c++) {
-      const v = px[at + c];
+      const v = p.v[c];
       if (v < lo[c]) lo[c] = v;
       if (v > hi[c]) hi[c] = v;
       sum[c] += v;
     }
-    sampleCount++;
   }
+  const sampleCount = probes.length;
   const maxDeviation = sampleCount ? Math.max(...hi.map((v, c) => v - lo[c])) : 255;
   const uniform = sampleCount > 0 && maxDeviation <= FLAT_BG_TOLERANCE;
   const mean = sum.map((v) => (sampleCount ? Math.round(v / sampleCount) : 0));
@@ -171,10 +204,382 @@ function sampleRing(
   return { fill, maxDeviation, uniform, sampleCount };
 }
 
+// ─── The background MODEL a fill reconstructs ──────────────────────────────────────────────
+//
+// A flat background is the model `v = mean`; a smooth gradient is the model
+// `v = a + bx·x + by·y` per channel, fitted to the ring's probes by least squares. Both are
+// judged by the same number — the worst per-channel deviation the model leaves unexplained —
+// against the same FLAT_BG_TOLERANCE, so "smooth gradient" is exactly "flat, once the plane
+// is subtracted" and nothing gets looser. A texture, a photo, or a surface BOUNDARY (panel
+// edge inside the ring) leaves residuals far past the tolerance and still refuses honestly:
+// a linear plane cannot model a step.
+
+/** A fitted linear background field: value(x, y) per channel, plus what it failed to explain. */
+interface BgField {
+  /** 'flat' fills one colour; 'gradient' fills the fitted plane per pixel. */
+  kind: 'flat' | 'gradient';
+  /** Worst per-channel deviation the model leaves across the probes (0–255). */
+  deviation: number;
+  /** The mean colour — the fill for 'flat', and the representative colour for 'gradient'
+   *  (what a seeded field's text colour is contrasted against). */
+  mean: { r: number; g: number; b: number; a: number };
+  /** The model's value at a pixel, rounded, alpha-snapped like the flat fill. */
+  at(x: number, y: number): [number, number, number, number];
+}
+
+/** Fit the flat model, then — only if flat fails — the linear-gradient model. Null when
+ *  neither explains the probes within FLAT_BG_TOLERANCE (a busy background). */
+function fitBackground(probes: RingProbe[]): BgField | null {
+  if (probes.length === 0) return null;
+  const lo = [255, 255, 255, 255];
+  const hi = [0, 0, 0, 0];
+  const sum = [0, 0, 0, 0];
+  for (const p of probes) {
+    for (let c = 0; c < 4; c++) {
+      const v = p.v[c];
+      if (v < lo[c]) lo[c] = v;
+      if (v > hi[c]) hi[c] = v;
+      sum[c] += v;
+    }
+  }
+  const mean = sum.map((v) => Math.round(v / probes.length));
+  const meanFill =
+    mean[3] <= 8
+      ? { r: 0, g: 0, b: 0, a: 0 }
+      : { r: mean[0], g: mean[1], b: mean[2], a: mean[3] };
+  const flatDeviation = Math.max(...hi.map((v, c) => v - lo[c]));
+  if (flatDeviation <= FLAT_BG_TOLERANCE) {
+    const flat: [number, number, number, number] = [meanFill.r, meanFill.g, meanFill.b, meanFill.a];
+    return { kind: 'flat', deviation: flatDeviation, mean: meanFill, at: () => flat };
+  }
+
+  // The gradient fit needs enough probes to be a measurement rather than an echo, and spread
+  // in BOTH axes — a rect at the image edge can lose a whole side of its ring, and a plane
+  // fitted to three collinear points would extrapolate garbage into the fill.
+  if (probes.length < 8) return null;
+  const cx = probes.reduce((n, p) => n + p.x, 0) / probes.length;
+  const cy = probes.reduce((n, p) => n + p.y, 0) / probes.length;
+  let sxx = 0;
+  let syy = 0;
+  let sxy = 0;
+  for (const p of probes) {
+    sxx += (p.x - cx) * (p.x - cx);
+    syy += (p.y - cy) * (p.y - cy);
+    sxy += (p.x - cx) * (p.y - cy);
+  }
+  const det = sxx * syy - sxy * sxy;
+  if (sxx < 4 || syy < 4 || det < 1e-3) return null;
+
+  const a: number[] = [];
+  const bx: number[] = [];
+  const by: number[] = [];
+  for (let c = 0; c < 4; c++) {
+    let svx = 0;
+    let svy = 0;
+    let sv = 0;
+    for (const p of probes) {
+      sv += p.v[c];
+      svx += p.v[c] * (p.x - cx);
+      svy += p.v[c] * (p.y - cy);
+    }
+    // Least squares for v = a + bx·(x-cx) + by·(y-cy), per channel over the shared geometry.
+    bx[c] = (svx * syy - svy * sxy) / det;
+    by[c] = (svy * sxx - svx * sxy) / det;
+    a[c] = sv / probes.length;
+  }
+  const valueAt = (x: number, y: number, c: number) =>
+    Math.max(0, Math.min(255, Math.round(a[c] + bx[c] * (x - cx) + by[c] * (y - cy))));
+  let deviation = 0;
+  for (const p of probes) {
+    for (let c = 0; c < 4; c++) {
+      const d = Math.abs(p.v[c] - valueAt(p.x, p.y, c));
+      if (d > deviation) deviation = d;
+    }
+  }
+  if (deviation > FLAT_BG_TOLERANCE) return null;
+  return {
+    kind: 'gradient',
+    deviation,
+    mean: meanFill,
+    at(x: number, y: number): [number, number, number, number] {
+      const alpha = valueAt(x, y, 3);
+      // The same transparency snap as the flat fill: a near-invisible model value is a
+      // transparent background, and writing colour under alpha ≤ 8 bleeds through scaling
+      // filters as a fringe.
+      if (alpha <= 8) return [0, 0, 0, 0];
+      return [valueAt(x, y, 0), valueAt(x, y, 1), valueAt(x, y, 2), alpha];
+    },
+  };
+}
+
 /**
- * Flat-fill the rectangle with the background sampled around it. Always returns the filled
- * result, even when the samples disagree — "continue anyway" applies exactly what the
- * warning preview showed. Deterministic: same input + rect ⇒ the same output bytes.
+ * fitBackground, with one second chance: drop the worst third of the probes and fit again.
+ *
+ * A ring is 16 blind samples, and real designs put furniture NEAR text — a hairline rule one
+ * pad short of the descenders, an accent bar a word-space from the first letter — so one side
+ * of the ring can land on ink-like furniture while the surface under the text is perfectly
+ * flat. The trim drops the probes farthest from the per-channel MEDIAN (the robust centre a
+ * minority cannot drag) and refits; a model that only exists because of the trim is honest
+ * ONLY together with the fill-zone verification in eraseRegionFlat, which checks that the
+ * box's own pixels are mostly the model's background — the case the trim must not admit is a
+ * box straddling two surfaces, where the "outliers" are half the truth. That case fails the
+ * zone check on its own bulk.
+ */
+function fitBackgroundTrimmed(probes: RingProbe[]): { field: BgField | null; trimmed: boolean } {
+  const full = fitBackground(probes);
+  if (full) return { field: full, trimmed: false };
+  if (probes.length < 12) return { field: null, trimmed: false };
+  const median = (values: number[]): number => {
+    const s = [...values].sort((a, b) => a - b);
+    return s[Math.floor(s.length / 2)];
+  };
+  const centre = [0, 1, 2, 3].map((c) => median(probes.map((p) => p.v[c])));
+  const scored = probes
+    .map((p) => ({ p, d: Math.max(...p.v.map((v, c) => Math.abs(v - centre[c]))) }))
+    .sort((a, b) => a.d - b.d);
+  const kept = scored.slice(0, probes.length - Math.ceil(probes.length / 3)).map((s) => s.p);
+  if (kept.length < 8) return { field: null, trimmed: false };
+  return { field: fitBackground(kept), trimmed: true };
+}
+
+/** How many stroke edges per row a column span must average to read as TYPE rather than
+ *  furniture sharing the rows: a solid shape (panel edge, accent bar, rule crossing the box)
+ *  contributes ~2 transitions per row and a slanted boundary 1–2, while even a short word is
+ *  2 per glyph stem — four glyphs clear this several times over. */
+const MIN_SEGMENT_EDGES_PER_ROW = 5;
+
+/** One area the erase will fill: a run of type on ONE surface, with the surface's model. */
+interface EraseSegment {
+  /** Which text line (band) the segment belongs to, top to bottom. */
+  band: number;
+  /** The padded box that gets filled, clamped to the user's rect. */
+  box: EraseRect;
+  /** The background model — null when the ring around this segment is busy. */
+  field: BgField | null;
+  /** The fill actually applied (the model's mean; for a busy ring, the probe mean). */
+  mean: { r: number; g: number; b: number; a: number };
+  /** Raw flat spread across the probes — what the warning reports for a busy ring. */
+  rawDeviation: number;
+  probeCount: number;
+}
+
+/** Every contiguous column span carrying edges, gaps up to `gap` allowed (a word space) —
+ *  the plural of widestSpan, because one line can hold several separate pieces of type. */
+function allSpans(
+  counts: Int32Array,
+  offset: number,
+  gap: number,
+): Array<{ x0: number; x1: number; mass: number }> {
+  const spans: Array<{ x0: number; x1: number; mass: number }> = [];
+  let start = -1;
+  let last = -1;
+  let mass = 0;
+  const close = () => {
+    if (start !== -1) spans.push({ x0: offset + start, x1: offset + last, mass });
+  };
+  for (let i = 0; i < counts.length; i++) {
+    if (counts[i] === 0) continue;
+    if (start === -1 || i - last > gap) {
+      close();
+      start = i;
+      mass = 0;
+    }
+    last = i;
+    mass += counts[i];
+  }
+  close();
+  return spans;
+}
+
+/**
+ * The type inside the user's rect, as fillable segments: stroke-edge bands (the scan's own
+ * discriminator, which needs no background estimate and so cannot be fooled by a lasso that
+ * crosses two surfaces) split into per-line column spans, each padded and given its own ring.
+ * Furniture sharing the rows — a divider, a panel edge, an accent bar — fails the
+ * edges-per-row floor and is left standing.
+ */
+function segmentsOf(
+  px: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  rect: EraseRect,
+): EraseSegment[] {
+  const bands = bandsOf(
+    rowEdges(px, imageWidth, rect.x, rect.x + rect.width, rect.y, rect.y + rect.height),
+    rect.y,
+  );
+  const segments: EraseSegment[] = [];
+  bands.forEach((band, bandIndex) => {
+    const cols = colEdges(
+      px,
+      imageWidth,
+      rect.x,
+      rect.x + rect.width,
+      band.top,
+      band.top + band.height,
+    );
+    const gap = Math.max(8, Math.round(band.height * 0.6));
+    for (const span of allSpans(cols, rect.x, gap)) {
+      if (span.mass / band.height < MIN_SEGMENT_EDGES_PER_ROW) continue;
+      // The pad covers the glyphs' antialiasing and the ascender/descender rows thin enough
+      // to drop under the band threshold; the ring then probes SAMPLE_OFFSET beyond it. The
+      // box never grows past the user's rect — the lasso is the user's authority.
+      //
+      // Each side's pad is CAPPED before the nearest surface BOUNDARY, so the ring's probes
+      // can only ever read the surface the text itself sits on. The hazard is real furniture
+      // drawn close to the words — the hairline rule between a name and its title crosses the
+      // whole span one row below the descenders, and a probe row landing on it poisons the
+      // verdict with a deviation no model can explain. Horizontal edge counts cannot see a
+      // horizontal rule (inside the span it is constant colour), so the test is the
+      // TRANSVERSE one: a row (column) where the pixel row above/beside differs across more
+      // than half the span is a boundary, and the pad stops short of it.
+      const spanW = span.x1 - span.x0 + 1;
+      const crossesRow = (y: number): boolean => {
+        if (y <= 0 || y >= imageHeight) return false;
+        let n = 0;
+        let at = (y * imageWidth + span.x0) * 4;
+        let above = at - imageWidth * 4;
+        for (let x = span.x0; x <= span.x1; x++, at += 4, above += 4) {
+          let d = 0;
+          for (let c = 0; c < 4; c++) d = Math.max(d, Math.abs(px[at + c] - px[above + c]));
+          if (d > EDGE_TOLERANCE) n++;
+        }
+        return n > spanW * 0.5;
+      };
+      const crossesCol = (x: number): boolean => {
+        if (x <= 0 || x >= imageWidth) return false;
+        let n = 0;
+        let at = (band.top * imageWidth + x) * 4;
+        const stride = imageWidth * 4;
+        for (let y = band.top; y < band.top + band.height; y++, at += stride) {
+          let d = 0;
+          for (let c = 0; c < 4; c++) d = Math.max(d, Math.abs(px[at + c] - px[at - 4 + c]));
+          if (d > EDGE_TOLERANCE) n++;
+        }
+        return n > band.height * 0.5;
+      };
+      const cappedPad = (desired: number, unsafeAt: (d: number) => boolean): number => {
+        for (let d = 1; d <= desired + SAMPLE_OFFSET; d++) {
+          if (unsafeAt(d)) return Math.max(2, d - SAMPLE_OFFSET - 1);
+        }
+        return desired;
+      };
+      const wantY = Math.max(3, Math.round(band.height * 0.3));
+      const wantX = Math.max(3, Math.round(band.height * 0.15));
+      const padTop = cappedPad(wantY, (d) => crossesRow(band.top - d + 1));
+      const padBottom = cappedPad(wantY, (d) => crossesRow(band.top + band.height - 1 + d));
+      const padLeft = cappedPad(wantX, (d) => crossesCol(span.x0 - d));
+      const padRight = cappedPad(wantX, (d) => crossesCol(span.x1 + d));
+      const bx0 = Math.max(rect.x, span.x0 - padLeft);
+      const by0 = Math.max(rect.y, band.top - padTop);
+      const bx1 = Math.min(rect.x + rect.width, span.x1 + 1 + padRight);
+      const by1 = Math.min(rect.y + rect.height, band.top + band.height + padBottom);
+      const box: EraseRect = { x: bx0, y: by0, width: bx1 - bx0, height: by1 - by0 };
+      const probes = collectRing(px, imageWidth, imageHeight, box);
+      const { field } = fitBackgroundTrimmed(probes);
+      const lo = [255, 255, 255, 255];
+      const hi = [0, 0, 0, 0];
+      const sum = [0, 0, 0, 0];
+      for (const p of probes) {
+        for (let c = 0; c < 4; c++) {
+          const v = p.v[c];
+          if (v < lo[c]) lo[c] = v;
+          if (v > hi[c]) hi[c] = v;
+          sum[c] += v;
+        }
+      }
+      const m = sum.map((v) => (probes.length ? Math.round(v / probes.length) : 0));
+      const mean =
+        field?.mean ??
+        (m[3] <= 8 ? { r: 0, g: 0, b: 0, a: 0 } : { r: m[0], g: m[1], b: m[2], a: m[3] });
+      segments.push({
+        band: bandIndex,
+        box,
+        field,
+        mean,
+        rawDeviation: probes.length ? Math.max(...hi.map((v, c) => v - lo[c])) : 255,
+        probeCount: probes.length,
+      });
+    }
+  });
+  return segments;
+}
+
+/** The tight ink box of one segment against its own background model — the segment is a
+ *  single line by construction, so this is measureInk's per-run math without the run split. */
+function segmentInk(
+  px: Uint8ClampedArray,
+  imageWidth: number,
+  seg: EraseSegment,
+): { line: InkLine | null; mass: number; zone: { bg: number; ink: number; total: number } } {
+  const bgAt = seg.field ? seg.field.at : () => [seg.mean.r, seg.mean.g, seg.mean.b, seg.mean.a];
+  const { box } = seg;
+  const rows = new Array<number>(box.height).fill(0);
+  const cols = new Array<number>(box.width).fill(0);
+  const zone = { bg: 0, ink: 0, total: box.width * box.height };
+  for (let ry = 0; ry < box.height; ry++) {
+    let at = ((box.y + ry) * imageWidth + box.x) * 4;
+    for (let rx = 0; rx < box.width; rx++, at += 4) {
+      const bg = bgAt(box.x + rx, box.y + ry);
+      let diff = 0;
+      for (let c = 0; c < 4; c++) diff = Math.max(diff, Math.abs(px[at + c] - bg[c]));
+      if (diff > INK_TOLERANCE) {
+        rows[ry]++;
+        cols[rx]++;
+        zone.ink++;
+      } else if (diff <= FLAT_BG_TOLERANCE * 2) {
+        zone.bg++;
+      }
+    }
+  }
+  const inked = (counts: number[]) => {
+    let first = -1;
+    let last = -1;
+    for (let i = 0; i < counts.length; i++) {
+      if (counts[i] < 2) continue;
+      if (first === -1) first = i;
+      last = i;
+    }
+    return first === -1 ? null : { first, last };
+  };
+  const yRange = inked(rows);
+  const xRange = inked(cols);
+  const mass = rows.reduce((n, v) => n + v, 0);
+  if (!yRange || !xRange || yRange.last - yRange.first + 1 < MIN_LINE_ROWS) {
+    return { line: null, mass, zone };
+  }
+  // The baseline: the lowest row still carrying a real share of the densest row's ink —
+  // the same descender split measureInk documents.
+  const peak = Math.max(...rows.slice(yRange.first, yRange.last + 1));
+  let baseline = yRange.first;
+  for (let i = yRange.first; i <= yRange.last; i++) {
+    if (rows[i] >= peak * BASELINE_SHARE) baseline = i;
+  }
+  return {
+    line: {
+      x: box.x + xRange.first,
+      width: xRange.last - xRange.first + 1,
+      top: box.y + yRange.first,
+      capHeight: baseline - yRange.first + 1,
+    },
+    mass,
+    zone,
+  };
+}
+
+/**
+ * Erase the baked-in TEXT inside the rectangle. The rect the user draws is a loose lasso, so
+ * the erase finds the type inside it (stroke-edge bands — the scan's discriminator), gives
+ * each piece its own padded box and its own ring, and reconstructs each piece's OWN
+ * background: one colour where it is flat, a fitted plane where it is a smooth gradient.
+ * Everything that is not type — a divider, a chip, a panel edge the lasso crossed — is left
+ * standing, which is what lets a box drawn over a whole strap erase the words and keep the
+ * design.
+ *
+ * A rect in which no type is detected falls back to filling the whole rectangle (the way to
+ * remove a logo or an ornament), with the same flat-then-gradient model. Either way the
+ * filled result is always returned — "continue anyway" applies exactly what the warning
+ * preview showed. Deterministic: same input + rect ⇒ the same output bytes.
  */
 export async function eraseRegionFlat(dataUrl: string, rect: EraseRect): Promise<EraseResult> {
   const img = await loadImage(dataUrl);
@@ -198,26 +603,110 @@ export async function eraseRegionFlat(dataUrl: string, rect: EraseRect): Promise
   const image = ctx.getImageData(0, 0, w, h);
   const px = image.data;
 
-  const sampling = sampleRing(px, w, h, clamped);
-  const fill = sampling.fill;
-
-  // Measure the ink BEFORE the fill removes it (see RegionInk).
-  const ink = measureInk(px, w, clamped, fill);
-
   // Fill by mutating the pixel data directly: fillRect would COMPOSITE a semi-transparent
   // fill over the text underneath, leaving it ghosted through — writing the bytes replaces it.
-  for (let y = clamped.y; y < clamped.y + clamped.height; y++) {
-    let at = (y * w + clamped.x) * 4;
-    for (let x = 0; x < clamped.width; x++, at += 4) {
-      px[at] = fill.r;
-      px[at + 1] = fill.g;
-      px[at + 2] = fill.b;
-      px[at + 3] = fill.a;
+  const fillBox = (box: EraseRect, at: (x: number, y: number) => [number, number, number, number]) => {
+    for (let y = box.y; y < box.y + box.height; y++) {
+      let o = (y * w + box.x) * 4;
+      for (let x = box.x; x < box.x + box.width; x++, o += 4) {
+        const v = at(x, y);
+        px[o] = v[0];
+        px[o + 1] = v[1];
+        px[o + 2] = v[2];
+        px[o + 3] = v[3];
+      }
     }
+  };
+
+  const segments = segmentsOf(px, w, h, clamped);
+  if (segments.length === 0) {
+    // No type in the box — the whole-rect fill (a logo, an ornament), flat or gradient.
+    const probes = collectRing(px, w, h, clamped);
+    const flat = sampleRing(px, w, h, clamped);
+    const field = fitBackground(probes);
+    const fill = field?.mean ?? flat.fill;
+    const bgAt: (x: number, y: number) => [number, number, number, number] = field
+      ? field.at
+      : () => [fill.r, fill.g, fill.b, fill.a];
+    const ink = measureInk(px, w, clamped, bgAt);
+    fillBox(clamped, bgAt);
+    ctx.putImageData(image, 0, 0);
+    return {
+      dataUrl: canvas.toDataURL('image/png'),
+      sampling: {
+        fill,
+        maxDeviation: field ? field.deviation : flat.maxDeviation,
+        uniform: field !== null,
+        sampleCount: flat.sampleCount,
+        gradient: field?.kind === 'gradient' || undefined,
+      },
+      ink,
+    };
+  }
+
+  // Measure each segment's ink BEFORE its fill removes it, then fill segment by segment.
+  const measured = segments.map((seg) => ({ seg, ink: segmentInk(px, w, seg) }));
+  for (const { seg } of measured) {
+    fillBox(seg.box, seg.field ? seg.field.at : () => [seg.mean.r, seg.mean.g, seg.mean.b, seg.mean.a]);
   }
   ctx.putImageData(image, 0, 0);
 
-  return { dataUrl: canvas.toDataURL('image/png'), sampling, ink };
+  // A segment is CLEAN when its ring produced a model AND the box's own pixels verify it:
+  // mostly the model's background, ink a minority. The verification is what keeps the
+  // trimmed fit honest — a box straddling two surfaces has a plausible ring model (the
+  // trim shed the other surface's probes) but its bulk contradicts it.
+  const cleanSeg = (m: (typeof measured)[number]): boolean =>
+    m.seg.field !== null &&
+    m.ink.zone.bg >= m.ink.zone.total * 0.4 &&
+    m.ink.zone.ink <= m.ink.zone.total * 0.5;
+
+  // One InkLine per BAND — a line with two separated pieces (a name beside a chip) still
+  // seeds one field, spanning both, sized by its heaviest piece.
+  const lines: InkLine[] = [];
+  const bandCount = Math.max(...segments.map((s) => s.band)) + 1;
+  for (let b = 0; b < bandCount; b++) {
+    const inBand = measured.filter((m) => m.seg.band === b && m.ink.line);
+    if (inBand.length === 0) continue;
+    const heaviest = inBand.reduce((best, m) => (m.ink.mass > best.ink.mass ? m : best));
+    const lo = Math.min(...inBand.map((m) => m.ink.line!.x));
+    const hi = Math.max(...inBand.map((m) => m.ink.line!.x + m.ink.line!.width));
+    lines.push({
+      x: lo,
+      width: hi - lo,
+      top: Math.min(...inBand.map((m) => m.ink.line!.top)),
+      capHeight: heaviest.ink.line!.capHeight,
+    });
+  }
+  const withLines = measured.filter((m) => m.ink.line);
+  const ink: RegionInk | null = lines.length
+    ? {
+        x: Math.min(...lines.map((l) => l.x)),
+        y: Math.min(...lines.map((l) => l.top)),
+        width:
+          Math.max(...lines.map((l) => l.x + l.width)) - Math.min(...lines.map((l) => l.x)),
+        height:
+          Math.max(...withLines.map((m) => m.ink.line!.top + m.ink.line!.capHeight)) -
+          Math.min(...lines.map((l) => l.top)),
+        lines,
+      }
+    : null;
+
+  const clean = measured.filter(cleanSeg).length;
+  const worst = (m: (typeof measured)[number]): number =>
+    cleanSeg(m) ? m.seg.field!.deviation : m.seg.field ? m.seg.rawDeviation : m.seg.rawDeviation;
+  const first = segments[0];
+  return {
+    dataUrl: canvas.toDataURL('image/png'),
+    sampling: {
+      fill: first.mean,
+      maxDeviation: Math.max(...measured.map(worst)),
+      uniform: clean === measured.length,
+      sampleCount: segments.reduce((n, s) => n + s.probeCount, 0),
+      gradient: measured.some((m) => cleanSeg(m) && m.seg.field?.kind === 'gradient') || undefined,
+      segments: { clean, total: measured.length },
+    },
+    ink,
+  };
 }
 
 /** The pad band a padded crop keeps on each side of a design unit, in SOURCE pixels. */
@@ -318,14 +807,14 @@ function measureInk(
   px: Uint8ClampedArray,
   imageWidth: number,
   rect: EraseRect,
-  fill: { r: number; g: number; b: number; a: number },
+  bgAt: (x: number, y: number) => [number, number, number, number],
 ): RegionInk | null {
-  const bg = [fill.r, fill.g, fill.b, fill.a];
   const rows = new Array<number>(rect.height).fill(0);
   const cols = new Array<number>(rect.width).fill(0);
   for (let ry = 0; ry < rect.height; ry++) {
     let at = ((rect.y + ry) * imageWidth + rect.x) * 4;
     for (let rx = 0; rx < rect.width; rx++, at += 4) {
+      const bg = bgAt(rect.x + rx, rect.y + ry);
       let diff = 0;
       for (let c = 0; c < 4; c++) diff = Math.max(diff, Math.abs(px[at + c] - bg[c]));
       if (diff > INK_TOLERANCE) {
@@ -384,6 +873,7 @@ function measureInk(
       let n = 0;
       for (let ry = run.top; ry < run.top + run.height; ry++) {
         const at = ((rect.y + ry) * imageWidth + rect.x + rx) * 4;
+        const bg = bgAt(rect.x + rx, rect.y + ry);
         let diff = 0;
         for (let c = 0; c < 4; c++) diff = Math.max(diff, Math.abs(px[at + c] - bg[c]));
         if (diff > INK_TOLERANCE && ++n >= 2) break;
@@ -507,6 +997,20 @@ function edgeAt(px: Uint8ClampedArray, a: number, b: number): number {
   return d;
 }
 
+/**
+ * A stroke edge at `x` is a transition that SUSTAINS: the pixel differs from its neighbour
+ * AND from the pixel past it. A real stem's side crosses into ink and stays there for the
+ * stem's width (≥ 2px at any legible size), while compression ringing and upscaler halos
+ * around a crisp boundary oscillate — one bright pixel, back to base — and a 1px spike fails
+ * the second test. Without this, a re-encoded or AI-upscaled export counts dozens of phantom
+ * edges along every rule and panel border, and the row profile reads furniture as type. At
+ * the window's last usable column the second test has no pixel to read, so the first decides.
+ */
+function strokeEdgeAt(px: Uint8ClampedArray, at: number, hasNext2: boolean): boolean {
+  if (edgeAt(px, at, at + 4) <= EDGE_TOLERANCE) return false;
+  return !hasNext2 || edgeAt(px, at, at + 8) > EDGE_TOLERANCE;
+}
+
 /** Stroke edges per ROW inside the window, indexed from `y0`. */
 function rowEdges(
   px: Uint8ClampedArray,
@@ -520,7 +1024,7 @@ function rowEdges(
   for (let y = y0; y < y1; y++) {
     let n = 0;
     let at = (y * imageWidth + x0) * 4;
-    for (let x = x0; x < x1 - 1; x++, at += 4) if (edgeAt(px, at, at + 4) > EDGE_TOLERANCE) n++;
+    for (let x = x0; x < x1 - 1; x++, at += 4) if (strokeEdgeAt(px, at, x < x1 - 2)) n++;
     out[y - y0] = n;
   }
   return out;
@@ -539,7 +1043,7 @@ function colEdges(
   for (let y = y0; y < y1; y++) {
     let at = (y * imageWidth + x0) * 4;
     for (let x = x0; x < x1 - 1; x++, at += 4) {
-      if (edgeAt(px, at, at + 4) > EDGE_TOLERANCE) out[x - x0]++;
+      if (strokeEdgeAt(px, at, x < x1 - 2)) out[x - x0]++;
     }
   }
   return out;
@@ -718,7 +1222,9 @@ export async function proposeEraseRect(dataUrl: string): Promise<EraseProposalRe
   // same pixels: one counts stroke edges, one counts occupancy. A candidate the ink cannot
   // see at all is not a candidate, and a disagreement about how many lines are there is worth
   // paying for in confidence rather than hiding.
-  const ink = measureInk(px, w, scan, sampleRing(px, w, h, scan).fill);
+  const scanFill = sampleRing(px, w, h, scan).fill;
+  const scanBg: [number, number, number, number] = [scanFill.r, scanFill.g, scanFill.b, scanFill.a];
+  const ink = measureInk(px, w, scan, () => scanBg);
   if (!ink) {
     return refuse('That region measured no ink against its own background — there is nothing there to erase.');
   }
