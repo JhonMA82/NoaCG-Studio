@@ -2879,3 +2879,61 @@ Same models one-shot that morning: 5/12 and 3/12. Three readings that decide wha
 - **Phase A stays the standard lane untouched** - 18/18 on its third consecutive blind read,
   still 1 call and half a cent. The iterate loop is the CUSTOM lane behind the same Pro door,
   slower and ~3-25x dearer, for briefs the catalog's structures cannot carry.
+
+## 22. The custom-lane TYPE SWEEP - 2026-08-18, machine half only
+
+The §21.2 redirect asked whether the loop GENERALIZES: does render-measure-feed-back hold past
+lower thirds, do the two surviving checkpoints separate on harder types, and does an emitted
+multi-step graphic drive through the SHIPPED control layer. One night answered the machine
+half; **the owner's blind read of the 49-item page is OWED and nothing here is a verdict on
+the look.** Protocol: the same iterate loop, 21 fresh briefs over seven types (3 each:
+lower-third, scoreboard, quiz-board, ticker, stat-panel, countdown, podium-score -
+benchmarks/pro/v1/custom/briefs.json), six brands (two NEW: Pulse Arena, Boreal), max 4
+iterations, fail-closed. The platform-authors-machines rule held: a stepper brief declares its
+steps as the SPX default path, the model implements `window.next()`, no machine key exists
+anywhere in the round. Round archive: `benchmarks/pro/evidence/round-2026-08-18-typesweep/`
+(the frames and blind page are in the external eval archive, `typesweep-*-2026-08-18`).
+
+Four instruments the §21.2 escapes named ran for the first time, each calibrated or
+mutation-checked free before any spend: fieldPaints composed into the loop's validator (with a
+sentinel step-walk where one state is not the whole answer), a readability floor - which the
+control IMMEDIATELY recalibrated from 22px to 18px because lt27 ships a 20px supporting line,
+the mark-gap lesson arriving on schedule - step capture along the declared path, and per-type
+thresholds with spacing/proportion findings on uncalibrated types fed as ADVISORY so a
+lower-third number cannot bully a scoreboard.
+
+What the machine half says:
+
+- **The loop generalizes unevenly, and the gap is the TYPE, not the contract.** Both models
+  went 3/3 clean on scoreboards and stat panels - live fields through update() are the easy
+  half of the custom lane. Both went 1/3 on podium reveals; minimax went 0/3 on quiz boards
+  and tickers where gemini managed 1/3 and 2/3. Deliverable-clean overall: **minimax 10/21 at
+  $0.0328/graphic (findings-only), gemini 14/21 at $0.1712/graphic (vision)** - the §21.2
+  "findings are the signal" reading survives on the easy types and BREAKS on steppers and
+  crawls, where the dearer model's extra rounds actually converge. Cost separation is 5.2x
+  for a 4-cell advantage.
+- **The backend-integration question has a measured answer: yes.** Every deliverable
+  scoreboard took two score bumps and a clock write through the SHIPPED control page's own
+  Update, and the quiz boards advanced their reveal walk on the panel's Next - 5 of 6
+  quiz+scoreboard cells drivable in BOTH rounds, through fieldDescriptors + the implicit
+  machine, nothing bespoke (`custom-lane-drive-spike.mjs`, drive-report.json per out-dir).
+  The one refusal both rounds (qz-campus) genuinely does not advance its frame.
+- **One instrument mis-signal, caught by the drive proof and recorded rather than hidden:**
+  the step capture read `next()` returning undefined as "does not advance", but a
+  hand-written next() may do its work and return nothing - two quiz cells the loop called
+  step-broken drive fine under the real panel. The finding class needs a markup-diff check,
+  not a return-value check, before the next round trusts it to block.
+- **The dominant dirty-stop causes are now instrument classes, not runtime crashes**: minimax
+  still loses cells to `buildInTimeline`/`animSpeed` referenced outside the region (5 cells
+  with blocking errors vs gemini's 0), but the persistent stoppers on BOTH models are
+  alignment near-misses on dense grids (quiz answer ladders, podium columns - up to 9 per
+  frame, cosmetically marginal) and marginal mark-gap readings (cd-show stuck 0.34 vs 0.35
+  floor for three rounds). Whether those stops were RIGHT is exactly what the blind read of
+  the dirty cells decides - §21.2 measured the same gate over-strict on marginal findings
+  once already.
+- **The new instruments earned their place on the paid round itself**: the readability floor
+  drove real fixes (11-17px labels raised to floor) on most cells that then delivered clean,
+  and the ticker overflow class fed minimax's 0/3 - its crawls genuinely painted off-canvas.
+  fieldPaints caught 4 unpainted-field rounds on minimax tickers, the §21.2 escape 2 class,
+  before any human looked.
+
