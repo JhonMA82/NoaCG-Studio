@@ -3,6 +3,7 @@ import { EXPORT_TARGETS } from '../../export/registry';
 import { downloadShowZipFor } from '../../export/showExport';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import { loadPrefs, savePrefs } from '../../model/prefs';
+import { buildPack, packFileName } from '../../packs/graphicsPack';
 import { validateTemplate } from '../../validation/validateTemplate';
 import type { Show } from '../../model/shows';
 import { useModalGate } from '../spaceKey';
@@ -61,6 +62,28 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
     }
   };
 
+  // The ROUND-TRIP file (src/packs/graphicsPack.ts): not a playout package - the whole
+  // production as one re-importable .noacgpack.json graphics pack, rundown included.
+  const downloadPack = async () => {
+    setBusy(true);
+    setNote(null);
+    try {
+      const pack = await buildPack(show);
+      const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = packFileName(show.name);
+      a.click();
+      URL.revokeObjectURL(url);
+      setNote('✓ Saved the graphics pack.');
+    } catch (e) {
+      setNote(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="gallery-backdrop" onClick={onClose}>
       <div className="wz-modal save-dialog prod-export" onClick={(e) => e.stopPropagation()} data-testid="production-export-dialog">
@@ -104,6 +127,18 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
             <strong> live</strong> production into SPX instead - cued from here, from the control
             page or from a phone - use <strong>Links → SPX template</strong> on the production page.
           </p>
+          <p className="hint">
+            To <strong>share or back up</strong> this production for NoaCG itself — graphics,
+            layers and the cue rundown in one re-importable file — download it as a graphics
+            pack. Import it from Home → Productions.
+          </p>
+          <button
+            disabled={busy}
+            onClick={() => void downloadPack()}
+            data-testid="prod-export-pack"
+          >
+            ⬇ Graphics pack (.noacgpack.json)
+          </button>
 
           {blocked.length > 0 && (
             <div className="status-bad" data-testid="prod-export-blocked">

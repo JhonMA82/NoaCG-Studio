@@ -88,6 +88,9 @@ const MAP = [
   // what the dev server can reach, and nothing else here would notice.
   [/^api\/(ai\/|_lib\/ai)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-tiers.spec.ts', 'ai-more-control.spec.ts', 'ai-dev-routes.spec.ts', 'video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts']],
   [/^api\//, ['render.spec.ts', 'render-schedule.spec.ts']],
+  // The Production Data API (docs/DATA_API.md): the routed function, its logic module, and
+  // the dev middleware that makes the route exist locally at all.
+  [/^(api\/data\/|api\/_lib\/dataIngest|scripts\/dataDevPlugin)/, ['data-api.spec.ts']],
   // The dev server's own route RESOLVER. ai-dev-routes.spec.ts drives the real middleware instead
   // of mocking it, which is the only thing that can prove a route is reachable at all - every
   // other AI spec mocks at the network level, which is why an allowlist hid three surfaces.
@@ -179,6 +182,14 @@ const MAP = [
   [/^src\/components\/MachineGraph/, ['machine-graph.spec.ts', 'state-machine.spec.ts', 'timeline-v2.spec.ts']],
   [/^src\/components\/(fields|SampleDataPanel|ControlPanel|HostedControlPage)/, ['control.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'images.spec.ts', 'ux.spec.ts', 'video-inputs.spec.ts', 'import-graphic.spec.ts']],
   [/^src\/components\/(AssetsPanel|assetInfo|InsertTemplateDialog)/, ['assets.spec.ts', 'images.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
+  // The graphics-pack ROUND TRIP (src/packs/graphicsPack.ts buildPack + the export dialog's
+  // download): one spec drives export -> re-import through the real UI, plus the shipped
+  // Fight Night pack's install (rundown order included) - so the format owner and both UI
+  // ends select it, unioning with the pack-import rules below.
+  [/^src\/(packs\/|components\/home\/(ProductionExportDialog|sections\/ProductionsSection))/, ['production-pack.spec.ts']],
+  // The pack CONTENT and its builder: the sample-import test drives the built file end to
+  // end (import gate included), so editing a pack graphic or the assembler selects it.
+  [/^(packs\/|public\/packs\/|scripts\/build-production-pack)/, ['production-pack.spec.ts', 'pack-import.spec.ts']],
   // wizard-kit rides along: the kit's export door lands on ProductionPage and asks it to open
   // THE production export dialog (templateStore `pendingProductionExport`), so a change to
   // that page can break a wizard flow whose name says nothing about productions.
@@ -316,7 +327,7 @@ const CORE = [
 // 2026-08-07: `nightly.yml` was the unmapped file that turned a two-line gate addition into a
 // 759-spec run.
 const SUITE_CRITICAL_SCRIPTS =
-  'renderDevPlugin|aiDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
+  'renderDevPlugin|aiDevPlugin|dataDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
 const IGNORE = [/^docs\//, /\.md$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -

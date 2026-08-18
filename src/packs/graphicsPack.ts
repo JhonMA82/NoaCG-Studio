@@ -21,11 +21,14 @@ import { commitDurableWrites } from '../model/durableStore';
 import { parseDefinition } from '../model/spxDefinition';
 import {
   addShowCue,
+  graphicLayer,
   loadShows,
+  setShowCues,
   setShowGraphicLayer,
   updateShowCue,
   type Show,
 } from '../model/shows';
+import { loadGraphics, templateForSavedGraphic } from '../model/library';
 import { saveTemplateSetToProduction, type ProductionDest } from '../model/templateSet';
 import {
   DEFAULT_SETTINGS,
@@ -52,11 +55,23 @@ export interface PackGraphic {
   cues: PackCue[];
 }
 
+/** One row of a pack's WHOLE-SHOW rundown: a cue addressing a graphic by pool name. */
+export interface RundownCue extends PackCue {
+  graphic: string;
+}
+
 /** A parsed, normalized pack — what `installPack` consumes. */
 export interface GraphicsPack {
   name: string;
   description: string;
   graphics: PackGraphic[];
+  /**
+   * Optional top-level cue rundown, ORDERED ACROSS graphics (additive, format v1 - a pack
+   * without it behaves exactly as before). Per-graphic cues can only append in pool order;
+   * a real show walk interleaves graphics (bug up, round card, stats, bug again), which is
+   * an ordering only one list can carry. Mutually exclusive with per-graphic `cues`.
+   */
+  rundown?: RundownCue[];
 }
 
 /** The format marker every pack file carries — a fast, honest "this is not a pack" answer
@@ -203,8 +218,43 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
     });
   }
 
+  // The optional top-level rundown (ordered across graphics). One rundown per pack: a file
+  // carrying BOTH forms would leave one of them silently ignored, so it is refused instead.
+  const rundown: RundownCue[] = [];
+  if (Array.isArray(raw.cues) && raw.cues.length) {
+    if (graphics.some((g) => g.cues.length)) {
+      return {
+        pack: null,
+        error: 'The pack carries both a top-level cue rundown and per-graphic cues — use one.',
+      };
+    }
+    for (const [i, entry] of raw.cues.entries()) {
+      if (!isRecord(entry)) return { pack: null, error: `Cue ${i + 1} is not an object.` };
+      const graphic = asString(entry.graphic).trim();
+      if (!seenNames.has(graphic)) {
+        return {
+          pack: null,
+          error: `Cue ${i + 1} points at “${graphic || '?'}”, which is not a graphic in this pack.`,
+        };
+      }
+      const cueLabel = asString(entry.label).trim();
+      if (!cueLabel) return { pack: null, error: `Cue ${i + 1} has no label.` };
+      rundown.push({
+        graphic,
+        label: cueLabel,
+        values: stringValues(entry.values),
+        ...(asString(entry.note) ? { note: asString(entry.note) } : {}),
+      });
+    }
+  }
+
   return {
-    pack: { name, description: asString(raw.description).trim(), graphics },
+    pack: {
+      name,
+      description: asString(raw.description).trim(),
+      graphics,
+      ...(rundown.length ? { rundown } : {}),
+    },
     error: null,
   };
 }
@@ -249,6 +299,25 @@ export async function installPack(pack: GraphicsPack, dest?: ProductionDest): Pr
   const installed = loadShows().find((s) => s.id === show.id);
   if (!installed) throw new Error('The production could not be read back after saving.');
 
+  // The whole-show rundown, when the pack carries one: ONE ordered write (setShowCues).
+  // A pool graphic the rundown never names keeps a seeded default cue at the end - the
+  // rundown is the production's only list, so a row-less graphic would be unreachable.
+  if (pack.rundown?.length) {
+    const byName = new Map(installed.graphics.map((p) => [p.name, p]));
+    const ordered = pack.rundown.map((cue) => ({
+      sourceId: byName.get(cue.graphic)!.id,
+      label: cue.label,
+      values: cue.values,
+      ...(cue.note ? { note: cue.note } : {}),
+    }));
+    const covered = new Set(pack.rundown.map((c) => c.graphic));
+    for (const p of installed.graphics) {
+      if (!covered.has(p.name)) ordered.push({ sourceId: p.id, label: p.name, values: {} });
+    }
+    const { error } = setShowCues(show.id, ordered);
+    if (error) throw new Error(error);
+  }
+
   for (const g of pack.graphics) {
     const pooled = installed.graphics.find((p) => p.name === g.template.name);
     if (!pooled) continue;
@@ -281,4 +350,74 @@ export async function installPack(pack: GraphicsPack, dest?: ProductionDest): Pr
 
   const final = loadShows().find((s) => s.id === show.id);
   return final ?? show;
+}
+
+/** An asset stored as a Blob has no JSON form — embed it, the way every export does. */
+async function assetAsDataUrl(asset: AssetFile): Promise<AssetFile> {
+  if (typeof asset.data === 'string') return asset;
+  const data = await new Promise<string>((resolvePromise, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolvePromise(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(asset.data as Blob);
+  });
+  return { path: asset.path, data };
+}
+
+/**
+ * Serialize a live production back into the pack file shape — the EXPORT half of the round
+ * trip, which is what makes the format a way to share whole productions rather than a one-way
+ * loader for shipped packs. Templates come from the LIBRARY (what actually ships — the same
+ * resolution every production export uses); the cue rundown exports as the top-level ordered
+ * list. The returned object stringifies straight into a `<name>.noacgpack.json`.
+ */
+export async function buildPack(show: Show): Promise<Record<string, unknown>> {
+  const library = loadGraphics();
+  const graphics = [];
+  for (const g of show.graphics) {
+    const template = templateForSavedGraphic(g, library);
+    graphics.push({
+      name: g.name,
+      type: template.type,
+      layer: graphicLayer(g),
+      html: template.html,
+      css: template.css,
+      js: template.js,
+      ...(template.assets.length
+        ? { assets: await Promise.all(template.assets.map(assetAsDataUrl)) }
+        : {}),
+      resolution: { width: template.resolution.width, height: template.resolution.height },
+      fps: template.fps,
+    });
+  }
+  const byId = new Map(show.graphics.map((g) => [g.id, g.name]));
+  const cues = (show.cues ?? []).flatMap((cue) => {
+    const graphic = byId.get(cue.sourceId);
+    if (!graphic) return []; // an orphaned cue has nothing to import into
+    return [
+      {
+        graphic,
+        label: cue.label,
+        values: { ...cue.values },
+        ...(cue.note ? { note: cue.note } : {}),
+      },
+    ];
+  });
+  return {
+    format: PACK_FORMAT,
+    version: 1,
+    name: show.name,
+    description: '',
+    graphics,
+    ...(cues.length ? { cues } : {}),
+  };
+}
+
+/** The download name: readable slug + the extension that says what the file is. */
+export function packFileName(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `${slug || 'pack'}.noacgpack.json`;
 }

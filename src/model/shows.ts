@@ -284,7 +284,7 @@ function patchShow(showId: string, mutate: (show: Show, at: string) => boolean):
 }
 
 /** A cue's starting values: the template's own field defaults (what update() falls back to). */
-function seedValues(fields: SpxTemplate['fields']): Record<string, string> {
+export function seedValues(fields: SpxTemplate['fields']): Record<string, string> {
   const values: Record<string, string> = {};
   for (const f of fields) values[f.field] = f.value ?? '';
   return values;
@@ -330,6 +330,41 @@ export function updateShowCue(
     else if (patch.note !== undefined) cue.note = patch.note;
     return true;
   });
+}
+
+/**
+ * Replace the WHOLE cue rundown in one write - the pack installer's ordered-rundown path
+ * (src/packs/graphicsPack.ts): a pack may carry one cue list ORDERED ACROSS graphics (the
+ * show walk), which per-cue appends cannot express without a reorder dance. Every entry must
+ * reference a pool graphic; an unknown sourceId refuses the whole write, because a rundown
+ * that "mostly installed" would air with rows silently missing. Values seed from the source
+ * template's defaults exactly as addShowCue seeds them.
+ */
+export function setShowCues(
+  showId: string,
+  cues: Array<{ sourceId: string; label: string; values?: Record<string, string>; note?: string }>,
+): { shows: Show[]; error: string | null } {
+  let error: string | null = null;
+  const shows = patchShow(showId, (show) => {
+    const bySource = new Map(show.graphics.map((g) => [g.id, g]));
+    const missing = cues.find((c) => !bySource.has(c.sourceId));
+    if (missing) {
+      error = `The cue "${missing.label}" points at a graphic that is not in the pool.`;
+      return false;
+    }
+    show.cues = cues.map((c) => {
+      const source = bySource.get(c.sourceId)!;
+      return {
+        id: uuid(),
+        sourceId: c.sourceId,
+        label: c.label.trim() || source.name,
+        values: { ...seedValues(source.template.fields), ...(c.values ?? {}) },
+        ...(c.note ? { note: c.note } : {}),
+      };
+    });
+    return true;
+  });
+  return { shows, error };
 }
 
 /** Move a cue one slot up or down the rundown (the moveShowGraphic swap, over cues). */
