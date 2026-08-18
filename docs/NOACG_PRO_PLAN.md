@@ -2937,3 +2937,43 @@ What the machine half says:
   fieldPaints caught 4 unpainted-field rounds on minimax tickers, the §21.2 escape 2 class,
   before any human looked.
 
+
+### 22.1 The owner's blind read, and what it decides - 2026-08-18
+
+The read came back the same morning, all 49 items, notes written against the page before any
+reveal (`notes.md` in the round archive holds them verbatim plus the join). Airable = "would
+air" + "okay as-is":
+
+| round | airable | of |
+| --- | --- | --- |
+| catalog anchors | 5 | 7 |
+| gemini-3.7-flash iterate (vision) | **10** | 21 |
+| minimax-m2.7 iterate (findings-only) | **3** | 21 |
+
+- **The §21.2 minimax-parity reading does NOT survive the wider types.** On lower thirds
+  alone, findings-only minimax matched vision gemini 9/12 vs 9/12; over seven types the read
+  splits 3/21 vs 10/21. The words carry the easy types (both models 3/3 machine-clean on
+  scoreboards and stat panels); on steppers, crawls and dense layouts the picture is what
+  converges. The custom lane's checkpoint question is answered: it runs on gemini-class
+  vision or it does not generalize.
+- **The gate's DELIVER signal leaks on the new types; its STOP signal held.** Of 24
+  delivered-clean cells the owner would air 12 (§21.2's lower-third round: 15 of 19); of 18
+  dirty stops the owner agreed with 15 and forgave 3. Every escape names a measurable class,
+  recorded in the round's notes.md: a collision finding demoted to advisory on uncalibrated
+  types (the accent-over-text class, §21.1's dominant defect, let back in by the demotion
+  policy), the logo breaking the composition (the sweep's dominant cross-type defect - the
+  owner's ruling: SKIP the model-placed logo on the new types; mark placement is the
+  platform's, the Phase A knock rule), a minimum-text-size RULE (18px calibrated to the
+  catalog's smallest line is below what the owner calls readable for broadcast - one shipped
+  catalog anchor took the same note), per-step GEOMETRY (a stepper whose boxes grow
+  misaligned and overflow the background passed a paint-only step walk), the fixture stress
+  frame being captured but never fed, tinted-on-tinted contrast, and ticker margins
+  (full-bleed or equal both sides).
+- **Two catalog anchors took notes of their own** - ig01's smallest text and tk01's
+  red-on-black with uneven margins - so two of the seven classes bind the CATALOG, not just
+  the lane.
+- **What this round does NOT change**: Phase A stays the standard lane. The custom lane
+  stays fail-closed and does not ship until the deliver-signal fixes above are built and a
+  re-read clears; the next round runs no model-placed logos, blocks collision findings on
+  every type, raises the size floor to the owner's broadcast rule, runs the instruments per
+  step frame, and feeds the fixture stress capture.
