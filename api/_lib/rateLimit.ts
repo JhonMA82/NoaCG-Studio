@@ -37,6 +37,11 @@ export function startRateLimitCaps(): RateLimitCaps {
 interface Bucket {
   /** Index of the window this bucket's `count` belongs to. */
   window: number;
+  /** The bucket's own gate's window length. Buckets from gates with different windows share
+   *  the one map, so a sweep can only compare AGES in milliseconds - window indices are
+   *  incommensurable across gates (a 5 s gate's indices dwarf a 60 s gate's, and an
+   *  index-compared sweep would wipe every other gate's live counters). */
+  windowMs: number;
   count: number;
   /** The immediately previous window's count, for the weighted estimate below. */
   prevCount: number;
@@ -54,8 +59,11 @@ function buckets(): Map<string, Bucket> {
  *  A long-lived Fluid instance must not accumulate a key per IP it has ever seen. */
 const SWEEP_ABOVE = 5000;
 
-function sweep(map: Map<string, Bucket>, window: number): void {
-  for (const [key, b] of map) if (b.window < window - 1) map.delete(key);
+function sweep(map: Map<string, Bucket>, nowMs: number): void {
+  // A bucket is dead once two of ITS OWN windows have passed since its window began - the
+  // same condition the read path uses, stated in ms so gates with different windows can
+  // share the map without sweeping each other's live counters.
+  for (const [key, b] of map) if (nowMs - b.window * b.windowMs >= 2 * b.windowMs) map.delete(key);
 }
 
 export interface RateLimitDecision {
@@ -81,8 +89,8 @@ export function hitRateLimit(key: string, caps: RateLimitCaps, nowMs: number): R
   const remainingSec = Math.max(1, Math.ceil((caps.windowMs - intoWindow) / 1000));
 
   let b = map.get(key);
-  if (!b || b.window < window - 1) b = { window, count: 0, prevCount: 0 };
-  else if (b.window === window - 1) b = { window, count: 0, prevCount: b.count };
+  if (!b || b.windowMs !== caps.windowMs || b.window < window - 1) b = { window, windowMs: caps.windowMs, count: 0, prevCount: 0 };
+  else if (b.window === window - 1) b = { window, windowMs: caps.windowMs, count: 0, prevCount: b.count };
 
   // The question is whether ADMITTING this request would exceed the budget, not whether
   // the budget is already gone: asking it the second way leaves exactly one request of
@@ -92,7 +100,7 @@ export function hitRateLimit(key: string, caps: RateLimitCaps, nowMs: number): R
 
   b.count += 1;
   map.set(key, b);
-  if (map.size > SWEEP_ABOVE) sweep(map, window);
+  if (map.size > SWEEP_ABOVE) sweep(map, nowMs);
 
   return wouldExceed ? { allowed: false, retryAfterSec: remainingSec } : { allowed: true, retryAfterSec: 0 };
 }
@@ -140,6 +148,42 @@ export function eventsRateLimitCaps(): RateLimitCaps {
 
 export function checkEventsRateLimit(req: Request): RateLimitDecision | null {
   const decision = hitRateLimit(`events:${ipHash(req)}`, eventsRateLimitCaps(), Date.now());
+  return decision.allowed ? null : decision;
+}
+
+// ── The Production Data API's two gates (docs/DATA_API.md) ───────────────────────────────────
+// The per-IP gate is the usual posture: refuse a hammering client before the handler reads a
+// body or touches the database. The per-PRODUCTION budget is the one that matters editorially:
+// the DB's own cap is 50 commands per 5 s per show, SHARED with the operator - and operator
+// precedence (docs/CLOUD_PLAYOUT.md §7) must survive a runaway feed. So ingest may spend at
+// most half that window by default, and the operator keeps the rest. A scorebug clock at one
+// update per second costs 5 of the 25. Same per-instance caveat as the render gate; the
+// DB-side cap is the globally-exact ceiling.
+
+export function dataIpRateLimitCaps(): RateLimitCaps {
+  return {
+    windowMs: Math.max(1, envInt('DATA_RATE_WINDOW_SEC', 60)) * 1000,
+    max: envInt('DATA_RATE_MAX', 300),
+  };
+}
+
+/** Null when the request may proceed, else the refusal with its Retry-After. */
+export function checkDataIpRateLimit(req: Request): RateLimitDecision | null {
+  const decision = hitRateLimit(`data-ip:${ipHash(req)}`, dataIpRateLimitCaps(), Date.now());
+  return decision.allowed ? null : decision;
+}
+
+export function dataIngestBudgetCaps(): RateLimitCaps {
+  return {
+    windowMs: Math.max(1, envInt('DATA_INGEST_RATE_WINDOW_SEC', 5)) * 1000,
+    max: envInt('DATA_INGEST_RATE_MAX', 25),
+  };
+}
+
+/** The per-production budget, keyed by show id (one feed and one hammering integrator are the
+ *  same key on purpose - the budget protects the PRODUCTION, not the client). */
+export function checkDataIngestBudget(showId: string): RateLimitDecision | null {
+  const decision = hitRateLimit(`data-show:${showId}`, dataIngestBudgetCaps(), Date.now());
   return decision.allowed ? null : decision;
 }
 

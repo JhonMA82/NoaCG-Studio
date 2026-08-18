@@ -66,6 +66,11 @@ const CONTROL_VARIANT_ID = 'lt11';
  *  what the mid-air `update()` cue writes during the motion capture: a strap that survives
  *  its entrance and breaks on the first real name is a strap that breaks on air. */
 export function stressFor(brief: SpikeBrief): Record<string, string> {
+  if (brief.fields) {
+    return Object.fromEntries(
+      brief.fields.map((f) => [f.id, f.stress ?? `${f.sample} and a good deal longer than planned`]),
+    );
+  }
   return {
     f0: `${brief.name} de la Cruz-Whittington`,
     f1: `${brief.title}, Southern Bureau and Election Desk`,
@@ -73,6 +78,9 @@ export function stressFor(brief: SpikeBrief): Record<string, string> {
 }
 
 export function dataFor(brief: SpikeBrief): Record<string, string> {
+  if (brief.fields) {
+    return Object.fromEntries(brief.fields.map((f) => [f.id, f.sample]));
+  }
   return { f0: brief.name, f1: brief.title };
 }
 

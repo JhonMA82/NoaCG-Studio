@@ -36,6 +36,9 @@ import { ig30 } from './ig30';
 import { ig31 } from './ig31';
 import { ig32 } from './ig32';
 import { ig33 } from './ig33';
+import { ig34 } from './ig34';
+import { ig35 } from './ig35';
+import { ig36 } from './ig36';
 
 export const INFOGRAPHICS: TemplateVariant[] = [
   ig01, // Big stat count-up
@@ -73,6 +76,10 @@ export const INFOGRAPHICS: TemplateVariant[] = [
   ig27, // Volt Fixtures — sport slab, filled score blocks (sibling ig10)
   ig28, // Frost Fixtures — glass card, tinted score pills (sibling ig09)
   ig29, // Club Fixtures — minimal flat panel, the local results board (sibling ig06)
+  // ── The election night mini-pack: one count, three boards (editorial, sibling lt25) ──
+  ig34, // Seat Board - one bar per party, growing to the seats it has won
+  ig35, // Majority Meter - a coalition running across the chamber toward the majority line
+  ig36, // Turnout Dial - a printed dial filling to the turnout, with the swing
 ];
 
 export function infographicById(id: string): TemplateVariant | undefined {

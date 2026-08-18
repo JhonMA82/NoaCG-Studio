@@ -286,6 +286,48 @@ await page.locator('.wz-modal').waitFor({ state: 'visible', timeout: 20_000 }).c
 await page.keyboard.press('Escape');
 await page.locator('.wz-modal').waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => undefined);
 
+/**
+ * FORCE THE ONE RASTER THE STILL IS OF, on a graphic that has already settled.
+ *
+ * Every capture here mounts the graphic, calls `play()`, waits for the entrance to finish and
+ * shoots. That was not byte-stable: recomposing the 2026-08-16 round moved 3 of its 36 frames
+ * run to run with no code change in between, and 5 consecutive runs of one cell produced 5
+ * different files. The bisect (docs/NOACG_PRO_PLAN.md §20) put it entirely after the
+ * platform: the language, the composed html/css/js, the srcdoc and every element's rendered
+ * geometry and paint style were byte-identical across the runs that disagreed. Only the pixels
+ * moved, and only at glyph and panel EDGES.
+ *
+ * The cause is the composited layer the graphic animates on. `.lower-third-box` carries
+ * `will-change: transform, opacity`, so it is promoted for the whole life of the page; the
+ * entrance moves it; Chromium rasterises its texture DURING that move and - because the hint
+ * says more transforms are coming - never re-rasterises once the tween settles. The frame we
+ * keep is therefore a texture rasterised mid-flight, and which sub-pixel phase of the ~0.5 s
+ * entrance that raster caught is machine timing.
+ *
+ * Dropping the hint for one frame invalidates the layer, so the settled content is rastered
+ * once, at the offset it actually rests at; restoring it puts the graphic back exactly as the
+ * template wrote it before the shutter. Both halves matter - a still taken with the hint
+ * REMOVED is painted straight into the page instead, which switches text to sub-pixel
+ * antialiasing and moves a glyph edge by up to 233/255 (that is a different picture, not a
+ * stabler one).
+ *
+ * Measured: with this in place all 10 Anton frames are byte-identical across 5 runs, and the 7
+ * that were already stable are byte-identical to their COMMITTED frames - the fix costs nothing
+ * on evidence that never moved. Fast-forwarding the entrance instead (`timeScale`) lands on the
+ * same bytes, which is the second, independent reason to believe the mechanism; it is not what
+ * ships here because it would also fast-forward a timer graphic's own clock.
+ */
+async function rasterSettledFrame(target) {
+  const hintOff = await target.addStyleTag({ content: '*{will-change:auto !important}' });
+  const twoFrames = () => target.evaluate(async () => {
+    document.body.getBoundingClientRect();   // flush layout before handing the frame over
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  await twoFrames();
+  await hintOff.evaluate((el) => el.remove());
+  await twoFrames();
+}
+
 // ── --alpha: re-shoot a finished round's holds WITH THEIR ALPHA, free ───────────────────
 //
 // `captureHold` screenshots the hold from INSIDE the app, so every frame in a round carries the
@@ -377,6 +419,7 @@ if (flag('recompose')) {
         await document.fonts.ready;
         await new Promise((resolve) => setTimeout(resolve, 1800));
       }, data);
+      await rasterSettledFrame(shotPage);
       const name = `${record.slug}.${suffix}.png`;
       await shotPage.screenshot({ path: path.join(dir, name), omitBackground: true });
       record[suffix === 'hold' ? 'recomposedHold' : 'recomposedStress'] = `recomposed/${name}`;
@@ -444,6 +487,7 @@ if (flag('alpha')) {
         await document.fonts.ready;
         await new Promise((resolve) => setTimeout(resolve, 1800));
       }, data);
+      await rasterSettledFrame(shotPage);
       const name = `${record.slug}.${suffix}.png`;
       await shotPage.screenshot({ path: path.join(alphaDir, name), omitBackground: true });
       record[suffix === 'hold' ? 'alphaHold' : 'alphaStressHold'] = `alpha/${name}`;
@@ -556,6 +600,30 @@ async function captureHold(item, measure = false) {
     }
     await win.document.fonts.ready;   // real glyphs or nothing
     await new Promise((resolve) => setTimeout(resolve, 1800));
+    // Settled, but not yet REPRODUCIBLE without the next step: the entrance runs on a
+    // permanently promoted layer, so the texture Chromium keeps is one it rastered mid-flight
+    // and never redrew (§20). Measured, not assumed - two runs of the identical `--control`
+    // command disagreed on 7 of these 40 holds, and with this step THREE runs half an hour apart
+    // are byte-identical on all 40 while 28 of them stay exactly as they were (§20.5).
+    //
+    // This is `rasterSettledFrame`'s step (§20's long note explains why BOTH halves are needed),
+    // written out inline because the graphic lives in a same-origin srcdoc frame: the page-level
+    // helper takes a Playwright page, and there is no Playwright handle for this document, only
+    // `win` from the parent. Drop the hint for one frame so the settled content is rastered once
+    // at the offset it rests at, then restore it so the shutter sees exactly what the template
+    // wrote.
+    const hintOff = win.document.createElement('style');
+    hintOff.textContent = '*{will-change:auto !important}';
+    const twoFrames = async () => {
+      win.document.body.getBoundingClientRect();   // flush layout before handing the frame over
+      await new Promise((resolve) => {
+        win.requestAnimationFrame(() => win.requestAnimationFrame(resolve));
+      });
+    };
+    win.document.head.appendChild(hintOff);
+    await twoFrames();
+    hintOff.remove();
+    await twoFrames();
     return error;
   }, item);
   // Measure the SETTLED frame while it is still mounted: the rendered mark gate (the Phase 0
@@ -567,6 +635,7 @@ async function captureHold(item, measure = false) {
     const { measureAxes } = await import('/src/ai/spike/axisCheck.ts' + bust);
     const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts' + bust);
     const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts' + bust);
+    const { measureDevice } = await import('/src/ai/spike/deviceCheck.ts' + bust);
     const doc = document.getElementById('spike-hold-frame')?.contentDocument;
     if (!doc) return null;
     // THE THRESHOLDS ARE THE GRAPHIC TYPE's (`PRO_GRAPHICS[id].instruments`, §15.9). Every number
@@ -580,6 +649,9 @@ async function captureHold(item, measure = false) {
       // reads keep naming (docs/DESIGN_PRINCIPLES.md §4, §9).
       spacing: measureSpacing(doc, { ...base, ...(instruments?.spacing ?? {}) }),
       proportion: measureProportion(doc, { ...base, ...(instruments?.proportion ?? {}) }),
+      // The DEVICE-EXISTS proxy (docs/MODEL_VS_HARNESS_STUDY.md §6, level 2). Reported,
+      // never gated - a plain box can be the right answer; this makes it a visible one.
+      device: measureDevice(doc),
       mark: markFieldId && markProbe ? measureRenderedMark(doc, markFieldId, markProbe) : null,
     };
   }, {
@@ -959,6 +1031,7 @@ async function captureSet(item) {
     ...(measured?.axis ? { axisReport: summarizeAxis(measured.axis) } : {}),
     ...(measured?.spacing ? { spacingReport: measured.spacing } : {}),
     ...(measured?.proportion ? { proportionReport: measured.proportion } : {}),
+    ...(measured?.device ? { deviceReport: measured.device } : {}),
     ...(measured?.mark ? { markReport: measured.mark } : {}),
     ...motion,
   };
@@ -1116,7 +1189,12 @@ if (paid) {
   // brand, so on a design-language round it is the one measurement that says whether a brand
   // actually moves the answer or whether four brands get one look with different colours - the
   // named sameness failure (src/ai/AGENTS.md).
-  const divergenceArm = value('divergence-arm') ?? brandsFixture?.divergence?.arm;
+  // `--no-divergence` drops the cell entirely: a multi-checkpoint round that budgets 12 cells
+  // per checkpoint would otherwise silently plan 18 - the fixture's default arm is `none`, so
+  // the cell rides along on exactly the arm the free-form coder round runs, and on the dearest
+  // checkpoint the extra six cells are the difference between fitting the ceiling and the
+  // ceiling cutting the round's last briefs mid-run.
+  const divergenceArm = flag('no-divergence') ? null : (value('divergence-arm') ?? brandsFixture?.divergence?.arm);
   if (divergenceArm && !KNOWN_ARMS.includes(divergenceArm)) {
     console.error(`--divergence-arm names an unknown arm "${divergenceArm}".`);
     process.exit(1);
@@ -1629,6 +1707,18 @@ if (paid) {
         + `${contract.editabilityDemoted ? ' · read-only timeline' : ''}`
         + ` · repairs ${record.repairRounds} · $${(record.costUsd ?? 0).toFixed(4)}`
         + ` · ${record.frames.length} motion frames · ${clipsCell(record)} · ${record.ms} ms`);
+      // OUTPUT VOLUME IS A HEADLINE READING on a multi-checkpoint round, not a footnote:
+      // rate and volume cancel or compound, and only the tokens say which (plan §19.3).
+      if (record.usage) {
+        const u = record.usage;
+        const share = u.reasoning ? ` (${u.reasoning} reasoning, ${Math.round((100 * u.reasoning) / Math.max(1, u.output))}%)` : '';
+        console.log(`    tokens: ${u.input} in / ${u.output} out${share}`);
+      }
+      if (record.deviceReport) {
+        console.log(`    device: ${record.deviceReport.present
+          ? record.deviceReport.channels.map((c) => c.channel).join('+')
+          : 'none (plain box)'}`);
+      }
       for (const error of contract.blockingErrors) console.log(`    ✗ ${error}`);
       if (outcome.language) {
         const l = outcome.language;

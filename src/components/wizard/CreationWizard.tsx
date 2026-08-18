@@ -21,6 +21,7 @@ import { formatTemplate } from '../../format/formatCode';
 import { paletteById } from '../../model/wizard';
 import WizardPreview from './WizardPreview';
 import BrandLogo from '../BrandLogo';
+import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import EntryStep from './steps/EntryStep';
 import ImportStep from './steps/ImportStep';
 import ImportDesignStep from './steps/ImportDesignStep';
@@ -62,8 +63,8 @@ import { saveGraphicAs } from '../../store/saveActions';
 import { recordLiteOutcome } from '../../ai/liteClient';
 import { DEFAULT_VIDEO_FORMAT, formatProjectSummary } from '../../model/projectFormat';
 import { trackEvent } from '../../backend/events';
-import { createGraphic } from '../../model/library';
 import { captureLookFromTemplate } from '../../model/packets';
+import { saveTemplateSetToProduction } from '../../model/templateSet';
 import { addGraphicToShow, createShowNamedChecked, loadShows, setShowLook, type Show } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
 import { raiseStorageAlert } from '../../store/storageAlert';
@@ -581,18 +582,8 @@ export default function CreationWizard() {
 
   /**
    * SAVE THE WHOLE SET: every graphic to the library, pooled into one new PRODUCTION - the
-   * unit that airs (docs/GOALS.md "Student release" step 3).
-   *
-   * It deliberately does NOT touch the editor - no applyTemplate, no working project. A kit's
-   * outcome is a production of several graphics, and silently opening one of them would pick
-   * for the user and leave the other N-1 looking like they had not been made.
-   *
-   * Graphics are written straight through `createGraphic` rather than the store's save path,
-   * because that path saves THE OPEN PROJECT and there is exactly one of those. Every write is
-   * CLAIMED (`commitDurableWrites`) before anything is reported or navigated to: the durable
-   * store accepts a write and confirms it a moment later, so continuing on the synchronous
-   * answer would build a production on top of graphics that never landed
-   * (src/components/AGENTS.md, "Save + Home").
+   * unit that airs (docs/GOALS.md "Student release" step 3). The write path and its
+   * durable-write claims live in model/templateSet.ts.
    */
   const saveKit = async (dest: ProductionDest): Promise<Show | null> => {
     if (!kit) return null;
@@ -607,10 +598,10 @@ export default function CreationWizard() {
   /**
    * The SET-shaped ending, shared by the catalog kit and a NoaCG Pro package (§15.9).
    *
-   * Both are "several graphics that belong to each other", and both end the same way: every
-   * graphic in the library, all of them pooled into one production, nothing opened in the
-   * editor. Two copies of this would be two chances for one of them to forget the durable-write
-   * claim below - and the kit path is only correct today because it does not.
+   * The actual save lives in model/templateSet.ts (`saveTemplateSetToProduction`), shared with
+   * the pack importer - two copies would be two chances for one of them to forget the
+   * durable-write claim. This wrapper owns only the wizard's busy/error state and the
+   * activation event.
    */
   const saveTemplateSet = async (
     templates: SpxTemplate[],
@@ -622,47 +613,7 @@ export default function CreationWizard() {
     setKitBusy(true);
     setKitError(null);
     try {
-      // Library records first, so the production is only created once every graphic in it
-      // saved - a quota failure mid-way never leaves an empty production on Home.
-      const docs = [];
-      for (const template of templates) {
-        const { doc, error } = createGraphic(template, { name: template.name, packageId: null });
-        const failure = error ?? (await commitDurableWrites());
-        if (failure || !doc) throw new Error(failure ?? 'The graphic could not be saved.');
-        docs.push(doc);
-      }
-
-      // A kit usually IS a new production, and that stays the default - but the wizard can be
-      // opened FOR one (a production page's "+ New graphic"), and building a second production
-      // beside the one the user started from is not what they asked for. An existing pick that
-      // has since been deleted (another tab) falls back to a new one rather than dropping the
-      // work on the floor, exactly as the single-graphic door does.
-      let show = dest.kind === 'existing' ? loadShows().find((s) => s.id === dest.id) : undefined;
-      if (!show) {
-        const made = createShowNamedChecked(dest.kind === 'new' ? dest.name : fallbackName);
-        const showError = made.error ?? (await commitDurableWrites());
-        if (showError) throw new Error(showError);
-        show = made.show;
-      }
-      const target = show;
-
-      // Pool each copy with its library back-link - the same construction the production
-      // page's own add uses, cue auto-seeding included. Pool order follows the kit's own
-      // order, which is also the layer paint order (index 0 furthest back).
-      for (const doc of docs) {
-        const { error } = addGraphicToShow(target.id, doc.template, { graphicId: doc.id });
-        const failure = error ?? (await commitDurableWrites());
-        if (failure) throw new Error(failure);
-      }
-      // The set's look becomes the production's look, so a graphic later made FOR
-      // this production inherits it - but never overwrite a look the production already has,
-      // which is the rule the single-graphic door follows for the same reason.
-      if (!target.look && docs[0]) {
-        setShowLook(target.id, captureLookFromTemplate(docs[0].template));
-        const lookError = await commitDurableWrites();
-        if (lookError) throw new Error(lookError);
-      }
-
+      const target = await saveTemplateSetToProduction(templates, fallbackName, dest);
       trackEvent('activation', activation);
       return target;
     } catch (error) {
@@ -1262,6 +1213,13 @@ export default function CreationWizard() {
               Step <b>{railPos + 1}</b> / {stepTitles.length}
             </span>
           )}
+
+          {/* The feedback door belongs to the HEADER, so it is reachable from the first step
+              rather than only from the one at the end - the wizard is the student release's
+              own surface, and somebody who gets lost on Browse never reaches Finish to say so.
+              Its push is the chain in styles.css (.wz-stepcount ~ .fb-open ~ .gallery-close),
+              since the step counter is absent on Entry and this button is absent offline. */}
+          <BetaFeedbackButton area="wizard" />
 
           <button
             className="gallery-close"

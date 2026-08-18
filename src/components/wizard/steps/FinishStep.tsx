@@ -24,8 +24,11 @@ export interface SummaryRow {
   step?: SummaryStepKey;
 }
 
-/** Where the production door sends the graphic: an existing production, or a new one. */
-export type ProductionDest = { kind: 'existing'; id: string } | { kind: 'new'; name: string };
+/** Where the production door sends the graphic: an existing production, or a new one.
+ *  Defined beside the shared save path (model/templateSet.ts); re-exported here because this
+ *  step is the surface every wizard door imports it from. */
+import type { ProductionDest } from '../../../model/templateSet';
+export type { ProductionDest };
 
 interface Props {
   /** The graphic's name (`draft.name`), and what an empty field falls back to. */

@@ -488,6 +488,8 @@ export const PRESET_MOTION: Record<AnimPresetId, PresetMotion> = {
   'transition-slam':   { intensity: 'strong', styles: ['slide', 'pop'] },
   'transition-wipe':   { intensity: 'strong', styles: ['wipe'] },
   'transition-sweep':  { intensity: 'strong', styles: ['slide', 'wipe'] },
+  'transition-iris':   { intensity: 'strong', styles: ['scale'] },
+  'transition-spin':   { intensity: 'strong', styles: ['scale', 'flip'] },
   'comp-rise':         { intensity: 'medium', styles: ['slide'] },
   'comp-impact':       { intensity: 'strong', styles: ['pop', 'slide'] },
   'comp-bloom':        { intensity: 'medium', styles: ['scale', 'pop'] },

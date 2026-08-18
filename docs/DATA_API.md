@@ -1,0 +1,199 @@
+# The Production Data API
+
+Push live data - scores, clocks, results, headlines - into a published production's graphics
+over plain HTTPS. This page is written for the integrator: the person wiring a timing system,
+a spreadsheet poller or a results service into a NoaCG production. The architecture it
+implements is `docs/CLOUD_PLAYOUT.md` §7; the operator workflow around it is that document's
+§4.
+
+**The model in one paragraph.** A published production is driven by one durable command log:
+every operator action is a row, the on-air renderer applies rows in order, and this API makes
+your system one more writer of `update` rows in that same log. You never talk to the renderer,
+you never hold provider credentials in a browser, and the operator always wins a race with
+your feed simply because later rows apply later - "freeze the feed" is you not writing, and
+"manual override" is the operator writing after you.
+
+## Authentication
+
+Every request carries the production's **data key** as a bearer token:
+
+```
+Authorization: Bearer <data key>
+```
+
+- The key is **per production**, minted automatically when the production is published
+  (`control_shows.data_key`, migration 0047). The production owner hands it to you; treat it
+  like any API credential (server-side config, never a web page).
+- It is **update-only by construction**: the only thing that accepts it is this API, and this
+  API writes nothing but field updates. It cannot play, stop or clear a graphic, and it is
+  deliberately not the operator page's URL capability.
+- **Rotation / revocation** (owner-side): unpublishing and re-publishing the production mints
+  a fresh key (the four viewer/operator URLs deliberately survive that; the data key
+  deliberately does not). The owner can also overwrite or clear the key directly on the row -
+  a cleared key (`NULL`) switches ingest off for that production while everything else keeps
+  running.
+
+## The endpoint
+
+```
+POST https://<host>/api/data/update
+Content-Type: application/json
+```
+
+```jsonc
+{
+  // WHICH GRAPHIC - optional when the production has exactly one:
+  "graphic": "House Scorebug",   // pool graphic name, OR
+  "cue": "Match",                // a cue label; it addresses the graphic that cue drives
+
+  // WHAT TO WRITE - field values by the graphic's own field labels:
+  "values": {
+    "Score A": 2,                // numbers and booleans are fine; they land as strings
+    "Score B": 1,
+    "Clock": "43:12"
+  }
+}
+```
+
+A `200` answers with what actually happened:
+
+```jsonc
+{
+  "ok": true,
+  "event": 18234,                 // the command-log row id - the ordering fact
+  "graphic": "House Scorebug",
+  "applied": { "f1": "2", "f3": "1", "f5": "43:12" },
+  "ignored": ["Referee"],         // labels that matched no field (extra columns are fine)
+  "ambiguous": []                 // labels matching MORE than one field - skipped, never guessed
+}
+```
+
+## Field-label mapping
+
+Fields are addressed by the **labels the graphic itself shows its operator** - the same
+binding the production's dataset workspace uses, so a feed and a spreadsheet speak the same
+language:
+
+- A label matches a field's **title**, compared trimmed and case-insensitively
+  (`"score a"` = `" Score A "`).
+- A field that has no title matches its raw id (`f0`, `f1`, …), and the id always works as an
+  explicit address too.
+- Unmatched labels are **reported back in `ignored`**, never silently dropped; if *nothing*
+  matches, the request is a `400` - that is a broken mapping, not a partial one.
+- A label that matches two fields lands in `ambiguous` and writes nothing - rename one of the
+  fields rather than relying on a guess.
+- Only data-carrying fields are writable (text, number, dropdown, checkbox, colour, image
+  path, hidden input values). Buttons, captions and dividers are not fields.
+
+An update writes **data only**. It never plays, stops or advances a graphic, and it never
+causes a state transition - templates re-render their fields, timers and tickers read their
+new values, and the operator's machine state is untouched (`update()` in the SPX contract).
+
+## Ordering guarantees
+
+- Your update is **one row in the production's command log**, ordered by the database at
+  insert. Two of your updates apply in the order they were accepted; an operator command sent
+  after yours applies after yours. There is no second channel that could reorder around this.
+- The on-air renderer applies the log **in order, whoever wrote the row** - it cannot tell
+  your update from an operator's, which is the point.
+- A disconnected renderer catches up **in order** when it returns; your accepted update is
+  never lost to a renderer reboot (the log is durable, and recovery replays it).
+- `event` in the response is the log row id. Ids are global to the instance, so treat them as
+  ordered, not consecutive.
+
+## Rate limits
+
+Three layers, all answering `429` with a `Retry-After` header - honour it:
+
+| Layer | Default | What it protects |
+| --- | --- | --- |
+| Per client IP | 300 requests / 60 s | The function, from a hammering client (a fast pre-filter in front of the database) |
+| Per production (ingest budget) | 25 updates / 5 s | **Operator headroom**: the log itself allows 50 commands / 5 s per production, shared with the operator - ingest may spend at most half. Enforced **in the database** (feed rows are marked and counted there), so a runaway feed cannot lock the person driving the show out of their own production no matter how many server instances it hits |
+| The log's own cap | 50 commands / 5 s | The production, from everything combined |
+
+A scorebug clock at one update per second uses a fifth of the ingest budget. If you need more
+than ~4 updates per second sustained, batch values into fewer requests - one request carrying
+`Score A`, `Score B` and `Clock` is one command, not three.
+
+## Errors
+
+Every error is JSON in one shape:
+
+```jsonc
+{ "error": { "code": "invalid", "message": "what went wrong", "issues": ["per-label detail"] } }
+```
+
+`code` is one of `invalid`, `unauthorized`, `too_large`, `rate_limited`, `internal`,
+`unavailable`, `not_found`; `issues` appears only when there is per-label detail to give
+(the nothing-matched `400`).
+
+| Status | Meaning |
+| --- | --- |
+| `400` | Malformed body, unknown graphic/cue, or no label matched a field. The message says which. |
+| `401` | Missing or unknown data key. |
+| `403` | Hosted control is switched off for this production's owner. |
+| `413` | Body over 16 KB - this is a field-value channel, not an upload path. |
+| `429` | A rate limit above; retry after `Retry-After` seconds. |
+| `500` | The write failed server-side; safe to retry. |
+| `503` | This deployment has no backend configured (self-hosted offline build). |
+
+## curl examples
+
+Goal for the home side (single-graphic production - no target needed):
+
+```bash
+curl -s https://noacg.studio/api/data/update \
+  -H "Authorization: Bearer $NOACG_DATA_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"values": {"Score A": 1}}'
+```
+
+Clock tick, addressed to a named graphic in a multi-graphic production:
+
+```bash
+curl -s https://noacg.studio/api/data/update \
+  -H "Authorization: Bearer $NOACG_DATA_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"graphic": "House Scorebug", "values": {"Clock": "43:12", "Period": "2H"}}'
+```
+
+Addressing by cue label (the cue names which graphic it drives; its prepared values are not
+touched - this writes live data to that graphic):
+
+```bash
+curl -s https://noacg.studio/api/data/update \
+  -H "Authorization: Bearer $NOACG_DATA_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"cue": "Match", "values": {"Score B": 2}}'
+```
+
+A ready-made demo loop - a full match clock driving score and time against a published
+production - is `scripts/data-api-demo.mjs`:
+
+```bash
+node scripts/data-api-demo.mjs --url https://noacg.studio --key <data key>
+```
+
+## What this API deliberately is not
+
+- **Not an operator.** No play, stop, next, take, or state jumps - airing is a human decision
+  on an operator surface. A feed that could clear the frame would be a second operator with
+  no face.
+- **Not a read API.** It answers about the request it just handled, nothing else. The
+  production's state belongs to the operator surfaces.
+- **Not a renderer channel.** There is no path from here to the output page except the same
+  log every operator writes; the renderer stays dumb on purpose.
+
+## For the production owner
+
+The key is on the production's `control_shows` row (`data_key`), minted at publish. Until the
+production page surfaces it in the UI, read it with an owner session (the row is RLS-guarded;
+only you and the server can see it) - e.g. the Supabase dashboard's SQL editor:
+
+```sql
+select title, data_key from control_shows;
+```
+
+Hand it to the integrator out of band. Rotate by unpublishing and re-publishing (viewer and
+operator URLs survive that by design), or by updating the column; clear it to `NULL` to turn
+ingest off entirely.

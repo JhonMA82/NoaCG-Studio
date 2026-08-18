@@ -88,11 +88,17 @@ const MAP = [
   // what the dev server can reach, and nothing else here would notice.
   [/^api\/(ai\/|_lib\/ai)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-tiers.spec.ts', 'ai-more-control.spec.ts', 'ai-dev-routes.spec.ts', 'video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts']],
   [/^api\//, ['render.spec.ts', 'render-schedule.spec.ts']],
+  // The Production Data API (docs/DATA_API.md): the routed function, its logic module, and
+  // the dev middleware that makes the route exist locally at all.
+  [/^(api\/data\/|api\/_lib\/dataIngest|scripts\/dataDevPlugin)/, ['data-api.spec.ts']],
   // The dev server's own route RESOLVER. ai-dev-routes.spec.ts drives the real middleware instead
   // of mocking it, which is the only thing that can prove a route is reachable at all - every
   // other AI spec mocks at the network level, which is why an allowlist hid three surfaces.
   [/^scripts\/(aiDevPlugin|apiRouteTable)/, ['ai-dev-routes.spec.ts', 'ai.spec.ts', 'ai-depth.spec.ts', 'ai-more-control.spec.ts']],
   [/^src\/export\//, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'template-pack-10.spec.ts']],
+  // OGraf conformance is checked over the whole CATALOG, so a template change can break it as
+  // surely as an exporter change can (a new field type, a new machine shape).
+  [/^src\/(export\/targets\/ograf|templates)\//, ['ograf-conformance.spec.ts']],
   // The OUTPUT EMBED is an export file about the cloud output, so it belongs to the production
   // suite rather than to the package specs the rule above lists (rules union, never shadow).
   [/^src\/export\/outputEmbed/, ['productions.spec.ts']],
@@ -186,7 +192,13 @@ const MAP = [
   // wizard-kit rides along: the kit's export door lands on ProductionPage and asks it to open
   // THE production export dialog (templateStore `pendingProductionExport`), so a change to
   // that page can break a wizard flow whose name says nothing about productions.
-  [/^src\/components\/(home|save)\//, ['library.spec.ts', 'library-bulk.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts', 'wizard-kit.spec.ts', 'control-panel-types.spec.ts']],
+  [/^src\/components\/(home|save)\//, ['library.spec.ts', 'library-bulk.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts', 'wizard-kit.spec.ts', 'control-panel-types.spec.ts', 'pack-import.spec.ts']],
+  // The graphics-pack door: the format/importer, the shipped pack + its sources and build
+  // script, and the shared multi-template save path (also the wizard kit's, hence
+  // wizard-kit rides along on templateSet changes).
+  [/^src\/packs\//, ['pack-import.spec.ts']],
+  [/^(scripts\/packs\/|scripts\/build-news-pack|public\/packs\/)/, ['pack-import.spec.ts']],
+  [/^src\/model\/templateSet/, ['pack-import.spec.ts', 'wizard-kit.spec.ts']],
   // The EXPORT SCREEN and the compatibility panel it mounts. Same spec set as `src/export/`
   // above, because they are the same surface from the other side: those specs drive the Export
   // panel, so they are what renders these components at all. Unmapped, each of them escalated a
@@ -314,7 +326,7 @@ const CORE = [
 // 2026-08-07: `nightly.yml` was the unmapped file that turned a two-line gate addition into a
 // 759-spec run.
 const SUITE_CRITICAL_SCRIPTS =
-  'renderDevPlugin|aiDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
+  'renderDevPlugin|aiDevPlugin|dataDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
 const IGNORE = [/^docs\//, /\.md$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -

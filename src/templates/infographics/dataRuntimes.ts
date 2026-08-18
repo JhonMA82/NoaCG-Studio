@@ -16,8 +16,9 @@
 //     only in CSS. Every runtime here renders into `#infographic-rows` with one direct child
 //     per item, which is precisely what the shared `rows-cascade` builder animates.
 //
-// This file holds the agenda and poll runtimes; `sportsRuntimes.ts` holds the sports pack's
-// four (team sheet, league table, stat comparison, fixtures/results) under the same rules.
+// This file holds the agenda, poll, goal, milestone and ELECTION NIGHT runtimes;
+// `sportsRuntimes.ts` holds the sports pack's four (team sheet, league table, stat comparison,
+// fixtures/results) under the same rules.
 //
 // A schedule board (the agenda type) and a bar chart (the poll type) each render their rows
 // from a hidden textarea source the operator types into — and that rendering is identical for
@@ -69,19 +70,27 @@ if (document.readyState === 'loading') {
 }`;
 }
 
-/** Number helpers shared by the goal and milestone runtimes — the same tolerant parse and the
- *  same thousand-grouping ig05 authored inline, so every figure in the pack reads alike. */
-const NUMBER_HELPERS_JS = `// parseIgNumber(): read the number out of operator text — tolerant of the currency marks
+/** The tolerant number parse every figure in the pack reads through. Its own const because the
+ *  election runtimes below need it WITHOUT the grouping: a seat count is never four digits, and
+ *  a helper nothing calls is dead code sitting in a template the user is invited to read. */
+const PARSE_NUMBER_JS = `// parseIgNumber(): read the number out of operator text — tolerant of the currency marks
 // and thousand separators people paste in ("€124,213" -> 124213).
 function parseIgNumber(text) {
   var n = parseFloat(String(text).replace(/[^0-9.+-]/g, ''));
   return isNaN(n) ? 0 : n;
-}
+}`;
 
-// formatThousands(): 124213 -> "124,213" — broadcast figures always group digits.
+/** The thousand grouping ig05 authored inline — money figures always group. */
+const GROUP_DIGITS_JS = `// formatThousands(): 124213 -> "124,213" — broadcast figures always group digits.
 function formatThousands(n) {
   return String(Math.round(n)).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',');
 }`;
+
+/** Number helpers shared by the goal and milestone runtimes — the same tolerant parse and the
+ *  same thousand-grouping ig05 authored inline, so every figure in the pack reads alike. */
+const NUMBER_HELPERS_JS = `${PARSE_NUMBER_JS}
+
+${GROUP_DIGITS_JS}`;
 
 /**
  * The GOAL-METER rebuild, in its two drawn shapes.
@@ -313,6 +322,229 @@ function rebuildInfographic() {
 
 // Render once on load so the preview shows the chart before the first update().
 // This file loads in <head>, before the chart elements exist — wait for the DOM.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', rebuildInfographic);
+} else {
+  rebuildInfographic();            // DOM already parsed (e.g. an inline preview build)
+}`;
+}
+
+// ── The ELECTION NIGHT runtimes (ig34-ig36) ─────────────────────────────────
+//
+// One count night needs three graphics and they share one habit: the operator types the few
+// figures a returning officer actually reads out, and the board derives the rest. A seat share,
+// a distance to the majority line and a swing against the last election are all arithmetic -
+// asking anyone to type them during a live count is asking for the one number nobody checks.
+
+/**
+ * The SEAT-COUNT rebuild: "Party | seats" lines become one bar row per party, drawn into
+ * `#infographic-rows` with a readout riding each fill's tip (ig07's cap structure, so the
+ * shared `bars-grow` builder counts the seats up as the bar grows).
+ *
+ * THE ONE GEOMETRY DECISION, because it is a truthfulness one: the bars are scaled against the
+ * BIGGEST party, not against the size of the chamber. A chamber-scaled board draws every bar
+ * short - 76 of 200 seats is a 38% stub - and the comparison a results board exists to make,
+ * party against party, is exactly what those stubs stop showing. The scale is a DRAWING choice
+ * and nothing else: the figure at each bar's tip is the seat count the operator typed, never a
+ * share, so the picture compares and the number states.
+ */
+export function seatBarsRuntimeJs(): string {
+  return `${PARSE_NUMBER_JS}
+
+// escapeHtml(): the rows below are built with innerHTML - operator text is escaped first so a
+// party name like "Left & Green <2026>" reads as text and never runs as markup.
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// rebuildInfographic(): parse the hidden #f0 source (one "Party | seats" per line) and rebuild
+// the #infographic-rows board. Only the FIRST pipe splits the line, so a party name may contain
+// one. Lines without both parts are skipped rather than drawn as an empty row.
+function rebuildInfographic() {
+  var rows = document.getElementById('infographic-rows');
+  var source = document.getElementById('f0');
+  if (!rows || !source) return;
+
+  var parties = [];
+  source.textContent.split('\\n').forEach(function (raw) {
+    var line = raw.trim();
+    if (line === '') return;                       // skip blank lines
+    var split = line.indexOf('|');                 // first pipe only - names may contain one
+    if (split === -1) return;                      // no pipe: not a "Party | seats" line
+    var name = line.slice(0, split).trim();
+    var seatsText = line.slice(split + 1).trim();
+    var seats = parseFloat(seatsText.replace(/[^0-9.+-]/g, ''));
+    if (name === '' || isNaN(seats) || seats < 0) return;  // skip lines without a name or a count
+    parties.push({ name: name, seats: seats });
+  });
+
+  // The drawing scale: the biggest party's bar runs the full track and every other bar is drawn
+  // against it. See this function's comment for why it is not the chamber's size.
+  var largest = 0;
+  for (var i = 0; i < parties.length; i++) {
+    if (parties[i].seats > largest) largest = parties[i].seats;
+  }
+
+  var html = '';
+  for (var j = 0; j < parties.length; j++) {
+    var width = largest > 0 ? (parties[j].seats / largest) * 100 : 0;
+    // The leading party is DERIVED, never typed - it changes several times on a count night,
+    // and the accent following it by itself is the whole point of drawing the board live.
+    var leading = largest > 0 && parties[j].seats === largest;
+    html += '<div class="infographic-row' + (leading ? ' is-leading' : '') + '">'
+          +   '<span class="infographic-party">' + escapeHtml(parties[j].name) + '</span>'
+          +   '<div class="infographic-bar-track">'
+          +     '<div class="infographic-bar-fill" data-value="' + width.toFixed(2) + '"'
+          +          ' style="width: ' + width.toFixed(2) + '%">'
+                   // The readout cap - anchored to the fill's tip in CSS, so it rides the growth,
+                   // and carrying its own data-target so the count lands on the real seat figure.
+          +       '<span class="infographic-bar-cap">'
+          +         '<span class="infographic-bar-num" data-target="' + parties[j].seats + '">'
+          +           parties[j].seats
+          +         '</span>'
+          +       '</span>'
+          +     '</div>'
+          +   '</div>'
+          + '</div>';
+  }
+  rows.innerHTML = html;
+}
+
+// Render once on load so the preview shows the board before the first update().
+// This file loads in <head>, before the board elements exist - wait for the DOM.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', rebuildInfographic);
+} else {
+  rebuildInfographic();            // DOM already parsed (e.g. an inline preview build)
+}`;
+}
+
+/**
+ * The MAJORITY-METER rebuild: the goal meter's shape (a figure over a measured track, everything
+ * else derived) with the goal being a coalition's route to a majority.
+ *
+ * It is a separate runtime from `goalRuntimeJs` for one reason, and it is the same reason the
+ * goal ring is separate from the poll ring: a goal meter has TWO numbers and this has three. The
+ * track is the whole chamber (#f2), the fill is the coalition's seats (#f0), and the majority
+ * (#f1) is a LINE DRAWN ACROSS the track rather than the track's end. Running the meter to the
+ * majority instead would draw a full bar at the moment a government is formed and have nothing
+ * left to say about the seats won past it, which on a count night is most of the story.
+ *
+ * Nothing here reaches innerHTML: every derived string is written as textContent, so operator
+ * text is inert by construction rather than by escaping.
+ */
+export function majorityMeterRuntimeJs(): string {
+  return `${PARSE_NUMBER_JS}
+
+// rebuildInfographic(): read the coalition's seats (#f0) and the two hidden sources - the seats
+// a majority needs (#f1) and the size of the chamber (#f2) - then derive the whole panel: the
+// fill's share, where the majority line sits, the distance to it, and the caption. Read from
+// data-target where it exists: update() keeps it current, while the count-up preset rewrites the
+// live textContent mid-count ("0", "84"…).
+function rebuildInfographic() {
+  var seatsEl = document.getElementById('f0');
+  var majorityEl = document.getElementById('f1');
+  var totalEl = document.getElementById('f2');
+  if (!seatsEl || !majorityEl || !totalEl) return;
+  var seats = parseIgNumber(seatsEl.getAttribute('data-target') || seatsEl.textContent);
+  var majority = parseIgNumber(majorityEl.getAttribute('data-target') || majorityEl.textContent);
+  var total = parseIgNumber(totalEl.getAttribute('data-target') || totalEl.textContent);
+
+  // Both positions are shares of the CHAMBER, clamped to the 0-100 the drawn track can express.
+  // The FIGURES are never clamped: a coalition is entitled to the seats it actually won.
+  var share = total > 0 ? Math.max(0, Math.min(100, (seats / total) * 100)) : 0;
+  var line = total > 0 ? Math.max(0, Math.min(100, (majority / total) * 100)) : 0;
+
+  // The fill is rendered AT its value so an on-air update() shows fresh seats at once; on play()
+  // the 'count-up' preset empties it and grows it back once the figure has landed.
+  var fill = document.querySelector('.infographic-bar-fill');
+  if (fill) {
+    fill.setAttribute('data-value', share.toFixed(2));
+    fill.style.width = share.toFixed(2) + '%';
+  }
+
+  // The majority line - a marker standing on the track at majority/chamber.
+  var marker = document.getElementById('infographic-majority');
+  if (marker) marker.style.left = line.toFixed(2) + '%';
+  var markerLabel = document.getElementById('infographic-majority-label');
+  if (markerLabel) markerLabel.textContent = 'MAJORITY ' + Math.round(majority);
+
+  // The distance to the line, in the words a results desk uses. A majority of zero is not a
+  // majority, so a cleared field reads as "not there yet" rather than as an instant win.
+  var reached = majority > 0 && seats >= majority;
+  var margin = document.getElementById('infographic-margin');
+  if (margin) {
+    margin.textContent = reached
+      ? '+' + Math.round(seats - majority) + ' OVER'
+      : Math.round(Math.max(0, majority - seats)) + ' SHORT';
+  }
+  // The panel says which of the two it is by CLASS, so the stylesheet owns the look - a runtime
+  // that wrote colours would be a second style system the Style panel could not retint.
+  var box = document.querySelector('.infographic-box');
+  if (box) {
+    if (reached) box.classList.add('is-reached');
+    else box.classList.remove('is-reached');
+  }
+
+  // The caption under the track: what the meter is measured against.
+  var caption = document.getElementById('infographic-seat-line');
+  if (caption) caption.textContent = 'of ' + Math.round(total) + ' seats';
+}
+
+// Render once on load so the preview shows the meter before the first update().
+// This file loads in <head>, before the panel elements exist - wait for the DOM.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', rebuildInfographic);
+} else {
+  rebuildInfographic();            // DOM already parsed (e.g. an inline preview build)
+}`;
+}
+
+/**
+ * The TURNOUT rebuild: the ring itself is the shared `ring-fill` motion (it draws to #f0's own
+ * percent, so it needs nothing from here) - this derives the SWING, the second figure every
+ * turnout graphic carries.
+ *
+ * The comparison is optional by construction: clear the hidden previous-turnout source and the
+ * swing line empties, which the `:empty` rule removes from the layout. A first election, or a
+ * boundary change that makes the last one meaningless, then costs the operator one deletion
+ * rather than a different graphic. Nothing here reaches innerHTML - textContent only.
+ */
+export function turnoutRuntimeJs(): string {
+  return `${PARSE_NUMBER_JS}
+
+// rebuildInfographic(): compare this turnout (#f0) with the hidden previous one (#f2) and write
+// the swing. Read from data-target where it exists: update() keeps it current, while the
+// ring-fill preset rewrites the live textContent mid-count ("0", "43"…).
+function rebuildInfographic() {
+  var turnoutEl = document.getElementById('f0');
+  var previousEl = document.getElementById('f2');
+  var swing = document.getElementById('infographic-swing');
+  if (!turnoutEl || !previousEl || !swing) return;
+
+  // No previous figure = no comparison to draw. The empty line collapses via :empty.
+  var previousText = (previousEl.getAttribute('data-target') || previousEl.textContent).trim();
+  if (previousText === '') {
+    swing.textContent = '';
+    swing.classList.remove('is-down');
+    return;
+  }
+
+  var turnout = parseIgNumber(turnoutEl.getAttribute('data-target') || turnoutEl.textContent);
+  var previous = parseIgNumber(previousText);
+  // One decimal: turnout moves by tenths of a point, and a swing rounded to whole points would
+  // report "0" for a real change on a night when the change IS the story.
+  var change = Math.round((turnout - previous) * 10) / 10;
+
+  swing.textContent = (change < 0 ? '-' : '+') + Math.abs(change).toFixed(1) + ' pts';
+  // Direction is a CLASS, not a second colour written from JS: the stylesheet decides how a fall
+  // reads, and the graphic keeps its single accent.
+  if (change < 0) swing.classList.add('is-down');
+  else swing.classList.remove('is-down');
+}
+
+// Render once on load so the preview shows the swing before the first update().
+// This file loads in <head>, before the panel elements exist - wait for the DOM.
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', rebuildInfographic);
 } else {

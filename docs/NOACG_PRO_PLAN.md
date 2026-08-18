@@ -2644,6 +2644,437 @@ Two consecutive runs of the same code disagreeing is what settles it as run-to-r
 rather than the composer moving. `results.json` was byte-identical across all three runs, so no
 cell's `recomposedAdjustments` moved and §17.11's "recomposed byte-for-byte in their adjustments"
 - a claim about the LEDGER - still holds. **The mechanism is not diagnosed and is deliberately
-not guessed at here.** The rule it buys: *a recomposed frame diff is not evidence the composer
+not guessed at here** - §20 is that diagnosis, measured the next day, and the frames named here
+are the three it fixes. The rule it buys: *a recomposed frame diff is not evidence the composer
 changed until the recompose has been run twice.* The committed frames were restored rather than
-churned, since neither version is more correct than the other.
+churned, since neither version is more correct than the other - which is what §20.3 revisits, once
+one of the two versions had become the reproducible one.
+
+## 20. Why a recomposed frame moved without the composer moving - 2026-08-17
+
+`--recompose` rebuilds a finished round from each generation's saved `language.json` through
+today's composer (§17.11), and the whole reason that is cheap evidence is the claim underneath it:
+**the language is the artefact the money bought, and everything after it is deterministic.** A
+frame that comes back different twice makes that a claim rather than a fact, and three frames did
+- recomposing the 2026-08-16 round moved 3 of its 36 against the committed ones, and running the
+identical command again moved them again.
+
+### 20.1 The bisect: everything the platform decides was byte-identical
+
+Five runs of the five kestrel cells (ten frames), hashing each stage:
+
+| stage | across 5 runs |
+| --- | --- |
+| `language.json` | identical (it is read off disk) |
+| `composeFromLanguage` html + css + js | **identical** |
+| `composeDocument` srcdoc | **identical** |
+| `result.adjustments` (the ledger row) | **identical** |
+| every element's rect to 4dp + 19 paint-relevant computed styles | **identical** |
+| the captured PNG | **3 of 10 moved; one cell produced 5 distinct files in 5 runs** |
+
+So the composer is exonerated by measurement, not by argument, and the ledger claim §17.11 makes
+("recomposed byte-for-byte in their adjustments") is confirmed a second time. The differences sit
+only on **glyph and panel edges**, with the three colour channels moving together - the shape of
+one raster of the same content against another, not of a layout that moved.
+
+Four plausible causes were tested and are NOT it: Anton is a single-weight face asked for at
+`font-weight: 700`, so every kestrel cell renders **synthetic bold** - forcing weight 400, and
+separately `font-synthesis: none`, changed nothing; `--disable-gpu` changed nothing;
+`--disable-lcd-text` changed nothing; a fresh page per shot rather than a reused one changed
+nothing. Two consecutive shots 1.5 s apart **inside one page load are always identical**, with
+GSAP's global timeline holding zero live tweens - so it is not an unsettled animation either.
+
+### 20.2 What it is: a texture rasterised mid-entrance and never redrawn
+
+`.lower-third-box` carries `will-change: transform, opacity`, so Chromium promotes it to its own
+compositing layer for the life of the page. The entrance moves that layer. Chromium rasterises the
+layer's texture **while it is moving**, and because the hint says more transforms are coming it
+does not re-rasterise once the tween settles. The frame we keep is therefore a texture rastered at
+whatever sub-pixel phase of the ~0.5 s entrance the last raster happened to catch, composited at
+the settled transform - which is why the variation is continuous (5 runs, 5 files) rather than a
+flip between two states, and why it is stable within a load.
+
+Two independent interventions confirm it, and they agree **byte for byte**:
+
+- **Drop the hint for one frame after the graphic has settled**, then restore it. That invalidates
+  the layer, so the settled content is rastered once at the offset it rests at.
+- **Fast-forward the entrance** (`gsap.globalTimeline.timeScale(1000)`), so the only raster that
+  ever happens is the settled one.
+
+Ten frames, five runs, byte-identical under either. The first is what ships in
+`rasterSettledFrame` - the second would also fast-forward a timer graphic's own clock.
+
+A third intervention stabilises the frames and is **wrong**: leaving the hint off through the shot.
+A still painted straight into the page instead of into a layer switches text to sub-pixel
+antialiasing, moving a glyph edge by up to **233/255** with the channels visibly disagreeing. That
+is a different picture, not a stabler one - which is the trap in "the frames stopped moving, so it
+must be fixed".
+
+### 20.3 Blast radius on the recompose evidence that already exists
+
+Two full `--recompose` runs of round-2026-08-16 are now byte-identical across all 36 frames, and
+`results.json` is byte-identical to the committed one. Against the **committed** frames:
+
+- **33 of 36 are byte-identical.** The fix costs nothing on evidence that never moved, which is
+  the property that makes it safe to apply to a round a human has already read.
+- **3 changed** - `sports-live.kestrel.hold`, `sports-live.kestrel.stress`,
+  `long-name.kestrel.hold`, exactly the three that were never reproducible. Each moves 0.17-0.45%
+  of pixels at max channel delta 59-91, the same band the run-to-run noise occupied, so no design
+  ruling in §17 or the blind reads is disturbed. They are committed rather than restored this
+  time: one of the two versions is now reproducible and the other was one draw from a continuum.
+
+The rule §17.11 bought stays worth keeping - *a recomposed frame diff is not evidence the composer
+changed until the recompose has been run twice* - but the reason has changed. It is no longer an
+undiagnosed wobble; it is a promoted layer, and a run that still disagrees with itself now means
+something new is wrong.
+
+### 20.4 The product question this leaves open
+
+Nothing above is specific to Pro. `will-change` is declared in CSS **permanently** on this box
+and on animated elements throughout the catalog, and permanently-promoted layers are exactly what
+the property's own guidance warns against. If Chromium keeps a mid-entrance texture for a
+recomposed still, it keeps one **on air** too: the settled graphic goes on showing the softer
+raster until something else invalidates the layer. That is a catalog-wide motion-CSS question -
+whether the hint should be dropped when the entrance completes - and it is not answered here,
+because measuring it belongs on a rendered graphic in playout, not on a screenshot runner.
+
+### 20.5 The control run had the same defect, and now it is fixed
+
+`captureHold` - the free `--control` run's capture, and the reference every paid round is judged
+against - mounts, plays and settles exactly the way the recompose did, so it was measured the same
+way, and it failed the same way: **two runs of the identical command disagreed on 7 hold frames.**
+Three were named as the promoted-layer raster (`anchor-adapt-1.hold`, `anchor-adapt-1.stress.hold`,
+`language-volt-matchday.hold`); the other four were `language-countdown-*` and were written off as
+honest, on the reasoning that a live clock SHOULD differ between runs.
+
+`rasterSettledFrame`'s step now runs inside `captureHold` too, written out inline because the
+graphic lives in a same-origin srcdoc frame and there is no Playwright handle for that document,
+only `win` from the parent.
+
+**Measured 2026-08-17, four full `--control` runs into separate `--out` dirs on an otherwise idle
+machine (~8.5 min each, no skips, no errors):**
+
+| diff | identical | differ |
+| --- | --- | --- |
+| fixed run A vs fixed run B | 40 of 40 | **0** |
+| fixed run A vs fixed run C | 40 of 40 | **0** |
+| fixed run B vs fixed run C | 40 of 40 | **0** |
+| fixed run A vs an UNFIXED run | 28 of 40 | 12 |
+
+So the capture is reproducible across three runs spread over half an hour, and the fix is
+**narrow**: it leaves 28 of the 40 holds byte-for-byte as they were, which is the same result the
+recompose fix had - it costs nothing on evidence that never moved.
+
+**The hold set is 40 frames, not the 42 recorded above** - 20 briefs, each shot normal and stress.
+
+**And the four countdown frames were most likely never honest.** `src/templates/shared/clock.ts`
+anchors on `Date.now()` and repaints every 250 ms, so the digits are a function of time ELAPSED
+since `play()`, not of absolute wall time - and the hold is shot a fixed ~1.9 s after it, well
+inside one whole second, so the same digit is drawn every run. Before the fix, 4 of the 8
+`language-countdown-*` frames moved; after it, 0 of 8 move across three runs half an hour apart.
+Four of eight is what a shared defect looks like sampled twice, not what a clock looks like. The
+residual risk is real but different from the one recorded: if that ~1.9 s ever jittered across a
+whole second the digit WOULD change, so a byte diff over this set still has to read a countdown
+difference as inconclusive rather than as a regression.
+
+The guard that parks browser work also counted `scripts/dev-bench.mjs` as a running sweep, because
+`SWEEP_SCRIPTS` matched `[\w-]*bench[\w-]*` and that script is a long-lived dev SERVER, not a
+finite job - so did `bench-dispatcher.mjs`, the module that server preloads and which therefore
+shares its command line, which made one bench server report as two active jobs. Fixed first, as
+its own commit: `SERVER_SCRIPTS` carves the three server scripts back out of the alternation.
+
+
+## 21. The free-form coder round on four checkpoints - 2026-08-17, machine half only
+
+Premise 1 (§15.4) had been measured to fail only on non-reasoning open-weight checkpoints, and
+panel layout is a spatial-reasoning problem - so the untested argument was "a 2026 reasoning
+model composes where those could not". Four checkpoints ran the identical protocol: the 12-brief
+bank, the `none` arm (the free-form coder, no exemplars), assigned brands, pinned decoding, no
+divergence cell, one out-dir per checkpoint, cheapest first. The blind page (64 items - all four
+rounds interleaved with the accepted Phase A set, ids reissued) and `machine-columns.md` are in
+the round archive; **the owner's blind read is OWED and nothing here is a verdict on the look.**
+
+What the machine half already says:
+
+- **The device proxy is approximately zero on every checkpoint** - 1, 1, 0 and 2 of 12
+  (`deviceCheck.ts`, mutation-checked both directions before any spend). Four models across
+  three vendors, one of them a frontier reasoning model, and the two live lines land as two
+  rows in one plain box on ~92% of cells. Per the round's own pre-registered reading: when the
+  device rate is flat across checkpoints INCLUDING the frontier ceiling, the SPINE is what
+  flattens it, not the checkpoint - the structure-spine contract hands every model the same
+  safe plain-panel answer. **A `bare` arm (drop the spine, keep the field contract) is the next
+  session's build, with the editability trade written down.**
+- **Contract compliance is no longer the differentiator**: 10, 10, 12 and 12 of 12 scaffold-ok,
+  and claude-opus-5 needed zero repair rounds across the bank - the first checkpoint ever to.
+- **Output volume answers the owner's second question, and rate-is-not-cost holds again**:
+  ~6.6k/6.9k/6.7k/5.1k output tokens per graphic - nobody near the modelled 12k, and the
+  frontier model emits the LEAST. Reasoning share where reported: 35% / 58% / 49% (the
+  anthropic route reports no split, stated as not-recorded rather than zero). Cost per
+  graphic: $0.0097 / $0.0274 / $0.0310 / $0.169-priced - 17x between cheapest and dearest for
+  the same contract compliance and the same flat device rate.
+- **grok-4.3 has a reasoning runaway**: `portrait-logo.sunbeam` and `non-latin.aldervale`
+  truncated at a 25,000-token output ceiling and AGAIN at 41,000 after
+  `REASONING_HEADROOM_TOKENS` was raised to the newly measured worst case - >41k tokens of
+  thinking with no complete answer, twice, on briefs its siblings finish in ~7k. Its round is
+  10 of 12 and says so.
+
+### 21.1 The owner's blind read, and the verdict - premise 1 is RETIRED
+
+The read came back the same day, 59 of 64 items rated, notes written before any reveal
+(`notes.md` in the round archive holds them verbatim plus the join). Airable rates over rated
+items: **the platform-composed Phase A control 14 of 15 - and the four coder arms 3/11, 2/9,
+5/12 and 3/11 (~30% together)**, on one interleaved blind page, same briefs, same brands. The
+frontier reasoning model is not an outlier: claude-opus-5 landed 3 of 11 beside minimax's 3 of
+11 at 17x the price.
+
+- **The dominant defect class was predicted by the instruments before anyone looked**: "the
+  line is on top of the text" accounts for ~13 of the 30 coder failures, and `text-over-rule`
+  had already fired on almost exactly those cells (grok 6 of 6, gemini 6 of 6). The remaining
+  classes are mark plates (the class the composer's knock rule closed a round ago), junk
+  furniture above the strap, and undersized or misaligned marks - plus minimax's two
+  runtime-dead cells, which are exactly its two blocking-error cells. Machine and human agree
+  everywhere they measure the same dimension.
+- **A device did not buy a pass**: of the 5 coder cells carrying one, 1 passed - and the opus
+  monogram-K device is one of the pieces of furniture the owner rejected by name. The §20
+  spine question stands as a fact about the harness, but it no longer carries a product
+  premise: even where a device exists, the composition fails on collisions and mark treatment.
+- **So premise 1 (§15.4) retires on the strongest evidence it will ever get**: a 2026 frontier
+  reasoning model, inside the shipped harness, with the repair loop, lands at a quarter of the
+  platform-composed acceptance rate for 17-50x the cost of a Phase A language call. Phase A is
+  not a compromise; it is the answer. The `bare` arm remains a research option for the spine
+  question and is NOT a product path - running it would be spending money to refine the size
+  of a gap the product has already routed around.
+
+### 21.2 The iterate arm - the custom lane earns its test read, 2026-08-17
+
+The owner redirected the retired premise the same day: Pro's custom lane should let the model
+ITERATE - render, measure, fix - as long as it needs, fail closed on anything still flawed, and
+cost little enough to beat opening a code assistant by hand. `src/ai/spike/iterate.ts` +
+`scripts/pro-iterate-spike.mjs` are the smallest honest version: the one-shot coder protocol,
+then up to four rounds of every instrument finding plus a downscaled screenshot of the model's
+own frame, `deliverable: false` a first-class result. The loop's own control run proves the
+collector is quiet on a known-good frame and loud on a forced overlap (moving a field inside
+its own mask is INVISIBLE - the mask is what must move; the check failed honestly first).
+
+**The blind read (42 items - both iterate arms + the accepted Phase A set interleaved):**
+
+| round | blind-airable | cost/graphic | calls/graphic |
+| --- | --- | --- | --- |
+| Phase A composed set | 18 of 18 | $0.006 | 1 |
+| gemini-3.7-flash iterate (vision on) | **9 of 12** | $0.128 | 2.8 |
+| minimax-m2.7 iterate (findings only) | **9 of 12** | **$0.0155** | 2.7 |
+
+Same models one-shot that morning: 5/12 and 3/12. Three readings that decide what gets built:
+
+- **The findings ARE the signal.** Minimax, shown no screenshot at all, matched
+  gemini-with-vision at an eighth of the price. The instruments' words move the model; the
+  picture adds little the words did not already say. The custom lane can run on a cheap
+  checkpoint.
+- **The fail-closed gate is roughly calibrated but over-strict on marginal findings**: of 4
+  dirty-stopped cells the owner failed 2 and forgave 2; of 19 delivered-clean cells the owner
+  passed 15. The four escapes name the missing instruments, all measurable: junk furniture
+  above the strap, a live field that never paints (compose `fieldPaints` into the spike
+  validator - the Lite lesson repeating), the mark centred in its own white space (the read's
+  most repeated nit), and a painted-text readability floor (size + contrast "for TV").
+- **Phase A stays the standard lane untouched** - 18/18 on its third consecutive blind read,
+  still 1 call and half a cent. The iterate loop is the CUSTOM lane behind the same Pro door,
+  slower and ~3-25x dearer, for briefs the catalog's structures cannot carry.
+
+## 22. The custom-lane TYPE SWEEP - 2026-08-18, machine half only
+
+The §21.2 redirect asked whether the loop GENERALIZES: does render-measure-feed-back hold past
+lower thirds, do the two surviving checkpoints separate on harder types, and does an emitted
+multi-step graphic drive through the SHIPPED control layer. One night answered the machine
+half; **the owner's blind read of the 49-item page is OWED and nothing here is a verdict on
+the look.** Protocol: the same iterate loop, 21 fresh briefs over seven types (3 each:
+lower-third, scoreboard, quiz-board, ticker, stat-panel, countdown, podium-score -
+benchmarks/pro/v1/custom/briefs.json), six brands (two NEW: Pulse Arena, Boreal), max 4
+iterations, fail-closed. The platform-authors-machines rule held: a stepper brief declares its
+steps as the SPX default path, the model implements `window.next()`, no machine key exists
+anywhere in the round. Round archive: `benchmarks/pro/evidence/round-2026-08-18-typesweep/`
+(the frames and blind page are in the external eval archive, `typesweep-*-2026-08-18`).
+
+Four instruments the §21.2 escapes named ran for the first time, each calibrated or
+mutation-checked free before any spend: fieldPaints composed into the loop's validator (with a
+sentinel step-walk where one state is not the whole answer), a readability floor - which the
+control IMMEDIATELY recalibrated from 22px to 18px because lt27 ships a 20px supporting line,
+the mark-gap lesson arriving on schedule - step capture along the declared path, and per-type
+thresholds with spacing/proportion findings on uncalibrated types fed as ADVISORY so a
+lower-third number cannot bully a scoreboard.
+
+What the machine half says:
+
+- **The loop generalizes unevenly, and the gap is the TYPE, not the contract.** Both models
+  went 3/3 clean on scoreboards and stat panels - live fields through update() are the easy
+  half of the custom lane. Both went 1/3 on podium reveals; minimax went 0/3 on quiz boards
+  and tickers where gemini managed 1/3 and 2/3. Deliverable-clean overall: **minimax 10/21 at
+  $0.0328/graphic (findings-only), gemini 14/21 at $0.1712/graphic (vision)** - the §21.2
+  "findings are the signal" reading survives on the easy types and BREAKS on steppers and
+  crawls, where the dearer model's extra rounds actually converge. Cost separation is 5.2x
+  for a 4-cell advantage.
+- **The backend-integration question has a measured answer: yes.** Every deliverable
+  scoreboard took two score bumps and a clock write through the SHIPPED control page's own
+  Update, and the quiz boards advanced their reveal walk on the panel's Next - 5 of 6
+  quiz+scoreboard cells drivable in BOTH rounds, through fieldDescriptors + the implicit
+  machine, nothing bespoke (`custom-lane-drive-spike.mjs`, drive-report.json per out-dir).
+  The one refusal both rounds (qz-campus) genuinely does not advance its frame.
+- **One instrument mis-signal, caught by the drive proof and recorded rather than hidden:**
+  the step capture read `next()` returning undefined as "does not advance", but a
+  hand-written next() may do its work and return nothing - two quiz cells the loop called
+  step-broken drive fine under the real panel. The finding class needs a markup-diff check,
+  not a return-value check, before the next round trusts it to block.
+- **The dominant dirty-stop causes are now instrument classes, not runtime crashes**: minimax
+  still loses cells to `buildInTimeline`/`animSpeed` referenced outside the region (5 cells
+  with blocking errors vs gemini's 0), but the persistent stoppers on BOTH models are
+  alignment near-misses on dense grids (quiz answer ladders, podium columns - up to 9 per
+  frame, cosmetically marginal) and marginal mark-gap readings (cd-show stuck 0.34 vs 0.35
+  floor for three rounds). Whether those stops were RIGHT is exactly what the blind read of
+  the dirty cells decides - §21.2 measured the same gate over-strict on marginal findings
+  once already.
+- **The new instruments earned their place on the paid round itself**: the readability floor
+  drove real fixes (11-17px labels raised to floor) on most cells that then delivered clean,
+  and the ticker overflow class fed minimax's 0/3 - its crawls genuinely painted off-canvas.
+  fieldPaints caught 4 unpainted-field rounds on minimax tickers, the §21.2 escape 2 class,
+  before any human looked.
+
+
+### 22.1 The owner's blind read, and what it decides - 2026-08-18
+
+The read came back the same morning, all 49 items, notes written against the page before any
+reveal (`notes.md` in the round archive holds them verbatim plus the join). Airable = "would
+air" + "okay as-is":
+
+| round | airable | of |
+| --- | --- | --- |
+| catalog anchors | 5 | 7 |
+| gemini-3.7-flash iterate (vision) | **10** | 21 |
+| minimax-m2.7 iterate (findings-only) | **3** | 21 |
+
+- **The §21.2 minimax-parity reading does NOT survive the wider types.** On lower thirds
+  alone, findings-only minimax matched vision gemini 9/12 vs 9/12; over seven types the read
+  splits 3/21 vs 10/21. The words carry the easy types (both models 3/3 machine-clean on
+  scoreboards and stat panels); on steppers, crawls and dense layouts the picture is what
+  converges. The custom lane's checkpoint question is answered: it runs on gemini-class
+  vision or it does not generalize.
+- **The gate's DELIVER signal leaks on the new types; its STOP signal held.** Of 24
+  delivered-clean cells the owner would air 12 (§21.2's lower-third round: 15 of 19); of 18
+  dirty stops the owner agreed with 15 and forgave 3. Every escape names a measurable class,
+  recorded in the round's notes.md: a collision finding demoted to advisory on uncalibrated
+  types (the accent-over-text class, §21.1's dominant defect, let back in by the demotion
+  policy), the logo breaking the composition (the sweep's dominant cross-type defect - the
+  owner's ruling: SKIP the model-placed logo on the new types; mark placement is the
+  platform's, the Phase A knock rule), a minimum-text-size RULE (18px calibrated to the
+  catalog's smallest line is below what the owner calls readable for broadcast - one shipped
+  catalog anchor took the same note), per-step GEOMETRY (a stepper whose boxes grow
+  misaligned and overflow the background passed a paint-only step walk), the fixture stress
+  frame being captured but never fed, tinted-on-tinted contrast, and ticker margins
+  (full-bleed or equal both sides).
+- **Two catalog anchors took notes of their own** - ig01's smallest text and tk01's
+  red-on-black with uneven margins - so two of the seven classes bind the CATALOG, not just
+  the lane.
+- **What this round does NOT change**: Phase A stays the standard lane. The custom lane
+  stays fail-closed and does not ship until the deliver-signal fixes above are built and a
+  re-read clears; the next round runs no model-placed logos, blocks collision findings on
+  every type, raises the size floor to the owner's broadcast rule, runs the instruments per
+  step frame, and feeds the fixture stress capture.
+
+## 23. The design-rules re-read - 2026-08-18, machine half only
+
+The §22.1 escape classes became the DESIGN RULES program (docs/DESIGN_RULES_PLAN.md, ratified
+the same day), and this round is its R1-R3 slice: one canonical rules module, the loop fixes
+the read paid for, an audit before enforcement, a calibrated critic, and the SAME 21 briefs
+re-run under the rules. **The owner's blind read of the 28-item page is OWED and nothing here
+is a verdict on the look.**
+
+What was built (R1, all mutation-controlled in `pro-iterate-spike.mjs --control`):
+
+- **`src/model/designRules.ts`** - the owner's ratified size table (roles x standard/safe mode
+  x viewing profile, % of the short side), weight/stroke/safe-area/contrast+protection rules,
+  and `designRulesPromptBlock`, which rides the USER message - the frozen coder system prompt
+  stays frozen. Math pinned by `scripts/design-rules.test.mjs` in the build gate. The
+  readability instrument classifies roles and reads every floor from the module; a ticker
+  instrument enforces full-bleed-or-equal margins; collisions block on EVERY type; the full
+  instrument pass runs on EVERY step frame; the stress capture and a zero/empty/Nordic/
+  all-caps edge frame FEED the loop; step advance is a markup diff, never next()'s return
+  value; alignment near-misses group into one advisory; the custom bank runs NO model-placed
+  logos (the brand still conditions palette, type and world).
+- **The audit** (`scripts/design-rules-audit-sweep.mjs`, report
+  `benchmarks/design-rules/AUDIT-2026-08-19.md`): 489 shipped variants + the 49 archived
+  sweep cells re-rendered and joined against the §22.1 verdicts. Headline disagreements,
+  stated while the table stays binding: the 50px primary floor fails **312 of 489 shipped
+  designs** and would have stopped **14 of the 17 airable cells** (all four AIRs included);
+  the 96px safe area stops two aired corner scoreboards; the collision rule scored **7 true
+  positives / 0 false positives** on the sweep cells but fires on 21 shipped credits/ticker
+  designs whose text legitimately crosses rules mid-travel; the 20px secondary floor is the
+  one floor the catalog already meets.
+- **The critic calibration** (`benchmarks/design-rules/CRITIC-CALIBRATION-2026-08-19.md`,
+  $0.247 over the archived 49): only `lineOnText` calibrated (100% precision, 80% recall) and
+  is wired as a once-per-round ADVISORY; logo/size/overflow/contrast/alignment questions sat
+  at or near chance and stay out - the Lite-judge lesson repeats, and the deterministic
+  instruments own those classes.
+
+What the machine half of the re-read says (`rules-reread-{gemini,anchors,blind}-2026-08-19`
+in the eval archive; $2.472, ~$0.118/graphic, gemini-3.7-flash vision only - minimax stayed
+out per §22.1):
+
+- **21 of 21 completed, 19 delivered clean** against §22's 14 of 21 - and the two dirty stops
+  are both countdowns held by the CALIBRATED spacing thresholds (padding-tight, lines-adrift),
+  not the new rules. Whether 19 clean ≈ 19 airable is exactly what the read decides; the §22
+  target is delivered-clean ≈ airable.
+- **The rules did real work in the loop**: per the escape-class columns
+  (machine-columns.md), the size floor fed 49 blocking findings across the round, the stress
+  frames 43, the safe area 33 (27 on podiums - the §22.1 X-24 class), contrast 12, step-frame
+  geometry 5 (all on quiz boards), collisions 3. Ticker margins fed ZERO because every
+  emitted ticker came back full-bleed or equal-margined - the prompt block alone closed the
+  X-21 class before the instrument had anything to catch.
+- **Drive proof: 5 of 6** quiz+scoreboard cells through the SHIPPED control page (§22's
+  rate); qz-primetime is the one genuine refusal - its control page throws
+  ("Cannot convert undefined or null to object") and paints nothing, a runtime-environment
+  defect the loop's bench did not surface. One harness lesson recorded: a broken graphic
+  WEDGED the shared drive page and read two healthy cells as undrivable; the spike now
+  isolates every cell in a fresh page.
+- **Cost went down while coverage went up**: $0.118/graphic against §22's $0.171, despite
+  three extra captures per round and the critic call - the rules block up front means fewer,
+  shorter repair rounds (33 total vs the sweep's heavier tails).
+
+What is NOT settled here: whether the owner airs what the gate now delivers. The blind page
+(21 cells + the same 7 catalog anchors, step frames, verdictless) is the accept gate; if the
+read shows the primary floor forcing oversized type or the safe area fighting corner
+graphics, the audit's named rows are what the owner re-ratifies. R4 (wizard viewing-target
+UI, product validator warn-first, catalog migration notes) stays gated behind that read.
+
+### 23.1 The owner's blind read, and what it settles - 2026-08-19
+
+The read came back the next morning, all 28 items (verbatim notes + join: the round archive's
+notes.md, `rules-reread-blind-final-2026-08-19`). Airable = "would air" + "okay as-is":
+
+| round | airable | of |
+| --- | --- | --- |
+| gemini-3.7-flash iterate under the rules | **21** | 21 |
+| catalog anchors | 5 | 7 |
+
+- **The deliver signal no longer leaks.** All 19 delivered-clean cells were judged airable -
+  §22 leaked 12 of 24, §21.2 leaked 4 of 19, this round leaked ZERO. The seven §22.1 escape
+  classes were closed by measurement, and the owner's summary was "for the most part all of
+  these pass - I'm happy." Every remaining note on a model cell is a nit (a glow, a
+  banner-balance preference, first-frame real estate), not a defect class.
+- **The stop signal is now the over-strict side.** Both dirty stops (cd-launch, cd-results)
+  were AIRED: they stopped on the countdown's calibrated spacing thresholds (padding-tight
+  0.11-0.23 vs floor 0.24; lines-adrift 1.55-1.92 vs ceiling 1.4). Two false stops, zero
+  true ones - the countdown instrument numbers in PRO_GRAPHICS are the named thing to relax
+  before the lane ships.
+- **The catalog took the same two notes a THIRD time**: tk01 failed again on red-on-black +
+  one-sided overflow (the ticker-margin rule the model cells now obey), and ig01's percent
+  number is again "way too small". sb01 adds stress truncation + an uneven number backing.
+  The rules the lane is held to now indict three shipped anchors - catalog fixes owed in R4.
+- **One cell-level defect survives**: qz-primetime is airable on the page and NOT DRIVABLE
+  through the shipped control page (runtime throw). The visual gate and the drive proof
+  disagree; a control-page smoke belongs in the loop before the lane ships (the drive spike
+  exists - compose it in).
+- **What this settles**: the R3 accept gate is CLEARED. R4 (productize) is unblocked -
+  viewing-target wizard UI, legibility-mode persistence, the product validator running the
+  new checks warn-first on catalog/imported/community templates, and migration notes for the
+  indicted catalog designs. The primary-size-floor disagreement (AUDIT-2026-08-19.md: 50px
+  fails 312/489 shipped designs) did NOT bite the round - the models simply designed larger
+  type and the owner liked it - but it still stands between the rules and the product
+  validator until the owner re-ratifies the number for CATALOG enforcement.
