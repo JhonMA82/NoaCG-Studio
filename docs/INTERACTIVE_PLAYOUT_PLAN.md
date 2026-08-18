@@ -777,17 +777,37 @@ take part" - nothing per-show, nothing automatic.
   the narrowest thing that works (no show id, no other slug, no answer key, no tally, no presenter
   pointers). Every new field is a new decision about what a stranger holding a guessed link may
   learn, not a styling question.
-- **Automatic chat ingestion from YouTube, Twitch and other platforms into the audience plane.**
-  Pulling live chat in as submissions, so a production's inbox holds the room AND the stream. It
-  is the connector doctrine (`docs/CLOUD_PLAYOUT.md` §7) pointed at the audience plane rather than
-  at the Data Hub, and the structural rule survives it unchanged: a connector is a PRODUCER of
-  submissions, and `AudienceBackend` still has no method that reaches the command log, so an
-  ingested message goes on air the same way a phone's does - moderated, approved, taken. What it
-  needs that nothing here has: a server-side poller or webhook per platform (browser-to-Supabase
-  is the whole architecture today, zero Vercel functions - this breaks that), per-platform OAuth
-  the production owner grants, an author identity that is not a device token, and a volume story
-  the 3-per-30-seconds device cap was never sized for. Nothing about moderation changes; the
-  intake does.
+- **Automatic chat ingestion from YouTube, Twitch and other platforms into the audience plane -
+  v1 BUILT (2026-08-17), server-side ingestion still future.** Pulling live chat in as
+  submissions, so a production's inbox holds the room AND the stream. It is the connector
+  doctrine (`docs/CLOUD_PLAYOUT.md` §7) pointed at the audience plane rather than at the Data
+  Hub, and the structural rule survived it unchanged: a connector is a PRODUCER of submissions,
+  and `AudienceBackend` still has no method that reaches the command log, so an ingested message
+  goes on air the same way a phone's does - moderated, approved, taken.
+  **What v1 is** (`src/audience/chatIntake.ts` + `twitchChat.ts` + `youtubeChat.ts`, the
+  workspace's "Chat sources" strip, pinned by `e2e/production-chat-intake.spec.ts`):
+  - **The pollers run in the OPERATOR'S BROWSER** - the `control/liveData.ts` precedent, a
+    deliberate stopgap that keeps the zero-Vercel-function architecture. Ingestion lives and
+    dies with the studio tab; the sources survive workspace tab trips (a per-production
+    registry, the `localAudienceFor` pattern) but not a reload, and nothing is persisted -
+    connecting a channel is a per-session act.
+  - **Twitch is anonymous IRC-on-WebSocket** (a `justinfan` nick - no account, no OAuth, no
+    quota). **YouTube is bring-your-key**: `liveChatMessages` costs ~5 units a poll, so at the
+    5-second floor the free daily 10,000 covers roughly 2½ hours of continuous chat - stated
+    in the UI, and pausing a YouTube source stops the spend. Per-platform OAuth remains the
+    server-side shape's problem.
+  - **Identity: a deterministic synthesized device token per chat AUTHOR** (`chat-tw-<login>`,
+    `chat-yt-<channelId>`), so the existing 3-per-30-s device cap meters per chat user, not
+    per connector. The platform travels as TEXT on the author line ("name · Twitch") - a
+    submission has no platform column, deliberately: no migration for a stopgap.
+  - **Volume: a local throttle + dedupe before any write**, sized at HALF the DB's per-show
+    burst (10 per 10 s against the trigger's 20), so chat can never crowd the room's own
+    phones out of the shared budget - and every refusal is counted on the source row, because
+    a limiter that drops silently reads as a broken connector. The caps were measured, not
+    changed: a human-moderated inbox cannot use more than ~60 lines a minute anyway.
+  **What stays server-side-future:** always-on ingestion that survives the tab closing, OAuth
+  the production owner grants, webhooks instead of polling, a real platform/author column on
+  submissions, and remembered per-production source configuration.
 
 ## Sequencing and deliberate deferrals
 

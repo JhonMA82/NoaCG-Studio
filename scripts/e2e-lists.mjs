@@ -32,6 +32,7 @@ export const FOCUS = [
   'package.spec.ts',
   'playout-drills.spec.ts',
   'production-audience.spec.ts',
+  'production-chat-intake.spec.ts',
   'production-controls.spec.ts',
   'production-data.spec.ts',
   'production-pack.spec.ts',

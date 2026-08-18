@@ -177,8 +177,8 @@ const MAP = [
   // The AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5). Its whole workflow runs on
   // the local provider, so the offline suite really does cover it - which is why the seam was
   // built before the backend.
-  [/^src\/audience\//, ['production-audience.spec.ts']],
-  [/^src\/components\/home\/ProductionAudienceWorkspace/, ['production-audience.spec.ts']],
+  [/^src\/audience\//, ['production-audience.spec.ts', 'production-chat-intake.spec.ts']],
+  [/^src\/components\/home\/ProductionAudienceWorkspace/, ['production-audience.spec.ts', 'production-chat-intake.spec.ts']],
   // The public join page is its own MPA entry, so it needs its own mapping: a change to
   // join.html or src/join/ touches no module the app imports, and would otherwise map to
   // nothing at all.
