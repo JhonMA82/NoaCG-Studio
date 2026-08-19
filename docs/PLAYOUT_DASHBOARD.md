@@ -73,14 +73,31 @@ Two columns, full height, nothing scrolls but the two lists.
   airs). With the toggle, that makes the whole surface operable from the keys alone — which is
   also what makes a **Stream Deck** work today, since one is a keyboard emulator by default. A
   dedicated plugin (WebSocket, live button state) is a separate project and is not started.
+- **The keymap is ONE module, `src/components/playoutKeys.ts`**, read by both React surfaces
+  (the exported controller carries its own copy because it ships without React). Written twice,
+  it diverged: until 2026-08-18 the **hosted control page had no verb keys at all** — the page a
+  class operates from was the one where `↑`/`↓` did nothing — and its TAKE re-took a live cue
+  instead of taking it off, the exact behaviour §2 says one surface must never wear twice. A new
+  key or a changed meaning goes in that module and in the controller's `keydown` block, never in
+  a surface.
 - **The editor edits the PREVIEW cue by default** and says so ("changes air on ⟳ Take"). A
   switch offers the ON-AIR cue instead, where ✎ Update pushes edits live.
 - **An edit to the ON-AIR cue says it has not been sent.** Data never airs by itself — that is
   the staged-vs-take rule and it does not change — so the surface has to say when what is on
   screen is ahead of what is on air: the fate line names how many changes are waiting and ✎
   Update wears an amber dot. It compares against what was last SENT, never against the stored
-  cue, since those legitimately differ.
-- **Activity is one collapsed line** at the bottom; it expands.
+  cue, since those legitimately differ. **On the hosted page "last sent" is read off the WIRE**,
+  so an update somebody else aired clears the warning here too - the same fact, from the only
+  source a shared surface can trust.
+- **Activity is one collapsed line** at the bottom; it expands. Both React surfaces carry it, and
+  it earns its place most on the HOSTED one: that is the multi-operator surface, where "did that
+  take go, or was that somebody else?" is a real question. Those rows were already arriving there
+  to drive PROGRAM and were being thrown away.
+- **A production DATA row loads into the edited cue** where the Data workspace has a table whose
+  column names match this graphic's field titles (`control/cueData.ts` - one matcher, including
+  the A/B side gesture). The in-app page matches LIVE against the show; the hosted page renders
+  rows the same matcher resolved AT PUBLISH TIME, which is the freshness contract its cues and
+  entries already have: edit a dataset, publish changes.
 
 ## 3. Layout — phone
 
@@ -164,6 +181,20 @@ If this surface replaces the production dashboard, it carries the dashboard's tw
 the **control page URL** (to operate from another device). They belong in the header's menu, one
 click from the operator, never on a page they have to navigate away to.
 
+**ONE LINE PER CAPABILITY, the explanation behind its own ▸.** The panel grew a paragraph under
+every row and became a page: five explanations between five rows put the CONTROL PAGE — the link
+a class operates from — below an account of an SPX file most of them never download. So each
+row's help collapses (`LinkRow`, ProductionPage.tsx), and the arrow sits in the same column down
+the panel so it is found rather than hunted. Two rules the shape has to keep:
+
+- **The audience row's help opens by default.** Every other explanation describes something
+  PRIVATE; this one says "public", and that is the one omission here that could reach air.
+- **A secondary capability is QUIET, never hidden.** The SPX template file is a smaller, dimmer
+  row directly under the output URL it is a second form of — it belongs to the one playout host
+  that cannot take a link, so it must stay findable without competing with the links copied
+  every show. Same for the readable-name field. Hiding either behind a "more" would trade one
+  crowded panel for a lost control.
+
 ## 7b. The ⚡ GRAPHIC ACTIONS block, in the operator's words
 
 Two of its controls were unreadable to their first real operator (acceptance pass, 2026-08-06),
@@ -184,6 +215,11 @@ is a control that will not be used.
   suppressed callbacks, so call-painted looks need the trailing data write). Use it when air and
   the dashboard have got out of step — a renderer restart, a missed press. Normal operation is
   the ⚡ actions and » Next.
+- **Both React surfaces carry the whole block** — header, snap, section grouping, help line.
+  The hosted page used to render the ⚡ buttons as one flat row with no snap at all, which put
+  the recovery control on every surface EXCEPT the one being operated from a phone, away from
+  the machine running the renderer. Sections come from `controlModel.ts controlSections`, the
+  author's own `machine.controls` metadata, grouped identically by all three deployments.
 
 ## 7c. The ± LIVE NUMBERS block — the one data write that airs immediately
 

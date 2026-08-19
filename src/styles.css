@@ -1011,6 +1011,12 @@ body.resizing-rows { user-select: none; cursor: row-resize; }
 .panel-body { flex: 1; overflow: auto; padding: 12px; }
 .panel-section { margin-bottom: 18px; }
 .panel-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); margin: 0 0 8px; }
+/* The editor panels write their subtitle as a separate clause ("Rehearse — operator view"),
+   which survives the uppercase because the dash separates it. The Viewing control's subtitle
+   CONTINUES its title instead, so uppercasing merged the two into one unreadable run. Kept
+   narrow to that one heading; the wizard's own `.wz-step .panel-section > h3 .muted` rule is
+   more specific and still wins on the wizard steps. */
+.viewing-section > h3 .muted { text-transform: none; letter-spacing: 0; }
 
 .field-row { margin-bottom: 12px; }
 .field-row .field-meta { display: flex; justify-content: space-between; align-items: baseline; }
@@ -6311,6 +6317,37 @@ h2 + .lib-row,
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 8px;
+}
+/* ── The links panel's rows: one line each, the explanation behind a small arrow ──────────
+   The ▸ is a 22px square at the END of every row, so the eye finds the same control in the
+   same place down the column - and it stays the same size on a quiet row, because a shrinking
+   hit target is how a control becomes decoration. */
+.prod-link-item + .prod-link-item { margin-top: 2px; }
+.prod-link-help-toggle {
+  flex: none;
+  width: 22px;
+  padding: 0;
+  min-height: 26px;
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1;
+}
+.prod-link-help-toggle:hover:not(:disabled) { color: var(--text); }
+.prod-link-help { margin: 2px 0 8px; }
+/* A QUIET row: the SPX file and the readable name are secondary to the three links an operator
+   copies every show. Dimmed and smaller, never hidden - the download has to stay findable. */
+.prod-link-item.quiet .prod-link-row > .mono { font-size: 10.5px; }
+.prod-link-item.quiet button { font-size: 11px; padding: 4px 8px; min-height: 26px; }
+.prod-link-item.quiet .prod-link-help-toggle { padding: 0; }
+.prod-link-file {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-dim);
 }
 /* The ACTIVITY LOG. A fixed-width time column and a nowrap graphic name on the right keep the
    TEXT column aligned down the list, which is what makes a feed scannable rather than merely

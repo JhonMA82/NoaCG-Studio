@@ -204,9 +204,56 @@ test('the audience and presenter links are offered separately, and only once the
   await expect(page.getByTestId('copy-presenter-url')).toBeVisible();
 
   // And they are described by WHO THEY ARE FOR, so the public one can never be mistaken for the
-  // presenter's - the whole reason they are two rows rather than one.
+  // presenter's - the whole reason they are two rows rather than one. The audience row says so
+  // WITHOUT being asked: every other explanation on this panel collapses behind its ▸, and
+  // "public" is the one omission here that could reach air.
   await expect(links).toContainText('Public — share it with the room');
-  await expect(links).toContainText('presenter’s own phone or tablet');
+  await expect(page.getByTestId('presenter-url-help')).toHaveCount(0);
+  await page.getByTestId('presenter-url-help-toggle').click();
+  await expect(page.getByTestId('presenter-url-help')).toContainText('presenter’s own phone or tablet');
+});
+
+test('the links panel is one line per capability, with the explanations behind their own arrows', async ({ page }) => {
+  // Owner report 2026-08-18: the panel had grown into a page. Five always-open paragraphs sat
+  // between five rows, so the CONTROL PAGE - the link a class actually operates from - was
+  // below an explanation of an SPX file most of them never download. The text is right; being
+  // unable to put it away is not. Every row now collapses, and the SPX file is a QUIET row
+  // rather than a fourth capability.
+  const id = await seedProduction(page, 'Link Density');
+  await page.goto(`/app#/production/${id}`);
+  await page.evaluate(async (showId) => {
+    const { setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
+    setShowOutputSlug(showId, 'test-output-slug');
+    setShowHostedSlug(showId, 'test-hosted-slug');
+  }, id);
+  await settleDurableWrites(page);
+  await page.reload();
+  await page.getByTestId('production-links-toggle').click();
+  const links = page.getByTestId('production-links');
+
+  // At rest: every capability is one row, and no explanation is in the way.
+  await expect(links.locator('.prod-link-item')).toHaveCount(3);
+  await expect(links.locator('.prod-link-help')).toHaveCount(0);
+
+  // The arrow is the whole disclosure - it opens ONE row's help, not the panel's.
+  await page.getByTestId('output-url-help-toggle').click();
+  await expect(page.getByTestId('output-url-help')).toContainText('browser source');
+  await expect(links.locator('.prod-link-help')).toHaveCount(1);
+  await page.getByTestId('output-url-help-toggle').click();
+  await expect(links.locator('.prod-link-help')).toHaveCount(0);
+
+  // The SPX template is DEMOTED, not removed: a quiet row, still one click from the file.
+  const spx = links.locator('.prod-link-item', { hasText: 'SPX template' });
+  await expect(spx).toHaveClass(/quiet/);
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('download-output-embed').click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/\.html$/);
+
+  // The panel stays shorter than the window it pops out of - the defect that started this.
+  const height = await links.evaluate((el) => el.getBoundingClientRect().height);
+  expect(height).toBeLessThan(320);
 });
 
 test('the readable audience name: the database decides, and this build says so honestly', async ({ page }) => {

@@ -62,7 +62,56 @@ test('a saved graphic carries its entries into the show it is added to', async (
   expect(panel[0].entries.map((e) => e.label)).toEqual(['Anna Andersson', 'Michael Smith']);
   expect(panel[0].entries[0].values.f1).toBe('Presenter');
   // Never the template payload — the spec stays the operator's view of the graphic.
-  expect(Object.keys(panel[0])).toEqual(['name', 'fields', 'js', 'images', 'entries']);
+  expect(Object.keys(panel[0])).toEqual(['name', 'fields', 'js', 'images', 'entries', 'dataRows']);
+});
+
+test('a production dataset publishes the rows its graphics can load', async ({ page }) => {
+  // The hosted control page never sees the show record, only what publishing wrote — so the
+  // Data workspace's other half (loading a row into a cue) reaches it as PUBLISHED rows,
+  // matched by the same `control/cueData.ts` the in-app page runs live. Before this the hosted
+  // page had no data loading at all, on the surface a class actually operates from.
+  await createProject(page, 'Hairline');
+
+  const spec = await page.evaluate(async () => {
+    const { buildPanelSpec } = await import('/src/control/hostedControl.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { setFieldTitle } = await import('/src/blocks/edit.ts');
+    // Name the first two fields so a table can bind to them by title.
+    let template = useTemplateStore.getState().template;
+    template = setFieldTitle(template, 'f0', 'Name');
+    template = setFieldTitle(template, 'f1', 'Role');
+    const show = {
+      id: 'show-data-1',
+      name: 'Data Show',
+      updatedAt: new Date().toISOString(),
+      graphics: [
+        { id: 'copy-1', name: 'Guest strap', type: template.type, savedAt: new Date().toISOString(), template },
+      ],
+      datasets: [
+        {
+          id: 'ds1',
+          name: 'Guests',
+          kind: 'roster',
+          columns: [
+            { key: 'c0', label: 'Name' },
+            { key: 'c1', label: 'Role' },
+          ],
+          rows: [
+            { id: 'r1', values: { c0: 'Anna Andersson', c1: 'Presenter' } },
+            { id: 'r2', values: { c0: 'Ben Berg', c1: 'Reporter' } },
+          ],
+        },
+      ],
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return buildPanelSpec(show as any)[0].dataRows;
+  });
+
+  // One row per table row (no A/B sides on a lower third), labelled by the first non-empty
+  // cell, with the values already resolved against the FIELD IDS.
+  expect(spec.map((r: { label: string }) => r.label)).toEqual(['Guests: Anna Andersson', 'Guests: Ben Berg']);
+  expect(spec[0].side).toBeNull();
+  expect(spec[0].values).toEqual({ f0: 'Anna Andersson', f1: 'Presenter' });
 });
 
 test('entries resolve by library id, fall back to a unique name, and never guess', async ({ page }) => {
