@@ -1011,6 +1011,12 @@ body.resizing-rows { user-select: none; cursor: row-resize; }
 .panel-body { flex: 1; overflow: auto; padding: 12px; }
 .panel-section { margin-bottom: 18px; }
 .panel-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); margin: 0 0 8px; }
+/* The editor panels write their subtitle as a separate clause ("Rehearse — operator view"),
+   which survives the uppercase because the dash separates it. The Viewing control's subtitle
+   CONTINUES its title instead, so uppercasing merged the two into one unreadable run. Kept
+   narrow to that one heading; the wizard's own `.wz-step .panel-section > h3 .muted` rule is
+   more specific and still wins on the wizard steps. */
+.viewing-section > h3 .muted { text-transform: none; letter-spacing: 0; }
 
 .field-row { margin-bottom: 12px; }
 .field-row .field-meta { display: flex; justify-content: space-between; align-items: baseline; }
@@ -5900,6 +5906,40 @@ h2 + .lib-row,
    inherits the global `width: 100%` and eats the whole bar, pushing everything after it onto a
    second line. */
 .pd-aud-bar select { width: auto; min-width: 170px; }
+/* CHAT SOURCES - the intake strip between the door and the vote panel. Deliberately COMPACT:
+   one row per source, one row to add one. It is plumbing for where messages come from, and it
+   must never crowd the inbox those messages land in. */
+.pd-aud-sources {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  padding: 10px 14px 12px;
+  margin-bottom: 12px;
+}
+.pd-aud-sources-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.pd-aud-sources-head h3 { margin: 0; font-size: 14px; font-weight: 650; }
+.pd-aud-sources-head .hint { flex: 1 1 260px; min-width: 0; }
+.pd-aud-source-list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pd-aud-source { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+/* The LIVE indicator. Green is "in the room", amber is "getting there", red is "not connected"
+   - and paused is deliberately GREY, not red: the operator chose it, nothing is wrong. */
+.pd-aud-source-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: var(--text-dim); }
+.pd-aud-source-dot.live { background: #3fb950; box-shadow: 0 0 6px rgba(63, 185, 80, 0.55); }
+.pd-aud-source-dot.connecting { background: var(--accent); }
+.pd-aud-source-dot.error { background: #e5534b; }
+.pd-aud-source-dot.paused { background: var(--text-dim); }
+.pd-aud-source-name { font-weight: 600; }
+.pd-aud-source-stats { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.pd-aud-source-detail { color: #e5534b; flex: 1 1 220px; min-width: 0; }
+.pd-aud-source button { font-size: 12px; padding: 3px 9px; }
+/* The add row: platform picker, target, Connect. Same width discipline as the bar's selects -
+   the global `width: 100%` would hand a two-word choice the whole row. */
+.pd-aud-source-add { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pd-aud-source-add select { width: auto; min-width: 150px; }
+.pd-aud-source-add input { flex: 1 1 200px; min-width: 0; }
+.pd-aud-source-add button { flex: 0 0 auto; }
+.pd-aud-source-hint { margin: 8px 0 0; }
+
 /* THE VOTE PANEL. It sits between the door and the inbox because that is its place in the
    operator's evening: open the room, ask it something, read the answer, put the answer on air.
    A card rather than another bar - it is the one block here that changes shape (composer vs
@@ -6277,6 +6317,37 @@ h2 + .lib-row,
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 8px;
+}
+/* ── The links panel's rows: one line each, the explanation behind a small arrow ──────────
+   The ▸ is a 22px square at the END of every row, so the eye finds the same control in the
+   same place down the column - and it stays the same size on a quiet row, because a shrinking
+   hit target is how a control becomes decoration. */
+.prod-link-item + .prod-link-item { margin-top: 2px; }
+.prod-link-help-toggle {
+  flex: none;
+  width: 22px;
+  padding: 0;
+  min-height: 26px;
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1;
+}
+.prod-link-help-toggle:hover:not(:disabled) { color: var(--text); }
+.prod-link-help { margin: 2px 0 8px; }
+/* A QUIET row: the SPX file and the readable name are secondary to the three links an operator
+   copies every show. Dimmed and smaller, never hidden - the download has to stay findable. */
+.prod-link-item.quiet .prod-link-row > .mono { font-size: 10.5px; }
+.prod-link-item.quiet button { font-size: 11px; padding: 4px 8px; min-height: 26px; }
+.prod-link-item.quiet .prod-link-help-toggle { padding: 0; }
+.prod-link-file {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-dim);
 }
 /* The ACTIVITY LOG. A fixed-width time column and a nowrap graphic name on the right keep the
    TEXT column aligned down the list, which is what makes a feed scannable rather than merely

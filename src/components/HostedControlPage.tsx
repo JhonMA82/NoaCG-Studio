@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  controlSections,
   eventButtons,
   eventLegality,
   fieldDescriptors,
   formatMachineState,
   isEventLegal,
+  machineStateGroups,
   machineStateNames,
 } from '../control/controlModel';
+import { nextRow, rowsForSide } from '../control/cueData';
+import { appendLogEntries, describeLogRow, logTime, type LogEntry } from '../control/eventLog';
 import {
   clearAllCuesOnWire,
   clearCueOnWire,
@@ -14,6 +18,7 @@ import {
   followControlLog,
   hostedControlTail,
   sendHostedControl,
+  sendHostedControlBatch,
   stageHostedData,
   takeCueOnWire,
   withLiveCue,
@@ -27,6 +32,7 @@ import { detectPrefix } from '../model/structure';
 import { graphicKindLabel } from '../model/types';
 import { FieldControl } from './fields/FieldControl';
 import PayloadStage, { type PayloadStageHandle } from './home/PayloadStage';
+import { revealCue, stepSelection, usePlayoutVerbKeys, type PlayoutVerb } from './playoutKeys';
 
 /**
  * The HOSTED control page — the operator surface at `<app-url>?control=<slug>`. No login, no
@@ -48,6 +54,9 @@ import PayloadStage, { type PayloadStageHandle } from './home/PayloadStage';
  * actually applied. All of it rides the one durable log, so a refresh of any participant
  * recovers.
  */
+/** How far behind the log head the action log seeds its history — the in-app page's number. */
+const LOG_HISTORY_SPAN = 400;
+
 export default function HostedControlPage({ slug }: { slug: string }) {
   const [show, setShow] = useState<ResolvedControlShow | null | 'loading'>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +64,16 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const [selectedCueId, setSelectedCueId] = useState<string | null>(null);
   const [openedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
+  /** The operator ACTION LOG (control/eventLog.ts) — the same feed the in-app dashboard shows,
+   *  and it matters more here: this is the multi-operator surface, where "who took that?" is a
+   *  real question and the page was already reading every one of these rows to drive PROGRAM. */
+  const [wireLog, setWireLog] = useState<LogEntry[]>([]);
+  /**
+   * What each graphic was last told to SHOW — the baseline the unsent-changes warning is judged
+   * against. It follows the wire, not this page's own presses, so an edit somebody else aired
+   * clears the warning here too.
+   */
+  const [airedData, setAiredData] = useState<Record<string, Record<string, string>>>({});
 
   const previewRef = useRef<PayloadStageHandle>(null);
   const programRef = useRef<PayloadStageHandle>(null);
@@ -80,6 +99,24 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // Which cues were already on air comes off the ROW (0031's snapshot, per-layer since
       // 0034), seeded before following so old rows can never overwrite a newer fact.
       setLiveCue(resolved.liveCue);
+      // The unsent baseline starts at what each live graphic REPORTED applying — a page opened
+      // mid-show must not announce changes against an empty baseline it never saw aired.
+      setAiredData(
+        Object.fromEntries(
+          Object.entries(resolved.live)
+            .map(([graphic, report]) => [graphic, report?.data ?? {}] as const)
+            .filter(([, data]) => Object.keys(data).length > 0),
+        ),
+      );
+      // A cue id means nothing to an operator; they wrote the NAME, so that is what the log
+      // says. The cues are fixed until a republish, so closing over them here is exact.
+      const cueLabel = (cueId: string) =>
+        resolved.output?.cues.find((c) => c.id === cueId)?.label ?? null;
+      const history = await hostedControlTail(slug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
+      if (!live) return;
+      setWireLog((l) =>
+        appendLogEntries(l, history.map((r) => describeLogRow(r, cueLabel)).filter((e): e is LogEntry => !!e)),
+      );
       unsubscribe = await followControlLog({
         showId: resolved.id,
         from: resolved.lastEventId,
@@ -99,7 +136,21 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             // A RENDERER command: mirror it onto the PROGRAM monitor, so this page shows what
             // actually reached air rather than only what its own buttons sent.
             programRef.current?.apply([{ graphic: row.graphic, msg }]);
+            // …and remember what it put on air, which is what makes "not sent yet" honest.
+            if (msg.t === 'update') {
+              setAiredData((prev) => ({ ...prev, [row.graphic]: { ...prev[row.graphic], ...msg.data } }));
+            } else if (msg.t === 'stop') {
+              // Off air: forget it, or the next take would compare against a stale baseline.
+              setAiredData((prev) => {
+                if (!prev[row.graphic]) return prev;
+                const next = { ...prev };
+                delete next[row.graphic];
+                return next;
+              });
+            }
           }
+          const entry = describeLogRow(row, cueLabel);
+          if (entry) setWireLog((l) => appendLogEntries(l, [entry]));
         },
       });
     })();
@@ -252,11 +303,55 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       void sendHostedControl(slug, selectedGraphic, { t: 'update', data: cueValues(selectedCue) }).catch(surfaceSendError);
     }
   };
+  /**
+   * Snap the live graphic straight to a state — RECOVERY, never an animation, and a null group
+   * resets every group to its initial. Recovery is BOTH halves (docs/STATE_MACHINE_SCHEMA.md:
+   * reset the visual state and reset the data are never conflated), so the snap rides with an
+   * update of the cue's values: the snap replays intermediate states with suppressed callbacks,
+   * and the trailing data write is what lets their call-painted looks repaint from the fields.
+   *
+   * This page had no way to do it at all, which is the wrong page to lack it: it is the one
+   * being operated from a phone, away from the machine running the renderer, when air and the
+   * dashboard get out of step.
+   */
+  const snapTo = (groupId: string | null, stateId: string) => {
+    if (!selectedGraphic || !selectedLayerCueId || !selectedCue) return;
+    void sendHostedControlBatch(slug, [
+      { graphic: selectedGraphic, msg: { t: 'snap', snap: groupId === null ? null : { [groupId]: stateId } } },
+      { graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue) } },
+    ]).catch(surfaceSendError);
+  };
   const outAll = () => void clearAllCuesOnWire(slug, liveLayers.map((l) => l.graphic)).catch(surfaceSendError);
 
   const selectCue = (cue: OutputCue) => {
     setSelectedCueId(cue.id);
     previewCue(cue, cueValues(cue));
+  };
+
+  /**
+   * ONE dispatcher for the verbs, whether they arrive from a button or from a key — the same
+   * shape the in-app dashboard uses, so the two surfaces cannot disagree about what a press
+   * means. TAKE is the TOGGLE (docs/PLAYOUT_DASHBOARD.md §2): it airs the selected cue and, on
+   * a cue that is already live, takes it off. Re-take is its own verb.
+   */
+  const runVerb = (verb: PlayoutVerb) => {
+    if (verb === 'preview' && selectedCue) selectCue(selectedCue);
+    if (verb === 'take') {
+      if (selectedIsLive) outLayer();
+      else if (selectedCue) void takeCue(selectedCue);
+    }
+    if (verb === 'retake' && selectedIsLive && selectedCue) void takeCue(selectedCue);
+    if (verb === 'update' && selectedIsLive) updateLive();
+    if (verb === 'next' && selectedLayerCueId) nextLayer();
+    if (verb === 'out' && selectedLayerCueId) outLayer();
+    // Walk the rundown. Selecting a cue is the same act as clicking it — it goes to PREVIEW,
+    // nothing airs — so an operator can line the next item up and take it without a mouse.
+    if (verb === 'select-prev' || verb === 'select-next') {
+      const next = stepSelection(cues, selectedCue?.id ?? null, verb === 'select-next' ? 1 : -1);
+      if (!next) return;
+      selectCue(next);
+      revealCue(`hosted-cue-${next.id}`);
+    }
   };
 
   const elapsedText = (() => {
@@ -320,60 +415,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             </div>
           </div>
 
-          <div className="pd-verbs" data-testid="hosted-verbs">
-            <button
-              className="pd-verb pd-verb-preview"
-              disabled={!selectedCue}
-              onClick={() => selectedCue && selectCue(selectedCue)}
-              title="Show the selected cue on PREVIEW — nothing airs"
-            >
-              → Preview
-            </button>
-            <button
-              className="pd-verb pd-verb-take"
-              disabled={!selectedCue}
-              onClick={() => selectedCue && void takeCue(selectedCue)}
-              title="Air the previewed cue"
-              data-testid="hosted-take-cue"
-            >
-              ⟳ TAKE
-            </button>
-            <button
-              className="pd-verb pd-verb-update"
-              disabled={!selectedIsLive}
-              onClick={updateLive}
-              title="Push the staged values to air without replaying"
-            >
-              ✎ Update
-            </button>
-            <button
-              className="pd-verb"
-              disabled={!selectedLayerCueId}
-              onClick={nextLayer}
-              title="Advance the on-air graphic one step"
-              data-testid="hosted-next-cue"
-            >
-              » Next
-            </button>
-            <button
-              className="pd-verb"
-              disabled={!selectedLayerCueId}
-              onClick={outLayer}
-              title="Play this layer off — the others stay up"
-              data-testid="hosted-out-cue"
-            >
-              ■ Out
-            </button>
-            <span className="pd-onair-line" data-testid="hosted-live-chip">
-              {liveLayers.length === 0 ? (
-                <span className="muted">○ nothing on air</span>
-              ) : (
-                <>
-                  on air: <span className="pd-onair">● {liveLayers.map((l) => l.label).join(' · ')}</span>
-                </>
-              )}
-            </span>
-          </div>
+          <HostedVerbs
+            selectedIsLive={selectedIsLive}
+            hasSelection={!!selectedCue}
+            layerLive={!!selectedLayerCueId}
+            liveLabels={liveLayers.map((l) => l.label)}
+            onKey={runVerb}
+          />
 
           {selectedCue && spec && (
             <HostedCueEditor
@@ -382,13 +430,45 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               spec={spec}
               values={cueValues(selectedCue)}
               live={selectedIsLive}
+              layerLive={!!selectedLayerCueId}
               layer={layerOf(selectedCue.graphic)}
               liveState={resolved?.live[selectedCue.graphic]?.state ?? null}
+              airedValues={airedData[selectedCue.graphic] ?? null}
               onPreview={(values) => previewCue(selectedCue, values)}
+              onSnap={snapTo}
               onError={setError}
             />
           )}
           {error && <p className="status-bad" data-testid="hosted-error">{error}</p>}
+
+          {/* THE ACTIVITY LOG, the in-app dashboard's feed on the multi-operator surface: every
+              Take, Update, Next and Out, whoever sent it. The rows were already arriving here to
+              drive PROGRAM — the page just threw them away, so "did that take go, or was that
+              somebody else?" had no answer on the page being asked it. */}
+          <details className="pd-activity" data-testid="hosted-action-log">
+            <summary>
+              Activity
+              {wireLog[0] && (
+                <span className="muted">
+                  {' '}
+                  {logTime(wireLog[0].at)} {wireLog[0].text}
+                </span>
+              )}
+            </summary>
+            {wireLog.length === 0 ? (
+              <p className="hint">Nothing yet. Every Take, Update, Next and Out lands here, whoever sends it.</p>
+            ) : (
+              <ol className="prod-log-list">
+                {wireLog.map((e) => (
+                  <li key={e.id} className={`prod-log-row prod-log-${e.kind}`} data-testid="hosted-action-log-row">
+                    <span className="prod-log-time">{logTime(e.at)}</span>
+                    <span className="prod-log-text">{e.text}</span>
+                    <span className="muted prod-log-graphic">{e.graphic}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </details>
         </section>
 
         <aside className="pd-rail">
@@ -446,6 +526,103 @@ export default function HostedControlPage({ slug }: { slug: string }) {
 }
 
 /**
+ * THE VERB BAR, with the keys that fire them — the in-app dashboard's bar, rendered for the page
+ * an operator actually runs a show from. It is a component of its own so it can bind the shared
+ * keymap: the hooks rule forbids binding it in the page body, which returns early while the show
+ * is still resolving.
+ *
+ * The keys were MISSING here entirely until 2026-08-18 — the exported controller and the in-app
+ * page both had them, so the surface a class operates from was the one where ↑/↓ did nothing and
+ * SPACE did nothing, and TAKE re-took a live cue instead of taking it off. Both are §2 contracts.
+ */
+function HostedVerbs({
+  selectedIsLive,
+  hasSelection,
+  layerLive,
+  liveLabels,
+  onKey,
+}: {
+  selectedIsLive: boolean;
+  hasSelection: boolean;
+  layerLive: boolean;
+  liveLabels: string[];
+  onKey: (verb: PlayoutVerb) => void;
+}) {
+  usePlayoutVerbKeys(onKey);
+  return (
+    <div className="pd-verbs" data-testid="hosted-verbs">
+      <button
+        className="pd-verb pd-verb-preview"
+        disabled={!hasSelection}
+        onClick={() => onKey('preview')}
+        title="Show the selected cue on PREVIEW — nothing airs"
+        data-testid="hosted-verb-preview"
+      >
+        → Preview <kbd>P</kbd>
+      </button>
+      {/* THE TOGGLE: the button IS the key, on when the cue is off and off when it is on. */}
+      <button
+        className={`pd-verb pd-verb-take${selectedIsLive ? ' pd-verb-live' : ''}`}
+        disabled={!hasSelection}
+        onClick={() => onKey('take')}
+        title={selectedIsLive ? 'Take this cue OFF air — the same thing SPACE does' : 'Air the previewed cue'}
+        data-testid="hosted-take-cue"
+      >
+        {selectedIsLive ? <>■ TAKE OFF <kbd>SPACE</kbd></> : <>⟳ TAKE <kbd>SPACE</kbd></>}
+      </button>
+      {/* RE-TAKE is secondary and always present, greying out like every other verb — a control
+          that appeared only while a cue was live would move the bar sideways at the moment a
+          graphic goes to air. */}
+      <button
+        className="pd-verb pd-verb-secondary"
+        disabled={!selectedIsLive}
+        onClick={() => onKey('retake')}
+        title="Re-take: play this cue’s entrance again from the start"
+        data-testid="hosted-retake-cue"
+      >
+        ⟳ Re-take <kbd>R</kbd>
+      </button>
+      <button
+        className="pd-verb pd-verb-update"
+        disabled={!selectedIsLive}
+        onClick={() => onKey('update')}
+        title="Push the staged values to air without replaying"
+        data-testid="hosted-update-cue"
+      >
+        ✎ Update <kbd>U</kbd>
+      </button>
+      <button
+        className="pd-verb"
+        disabled={!layerLive}
+        onClick={() => onKey('next')}
+        title="Advance the on-air graphic one step"
+        data-testid="hosted-next-cue"
+      >
+        » Next <kbd>N</kbd>
+      </button>
+      <button
+        className="pd-verb"
+        disabled={!layerLive}
+        onClick={() => onKey('out')}
+        title="Play this layer off — the others stay up"
+        data-testid="hosted-out-cue"
+      >
+        ■ Out <kbd>0</kbd>
+      </button>
+      <span className="pd-onair-line" data-testid="hosted-live-chip">
+        {liveLabels.length === 0 ? (
+          <span className="muted">○ nothing on air</span>
+        ) : (
+          <>
+            on air: <span className="pd-onair">● {liveLabels.join(' · ')}</span>
+          </>
+        )}
+      </span>
+    </div>
+  );
+}
+
+/**
  * The selected cue's editor. Field edits go to the SHARED staging buffer, so every operator's
  * page follows them; nothing airs until an explicit take (or ✎ Update on a live layer). The
  * graphic's saved ENTRIES ride the panel spec read-only — picking one stages its values exactly
@@ -457,9 +634,12 @@ function HostedCueEditor({
   spec,
   values,
   live,
+  layerLive,
   layer,
   liveState,
+  airedValues,
   onPreview,
+  onSnap,
   onError,
 }: {
   slug: string;
@@ -467,20 +647,30 @@ function HostedCueEditor({
   spec: PanelGraphicSpec;
   values: Record<string, string>;
   live: boolean;
+  /** This cue's LAYER is up (its own cue may be a different one) — the ⚡/snap legality. */
+  layerLive: boolean;
   layer: number | null;
   liveState: { groups?: Record<string, string> } | null;
+  /** What the graphic was last told to show, or null when it is not on air. */
+  airedValues: Record<string, string> | null;
   onPreview: (values: Record<string, string>) => void;
+  onSnap: (groupId: string | null, stateId: string) => void;
   onError: (message: string) => void;
 }) {
   const descriptors = useMemo(() => fieldDescriptors(spec.fields), [spec.fields]);
   const events = useMemo(() => eventButtons(spec.js), [spec.js]);
+  const eventSections = useMemo(() => controlSections(events), [events]);
   const legality = useMemo(() => eventLegality(spec.js), [spec.js]);
+  const stateGroups = useMemo(() => machineStateGroups(spec.js), [spec.js]);
   /** Local echo for instant typing; the shared buffer reconciles it as its rows arrive. */
   const [echo, setEcho] = useState<Record<string, string>>({});
   const [entryId, setEntryId] = useState('');
+  const [loadSide, setLoadSide] = useState<'A' | 'B'>('A');
+  const [lastLoaded, setLastLoaded] = useState<string | null>(null);
   useEffect(() => {
     setEcho({});
     setEntryId('');
+    setLastLoaded(null);
   }, [cue.id]);
 
   const valueOf = (key: string) => echo[key] ?? values[key] ?? '';
@@ -520,6 +710,32 @@ function HostedCueEditor({
     void stageHostedData(slug, cue.graphic, data).catch((e: Error) => onError(e.message));
     onPreview({ ...currentValues(), ...data });
   };
+  /** Load a production DATA ROW into the staged values — the same gesture as typing them, so
+   *  nothing airs. The rows were matched at publish time by the shared matcher. */
+  const loadDataRow = (id: string) => {
+    const row = spec.dataRows.find((r) => r.id === id);
+    if (!row) return;
+    setLastLoaded(id);
+    setEntryId('');
+    setEcho((v) => ({ ...v, ...row.values }));
+    if (timer.current) clearTimeout(timer.current);
+    void stageHostedData(slug, cue.graphic, row.values).catch((e: Error) => onError(e.message));
+    onPreview({ ...currentValues(), ...row.values });
+  };
+  const loadableRows = rowsForSide(spec.dataRows, loadSide);
+  const hasSides = spec.dataRows.some((r) => r.side !== null);
+  const followingRow = nextRow(spec.dataRows, loadSide, lastLoaded);
+
+  /**
+   * UNSENT CHANGES on a cue that is on air. Data never airs by itself — that is the staged-vs-
+   * take rule and it does not change — so the surface has to say when what is on screen is
+   * ahead of what is on air. Compared against what the wire says was last SENT, never against
+   * the stored cue: those legitimately differ, which is the whole point of staging.
+   */
+  const unsentFields = live && airedValues
+    ? descriptors.map((d) => d.key).filter((key) => (airedValues[key] ?? '') !== valueOf(key))
+    : [];
+  const hasUnsent = unsentFields.length > 0;
 
   // The chip names states the way the AUTHOR named them, exactly as every other operator
   // surface does — one formatter, `controlModel.ts formatMachineState`. This page used to
@@ -536,9 +752,16 @@ function HostedCueEditor({
         <span className="pd-editor-kicker">EDITING {live ? 'ON-AIR CUE' : 'PREVIEW CUE'}</span>
         {/* Read-only here: cues are authored in the app and published with the production. */}
         <strong className="pd-cue-title-static">{cue.label}</strong>
-        <span className="muted pd-editor-fate">
+        <span
+          className={hasUnsent ? 'pd-editor-fate pd-unsent-note' : 'muted pd-editor-fate'}
+          data-testid="hosted-cue-unsent"
+        >
           {layer !== null ? `L${layer} · ` : ''}
-          {live ? 'changes push live on ✎ Update' : 'changes air on ⟳ TAKE'}
+          {hasUnsent
+            ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet — press ✎ Update`
+            : live
+              ? 'changes push live on ✎ Update'
+              : 'changes air on ⟳ TAKE'}
         </span>
         {stateLabel && <span className="hosted-state-chip">{stateLabel}</span>}
         <div className="spacer" />
@@ -558,6 +781,57 @@ function HostedCueEditor({
       </div>
 
       <div className="pd-fields">
+        {/* LOAD A DATA ROW — the Data workspace's other half, on the surface a class operates
+            from. The rows were matched at PUBLISH time (control/cueData.ts, the same matcher
+            the in-app page runs live), so a dataset edited since needs a republish, exactly as
+            a changed cue does. Loading stages the values like any typed edit; only Take airs. */}
+        {loadableRows.length > 0 && (
+          <label className="pd-field pd-field-load">
+            <span>
+              Load data row
+              {/* THE SIDE PICKER, shown only by a board with A/B fields: one row is one team, so
+                  without it a teams table can only ever describe half the graphic. */}
+              {hasSides && (
+                <span className="pd-side-pick" data-testid="hosted-load-side">
+                  {(['A', 'B'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={loadSide === s ? 'active' : ''}
+                      onClick={() => setLoadSide(s)}
+                      title={`Load the picked row into side ${s}`}
+                      data-testid={`hosted-load-side-${s}`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </span>
+              )}
+            </span>
+            <div className="row">
+              <select
+                className="grow"
+                value=""
+                onChange={(e) => loadDataRow(e.target.value)}
+                data-testid="hosted-load-row"
+              >
+                <option value="">Pick a row from the production&rsquo;s data…</option>
+                {loadableRows.map((r) => (
+                  <option key={r.id} value={r.id}>{r.label}</option>
+                ))}
+              </select>
+              {/* The running-order gesture: next question, next name — one press. */}
+              <button
+                onClick={() => followingRow && loadDataRow(followingRow.id)}
+                disabled={!followingRow}
+                title="Load the next row"
+                data-testid="hosted-load-next"
+              >
+                ↷ Next
+              </button>
+            </div>
+          </label>
+        )}
         {descriptors.map((d) => (
           <label key={d.key} className="pd-field">
             <span>{d.key.toUpperCase()} · {d.label}</span>
@@ -571,26 +845,81 @@ function HostedCueEditor({
         ))}
       </div>
 
+      {/* ⚡ GRAPHIC ACTIONS (docs/PLAYOUT_DASHBOARD.md §7b), in the in-app page's shape: a header
+          saying these act ON AIR, the recovery snap beside it, the buttons GROUPED BY SECTION,
+          and one line of inline help. They were a flat wall of buttons here — the author's own
+          sections were published in `machine.controls` and thrown away by the surface with the
+          smallest screen and the least room to guess. */}
       {events.length > 0 && (
-        <div className="pd-editor-events">
-          {events.map((e) => (
-            <button
-              key={e.event}
-              disabled={!isEventLegal(legality, e.event, liveState)}
-              className={e.destructive ? 'ctl-event-destructive' : undefined}
-              onClick={() => {
-                const payload: Record<string, string> = {};
-                for (const key of e.payload ?? []) payload[key] = valueOf(key);
-                void sendHostedControl(
-                  slug,
-                  cue.graphic,
-                  e.payload?.length ? { t: 'event', event: e.event, payload } : { t: 'event', event: e.event },
-                ).catch((err: Error) => onError(err.message));
-              }}
-              title={`Fires "${e.event}" — only where the graph allows it`}
-            >
-              ⚡ {e.label}
-            </button>
+        <div className="pd-actions" data-testid="hosted-actions">
+          <div className="pd-actions-head">
+            <span className="pd-actions-kicker">
+              ⚡ GRAPHIC ACTIONS <b className="pd-actions-air">act on air</b>
+            </span>
+            {stateGroups.length > 0 && (
+              <select
+                className="pd-snap"
+                value=""
+                disabled={!layerLive}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  if (v === '::reset') onSnap(null, '');
+                  else {
+                    const i = v.indexOf(':');
+                    onSnap(v.slice(0, i), v.slice(i + 1));
+                  }
+                }}
+                title={
+                  'RECOVERY. Jumps the live graphic straight to a state with no animation, ' +
+                  'and re-sends this cue’s values with it — use it when air and this page have ' +
+                  'got out of step (a renderer restart, a missed press). It is not how a ' +
+                  'graphic is normally driven: that is the ⚡ actions and » Next.'
+                }
+                data-testid="hosted-snap"
+              >
+                <option value="">Snap to state…</option>
+                <option value="::reset">⟲ Back to start (visual reset)</option>
+                {stateGroups.map((g) =>
+                  g.states.map((s) => (
+                    <option key={`${g.id}:${s.id}`} value={`${g.id}:${s.id}`}>
+                      {stateGroups.length > 1 ? `${g.id}: ${s.name}` : s.name}
+                    </option>
+                  )),
+                )}
+              </select>
+            )}
+          </div>
+          <p className="hint pd-actions-help">
+            These fire the graphic’s own beats on the layer that is on air, immediately — they carry
+            values from this cue, so type them above first.
+            {stateGroups.length > 0 && ' “Snap to state…” is for RECOVERY: it jumps straight to a state with no animation.'}
+          </p>
+          {eventSections.map(([section, buttons]) => (
+            <div key={section} className="pd-actions-section">
+              {(eventSections.length > 1 || section !== 'Actions') && <h4>{section}</h4>}
+              <div className="pd-actions-row">
+                {buttons.map((e) => (
+                  <button
+                    key={e.event}
+                    disabled={!isEventLegal(legality, e.event, liveState)}
+                    className={e.destructive ? 'ctl-event-destructive' : undefined}
+                    onClick={() => {
+                      const payload: Record<string, string> = {};
+                      for (const key of e.payload ?? []) payload[key] = valueOf(key);
+                      void sendHostedControl(
+                        slug,
+                        cue.graphic,
+                        e.payload?.length ? { t: 'event', event: e.event, payload } : { t: 'event', event: e.event },
+                      ).catch((err: Error) => onError(err.message));
+                    }}
+                    title={`Fires "${e.event}" — only where the graph allows it`}
+                  >
+                    ⚡ {e.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}

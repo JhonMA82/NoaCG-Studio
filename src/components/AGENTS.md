@@ -465,6 +465,19 @@ e2e/layout.spec.ts.
   the PROGRAM stage, or a production that has been on air all afternoon opens with an empty
   monitor beside a row marked ON AIR. That replay is safe HERE and was not in an exported
   package (the round-1 "flashes in and disappears"): this stage drives nothing but itself.
+  **PARITY IS THE POINT HERE** (docs/CONTROL_PANEL_PARITY.md §4): this page and the in-app one
+  render the same dashboard, so a control added to either belongs on both in the same commit.
+  Since 2026-08-19 it also carries the ⚡ block whole (section grouping via `controlSections`,
+  the recovery `.pd-snap`, the help line), the operator ACTIVITY log, the "N changes not on air
+  yet" warning - judged against what the WIRE says was last sent, so another operator's update
+  clears it - and the production DATA-ROW picker, whose rows are published by `buildPanelSpec`
+  from the shared `control/cueData.ts` matcher.
+  **The VERB KEYS come from `components/playoutKeys.ts`**, the one keymap the in-app page reads
+  too (the exported controller keeps its own copy - it ships without React). This page had NONE
+  until 2026-08-18 and its TAKE re-took a live cue instead of taking it off, so the surface a
+  class operates from was the only one where ↑/↓ and SPACE did nothing. A key belongs in that
+  module, never in a surface; the bar is `HostedVerbs`, a component of its own only because the
+  hooks rule forbids binding a key while the page is still resolving its show.
   Field edits still go to the SHARED staging buffer (local echo + debounced control_stage) and
   air only on an explicit take; event buttons still grey by structural guard; the graphic's
   saved ENTRIES stay a READ-ONLY picker in the editor head (authoring stays in

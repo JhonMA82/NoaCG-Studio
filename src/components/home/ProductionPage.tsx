@@ -5,7 +5,6 @@ import { useTemplateStore } from '../../store/templateStore';
 import {
   addGraphicToShow,
   addShowCue,
-  datasetValuesForFields,
   duplicateLayers,
   graphicLayer,
   loadShows,
@@ -26,10 +25,13 @@ import {
 import { graphicKindLabel, type Resolution } from '../../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
+import { revealCue, stepSelection, usePlayoutVerbKeys, type PlayoutVerb } from '../playoutKeys';
+import { cueDataRows, hasSideFields, nextRow, rowsForSide } from '../../control/cueData';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
 import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import {
+  controlSections,
   eventButtons,
   eventLegality,
   fieldDescriptors,
@@ -108,18 +110,6 @@ function elapsed(ms: number): string {
 function nameList(names: string[]): string {
   if (names.length <= 2) return names.join(' and ');
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-}
-
-/** True when the keystroke belongs to whatever the operator is typing into, not to the verbs. */
-function typingInto(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  if (!el || !el.tagName) return false;
-  return (
-    el.isContentEditable ||
-    el.tagName === 'INPUT' ||
-    el.tagName === 'TEXTAREA' ||
-    el.tagName === 'SELECT'
-  );
 }
 
 /**
@@ -232,7 +222,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setAiredData((prev) => {
       let next = prev;
       for (const item of items) {
-        if (item.msg.t === 'update') next = { ...next, [item.graphic]: item.msg.data };
+        // MERGED, not replaced: an update may be PARTIAL (a ± live-number bump carries one
+        // field on purpose), and replacing the baseline with it marked every other field as
+        // unsent — an amber "3 changes not on air yet" about values that were on air.
+        if (item.msg.t === 'update') next = { ...next, [item.graphic]: { ...next[item.graphic], ...item.msg.data } };
         else if (item.msg.t === 'stop' && next[item.graphic]) {
           // Taken off air: forget it, or the next rebuild would restore a graphic nobody is
           // running any more.
@@ -909,61 +902,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const eventPayloadKeys = new Set(events.flatMap((e) => e.payload ?? []));
   const liveNumberFields = descriptors.filter((d) => d.kind === 'number' && !eventPayloadKeys.has(d.key));
 
-  // THE SIDE GESTURE. A dataset row is ONE team, but a two-team board titles its fields
-  // "Team A" / "Score A" / "Team B" / … — so a row can never match them directly and the whole
-  // teams preset bound nothing. Dropping the standalone side token off the FIELD TITLE is what
-  // closes it, and it closes cleanly across the board's whole shape:
-  //
-  //     Team A → Team · Score A → Score · Team A colour → Team colour · Team A logo → Team logo
-  //     Period, Clock → unchanged, no column, skipped as before
-  //
-  // It is done HERE, at the call site, over an unchanged `datasetValuesForFields` — that
-  // function already takes {key,label} pairs, so rewriting the labels needs no model change, no
-  // persisted-format change and no migration. The plain literal match still runs first, so a
-  // column named exactly "Team A" keeps working and the quiz binding is untouched.
-  const SIDES = ['A', 'B'] as const;
-  const hasSides = descriptors.some((d) => SIDES.some((s) => new RegExp(`\\b${s}\\b`).test(d.label)));
-  /** A field title with its side token removed — "Team A colour" → "Team colour". */
-  const stripSide = (label: string, side: string) =>
-    label.replace(new RegExp(`\\s+${side}\\b`), '').replace(/\s{2,}/g, ' ').trim();
-  /** The descriptors a row is matched against: sideless for the CHOSEN side, and the other
-   *  side's fields removed entirely so loading team A can never overwrite team B. */
-  const sideDescriptors = (side: string) =>
-    descriptors
-      .filter((d) => !SIDES.some((s) => s !== side && new RegExp(`\\b${s}\\b`).test(d.label)))
-      .map((d) => ({ key: d.key, label: stripSide(d.label, side) }));
-
-  /** Rows the edited cue can load (D3's binding): any production dataset with at least one
-   *  column whose label matches a field title, each row labelled by its first non-empty cell
-   *  in column order — the question, the team, the name. */
-  const loadableRows: { value: string; label: string }[] = [];
-  const matchLabels = hasSides
-    ? SIDES.flatMap((s) => sideDescriptors(s)).concat(descriptors.map((d) => ({ key: d.key, label: d.label })))
-    : descriptors.map((d) => ({ key: d.key, label: d.label }));
-  for (const ds of show.datasets ?? []) {
-    const labels = new Set(ds.columns.map((c) => c.label.trim().toLowerCase()));
-    if (!matchLabels.some((d) => labels.has(d.label.trim().toLowerCase()))) continue;
-    ds.rows.forEach((row, i) => {
-      const first = ds.columns.map((c) => row.values[c.key] ?? '').find((v) => v.trim() !== '');
-      loadableRows.push({ value: `${ds.id}:${row.id}`, label: `${ds.name}: ${(first ?? `row ${i + 1}`).slice(0, 60)}` });
-    });
-  }
+  /** Rows the edited cue can load (D3's binding) — the SHARED matcher, `control/cueData.ts`,
+   *  so the hosted control page offers exactly the rows this page does. Live here (a dataset
+   *  edited a second ago is loadable); published for the hosted page. */
+  const dataRows = cueDataRows(descriptors, show.datasets ?? []);
+  const hasSides = hasSideFields(descriptors);
+  const loadableRows = rowsForSide(dataRows, loadSide);
   /** Load one row into the edited cue's DRAFT (never air), remembering it per cue so ↷ Next
    *  walks the bank in order. */
-  const loadRow = (value: string) => {
-    if (!value || !editingCue) return;
-    const [datasetId, rowId] = value.split(':');
-    const ds = (show.datasets ?? []).find((d) => d.id === datasetId);
-    const row = ds?.rows.find((r) => r.id === rowId);
-    if (!ds || !row) return;
-    // A sided board loads into the CHOSEN side only; everything else matches as before. The
-    // plain titles go in as well and win where they exist, so a column named exactly "Team A"
-    // still binds literally.
-    const fields = hasSides
-      ? [...sideDescriptors(loadSide), ...descriptors.map((d) => ({ key: d.key, label: d.label }))]
-      : descriptors;
-    editDraft({ values: datasetValuesForFields(ds, row, fields) });
-    setLastLoaded((m) => ({ ...m, [editingCue.id]: value }));
+  const loadRow = (id: string) => {
+    const row = dataRows.find((r) => r.id === id);
+    if (!row || !editingCue) return;
+    editDraft({ values: row.values });
+    setLastLoaded((m) => ({ ...m, [editingCue.id]: id }));
   };
 
   // ── Graphic-specific ACTIONS (the ⚡ buttons — docs/PLAYOUT_DASHBOARD.md §8). They act ON
@@ -971,13 +922,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // only while the selected cue's graphic is up on its layer. ──
   const machineState = selectedGraphic ? machineStates[selectedGraphic] ?? null : null;
   const stateLabel = formatMachineState(stateNames, machineState);
-  const eventSections: [string, ControlButton[]][] = [];
-  for (const b of events) {
-    const key = b.section ?? 'Actions';
-    const bucket = eventSections.find(([s]) => s === key);
-    if (bucket) bucket[1].push(b);
-    else eventSections.push([key, [b]]);
-  }
+  // Grouped by the SHARED helper (controlModel `controlSections`), so the hosted page's ⚡ block
+  // and this one can never sort the author's sections differently.
+  const eventSections = controlSections(events);
 
   /** The data that belongs to AIR: the cue live on the selected layer, draft included when it
    *  is also the one being edited. Events and snaps act on the live graphic, so their values
@@ -1057,13 +1004,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // PREVIEW, nothing airs - so an operator can line the next item up and take it
         // without touching the mouse.
         if (key === 'select-prev' || key === 'select-next') {
-          if (!cues.length) return;
-          const at = cues.findIndex((c) => c.id === (selectedCue?.id ?? ''));
-          const step = key === 'select-next' ? 1 : -1;
-          // From nothing selected, Down lands on the first cue and Up on the last.
-          const next = at < 0 ? (step > 0 ? 0 : cues.length - 1) : Math.min(cues.length - 1, Math.max(0, at + step));
-          selectCue(cues[next].id);
-          document.querySelector(`[data-testid="cue-${cues[next].id}"]`)?.scrollIntoView({ block: 'nearest' });
+          const next = stepSelection(cues, selectedCue?.id ?? null, key === 'select-next' ? 1 : -1);
+          if (!next) return;
+          selectCue(next.id);
+          revealCue(`cue-${next.id}`);
         }
       }}
       sub={sub ?? null}
@@ -1318,7 +1262,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                         teams table can only ever describe half the graphic. */}
                     {hasSides && (
                       <span className="pd-side-pick" data-testid="cue-load-side">
-                        {SIDES.map((s) => (
+                        {(['A', 'B'] as const).map((s) => (
                           <button
                             key={s}
                             type="button"
@@ -1337,20 +1281,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                     <select className="grow" value="" onChange={(e) => loadRow(e.target.value)} data-testid="cue-load-row">
                       <option value="">Pick a row from the production's data…</option>
                       {loadableRows.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
+                        <option key={o.id} value={o.id}>{o.label}</option>
                       ))}
                     </select>
                     {/* The running-order gesture: next question, next name — one press. Loads
                         the row AFTER the one this cue last loaded (the first, before any). */}
                     <button
                       onClick={() => {
-                        const at = editingCue ? loadableRows.findIndex((o) => o.value === lastLoaded[editingCue.id]) : -1;
-                        const next = loadableRows[at + 1];
-                        if (next) loadRow(next.value);
+                        const next = nextRow(dataRows, loadSide, editingCue ? lastLoaded[editingCue.id] ?? null : null);
+                        if (next) loadRow(next.id);
                       }}
                       disabled={
                         !editingCue ||
-                        loadableRows.findIndex((o) => o.value === lastLoaded[editingCue.id]) >= loadableRows.length - 1
+                        !nextRow(dataRows, loadSide, lastLoaded[editingCue.id] ?? null)
                       }
                       title="Load the next row"
                       data-testid="cue-load-next"
@@ -1908,41 +1851,13 @@ function ProductionShell({
   onBack: () => void;
   onAllOut: () => void;
   onExport: () => void;
-  onKey: (key: 'preview' | 'take' | 'retake' | 'update' | 'next' | 'out' | 'select-prev' | 'select-next') => void;
+  onKey: (key: PlayoutVerb) => void;
   links: React.ReactNode;
   children: React.ReactNode;
 }) {
-  // The verb keys (docs/PLAYOUT_DASHBOARD.md §2). Never while typing — the cue title and the
-  // fields live on this same surface, and SPACE inside a name must stay a space.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || typingInto(e.target)) return;
-      const map: Record<string, Parameters<typeof onKey>[0]> = {
-        p: 'preview',
-        ' ': 'take',
-        // RE-TAKE is a key of its own, never the toggle wearing a second meaning. It replays a
-        // live cue's entrance, which is a different intention from "put this on" and from
-        // "take it off", and an operator with a finger on SPACE must never discover which of
-        // the three they got.
-        r: 'retake',
-        u: 'update',
-        n: 'next',
-        '0': 'out',
-        // Walking the rundown from the keyboard is what makes the whole surface operable
-        // without a mouse — and, since a Stream Deck is a keyboard emulator, what makes these
-        // verbs reachable from one. Form controls keep their own arrows (`typingInto` covers
-        // input, textarea, select and contenteditable), so a layer number still steps normally.
-        arrowup: 'select-prev',
-        arrowdown: 'select-next',
-      };
-      const verb = map[e.key.toLowerCase()];
-      if (!verb) return;
-      e.preventDefault();
-      onKey(verb);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onKey]);
+  // The verb keys (docs/PLAYOUT_DASHBOARD.md §2) come from the SHARED keymap, so the hosted
+  // control page cannot drift away from this one again — see components/playoutKeys.ts.
+  usePlayoutVerbKeys(onKey);
 
   return (
     <div className="app playout-dashboard" data-testid="production-page">
@@ -1999,6 +1914,63 @@ function ProductionShell({
         </button>
       </header>
       <main className="pd-body">{children}</main>
+    </div>
+  );
+}
+
+/**
+ * ONE ROW of the links panel: the capability on a single line, its explanation one small arrow
+ * away.
+ *
+ * Every row here used to carry an always-open paragraph, and five of them turned a popover into
+ * a page — the control page, the link a class actually operates from, sat below the fold under
+ * an explanation of an SPX file most of them will never download. The text is not the problem
+ * (an operator reading it once is exactly who it is for); being unable to put it away is. So the
+ * help COLLAPSES per row, and a row can be `quiet` — present, findable, but not competing with
+ * the links people copy every show.
+ */
+function LinkRow({
+  label,
+  help,
+  testId,
+  quiet,
+  openByDefault,
+  under,
+  children,
+}: {
+  label: string;
+  help: React.ReactNode;
+  testId: string;
+  /** A secondary capability: smaller and dimmer, so the row is found rather than read past. */
+  quiet?: boolean;
+  openByDefault?: boolean;
+  /** A verdict belonging to this row's own control, always shown (a refusal never collapses). */
+  under?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(!!openByDefault);
+  return (
+    <div className={`prod-link-item${quiet ? ' quiet' : ''}`}>
+      <div className="prod-link-row">
+        <span className="mono muted">{label}</span>
+        {children}
+        <button
+          className="prod-link-help-toggle"
+          aria-expanded={open}
+          aria-label={open ? `Hide what the ${label.toLowerCase()} is for` : `What is the ${label.toLowerCase()} for?`}
+          title={open ? 'Hide the explanation' : 'What is this for?'}
+          onClick={() => setOpen((o) => !o)}
+          data-testid={`${testId}-help-toggle`}
+        >
+          {open ? '▾' : '▸'}
+        </button>
+      </div>
+      {under}
+      {open && (
+        <p className="hint prod-link-help" data-testid={`${testId}-help`}>
+          {help}
+        </p>
+      )}
     </div>
   );
 }
@@ -2074,73 +2046,118 @@ function ProductionLinks({
         <>
           <div className="lib-menu-backdrop" onClick={onToggle} />
           <div className="pd-links" data-testid="production-links">
-            <div className="prod-link-row">
-              <span className="mono muted">Output URL</span>
+            <LinkRow
+              label="Output URL"
+              testId="output-url"
+              help={
+                <>
+                  Add this once as a browser source (OBS / vMix) or a CasparCG HTML template. It keeps
+                  working across re-publishes; graphics and cues update in place.
+                </>
+              }
+            >
               <code className="prod-url">{outputUrl}</code>
               <button onClick={() => outputUrl && onCopy('output', outputUrl)} data-testid="copy-output-url">
                 {copied === 'output' ? '✓ Copied' : 'Copy'}
               </button>
-            </div>
-            <p className="hint">
-              Add this once as a browser source (OBS / vMix) or a CasparCG HTML template. It keeps working
-              across re-publishes; graphics and cues update in place.
-            </p>
+            </LinkRow>
             {/* THE SAME OUTPUT, AS A FILE. An SPX rundown lists template files out of
                 ASSETS/templates and has nowhere to paste a URL, so the row above reaches every
                 playout host except the one this project treats as canonical. The file wraps this
                 production's output URL in a full-frame iframe (export/outputEmbed.ts): SPX plays
-                the item, NoaCG cues what is inside it. It sits under the URL rather than in the
-                export dialog because it is not a package of the graphics - it is this link. */}
-            <div className="prod-link-row">
-              <span className="mono muted">SPX template</span>
-              <code className="prod-url">{embedFileName}</code>
+                the item, NoaCG cues what is inside it.
+                QUIET, and directly under the URL it is a second form of: it belongs to the one
+                host that cannot take the link, so as a full-size row with its own paragraph it
+                read as a fourth capability and pushed the control page below the fold. */}
+            <LinkRow
+              label="SPX template"
+              testId="spx-template"
+              quiet
+              help={
+                <>
+                  For playout that loads template <em>files</em> instead of URLs - SPX, or a CasparCG
+                  template folder. Drop it into SPX&rsquo;s <code>ASSETS/templates</code> and add it to a
+                  rundown: Play puts the output up, Stop takes it down, and you cue the graphics from here
+                  or the control page. It carries the output link, so keep it as private as the link itself.
+                </>
+              }
+            >
+              {/* NOT `.mono` as a class: `.prod-link-row > .mono` is the 92px LABEL column, so
+                  wearing it made the file name a second label and left the row's ▸ short of the
+                  column every other row's sits in. The mono FACE comes from the rule below. */}
+              <span className="prod-link-file">{embedFileName}</span>
               {/* "Download", not "⬇ Download": it sits in a column with two Copy buttons, and the
                   glyph made this one row a pixel taller than its neighbours. */}
-              <button onClick={onDownloadEmbed} data-testid="download-output-embed">
+              <button className="prod-link-quiet-action" onClick={onDownloadEmbed} data-testid="download-output-embed">
                 Download
               </button>
-            </div>
-            <p className="hint">
-              For playout that loads template <em>files</em> instead of URLs - SPX, or a CasparCG template
-              folder. Drop it into SPX&rsquo;s <code>ASSETS/templates</code> and add it to a rundown: Play puts the
-              output up, Stop takes it down, and you cue the graphics from here or the control page. It carries
-              the output link, so keep it as private as the link itself.
-            </p>
-            <div className="prod-link-row">
-              <span className="mono muted">Control page</span>
+            </LinkRow>
+            <LinkRow
+              label="Control page"
+              testId="control-url"
+              help={
+                <>
+                  Operate from a phone or tablet, no account needed. Keep the link private: holding it is
+                  the permission to operate.
+                </>
+              }
+            >
               <code className="prod-url">{controlUrl}</code>
               <button onClick={() => controlUrl && onCopy('control', controlUrl)} data-testid="copy-control-url">
                 {copied === 'control' ? '✓ Copied' : 'Copy'}
               </button>
-            </div>
-            <p className="hint">
-              Operate from a phone or tablet, no account needed. Keep the link private: holding it is the
-              permission to operate.
-            </p>
+            </LinkRow>
             {/* The AUDIENCE link is the one link here meant to be given away — read out on air,
                 put on a slide, printed on a QR code. It is listed last and described as public
-                so it can never be mistaken for the control page above it. */}
+                so it can never be mistaken for the control page above it. Its help opens by
+                DEFAULT for that reason: every other row explains a thing that is private, and a
+                collapsed "public" is the one omission on this panel that could air. */}
             {joinUrl && (
               <>
-                <div className="prod-link-row">
-                  <span className="mono muted">Audience link</span>
+                <LinkRow
+                  label="Audience link"
+                  testId="join-url"
+                  openByDefault
+                  help={
+                    <>
+                      Public — share it with the room. Viewers send questions and vote here; nothing they
+                      send goes on air until you approve it and take it, on the Audience tab.
+                    </>
+                  }
+                >
                   <code className="prod-url">{joinUrl}</code>
                   <button onClick={() => onCopy('join', joinUrl)} data-testid="copy-join-url">
                     {copied === 'join' ? '✓ Copied' : 'Copy'}
                   </button>
-                </div>
-                <p className="hint">
-                  Public — share it with the room. Viewers send questions and vote here; nothing they send
-                  goes on air until you approve it and take it, on the Audience tab.
-                </p>
+                </LinkRow>
                 {/* A READABLE NAME, because this is the one URL that gets said out loud. The
                     first publish already derived one from the production's name (control/
                     joinName.ts), so this field is for CHANGING it rather than for having a link
                     at all. It validates nothing: every rule lives on the column in migration
                     0035, and the answer to "is it free?" is the claim itself (hostedControl
                     claimJoinName says why there is no availability check). */}
-                <div className="prod-link-row">
-                  <span className="mono muted">Readable name</span>
+                <LinkRow
+                  label="Readable name"
+                  testId="join-name"
+                  quiet
+                  help={
+                    <>
+                      The name above came from this production&rsquo;s name when you first published.
+                      Changing it makes the old audience link stop working — do it before you share it,
+                      not mid-show.
+                    </>
+                  }
+                  under={
+                    nameNote ? (
+                      <p
+                        className={nameNote.startsWith('✓') ? 'status-ok' : 'status-bad'}
+                        data-testid="join-name-note"
+                      >
+                        {nameNote}
+                      </p>
+                    ) : null
+                  }
+                >
                   <input
                     type="text"
                     value={nameDraft}
@@ -2154,19 +2171,7 @@ function ProductionLinks({
                   <button onClick={onClaimName} disabled={busy} data-testid="join-name-claim">
                     Use this name
                   </button>
-                </div>
-                {nameNote && (
-                  <p
-                    className={nameNote.startsWith('✓') ? 'status-ok' : 'status-bad'}
-                    data-testid="join-name-note"
-                  >
-                    {nameNote}
-                  </p>
-                )}
-                <p className="hint">
-                  The name above came from this production&rsquo;s name when you first published. Changing
-                  it makes the old audience link stop working — do it before you share it, not mid-show.
-                </p>
+                </LinkRow>
               </>
             )}
             {/* The PRESENTER link is a third capability with a third audience: not the operator's
@@ -2175,19 +2180,21 @@ function ProductionLinks({
                 hand. Listed after the audience link and described by who it is FOR, because the
                 one mistake that matters here is reading the wrong URL out on air. */}
             {presenterUrl && (
-              <>
-                <div className="prod-link-row">
-                  <span className="mono muted">Presenter link</span>
-                  <code className="prod-url">{presenterUrl}</code>
-                  <button onClick={() => onCopy('presenter', presenterUrl)} data-testid="copy-presenter-url">
-                    {copied === 'presenter' ? '✓ Copied' : 'Copy'}
-                  </button>
-                </div>
-                <p className="hint">
-                  For the presenter&rsquo;s own phone or tablet — it shows what they are on now and what
-                  comes next, and nothing else. Choose those with 🎤 Now and ⇢ Next on the Audience tab.
-                </p>
-              </>
+              <LinkRow
+                label="Presenter link"
+                testId="presenter-url"
+                help={
+                  <>
+                    For the presenter&rsquo;s own phone or tablet — it shows what they are on now and what
+                    comes next, and nothing else. Choose those with 🎤 Now and ⇢ Next on the Audience tab.
+                  </>
+                }
+              >
+                <code className="prod-url">{presenterUrl}</code>
+                <button onClick={() => onCopy('presenter', presenterUrl)} data-testid="copy-presenter-url">
+                  {copied === 'presenter' ? '✓ Copied' : 'Copy'}
+                </button>
+              </LinkRow>
             )}
             {unpublishedChanges && (
               <p className="status-warn" data-testid="publish-freshness">

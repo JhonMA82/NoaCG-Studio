@@ -191,6 +191,19 @@ HUMAN decides, and moving between them is an explicit, visible act.** What shipp
   mode over the mocked gateway, editor warning + non-blocking export, the catalog warning,
   16:9 = 9:16 = one floor while 720p composes ~33px).
 
+Landed after, closing two holes the slice left:
+
+- **The viewing target is no longer create-time-only.** The editor's Style panel carries the
+  same `ViewingControls`, writing through `store.setLegibility`, and the working-slot
+  autosave now watches `legibility` as well as `template` - the wizard's copy only ever
+  persisted because creating a project rewrites the template in the same breath, so an
+  editor-side change looked like it worked and was gone on reload. Every project that
+  existed before R4 can now be re-measured for a phone or a venue. Pinned in
+  e2e/design-rules-product.spec.ts (the pin fails if the subscription is put back).
+- **The rules are a READINESS ROW**, not an unclaimed raw finding: "Reads where it will be
+  watched" (validation/readiness.ts) over the five `legibility-*` rules. A live row, so the
+  raw one-shot path reports it untested rather than borrowing the credit.
+
 Still owed from §23.1, not part of this slice: the catalog fixes for tk01/ig01/sb01, the
 countdown spacing-threshold relaxation, the control-page smoke in the loop, and the owner's
 re-ratification of the 50px primary floor for CATALOG enforcement (until then it reaches

@@ -1985,7 +1985,7 @@ export default function AiStep({
               {validation && (
                 <div className="ai-ready" data-testid="ai-readiness">
                   {readinessRows(validation, lastPath !== 'raw' && lastPath !== null).map((row) => (
-                    <div key={row.id} className={`ai-ready-row ${row.state}`}>
+                    <div key={row.id} className={`ai-ready-row ${row.state}`} data-ready-row={row.id}>
                       <span className="ai-ready-mark" aria-hidden="true">
                         {row.state === 'pass' ? '✓' : row.state === 'warn' ? '⚠' : row.state === 'fail' ? '✗' : '·'}
                       </span>

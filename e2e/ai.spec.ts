@@ -710,6 +710,12 @@ test('readiness: a passing result reports what was checked, and the raw path adm
   await expect(report).toContainText('Survives text twice as long');
   await expect(report.locator('.ai-ready-row.untested')).toHaveCount(0);
   await expect(report.locator('.ai-ready-row.pass')).toHaveCount(6);
+  // The seventh row is the design rules (R4): this fixture renders its one line at the 16px
+  // browser default, far under the ~50px TV primary floor, so it must WARN rather than pass.
+  // Warn-first, so the result is still ok and the flow still offers the project.
+  await expect(report.locator('[data-ready-row="legibility"]')).toHaveClass(/\bwarn\b/);
+  await expect(report.locator('[data-ready-row="legibility"]')).toContainText('Reads where it will be watched');
+  await expect(report.locator('.ai-ready-row')).toHaveCount(7);
 
   // The actuals for the run are reported, not just the verdict.
   await expect(page.getByTestId('ai-spent')).toContainText('tokens in');
@@ -755,7 +761,10 @@ test('readiness: the raw one-shot never claims the checks it did not run', async
   // This path statically validates and never plays the graphic. The rows that depend on
   // playing it must say so rather than borrow the credit.
   const report = page.getByTestId('ai-readiness');
-  await expect(report.locator('.ai-ready-row.untested')).toHaveCount(3);
+  // Four, not three: the design-rules row measures a settled render, so it is untested here
+  // for the same reason the lifecycle rows are — nothing was ever played.
+  await expect(report.locator('.ai-ready-row.untested')).toHaveCount(4);
+  await expect(report.locator('[data-ready-row="legibility"]')).toHaveClass(/\buntested\b/);
   await expect(report).toContainText('not played, so not tested');
   // …while the checks that DID run still report honestly.
   await expect(report.locator('.ai-ready-row.pass')).toHaveCount(3);

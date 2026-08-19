@@ -112,6 +112,10 @@ const MAP = [
   // The readable audience name is minted by the publish path but READ on the audience surfaces,
   // and rules union rather than shadowing - so this adds to the src/control/ list above.
   [/^src\/control\/joinName/, ['production-audience.spec.ts']],
+  // Loading a DATASET row into a cue: the matcher is shared by the in-app page (live) and the
+  // publish path (the hosted page's rows), so the production-data specs that drive the gesture
+  // have to run alongside the control ones the rule above selects.
+  [/^src\/control\/cueData/, ['production-data.spec.ts']],
   // The browser-output renderer (docs/CLOUD_PLAYOUT.md): its own MPA entry + the stage module.
   [/^src\/output\//, ['productions.spec.ts', 'snap-recovery.spec.ts']],
   [/^output\.html$/, ['productions.spec.ts']],
@@ -177,8 +181,8 @@ const MAP = [
   // The AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5). Its whole workflow runs on
   // the local provider, so the offline suite really does cover it - which is why the seam was
   // built before the backend.
-  [/^src\/audience\//, ['production-audience.spec.ts']],
-  [/^src\/components\/home\/ProductionAudienceWorkspace/, ['production-audience.spec.ts']],
+  [/^src\/audience\//, ['production-audience.spec.ts', 'production-chat-intake.spec.ts']],
+  [/^src\/components\/home\/ProductionAudienceWorkspace/, ['production-audience.spec.ts', 'production-chat-intake.spec.ts']],
   // The public join page is its own MPA entry, so it needs its own mapping: a change to
   // join.html or src/join/ touches no module the app imports, and would otherwise map to
   // nothing at all.
@@ -187,6 +191,12 @@ const MAP = [
   [/^src\/components\/(StepTimeline|TimelineDock|LegacyTimeline|Inspector|PlayoutSimulator)/, ['timeline-v2.spec.ts', 'legacy-timeline.spec.ts', 'inspector.spec.ts', 'anim-engine.spec.ts', 'canvas-keyframe.spec.ts', 'ux.spec.ts', 'import-graphic.spec.ts', 'machine-graph.spec.ts', 'asset-workflow.spec.ts']],
   [/^src\/components\/MachineGraph/, ['machine-graph.spec.ts', 'state-machine.spec.ts', 'timeline-v2.spec.ts']],
   [/^src\/components\/(fields|SampleDataPanel|ControlPanel|HostedControlPage)/, ['control.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'images.spec.ts', 'ux.spec.ts', 'video-inputs.spec.ts', 'import-graphic.spec.ts']],
+  // The playout dashboard's VERB KEYS, shared by the in-app production page and the hosted
+  // control page. Named here rather than left to the components fallback because the spec that
+  // actually presses them (playout-drills) is not in either surface's own row - the keymap is a
+  // foundation two surfaces read, which is exactly the shape that gets mapped as a helper and
+  // then verified by specs that never touch it.
+  [/^src\/components\/playoutKeys\.ts$/, ['playout-drills.spec.ts', 'production-controls.spec.ts', 'productions.spec.ts', 'hosted-control.spec.ts']],
   [/^src\/components\/(AssetsPanel|assetInfo|InsertTemplateDialog)/, ['assets.spec.ts', 'images.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
   // The graphics-pack ROUND TRIP (src/packs/graphicsPack.ts buildPack + the export dialog's
   // download): one spec drives export -> re-import through the real UI, plus the shipped
