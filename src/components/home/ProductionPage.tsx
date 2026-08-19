@@ -1450,14 +1450,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 // the one override gesture is Unbind, on the Data tab, deliberately.
                 const path = boundFields(selectedGraphic)[d.key];
                 if (path) {
+                  // Built on `.field-row`/`.field-meta` - FieldRow's OWN structure - rather than
+                  // on a hand-rolled label. The cue fields lay out in a grid two across, so a row
+                  // of a different height sits its input a few pixels off its neighbour's; matching
+                  // the real structure makes them line up by construction instead of by a number
+                  // kept in step here.
                   return (
-                    <label className="pd-field pd-field-bound" key={d.key} data-testid={`cue-bound-${d.key}`}>
-                      <span>
-                        {d.key.toUpperCase()} · {d.label}
-                        <b className="pd-bound-mark">🔗 {path}</b>
-                      </span>
+                    <div className="field-row pd-field-bound" key={d.key} data-testid={`cue-bound-${d.key}`}>
+                      <div className="field-meta">
+                        <label style={{ margin: 0 }}>
+                          {d.key.toUpperCase()} · {d.label}
+                        </label>
+                        <span className="pd-bound-mark" title={`Bound to production data: ${path}`}>
+                          🔗 {path}
+                        </span>
+                      </div>
                       <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? '—'} readOnly tabIndex={-1} />
-                    </label>
+                    </div>
                   );
                 }
                 return (

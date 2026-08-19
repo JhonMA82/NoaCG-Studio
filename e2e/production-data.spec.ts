@@ -431,6 +431,26 @@ test('a bound field takes the LIVE value on air, and an old cue cannot re-air a 
   const preview = page.frameLocator('iframe[title="Cue preview"]');
   await expect(preview.locator('#f0')).toHaveText('Finland');
 
+  // The bound row shares its NEIGHBOUR's box. Asserted as geometry because `toBeVisible` is
+  // blind to a row that sits 8px taller than the one beside it - which is exactly what a
+  // hand-rolled label did here before it was rebuilt on FieldRow's own `.field-row` structure.
+  // The cue fields lay out two across, so the mismatch put the two inputs on different lines.
+  const rowBox = await page.evaluate(() => {
+    const bound = document.querySelector('[data-testid="cue-bound-f0"]')!.getBoundingClientRect();
+    const plainEl = document.querySelector('[data-testid="cue-field-f1"]')!;
+    const plain = (plainEl.closest('.field-row') ?? plainEl).getBoundingClientRect();
+    const boundInput = document.querySelector('[data-testid="cue-bound-f0"] input')!.getBoundingClientRect();
+    const plainInput = (plainEl.matches('input,textarea') ? plainEl : plainEl.querySelector('input,textarea')!).getBoundingClientRect();
+    return {
+      heightDelta: Math.abs(Math.round(bound.height) - Math.round(plain.height)),
+      inputTopDelta: Math.abs(Math.round(boundInput.top) - Math.round(plainInput.top)),
+      widthDelta: Math.abs(Math.round(bound.width) - Math.round(plain.width)),
+    };
+  });
+  expect(rowBox.heightDelta).toBeLessThanOrEqual(1);
+  expect(rowBox.inputTopDelta).toBeLessThanOrEqual(1);
+  expect(rowBox.widthDelta).toBeLessThanOrEqual(1);
+
   // Take it: air shows the live value.
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
   await page.getByTestId('verb-take').click();

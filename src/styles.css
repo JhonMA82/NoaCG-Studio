@@ -7091,14 +7091,20 @@ h2 + .lib-row,
 .pd-bind-miss { font-size: 11px; color: var(--muted); font-style: italic; }
 
 /* A BOUND cue field reads out instead of editing: its value comes from the live tree at Take,
-   so an editable box here would show a number nothing will ever air (plan §2.7). */
+   so an editable box here would show a number nothing will ever air (plan §2.7). It wears
+   `.field-row` so it shares its neighbour's box exactly - the cue fields lay out two across, and
+   a taller row sits its input a few pixels off the one beside it. The path chip takes the slot
+   the ↺ Reset / field-id cluster uses, so it costs no extra height. */
 .pd-field-bound input { opacity: 0.72; cursor: not-allowed; }
 .pd-bound-mark {
-  margin-left: 8px;
-  font-weight: 500;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
   font-size: 11px;
   color: var(--accent);
-  font-family: var(--mono, ui-monospace, monospace);
+  font-family: ui-monospace, monospace;
 }
 /* A LIST value edits as a textarea (an <input> would strip its newlines), sized to its own
    line count so a two-item list does not open a six-row box. */
