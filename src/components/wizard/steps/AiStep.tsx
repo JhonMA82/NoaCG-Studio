@@ -38,7 +38,7 @@ import {
   namedPackage,
   packageLines,
   PRO_GRAPHICS,
-  PRO_GRAPHIC_LIST,
+  PRO_PACKAGE_LIST,
   type ProGraphicId,
   type ProPackageMember,
 } from '../../../ai/pro/language/graphics';
@@ -858,7 +858,7 @@ export default function AiStep({
         return;
       }
       if (proMode) {
-        setError('NoaCG Pro designs a new graphic and does not convert imported templates. Open it as code, or switch the AI tier to “Bring your own key” to convert it.');
+        setError('NoaCG Pro designs a new look and its package of graphics; it does not convert imported templates. Open it as code, or switch the AI tier to “Bring your own key” to convert it.');
         return;
       }
       void run(
@@ -951,7 +951,7 @@ export default function AiStep({
         // already paid for or to ship a graphic no gate passed.
         const members: ProPackageMember[] = [{ id: primaryGraphic, template: designed.template }];
         const dropped: string[] = [];
-        for (const spec of PRO_GRAPHIC_LIST) {
+        for (const spec of PRO_PACKAGE_LIST) {
           if (spec.id === primaryGraphic || !proPackage.includes(spec.id)) continue;
           const lines = packageLines(spec.id, {
             name: proLines(activeSpec)[0]?.sample ?? '',
@@ -1139,7 +1139,7 @@ export default function AiStep({
           {liteMode
             ? 'Included for free users. This quality release concentrates on one excellent editable lower third, then validates and exercises it in the live playout bench. Other graphic types are explained instead of being forced into a poor design.'
             : proMode
-              ? 'A richer, art-directed graphic from the same brief, and an ordinary editable one — live text fields, real shapes, deterministic motion, every export target. This first release designs lower thirds.'
+              ? 'An on-air look designed for your channel, and every graphic of the package below built in it — one generation, a set that visibly belongs together. Each lands as ordinary editable code with live text fields, real shapes, deterministic motion and every export target, checked in the live playout bench first.'
               : 'Describe what you need, and optionally add artwork or an existing template. Every result is validated and exercised in a live playout test before you can create it, and lands as clean, editable code.'}
         </p>
         {liteMode && liteStatus?.allowance && (
@@ -1706,7 +1706,7 @@ export default function AiStep({
                       rather than silently re-added on the next load. */}
                   <fieldset className="ai-pro-package" data-testid="pro-package">
                     <legend className="dlg-caption">What this makes</legend>
-                    {PRO_GRAPHIC_LIST.map((spec) => {
+                    {PRO_PACKAGE_LIST.map((spec) => {
                       const on = proPackage.includes(spec.id);
                       const onlyOne = on && proPackage.length === 1;
                       return (
@@ -1723,7 +1723,7 @@ export default function AiStep({
                               // Rebuilt from the canonical ORDER rather than by pushing onto the
                               // end: the first member is the graphic the step previews, and a
                               // tick further down the list must not move it.
-                              const next = PRO_GRAPHIC_LIST
+                              const next = PRO_PACKAGE_LIST
                                 .map((s) => s.id)
                                 .filter((id) => (id === spec.id ? !on : proPackage.includes(id)));
                               setProPackage(next);

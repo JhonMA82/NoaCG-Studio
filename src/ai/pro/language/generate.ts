@@ -10,7 +10,13 @@
 // their own key or running the offline stub is never booked against the hosted allowance.
 
 import { callModelDetailed } from '../../modelGateway';
-import { outputBudget, type AiGatewaySurface, type ModelRoute } from '../../modelTypes';
+import {
+  MODEL_CALL_RETRY_DELAY_MS,
+  outputBudget,
+  shouldRetryModelCall,
+  type AiGatewaySurface,
+  type ModelRoute,
+} from '../../modelTypes';
 import { startAiRun } from '../../telemetry';
 import type { ProSession } from '../session';
 import {
@@ -58,7 +64,7 @@ export async function generateDesignLanguage(
   const run = startAiRun('pro-generate');
   const t0 = Date.now();
   try {
-    const result = await callModelDetailed({
+    const call = () => callModelDetailed({
       system: designLanguageSystemPrompt(),
       messages: [{ role: 'user', content: designLanguageUserMessage(brief) }],
       tool: DESIGN_LANGUAGE_TOOL,
@@ -70,6 +76,19 @@ export async function generateDesignLanguage(
       ...(options.seed === undefined ? {} : { seed: options.seed }),
       ...(options.session ? { proGenerationId: options.session.generationId } : {}),
     });
+    let result;
+    try {
+      result = await call();
+    } catch (error) {
+      // ONE bounded in-session retry, on a provider outage only (shouldRetryModelCall). It is
+      // safe because it stays inside the SAME reservation: the failed call settled nothing, so
+      // it consumed no call budget, no start and no money - the admission simply pays for the
+      // retry from the booking the first attempt left untouched. Without this, a quarter-second
+      // gateway wobble was a user-visible failure that also burned a scarce daily start.
+      if (!shouldRetryModelCall(error, 0)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, MODEL_CALL_RETRY_DELAY_MS));
+      result = await call();
+    }
     run.stage('design', t0, result.model, result.usage);
     run.finish(true);
     const language = normalizeDesignLanguage(result.output);

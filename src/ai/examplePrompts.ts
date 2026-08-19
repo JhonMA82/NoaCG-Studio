@@ -129,33 +129,38 @@ export const LITE_EXAMPLE_PROMPTS: ExamplePrompt[] = [
   },
 ];
 
+// PRO BRIEFS DESCRIBE THE SHOW'S LOOK, not one graphic: a Pro generation buys a design LANGUAGE
+// and the platform composes the whole package in it, so a brief that asks for "a lower third"
+// describes a tenth of what the user gets. Each still speaks the language contract's own
+// dimensions (palette, accent form, type voice, corner, density, motion character), which is the
+// PRO_EXAMPLE rule the section header above states.
 export const PRO_EXAMPLE_PROMPTS: ExamplePrompt[] = [
   {
     label: 'Late-night arts',
     prompt:
-      'A lower third for a late-night arts show: guest name and their work. Deep plum panel, ' +
-      'warm gold underline accent, a serif bold name against airy tracked caps for the work ' +
-      'line, soft corners, an unhurried reveal that follows the reading order.',
+      'The on-air look for a late-night arts show, with guest straps naming the guest and their ' +
+      'work. Deep plum, warm gold underline accent, serif bold headings against airy tracked ' +
+      'caps, soft corners, an unhurried reveal that follows the reading order.',
   },
   {
     label: 'Esports channel',
     prompt:
-      'A lower third for a youth esports channel: player tag and role. Acid green on near-black, ' +
-      'a heavy accent block behind the role line, black-weight condensed caps for the tag, tight ' +
-      'tracking, compact spacing, fast snap.',
+      'The on-air look for a youth esports channel: player tags, an on-air mark, a match ' +
+      'countdown. Acid green on near-black, a heavy accent block behind supporting lines, ' +
+      'black-weight condensed caps, tight tracking, compact spacing, fast snap.',
   },
   {
     label: 'Morning community',
     prompt:
-      'A lower third for a community morning show: host name and segment. Warm cream panel, ' +
-      'terracotta bar on the leading edge, deep brown text, rounded corners, airy spacing, a ' +
-      'gentle glide in.',
+      'The on-air look for a community morning show: host straps and segment graphics. Warm ' +
+      'cream panels, terracotta bar on the leading edge, deep brown text, rounded corners, airy ' +
+      'spacing, a gentle glide in.',
   },
   {
     label: 'Markets desk',
     prompt:
-      'A lower third for an evening markets desk: analyst name and firm. Ink-dark translucent ' +
-      'panel, steel-blue hairline rule across the top, medium-weight name with wide-tracked ' +
-      'caps for the firm line, compact density, a measured fade.',
+      'The on-air look for an evening markets desk: analyst straps and the countdown to the ' +
+      'open. Ink-dark translucent panels, steel-blue hairline rule across the top, medium-weight ' +
+      'headings with wide-tracked caps, compact density, a measured fade.',
   },
 ];

@@ -13,7 +13,7 @@ import {
 // The graphic-type ids alone, from the module that carries no catalog behind it. `graphics.ts`
 // pulls in three composers and their category assemblers, which is a large thing for a
 // preferences file every surface loads to import for a list of four strings.
-import { PRO_GRAPHIC_IDS, type ProGraphicId } from './pro/language/structure';
+import { PRO_PACKAGE_IDS, type ProGraphicId } from './pro/language/structure';
 
 const STORAGE_KEY = 'spx-gfx-ai';
 
@@ -329,17 +329,22 @@ export function loadAiSettings(): AiSettings {
 }
 
 /**
- * The stored package, normalized: known ids only, always in `PRO_GRAPHIC_IDS` order, and an
- * empty result read as the WHOLE package.
+ * The stored package, normalized: PACKAGE ids only, always in the package's declared order, and
+ * an empty result read as the WHOLE package.
  *
  * The order is not cosmetic - the first member is the graphic the step previews and refines -
  * and reading empty as everything is what keeps a stored value written before this field
  * existed, or a user who unticks the last box, from producing a generation that makes nothing.
+ *
+ * It filters against `PRO_PACKAGE_IDS`, not every id the composer knows: a type that composes
+ * but has not passed its owner read (`readyForPackage`, pro/language/graphics.ts) must not enter
+ * anyone's stored package - and when such a type later ships, this same filter is what makes a
+ * stored value from before that day simply not name it yet.
  */
 function proPackageFrom(value: unknown): ProGraphicId[] {
   const asked = Array.isArray(value) ? value : [];
-  const kept = PRO_GRAPHIC_IDS.filter((id) => asked.includes(id));
-  return kept.length ? kept : [...PRO_GRAPHIC_IDS];
+  const kept = PRO_PACKAGE_IDS.filter((id) => asked.includes(id));
+  return kept.length ? kept : [...PRO_PACKAGE_IDS];
 }
 
 export function saveAiSettings(patch: Partial<AiSettings>): void {

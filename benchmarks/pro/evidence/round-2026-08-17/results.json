@@ -23265,6 +23265,22 @@
       "recomposedStress": "recomposed/news-public.aldervale.language.stress.png",
       "recomposedAdjustments": [
         "mark_ink_knocked"
+      ],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/news-public.aldervale.language.sponsor-bug.png",
+          "adjustments": [
+            "mark_ink_knocked"
+          ]
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/news-public.aldervale.language.countdown.png",
+          "adjustments": []
+        }
       ]
     },
     {
@@ -24462,7 +24478,21 @@
       "ms": 35136,
       "recomposedHold": "recomposed/sports-live.kestrel.language.hold.png",
       "recomposedStress": "recomposed/sports-live.kestrel.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/sports-live.kestrel.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/sports-live.kestrel.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-23",
@@ -25893,7 +25923,21 @@
       "ms": 40410,
       "recomposedHold": "recomposed/entertainment.sunbeam.language.hold.png",
       "recomposedStress": "recomposed/entertainment.sunbeam.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/entertainment.sunbeam.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/entertainment.sunbeam.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-24",
@@ -27512,7 +27556,21 @@
       "ms": 49862,
       "recomposedHold": "recomposed/corporate.aldervale.language.hold.png",
       "recomposedStress": "recomposed/corporate.aldervale.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/corporate.aldervale.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/corporate.aldervale.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-25",
@@ -29130,7 +29188,21 @@
       "ms": 46718,
       "recomposedHold": "recomposed/minimalist.ledger.language.hold.png",
       "recomposedStress": "recomposed/minimalist.ledger.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/minimalist.ledger.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/minimalist.ledger.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-26",
@@ -30561,7 +30633,21 @@
       "ms": 48443,
       "recomposedHold": "recomposed/portrait-logo.sunbeam.language.hold.png",
       "recomposedStress": "recomposed/portrait-logo.sunbeam.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/portrait-logo.sunbeam.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/portrait-logo.sunbeam.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-27",
@@ -31872,7 +31958,21 @@
       "ms": 43154,
       "recomposedHold": "recomposed/long-name.kestrel.language.hold.png",
       "recomposedStress": "recomposed/long-name.kestrel.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/long-name.kestrel.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/long-name.kestrel.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-28",
@@ -33491,7 +33591,21 @@
       "ms": 47481,
       "recomposedHold": "recomposed/multiline-title.ledger.language.hold.png",
       "recomposedStress": "recomposed/multiline-title.ledger.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/multiline-title.ledger.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/multiline-title.ledger.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-29",
@@ -34922,7 +35036,21 @@
       "ms": 46767,
       "recomposedHold": "recomposed/empty-optional.sunbeam.language.hold.png",
       "recomposedStress": "recomposed/empty-optional.sunbeam.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/empty-optional.sunbeam.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/empty-optional.sunbeam.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-30",
@@ -36539,7 +36667,21 @@
       "ms": 50210,
       "recomposedHold": "recomposed/non-latin.aldervale.language.hold.png",
       "recomposedStress": "recomposed/non-latin.aldervale.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/non-latin.aldervale.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/non-latin.aldervale.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-31",
@@ -38156,7 +38298,21 @@
       "ms": 47422,
       "recomposedHold": "recomposed/high-contrast.ledger.language.hold.png",
       "recomposedStress": "recomposed/high-contrast.ledger.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/high-contrast.ledger.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/high-contrast.ledger.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-32",
@@ -39773,7 +39929,21 @@
       "ms": 50908,
       "recomposedHold": "recomposed/gradient-accent.kestrel.language.hold.png",
       "recomposedStress": "recomposed/gradient-accent.kestrel.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/gradient-accent.kestrel.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/gradient-accent.kestrel.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-33",
@@ -40970,7 +41140,21 @@
       "ms": 38890,
       "recomposedHold": "recomposed/news-public.kestrel.language.hold.png",
       "recomposedStress": "recomposed/news-public.kestrel.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/news-public.kestrel.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/news-public.kestrel.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-34",
@@ -42589,7 +42773,21 @@
       "ms": 49061,
       "recomposedHold": "recomposed/news-public.sunbeam.language.hold.png",
       "recomposedStress": "recomposed/news-public.sunbeam.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/news-public.sunbeam.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/news-public.sunbeam.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-35",
@@ -44208,7 +44406,21 @@
       "ms": 58900,
       "recomposedHold": "recomposed/news-public.ledger.language.hold.png",
       "recomposedStress": "recomposed/news-public.ledger.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/news-public.ledger.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/news-public.ledger.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-36",
@@ -45519,7 +45731,21 @@
       "ms": 44823,
       "recomposedHold": "recomposed/entertainment.kestrel.language.hold.png",
       "recomposedStress": "recomposed/entertainment.kestrel.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/entertainment.kestrel.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/entertainment.kestrel.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-37",
@@ -46950,7 +47176,21 @@
       "ms": 42187,
       "recomposedHold": "recomposed/entertainment.aldervale.language.hold.png",
       "recomposedStress": "recomposed/entertainment.aldervale.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/entertainment.aldervale.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/entertainment.aldervale.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     },
     {
       "blindId": "B-38",
@@ -48569,7 +48809,21 @@
       "ms": 49706,
       "recomposedHold": "recomposed/entertainment.ledger.language.hold.png",
       "recomposedStress": "recomposed/entertainment.ledger.language.stress.png",
-      "recomposedAdjustments": []
+      "recomposedAdjustments": [],
+      "recomposedSet": [
+        {
+          "graphic": "sponsor-bug",
+          "label": "Sponsor bug",
+          "file": "recomposed/entertainment.ledger.language.sponsor-bug.png",
+          "adjustments": []
+        },
+        {
+          "graphic": "countdown",
+          "label": "Countdown",
+          "file": "recomposed/entertainment.ledger.language.countdown.png",
+          "adjustments": []
+        }
+      ]
     }
   ]
 }
