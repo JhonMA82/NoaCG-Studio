@@ -21,8 +21,11 @@ import { checkDataIngestBudget, checkDataIpRateLimit } from '../_lib/rateLimit.j
 import {
   dataApiConfigured,
   mapLabelsToFields,
+  parseDataPatch,
   parseDataUpdate,
+  patchProductionData,
   productionForDataKey,
+  readProductionData,
   resolveTargetGraphic,
   sendDataUpdate,
 } from '../_lib/dataIngest.js';
@@ -109,12 +112,111 @@ async function update(req: Request): Promise<Response> {
   });
 }
 
+/**
+ * PATCH the production's DATA TREE - the verb a feed should reach for.
+ *
+ * `/update` above addresses a GRAPHIC by name and its fields by label, so the caller has to
+ * know the production's rundown. This one addresses the DATA: write `match.home.score` and
+ * every field bound to that path follows, on whichever graphics happen to exist. The merge,
+ * the binding resolution, the diff and the rate gates all happen inside one locked
+ * transaction in the database (migration 0048) - see api/_lib/dataIngest.ts.
+ *
+ * Named `/data/patch` rather than served as `PATCH /api/data` because the catch-all routes
+ * exactly ONE segment on this deployment (scripts/check-api-route-depth.mjs - measured, not
+ * inferred). It accepts PATCH and POST: the semantics are a merge patch either way, and a
+ * connector behind a proxy that eats PATCH should not be stuck.
+ */
+async function patch(req: Request): Promise<Response> {
+  if (req.method !== 'PATCH' && req.method !== 'POST') {
+    return apiError('invalid', 'Use PATCH (or POST) to write production data.', 405);
+  }
+
+  const ipGate = checkDataIpRateLimit(req);
+  if (ipGate) return apiError('rate_limited', 'Too many requests - slow down.', 429, {}, retryAfter(ipGate.retryAfterSec));
+
+  const key = bearerToken(req);
+  if (!key) return apiError('unauthorized', 'Send the production data key as a Bearer token.', 401);
+  if (!dataApiConfigured()) return apiError('unavailable', 'The data API is not configured on this deployment.', 503);
+
+  let body: unknown;
+  try {
+    body = await readJson(req, MAX_BODY_BYTES);
+  } catch (error) {
+    const code = (error as { code?: string }).code === 'too_large' ? 'too_large' : 'invalid';
+    return apiError(code, code === 'too_large' ? 'Request body too large.' : 'The body must be JSON.', code === 'too_large' ? 413 : 400);
+  }
+  const parsed = parseDataPatch(body);
+  if (!parsed.ok) return apiError('invalid', parsed.error, 400);
+
+  // The per-production budget is enforced in the DATABASE (it is the global authority); this
+  // in-process gate is the same cheap pre-filter /update uses. It needs the production id,
+  // which only the key resolves, so it runs after the key is known.
+  let production;
+  try {
+    production = await productionForDataKey(key);
+  } catch (error) {
+    console.error('Data key resolve failed:', error instanceof Error ? error.message : error);
+    return apiError('internal', 'The production could not be resolved.', 500);
+  }
+  if (!production) return apiError('unauthorized', 'Unknown data key.', 401);
+
+  const budget = checkDataIngestBudget(production.id);
+  if (budget) {
+    return apiError('rate_limited', "This production's data budget is spent for the moment - the operator keeps priority.", 429, {}, retryAfter(budget.retryAfterSec));
+  }
+
+  try {
+    const result = await patchProductionData(key, parsed.patch);
+    return json({ ok: true, data: result.data, writes: result.writes });
+  } catch (error) {
+    return patchFailure(error);
+  }
+}
+
+/** READ the production's current tree - what an integrator asks after a restart or a partition
+ *  instead of blindly pushing a whole snapshot. Idempotent, so it carries no ingest budget;
+ *  the IP pre-filter still applies. */
+async function state(req: Request): Promise<Response> {
+  const guard = methodGuard(req, 'GET');
+  if (guard) return guard;
+
+  const ipGate = checkDataIpRateLimit(req);
+  if (ipGate) return apiError('rate_limited', 'Too many requests - slow down.', 429, {}, retryAfter(ipGate.retryAfterSec));
+
+  const key = bearerToken(req);
+  if (!key) return apiError('unauthorized', 'Send the production data key as a Bearer token.', 401);
+  if (!dataApiConfigured()) return apiError('unavailable', 'The data API is not configured on this deployment.', 503);
+
+  try {
+    const current = await readProductionData(key);
+    if (!current) return apiError('unauthorized', 'Unknown data key.', 401);
+    return json({ ok: true, data: current.data, bindings: current.bindings });
+  } catch (error) {
+    console.error('Data read failed:', error instanceof Error ? error.message : error);
+    return apiError('internal', 'The production data could not be read.', 500);
+  }
+}
+
+/** control_data_patch's own refusals, translated honestly rather than as a 500. */
+function patchFailure(error: unknown): Response {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes('data budget')) return apiError('rate_limited', "This production's data budget is spent for the moment - the operator keeps priority.", 429, {}, retryAfter(5));
+  if (message.includes('too many commands')) return apiError('rate_limited', "The production's command log is saturated - slow down.", 429, {}, retryAfter(5));
+  if (message.includes('switched off')) return apiError('unauthorized', 'Hosted control is switched off for this production.', 403);
+  if (message.includes('unknown data key')) return apiError('unauthorized', 'Unknown data key.', 401);
+  if (message.includes('not a data patch')) return apiError('invalid', 'The body must be a JSON object of production data.', 400);
+  console.error('Data patch failed:', message);
+  return apiError('internal', 'The patch could not be written.', 500);
+}
+
 interface Handler {
   fetch(req: Request): Promise<Response>;
 }
 
 const ROUTES: Record<string, Handler> = {
   update: { fetch: update },
+  patch: { fetch: patch },
+  state: { fetch: state },
 };
 
 export default {

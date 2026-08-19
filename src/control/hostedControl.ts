@@ -309,7 +309,18 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // re-publish mid-show. A whole-row write here would close the audience door every time
   // somebody fixed a typo in a cue.
   const { error } = await sb.from('control_shows').upsert(
-    { id: show.id, title: show.name, panel: buildPanelSpec(show, library), output },
+    {
+      id: show.id,
+      title: show.name,
+      panel: buildPanelSpec(show, library),
+      output,
+      // The production-data BINDINGS travel with the publish because they are authored state,
+      // like the panel and the payload (docs/PRODUCTION_DATA_PLAN.md §5). The server-side patch
+      // RPC resolves against this column, so a production published without it accepts data
+      // and moves no graphic. The live TREE is deliberately not sent: it is runtime state and
+      // the server's own column is its authority once published.
+      bindings: show.bindings ?? {},
+    },
     { onConflict: 'id' },
   );
   if (error) throw new Error(error.message);

@@ -134,14 +134,21 @@ test('scrubbing seeks the composition deterministically', async ({ page }) => {
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   });
-  await expect(player(page).getByText('3', { exact: true })).toBeVisible({ timeout: 5_000 });
+  // The seek assertions get the SAME 10 s the mount above does. What this test proves is
+  // DETERMINISM - frame 75 shows 3, frame 10 shows 5 - never a latency budget, and the 5 s the
+  // two of them used to carry was asserting one by accident: a seek crossing into the sandboxed
+  // player host is slower under machine load, and this test went red on a laptop running three
+  // browser jobs at once (2026-08-19) while passing alone on the same tree.
+  // Raising it cannot mask a broken seek - a seek that never lands fails at 10 s exactly as it
+  // failed at 5 - so the guard is unchanged and only the incidental timing claim is gone.
+  await expect(player(page).getByText('3', { exact: true })).toBeVisible({ timeout: 10_000 });
   // Scrub back: deterministic - the same frame shows the same number again.
   await scrubber.evaluate((el: HTMLInputElement) => {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
     setter.call(el, '10');
     el.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await expect(player(page).getByText('5', { exact: true })).toBeVisible({ timeout: 5_000 });
+  await expect(player(page).getByText('5', { exact: true })).toBeVisible({ timeout: 10_000 });
 });
 
 test('editable inputs: the Content panel edits the composition live', async ({ page }) => {

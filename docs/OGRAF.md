@@ -132,8 +132,16 @@ disagree with each other.
   The prefix supplies the hyphen whatever the design is called, survives a name that starts with
   a digit, keeps the id clear of HTML's reserved element names, and gives the namespace the
   spec's reverse-DNS recommendation is really after. Folder and file names keep the plain slug,
-  the way SPX and CasparCG expect. Uniqueness is per package folder: two graphics with the same
-  NAME would produce the same id, so a package must not contain both.
+  the way SPX and CasparCG expect. **Uniqueness comes from the NAME, not from a separate id
+  register.** The catalog does hold same-named designs in different categories (bug05/lt54
+  "House Ident", card30/pi01 "Public Notice", ig38/tk13 "Results Rail", tt01/ig03 "Timing Tower",
+  fr03/qz05 "Volt Split"), and one production may hold both members of such a pair. The
+  whole-show export resolves that by suffixing the graphic's name (`House Ident 2`) before any
+  target packages it, and the id derives from that same renamed template - so the folder, the
+  file and the manifest id carry the suffix together (`house_ident_2/`, `noacg-house-ident-2`).
+  Keep the id derived from `template.name`: giving it its own source would let the folder and
+  the id disagree, and a repeat id makes a renderer's `customElements.define(manifest.id, class)`
+  throw before the second graphic is ever mounted. Pinned by `e2e/ograf-conformance.spec.ts`.
 - **Custom action durations are `-1`.** Honest rather than wrong: the length depends on the
   machine's current state.
 - **Light DOM, not shadow DOM.** The graphic's markup is injected into the element directly so

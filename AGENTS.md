@@ -51,7 +51,7 @@ npm run dev      # Vite dev server (landing at /, THE STUDIO AT /app)
 npm run build    # tsc && eslint && vite build -> dist/   <-- run after changes; it's the CI gate
 npm run lint     # eslint . --max-warnings 0 (also part of build)
 npm run test:worktree-safety  # Git-safety regression tests for shared workflows
-npm run check:workflows       # .github/workflows/*.yml against the Actions schema (in build)
+npm run check:workflows       # .github/workflows/*.yml + .github/actions/*/action.yml (in build)
 npm run check:vercel-config   # vercel.json routes (in build)
 npm run check:function-budget # api/'s function count (in build)
 npm run check:freshness       # vendored GSAP/Lottie + pinned model ids - REPORTS, weekly, not a gate

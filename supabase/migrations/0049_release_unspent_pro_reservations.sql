@@ -112,7 +112,7 @@ declare
 begin
   select id into v_owner from auth.users limit 1;
   if v_owner is null then
-    raise notice '0048 self-check: no auth.users row, skipping the usage walk';
+    raise notice '0049 self-check: no auth.users row, skipping the usage walk';
     return;
   end if;
 
@@ -120,7 +120,7 @@ begin
   insert into public.ai_generations (
     user_id, ip_hash, idempotency_key, profile, status, prompt_version, provider_cost_usd, expires_at
   ) values (
-    v_owner, '0048-check', '0048-a-' || gen_random_uuid()::text, 'pro', 'failed', '0048-check',
+    v_owner, '0049-check', '0049-a-' || gen_random_uuid()::text, 'pro', 'failed', '0049-check',
     0.15, pg_catalog.now()
   ) returning id into v_failed;
 
@@ -129,7 +129,7 @@ begin
   insert into public.ai_generations (
     user_id, ip_hash, idempotency_key, profile, status, prompt_version, provider_cost_usd, expires_at
   ) values (
-    v_owner, '0048-check', '0048-b-' || gen_random_uuid()::text, 'pro', 'reserved', '0048-check',
+    v_owner, '0049-check', '0049-b-' || gen_random_uuid()::text, 'pro', 'reserved', '0049-check',
     0.15, pg_catalog.now() - interval '1 minute'
   ) returning id into v_abandoned;
 
@@ -137,7 +137,7 @@ begin
   insert into public.ai_generations (
     user_id, ip_hash, idempotency_key, profile, status, prompt_version, provider_cost_usd, expires_at
   ) values (
-    v_owner, '0048-check', '0048-c-' || gen_random_uuid()::text, 'pro', 'reserved', '0048-check',
+    v_owner, '0049-check', '0049-c-' || gen_random_uuid()::text, 'pro', 'reserved', '0049-check',
     0.15, pg_catalog.now() + interval '4 minutes'
   ) returning id into v_live;
 
@@ -146,7 +146,7 @@ begin
     user_id, ip_hash, idempotency_key, profile, status, prompt_version, provider_cost_usd,
     pro_call_count, expires_at
   ) values (
-    v_owner, '0048-check', '0048-d-' || gen_random_uuid()::text, 'pro', 'failed', '0048-check',
+    v_owner, '0049-check', '0049-d-' || gen_random_uuid()::text, 'pro', 'failed', '0049-check',
     0.004, 1, pg_catalog.now()
   ) returning id into v_spent;
 
@@ -163,11 +163,11 @@ begin
     select u.daily_starts, u.daily_fleet_spend_usd into v_starts_after, v_spend_after
     from public.ai_task_usage('pro', v_owner, pg_catalog.now()) as u;
     if v_daily_starts is distinct from v_starts_after then
-      raise exception '0048 self-check FAILED: released rows still moved daily_starts (% -> %)',
+      raise exception '0049 self-check FAILED: released rows still moved daily_starts (% -> %)',
         v_starts_after, v_daily_starts;
     end if;
     if v_spend is distinct from v_spend_after then
-      raise exception '0048 self-check FAILED: released rows still moved the spend sum (% -> %)',
+      raise exception '0049 self-check FAILED: released rows still moved the spend sum (% -> %)',
         v_spend_after, v_spend;
     end if;
     -- The counted direction: removing (c) and (d) MUST move both figures, or the predicate
@@ -176,10 +176,10 @@ begin
     select u.daily_starts, u.daily_fleet_spend_usd into v_starts_after, v_spend_after
     from public.ai_task_usage('pro', v_owner, pg_catalog.now()) as u;
     if v_starts_after is not distinct from v_daily_starts then
-      raise exception '0048 self-check FAILED: a live and a settled row did not count in daily_starts';
+      raise exception '0049 self-check FAILED: a live and a settled row did not count in daily_starts';
     end if;
     if v_spend_after is not distinct from v_spend then
-      raise exception '0048 self-check FAILED: a live and a settled row did not count in the spend sum';
+      raise exception '0049 self-check FAILED: a live and a settled row did not count in the spend sum';
     end if;
   end;
 end;

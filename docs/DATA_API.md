@@ -24,9 +24,17 @@ Authorization: Bearer <data key>
 - The key is **per production**, minted automatically when the production is published
   (`control_shows.data_key`, migration 0047). The production owner hands it to you; treat it
   like any API credential (server-side config, never a web page).
-- It is **update-only by construction**: the only thing that accepts it is this API, and this
-  API writes nothing but field updates. It cannot play, stop or clear a graphic, and it is
-  deliberately not the operator page's URL capability.
+- It carries **one invariant**, and this is the useful phrasing of it:
+
+  > External integrations manipulate production data, never individual graphic instances.
+  > Writes describe state, never graphic commands.
+
+  The only thing that accepts this key is this API, and this API writes nothing but data. It
+  cannot play, stop, take or clear a graphic, and it is deliberately not the operator page's URL
+  capability. (An earlier wording said "update-only by construction". That was a claim about
+  VERBS, and it prejudged the read-back an integrator legitimately needs after a restart -
+  `docs/PRODUCTION_DATA_PLAN.md` §7. The invariant above is the one that actually matters, and a
+  read endpoint is compatible with it.)
 - **Rotation / revocation** (owner-side): unpublishing and re-publishing the production mints
   a fresh key (the four viewer/operator URLs deliberately survive that; the data key
   deliberately does not). The owner can also overwrite or clear the key directly on the row -
@@ -217,13 +225,72 @@ tick; a `429` delays the next tick by its `Retry-After`; a `401` stops the feed.
 `--url` at the canonical host (`https://noacg.studio`, the default) - the `*.vercel.app`
 host answers with a `308`, and clients commonly drop POST bodies on redirect.
 
+## Production data - the verb to reach for first
+
+`POST /api/data/update` above addresses a GRAPHIC, so your system has to know the production's
+rundown. **`PATCH /api/data/patch` addresses the DATA instead**: you write `match.home.score`,
+and every field any graphic has BOUND to that path follows - on whichever graphics exist, live
+or not. A scoreboard never learns that "sb03" is on air. Design: `docs/PRODUCTION_DATA_PLAN.md`.
+
+```bash
+curl -X PATCH https://noacg.studio/api/data/patch \
+  -H "Authorization: Bearer $NOACG_DATA_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"match":{"home":{"score":4}}}'
+```
+
+```jsonc
+{
+  "ok": true,
+  "data": { "match": { "home": { "score": 4 } } },   // the whole tree AFTER the merge
+  "writes": [                                        // only what actually moved
+    { "graphic": "House Scorebug", "event": 18251, "applied": { "f1": "4" } }
+  ]
+}
+```
+
+- **The body is any JSON object.** There is no schema: nest as deep as you like. `POST` is
+  accepted as well as `PATCH`, for proxies that drop the latter.
+- **Merge semantics are RFC 7386 JSON Merge Patch**: objects merge, a `null` VALUE deletes its
+  key, arrays replace wholesale. So a patch names only what changed.
+- **Writes are absolute state, never intent.** There is no "+1" - send the value. That makes a
+  retry safe: sending `4` three times leaves 4.
+- **Only what changed is sent on.** The bindings are resolved against the tree before your patch
+  and after it, and only fields whose value actually differs become log rows. Re-sending the
+  same score writes nothing and **spends none of your rate budget** - which is what makes a
+  polling connector cheap.
+- **A path nothing is bound to still updates the tree**, it just moves no graphic. Bindings are
+  the operator's business, on the production's Data tab; your feed does not need to know them.
+- **A missing or unwritable value writes nothing** rather than blanking a field, so a feed that
+  drops a key leaves the last good value on air. Deleting a key with `null` behaves the same
+  way: the tree loses it, the graphic keeps what it had.
+- Values become field strings: numbers and booleans stringify, and an array of scalars joins
+  with newlines (which is what a ticker's line-list field wants).
+
+### Reading the current state
+
+```bash
+curl https://noacg.studio/api/data/state -H "Authorization: Bearer $NOACG_DATA_KEY"
+```
+
+Answers `{ "ok": true, "data": {...}, "bindings": {...} }` - what NoaCG currently believes,
+so a connector reconciles after a restart or a partition instead of blindly pushing a whole
+snapshot. It is idempotent and spends no ingest budget. It returns no capability: the data key
+never widens into an operator one.
+
+**Bindings must be published.** The RPC resolves against the bindings pinned on the production
+at publish time, so a production whose bindings were authored after its last publish accepts
+data and moves nothing until it is published again.
+
 ## What this API deliberately is not
 
 - **Not an operator.** No play, stop, next, take, or state jumps - airing is a human decision
   on an operator surface. A feed that could clear the frame would be a second operator with
   no face.
-- **Not a read API.** It answers about the request it just handled, nothing else. The
-  production's state belongs to the operator surfaces.
+- **Not a read API — yet.** Today it answers about the request it just handled, nothing else.
+  A read verb is approved for Phase 2 (an integrator reconciling after a restart should ask
+  what NoaCG believes rather than push a whole snapshot blindly); until then, the production's
+  state belongs to the operator surfaces.
 - **Not a renderer channel.** There is no path from here to the output page except the same
   log every operator writes; the renderer stays dumb on purpose.
 

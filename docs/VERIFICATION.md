@@ -154,6 +154,22 @@ Run after any catalog-wide change:
   on six of the seventeen bundled faces, so grepping for it would have passed every jiggling
   scoreboard. `--fonts` re-measures the registry's `tabularFigures` flags.
 
+**ADDING OR CHANGING A DESIGN ALSO MOVES THREE BASELINES, AND ONLY ONE OF THEM IS ABOVE.**
+`e2e/catalog-baseline.spec.ts` pins the SET of catalog variants, each one's emitted code
+byte-for-byte, and (on win32) its rendered frame - so nine added designs fail it until it is
+re-recorded, in a diff that should be purely additive:
+
+```bash
+UPDATE_CATALOG_BASELINE=1 UPDATE_RENDER_BASELINE=1 npx playwright test e2e/catalog-baseline.spec.ts
+```
+
+**That spec is NOT in `playwright.catalog.config.ts`**, which is the trap: the five gates above
+can all pass, the whole `npm run test:e2e:catalog` suite can pass, and CI's full plan still goes
+red on the baseline - as it did on 2026-08-19, after four green local catalog runs on a
+nine-design branch. `npm run test:e2e:focus:queued` covers it locally; CI's plan always does.
+Read the diff before committing it: ids ADDED and nothing existing changed is the healthy shape,
+and an existing id whose code or frame moved is a real change in a design nobody edited.
+
 `node scripts/engine-floor.mjs` is about the PLAYOUT BROWSER: what CSS/JS an older engine silently
 drops, per design and per declaration (`--engine casparcg-24`, `--chromium 80`, `--fail` to gate).
 It shares its scanner with the export screen's Playout-compatibility section

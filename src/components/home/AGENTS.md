@@ -80,3 +80,42 @@ it. Add a RULE here; leave the reasoning in the code's own comments.
   opts.entries). Entry mutations compose through a read-fresh `patch(cur => …)` - two edits in
   one tick must never overwrite each other. An entry's ✕ is ARMED (two-step, like Home's
   graphic delete): typed-in data with no undo behind it, on a row someone drives live.
+
+## Production data (docs/PRODUCTION_DATA_PLAN.md)
+
+A production owns a tree of LIVE values; graphics bind fields to paths in it, so one change moves
+every graphic that uses it and an external system never has to know which graphic is on air.
+Phase 1 is built - manual, local, no API.
+
+- **home/ProductionDataPanel** - the playground (the live tree, add/edit/delete, Reset to seed,
+  Clear, Save as seed, Raw JSON) plus the BINDINGS table. It is domain-neutral BY CONSTRUCTION:
+  the steppers are generated from whichever leaves happen to be numbers, so a score, a poll tally
+  and a lap counter get the same affordance and no dataset is named anywhere in the file. It sits
+  above the tables in `ProductionDataWorkspace`, whose own section is called "Tables" so
+  "Production data" means exactly one thing on the surface.
+  **Its head/actions classes are `.pd-live-head` / `.pd-live-actions`, not the tables section's**
+  - `.pd-data-head .pd-data-actions` is measured by geometry in the empty-state spec, and a
+  second element wearing those names would answer that measurement instead.
+  A LIST value edits in a TEXTAREA: `<input>` sanitises newlines out of its own value, so a list
+  rendered there comes back joined into one string. `reparseLeaf` reads an edit back in the type
+  it already had.
+- **ProductionPage owns the tree**, not the workspace - the one sender (`runVerb`) lives there and
+  the Data tab unmounts the playout surface, so an edit made on Data would otherwise have no route
+  to air. It holds the state, resolves bindings, diffs against what was last sent, and dispatches
+  only the changes.
+- **PUBLISHED vs UNPUBLISHED is one fact: does the production have a data key?** Unpublished, the
+  tree is localStorage and this page resolves + dispatches it. Published, `control_shows.data` is
+  the authority: edits go out as `PATCH /api/data/patch` (`control/productionDataApi.ts`), the
+  RPC writes the log rows itself, and this page must NOT also dispatch or every write doubles.
+  A `src:'api'` row on the log is the signal that a FEED moved the tree - re-read it there rather
+  than subscribing to `control_shows` a second time.
+  **`dataKey === undefined` means not-yet-resolved and the local dispatch waits for it**; reading
+  it as "offline" makes a published production, opened cold, push its stale LOCAL tree to air for
+  one render.
+  A whole-tree replace (Reset, Clear, Raw JSON) goes through `replacementPatch` - a merge patch
+  can only say what it NAMES, so every dropped key needs an explicit `null`.
+- **THE RULE (plan §2.7): a bound field is not a cue value.** Take, ✎ Update and the PREVIEW all
+  overlay the live tree over the cue's own values, so a cue prepared at 1-0 airs 3-2 if that is
+  what the data says. The cue editor therefore renders a bound field READ-ONLY with its path - an
+  editable box there would show a number nothing will ever air. **Manual override is Unbind**,
+  deliberately, and there is no precedence hierarchy beyond that.

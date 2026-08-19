@@ -193,6 +193,26 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
   ('spx-gfx-shows', updatedAt LWW, tombstones), sync kind 'show'; `hostedSlug` (control page) +
   `outputSlug` (browser output) record the published capabilities, `publishedAt` the pin point -
   all three stripped from sync conflict copies.
+  Also the production-data SEED (`data`) and field BINDINGS (`bindings`), both additive-optional -
+  see productionData.ts / productionState.ts below for why the LIVE tree is deliberately not here.
+- **productionData.ts** - PRODUCTION DATA's whole semantic contract (docs/PRODUCTION_DATA_PLAN.md):
+  a production-scoped tree of live JSON values, the paths that address it, and the resolution of
+  field BINDINGS into ordinary `{ fN: "…" }` updates. **It imports nothing, touches no DOM and no
+  storage**, which is deliberate twice over: `scripts/production-data.test.mjs` transpiles this
+  one file to assert the rules directly, and the hosted ingress planned for Phase 2 compiles the
+  same source rather than growing a second opinion. Three rules live here and nowhere else -
+  a write is ABSOLUTE STATE (`mergePatch` is RFC 7386; nothing in the file can express "+1", so a
+  retried write cannot corrupt a value); a binding RESOLVES TO FIELD VALUES (so the template stays
+  a plain SPX graphic and an export keeps working with no feed); and a MISSING PATH WRITES NOTHING
+  (a live field keeps its last good value - freeze is not-writing). `diffResolved` is not an
+  optimisation: the log caps a production at 50 commands per 5 s, so one moving value must cost
+  one row.
+- **productionState.ts** - the live tree's STORAGE, and the reason it is not on the `Show` record:
+  that record syncs record-level LWW with conflict copies that drop the production's slugs, so
+  per-tick writes would unpublish a live production. Plain localStorage (`spx-gfx-production-data`,
+  keyed by show id), never synced, deliberately NOT in the durable IndexedDB queue. `Show.data` is
+  the authored SEED only, written by one deliberate act - there is no other door onto the record,
+  which is what makes the anti-churn rule structural rather than remembered.
 - **easings.ts** - the easing catalog; the doctrine is in src/templates/AGENTS.md +
   DESIGN_LANGUAGE §4.
 - **defaultTemplate.ts** - the fallback template.
