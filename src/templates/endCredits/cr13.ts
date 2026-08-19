@@ -54,11 +54,16 @@ export const cr13: TemplateVariant = defineCreditsVariant(
       { title: 'Credits', sample: SAMPLE },
       { title: 'Year / copyright', sample: '© 2026 Your Production' },
     ],
-    // A printed programme signs off with a rule and a line of small print, not with a mark -
-    // a colophon is the printer's business, not the company's. The category used to declare
-    // the f2 logo field for every design regardless, which made 'none' a lie; it is now
-    // conditional on this capability (endCredits/shared.ts), so the roll carries two fields.
-    logo: 'none',
+    // Optional, and deliberately so. A printed programme signs off with a rule and a line of
+    // small print rather than a mark, so the mark is OFF by default and the roll carries two
+    // fields - but this is the catalog's only serif-on-paper credit roll, and a channel or a
+    // university ending its own show is exactly who wants a mark on one. 'none' would leave
+    // them no printed roll that can carry it at all.
+    //
+    // The category used to declare the f2 logo field for every design whatever the variant
+    // said, which made both 'none' and 'optional' a lie here; it is now conditional on
+    // o.logoEnabled (endCredits/shared.ts), which is what makes this declaration mean anything.
+    logo: 'optional',
     animationPresets: ['credits-roll'],
     defaultPalette: paletteById('broadsheet'),
     defaultFontId: 'source-serif-4',
@@ -72,7 +77,7 @@ export const cr13: TemplateVariant = defineCreditsVariant(
       'left, a dotted leader across, the name on the right.',
     uicolor: '4',
   },
-  () => ({
+  (o) => ({
     html: `    <!-- Programme Roll: one masked viewport; rebuildCredits() fills the track. -->
     <div class="credits-box"><div id="credits-track"></div></div>`,
     css: `/* ── The desk. These three rules repaint the category's own programme background, which is
@@ -195,8 +200,7 @@ export const cr13: TemplateVariant = defineCreditsVariant(
   overflow-wrap: break-word;  /* break very long unbroken names */
 }
 
-/* The end block - the colophon: a rule and the year. This design takes no logo (see the
-   variant's logo: 'none'), so there is no mark and no placeholder slot to style. */
+/* The end block - the colophon: a rule, the mark if one was asked for, and the year. */
 .credits-end {
   padding-top: calc(64px * var(--scale));  /* a long breath before the sign-off */
   padding-bottom: calc(16px * var(--scale));  /* a small tail so the measurement is not flush */
@@ -217,7 +221,29 @@ export const cr13: TemplateVariant = defineCreditsVariant(
   font-weight: 400;  /* the page weight - nothing shouts on the way out */
   letter-spacing: 0.04em;  /* a touch of air for the short closing line */
   color: var(--text-dim);  /* secondary ink */
-}`,
+}${o.logoEnabled ? `
+
+/* The delivered mark - modest, the way a colophon sets a printer's device. Emitted only when
+   the wizard's logo toggle is on, so a roll without one carries no rule it never uses. */
+.credits-logo {
+  max-width: calc(330px * var(--scale));  /* wide marks shrink into the measure */
+  max-height: calc(120px * var(--scale));  /* tall marks cap here - proportions preserved */
+  margin-bottom: calc(28px * var(--scale));  /* air between the mark and the year line */
+}
+
+/* No mark picked yet - a quiet dashed slot, so the space is visibly reserved. */
+.credits-logo-slot {
+  display: inline-flex;  /* shrinks to its frame and centres its label */
+  align-items: center;  /* the label sits in the vertical middle… */
+  justify-content: center;  /* …and the horizontal middle */
+  width: calc(260px * var(--scale));  /* a believable mark footprint */
+  height: calc(110px * var(--scale));  /* roughly 2.4:1 - generic mark proportions */
+  margin-bottom: calc(28px * var(--scale));  /* the same air the real mark would get */
+  border: 1px dashed color-mix(in srgb, var(--text-color) 34%, transparent);  /* clearly a placeholder */
+  font-size: calc(20px * var(--scale) * var(--type-scale));  /* the smallest type on the page */
+  letter-spacing: 0.04em;  /* the same small-print tracking the year line takes */
+  color: var(--text-dim);  /* dimmed - the placeholder never competes */
+}` : ''}`,
     rowBuilderJs: `// ── Programme Roll row builders — rebuildCredits() calls these for every parsed entry ──
 
 // renderCreditRow(entry): a section heading, a plain line, or a leader row.
@@ -240,12 +266,16 @@ function renderCreditRow(entry) {
          '</div>';
 }
 
-// renderEndBlock(yearHtml): the colophon the roll stops on — a printed rule and the year.
-// This design takes no logo, so it has no f2 field and draws no mark: the second argument the
-// category passes every row builder is always null here (see endCredits/shared.ts).
-function renderEndBlock(yearHtml) {
+// renderEndBlock(yearHtml, logoSrc): the colophon the roll stops on — a printed rule, the mark
+// if this project asked for one, and the year.${o.logoEnabled ? '' : `
+// The wizard's logo toggle is off for this project, so there is no f2 field and no mark: the
+// second argument is null for the life of this template (see endCredits/shared.ts).`}
+function renderEndBlock(yearHtml${o.logoEnabled ? ', logoSrc' : ''}) {
   return '<div class="credits-end">' +
-           '<div class="credits-rule"></div>' +
+           '<div class="credits-rule"></div>' +${o.logoEnabled ? `
+           (logoSrc
+             ? '<img class="credits-logo" src="' + logoSrc + '" alt="Logo">'
+             : '<div class="credits-logo-slot">Your logo</div>') +` : ''}
            '<div class="credits-year">' + yearHtml + '</div>' +
          '</div>';
 }`,
