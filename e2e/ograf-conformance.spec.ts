@@ -387,3 +387,49 @@ test('actions called concurrently, too early, or after dispose all answer with a
   expect(result.afterDispose, 'an action after dispose() should answer 4xx, not throw').toBe(409);
   expect(result.cleared).toBe(true);
 });
+
+test('a production holding two designs with the same name ships two distinct manifest ids', async ({ page }) => {
+  // The OGraf spec requires ids to be unique per package, and a renderer registers each Graphic
+  // with `customElements.define(manifest.id, class)` — a repeat id throws before the second
+  // graphic is ever mounted. The catalog does hold same-named designs in different categories
+  // (bug05/lt54 "House Ident", card30/pi01 "Public Notice", ig38/tk13 "Results Rail",
+  // tt01/ig03 "Timing Tower", fr03/qz05 "Volt Split"), so one production can hold both members
+  // of a pair. What keeps them apart is the show export renaming the second graphic before any
+  // target packages it — the id derives from that same renamed template, so folder, file and id
+  // carry the suffix together. Sourcing the id anywhere else would let them disagree.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const result = await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const find = (category: string, name: string) => variantsFor(category).find((v) => v.name === name)!;
+    const pair = [find('corner-bug', 'House Ident'), find('lower-third', 'House Ident')];
+    const graphics = pair.map((variant, i) => {
+      const template = variant.create({});
+      return {
+        id: `g-${i}`, name: template.name, type: template.type,
+        savedAt: '2026-01-01T00:00:00.000Z', template, layer: 20 + i,
+      };
+    });
+    const show = {
+      id: 'c1c1c1c1-d2d2-4e3e-8f4f-a5a5a5a5a5a5', name: 'Duplicate Name Show',
+      graphics, updatedAt: '2026-01-01T00:00:00.000Z', hostedSlug: 'x',
+    };
+    const zip = await buildShowZipFor(show, 'ograf');
+    const manifestPaths = Object.keys(zip.files).filter((n) => n.endsWith('.ograf.json'));
+    const ids: string[] = [];
+    for (const path of manifestPaths) ids.push(JSON.parse(await zip.file(path)!.async('string')).id);
+    return { sourceNames: pair.map((v) => v.name), manifestPaths, ids };
+  });
+
+  // Both members really do carry the same catalog name — otherwise the test proves nothing.
+  expect(result.sourceNames).toEqual(['House Ident', 'House Ident']);
+  expect(result.ids, 'the OGraf ids must be distinct AND carry the folders\' own suffix').toEqual([
+    'noacg-house-ident',
+    'noacg-house-ident-2',
+  ]);
+  expect(result.manifestPaths).toEqual([
+    'duplicate_name_show/house_ident/house_ident.ograf.json',
+    'duplicate_name_show/house_ident_2/house_ident_2.ograf.json',
+  ]);
+});
