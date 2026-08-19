@@ -59,6 +59,10 @@ pro-machine-out*/
 # The Pro Phase 0 spike's captures (docs/NOACG_PRO_PLAN.md §0): hold frames, stress holds,
 # virtual-clock motion strips, the blind gallery and its key.
 pro-spike-out*/
+# The recreate runner (scripts/import-recreate-spike.mjs): the masked reference, every round's
+# hold and stress frame, the side-by-side gallery and the per-graphic import.html. The free
+# --control run writes here too, so it appears without anyone choosing to spend a thing.
+recreate-out*/
 # The model-vs-harness four-arm study (scripts/model-vs-harness.mjs): saved generation code,
 # lifecycle captures over the footage bed, the blind sheet and the key that unblinds it.
 # The key must never be committed: it is the whole blind.

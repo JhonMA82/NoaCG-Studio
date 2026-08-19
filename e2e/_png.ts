@@ -67,14 +67,16 @@ export const CARD_TEXT_RECT = { x: 0.18, y: 0.42, width: 0.37, height: 0.13 };
  * tool: flat off-white background, a dark inset frame, a dark "baked text" bar at
  * CARD_TEXT_RECT (the stand-in for a name typed into the design), and a dark blob on the
  * right (the stand-in for cap-side artwork). `background: 'gradient'` makes the background
- * a horizontal ramp instead — the case a flat-fill erase must REFUSE, and `textRect` moves
- * the bar (a design whose text was set centred, or from the right edge).
+ * a smooth horizontal ramp — which the erase REBUILDS with a fitted gradient;
+ * `background: 'noise'` a deterministic speckle no flat colour or plane explains — the case
+ * the erase must REFUSE. `textRect` moves the bar (a design whose text was set centred, or
+ * from the right edge).
  */
 export function framedCardPng(
   width: number,
   height: number,
   opts: {
-    background?: 'flat' | 'gradient';
+    background?: 'flat' | 'gradient' | 'noise';
     textRect?: { x: number; y: number; width: number; height: number };
   } = {},
 ): Buffer {
@@ -105,8 +107,14 @@ export function framedCardPng(
     const row = y * (width * 4 + 1) + 1;
     for (let x = 0; x < width; x++) {
       const p = row + x * 4;
-      // Background: flat off-white, or a left-to-right ramp for the non-flat case.
-      const shade = opts.background === 'gradient' ? Math.round(190 + (x / width) * 60) : 242;
+      // Background: flat off-white, a left-to-right ramp, or a speckle whose amplitude
+      // (±24 counts) is past FLAT_BG_TOLERANCE in every neighbourhood and follows no plane.
+      const shade =
+        opts.background === 'gradient'
+          ? Math.round(190 + (x / width) * 60)
+          : opts.background === 'noise'
+            ? 210 + ((x * 7 + y * 13) % 3) * 20
+            : 242;
       let r = shade, g = shade, b = Math.max(0, shade - 6);
       const inFrameBand =
         x >= frameInset && x < width - frameInset && y >= frameInset && y < height - frameInset;

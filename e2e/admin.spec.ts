@@ -521,6 +521,12 @@ test('what is wrong sits above what is big, and links to the page that fixes it'
         models: [],
         maintenanceNotice: { message: 'Renders are queued', level: 'warning', until: null },
         betaUserIds: [],
+        // One failing deployment term: the gate block must NAME it, because every failing
+        // term vanishes the tier identically for a visitor.
+        hostedPro: {
+          enabled: true, auth: true, ledger: true,
+          task: false, managedKey: true, routesEnabled: true, configured: false,
+        },
       },
     }),
   );
@@ -543,6 +549,13 @@ test('what is wrong sits above what is big, and links to the page that fixes it'
   // And it acts: the kill-switch card opens the section that turns it back on.
   await attention.filter({ hasText: 'Switched off' }).getByRole('button').click();
   await expect(page.locator('.admin-content h1')).toHaveText('System');
+
+  // The hosted-Pro gate block names the ONE term that failed - every failing term vanishes
+  // the tier identically for a visitor, so this diagnosis exists only here.
+  const gateBlock = page.locator('.admin-block').filter({ hasText: 'Hosted Pro gate' });
+  await expect(gateBlock.locator('li').filter({ hasText: '✗' })).toHaveCount(1);
+  await expect(gateBlock.locator('li').filter({ hasText: '✗' })).toContainText('Task registry');
+  await expect(gateBlock.locator('li').filter({ hasText: '✓' })).toHaveCount(5);
 });
 
 test('the overview names what it does not track, so an absence is not read as a zero', async ({ page }) => {

@@ -35,6 +35,9 @@ import { sb17 } from '../scoreboards/sb17';
 import { sb18 } from '../scoreboards/sb18';
 import { sb19 } from '../scoreboards/sb19';
 import { sb20 } from '../scoreboards/sb20';
+import { sb23 } from '../scoreboards/sb23';
+import { sb24 } from '../scoreboards/sb24';
+import { sb25 } from '../scoreboards/sb25';
 import type { GraphicType, TypeControlEvent, TypeField, TypeGroup } from './graphicType';
 
 // ── The shared groups ────────────────────────────────────────────────────────
@@ -289,6 +292,36 @@ export const scorebugType: GraphicType = {
       defaultZone: 'top-left',
       create: (_type, options) => sb08.create(options),
     },
+    {
+      id: 'sb23',
+      name: 'Wire Bug',
+      description: 'A flat wire-service bug: club-colour name cells, paper score cells, an ink clock.',
+      styleTag: 'editorial',
+      palette: paletteById('broadsheet'),
+      fontId: 'archivo',
+      samples: {
+        teamA: 'ARC', scoreA: '2', teamB: 'YLE', scoreB: '1', period: '2ND', clock: '67:14',
+        colourA: '#12409f', colourB: '#6b2fa0',
+      },
+      animationPresets: ['mask-wipe', 'line-reveal', 'slide-up', 'fade', 'slide-down', 'flip-3d'],
+      defaultZone: 'top-left',
+      create: (_type, options) => sb23.create(options),
+    },
+    {
+      id: 'sb24',
+      name: 'Arena Board',
+      description: 'The venue board: leaning club plates with lit score wells around a period-over-clock column.',
+      styleTag: 'sport',
+      palette: paletteById('inferno'),
+      fontId: 'oswald',
+      samples: {
+        teamA: 'HOME', scoreA: '87', teamB: 'GUEST', scoreB: '82',
+        period: 'PERIOD 4', clock: '03:14', colourA: '#1c4fd8', colourB: '#c8202e',
+      },
+      animationPresets: ['pop-spring', 'snap-stinger', 'slide-up', 'fade', 'slide-down', 'flip-3d'],
+      defaultZone: 'top-center',
+      create: (_type, options) => sb24.create(options),
+    },
   ],
 };
 
@@ -390,6 +423,23 @@ export const matchBoardType: GraphicType = {
       },
       animationPresets: ['line-reveal', 'slide-up', 'mask-wipe', 'fade', 'slide-down', 'flip-3d'],
       create: (_type, options) => sb12.create(options),
+    },
+    {
+      id: 'sb25',
+      name: 'Court Board',
+      description: 'A corner board: club plates stacked with fused score cells, a chamfered clock module.',
+      styleTag: 'sport',
+      palette: paletteById('inferno'),
+      fontId: 'oswald',
+      samples: {
+        teamA: 'TIGERS', scoreA: '98', teamB: 'FALCONS', scoreB: '101',
+        period: 'Q4', clock: '01:32',
+        periods: 'FOULS | 4 | 2\nTIMEOUTS | 2 | 3\nBONUS | YES | NO',
+        colourA: '#d4470f', colourB: '#12409f',
+      },
+      animationPresets: ['snap-stinger', 'slide-up', 'mask-wipe', 'fade', 'slide-down', 'flip-3d'],
+      defaultZone: 'top-left',
+      create: (_type, options) => sb25.create(options),
     },
   ],
 };

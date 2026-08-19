@@ -699,10 +699,23 @@ tab frees it within a lease instead of a quarter of an hour. **Only the fleet sl
 a quota, the user's own overlap, the spend ceiling and a duplicate are durable answers, and
 re-asking them would just spend the classroom's request budget.
 
-**The retry SPACING is not measured, and says so.** Lite's 17.8 s came from 18 timed generations;
-Pro has produced few through this route and the telemetry ring is browser-local.
-`AI_PRO_RETRY_SPACING_MS` is a starting value, and `/api/ai/pro-outcome` records `runtime_ms` so
-it can be replaced by a real turnover the way Lite's was.
+**The retry SPACING follows the first measured turnover** - 62 s for a real slot cycle, so the
+default is ~31 s (half the cycle, Lite's rule; three attempts straddle one full turnover).
+`AI_PRO_RETRY_SPACING_MS` moves it without a deploy, and `/api/ai/pro-outcome` keeps recording
+`runtime_ms` so the number keeps following the fleet.
+
+**AN UNSPENT RESERVATION IS RELEASED, so infra failure costs no allowance and no fleet budget.**
+A reservation books the whole $0.15 ceiling; only the first SETTLED call replaces it with real
+spend. A run with ZERO settled calls (a 503, a timeout, an abandoned tab) provably paid for
+nothing - `pro_call_count` is server truth - so once it is terminal or its lease runs out it
+stops counting toward the daily starts and the fleet spend sum (migration 0049 in
+`ai_task_usage`; the same rule mirrored in the memory store, and `/api/ai/pro-outcome` zeroes
+the row and expires the reservation on `failed`). A run with ANY settled call keeps its start
+and its real cost - a validation failure spent real money and counts. The browser adds ONE
+bounded in-session retry on a provider outage only (`shouldRetryModelCall`, modelTypes.ts):
+safe because an unsettled call left the reservation's budget untouched, and a retry is a new
+admission against the SAME booking - never a re-POSTed reservation
+(`api/_lib/pro/reservationAccounting.test.ts` pins all of it, both directions).
 
 **`PRO_STANDARD_ROUTES` (`pro/contract.ts`) is ONE route, pinned so a normal Pro user never picks
 models**, and `api/_lib/aiProProfile.ts` funds exactly that one. **The funded list is ANDed by

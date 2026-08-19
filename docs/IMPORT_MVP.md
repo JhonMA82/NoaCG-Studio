@@ -276,31 +276,54 @@ E2E: the whole roundtrip (wizard handoff → Data-tab add → place → nudge �
 per-layer animate → live sample data → validated export) is pinned in
 e2e/import-graphic.spec.ts.
 
-## The Prepare step: erasing baked-in text (2026-07-19)
+## The Prepare step: erasing baked-in text (2026-07-19; segment rebuild 2026-08-18)
 
 Text exported INTO the design file is pixels — it can never become a live field. The Prepare
 step (wizard step 3) removes it deterministically, offline, with no AI: the user drags a box
 over the text on a source-pixel artwork surface (`components/wizard/DesignPrepCanvas`), and
-`assets/eraseRegion.ts` flat-fills it from the sampled background.
+`assets/eraseRegion.ts` rebuilds the background behind the type.
 
-**The heuristic** (`eraseRegionFlat`): a ring of 16 single-pixel probes **3 px outside** the
-rectangle — 5 across the top, 5 across the bottom, 3 per side. Outside, because the text's own
-antialiasing lives inside the box and would pollute the verdict; a ring, because a background
-flat above the text but a gradient below it must fail. Probes that fall off the image are
-skipped (a design cropped at the frame edge is legitimate).
+**The erase fills the TYPE, not the lasso (2026-08-18).** The original model filled the whole
+drawn rectangle with one mean colour, and two real customer files measured it broken the same
+way: the lasso is loose, so its ring crossed panel edges and backdrop, the verdict failed even
+over a perfectly flat strap, and "use it anyway" painted one giant alien slab across panel,
+divider and backdrop alike. `eraseRegionFlat` now finds the type INSIDE the rectangle first —
+stroke-edge bands, the same discriminator `proposeEraseRect` uses, which needs no background
+estimate and so cannot be fooled by a box spanning two surfaces — splits each line into
+word-gap segments, and fills each segment's own padded box from each segment's own ring.
+Furniture the box crossed (a hairline rule, a chip, an accent bar, a panel edge) is left
+standing. A rect in which no type is detected falls back to the whole-rect fill (the way to
+remove a logo), with the same background models.
 
-**The tolerance:** `FLAT_BG_TOLERANCE = 10` — the worst per-channel 8-bit spread across the
-surviving samples, **alpha included**. Flat design-tool exports sample identical or ±1–2 counts
-even across PNG round-trips; gradients, textures, and photo backdrops blow past 10 within a few
-pixels. Alpha participates so a soft drop shadow crossing the ring fails honestly instead of
-leaving a visible seam after the fill.
+**The heuristic** (per segment, and for the whole-rect fallback): a ring of 16 single-pixel
+probes **3 px outside** the box — 5 across the top, 5 across the bottom, 3 per side. Outside,
+because the text's own antialiasing lives inside the box and would pollute the verdict. Probes
+that fall off the image are skipped (a design cropped at the frame edge is legitimate). Each
+side's pad is **capped before the nearest surface boundary** (a transverse-transition test —
+horizontal edge counts cannot see a horizontal rule), so the probes can only read the surface
+the text itself sits on; a hairline rule one pad short of the descenders no longer poisons the
+verdict. Stroke edges are counted only when the transition SUSTAINS across 2 px — real stems
+are ≥ 2 px at any legible size, while compression ringing and upscaler halos oscillate and
+would otherwise read furniture as type on re-encoded uploads.
 
-- **Flat** → the box is filled with the samples' per-channel mean (written into `ImageData`
-  directly — `fillRect` would COMPOSITE a semi-transparent fill over the text and ghost it
-  through) and applied immediately; hold-to-compare shows the original. A mean alpha ≤ 8
-  writes true transparency, not a tinted veil.
-- **Not flat** → the warning names the deviation, recommends re-exporting the design without
-  the text, and offers **Use it anyway** (applies the average-colour fill the preview showed).
+**The background models, judged by one number.** Flat is `v = mean`; a smooth gradient is a
+per-channel plane `v = a + bx·x + by·y`, least-squares fitted to the ring — both judged by the
+worst per-channel deviation they leave unexplained, against the same `FLAT_BG_TOLERANCE = 10`,
+alpha included. "Smooth gradient" is exactly "flat once the plane is subtracted"; a texture, a
+photo, or a step edge refuses honestly. The fit gets one second chance on TRIMMED probes (the
+worst third dropped against the per-channel median — a rule crossing one side is a minority),
+and a trimmed model is only believed together with the **fill-zone verification**: the box's
+own pixels must be mostly the model's background (≥ 40% within tolerance, ink ≤ 50%), which is
+what refuses a box straddling two surfaces whose "outliers" were half the truth.
+
+- **Clean** (every segment modelled and verified) → each segment box is filled from its own
+  model — one colour where flat, the fitted plane per pixel where a gradient (written into
+  `ImageData` directly — `fillRect` would COMPOSITE a semi-transparent fill over the text and
+  ghost it through) — and applied immediately; hold-to-compare shows the original. A model
+  alpha ≤ 8 writes true transparency, not a tinted veil.
+- **Not clean** → the warning names the deviation and how many text areas failed, recommends
+  re-exporting the design without the text, and offers **Use it anyway** (fills each area with
+  its own local mean — still local, never one slab across the box).
 - **Marks ACCUMULATE.** A design usually carries more than one piece of baked text (a name and
   a title, a scoreline and a clock), so each box is its own erase in `draft.designErases`, run
   against the artwork as it stands — which is also what lets each region's ink be measured

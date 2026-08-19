@@ -21,6 +21,7 @@ import { al09 } from './al09';
 import { al10 } from './al10';
 import { al11 } from './al11';
 import { al12 } from './al12';
+import { al13 } from './al13';
 
 export const ALERTS: TemplateVariant[] = [
   // With a genuine severity machine (the `alert-level` type).
@@ -33,6 +34,7 @@ export const ALERTS: TemplateVariant[] = [
   al12, // Quiet Warning - cinematic severity alert (sibling lt32)
   // Single-state notices - no flag, no severity claim.
   al09, // Breaking Banner - the newsroom strap
+  al13, // Bulletin Band - the rolling-news band with desk and update-time cells
   al07, // Technical Notice — the apology strip
   al08, // Service Status - the operations panel with a live stamp
   al10, // Standby Notice - the house holding card

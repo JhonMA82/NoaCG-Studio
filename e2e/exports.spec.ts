@@ -295,7 +295,9 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
   // The manifest carries the spec's required fields + the field-driven data schema.
   const manifest = JSON.parse(await zip.file('hairline/hairline.ograf.json')!.async('string'));
   expect(manifest.$schema).toBe('https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json');
-  expect(manifest.id).toBe('hairline');
+  // Prefixed and hyphenated, because a renderer registers the Graphic as
+  // customElements.define(manifest.id, …) — see docs/OGRAF.md, "Known limits".
+  expect(manifest.id).toBe('noacg-hairline');
   expect(manifest.main).toBe('graphic.mjs');
   expect(manifest.supportsRealTime).toBe(true);
   expect(manifest.supportsNonRealTime).toBe(false);
@@ -746,6 +748,13 @@ test('no export target ships a relative reference its own package cannot resolve
     const dangling: string[] = [];
     for (const [entryPath, text] of Object.entries(texts)) {
       if (/\.(md|json)$/i.test(entryPath)) continue; // prose and manifests, not loadable refs
+      // A standalone JS module is scanned by the CONFORMANCE spec instead, not here. These are
+      // CSS and markup patterns: inside a module the real references live in JSON-escaped
+      // strings that neither pattern can see (`url(\"fonts/x.woff2\")` has a backslash where the
+      // pattern wants a quote), while the module's own code reads as one — `new URL(ref, base)`
+      // is an `url(…)` match under the /i flag. Only whole .js/.mjs FILES are skipped; the
+      // single-file targets embed their script inside .html and are still scanned in full.
+      if (/\.m?js$/i.test(entryPath)) continue;
       for (const pattern of REL_REFS) {
         for (const [, ref] of text.matchAll(pattern)) {
           // Only PACKAGE-relative references are the package's to satisfy.

@@ -10,6 +10,11 @@
 //   node scripts/pro-spike.mjs --control news-public       # a subset by brief id
 //   node scripts/pro-spike.mjs --alpha --out=<round>      # FREE: re-shoot that round's holds
 //                                                         # transparent, from its own saved code
+//   node scripts/pro-spike.mjs --recompose --set --out=<round>
+//                                                         # FREE: rebuild the round from its
+//                                                         # saved languages through TODAY's
+//                                                         # composer; --set also composes each
+//                                                         # language's package members
 //
 //   # THE EXEMPLAR ABLATION (plan §14 item 3): the grammar arm across the bank, plus a few
 //   # exemplar re-runs to check the stored exemplar arm still reproduces.
@@ -425,8 +430,75 @@ if (flag('recompose')) {
       record[suffix === 'hold' ? 'recomposedHold' : 'recomposedStress'] = `recomposed/${name}`;
     }
     record.recomposedAdjustments = composed.adjustments;
+
+    // ── --set: the REST OF THE PACKAGE from the same saved language (§15.9) ────────────────
+    //
+    // The recompose above answers "what strap would today's composer draw from this paid
+    // language"; this answers the SET question - one language, every package graphic - for the
+    // same zero tokens. It exists because the two committed checkpoint rounds predate the
+    // package surface, so nothing on disk can put their set ROWS side by side
+    // (`two-rounds-notes.md`: "a checkpoint comparison would need the two rounds' rows side by
+    // side, which nothing here builds yet"). A HOLD each, exactly like the paid capture: the
+    // coherence question is answered by three graphics on one screen.
+    if (flag('set')) {
+      const memberDocs = await page.evaluate(async (input) => {
+        const bust = '?t=' + Date.now();
+        const { composeGraphic, packageLines, PRO_GRAPHIC_LIST } = await import('/src/ai/pro/language/graphics.ts' + bust);
+        const { composeDocument } = await import('/src/preview/composeDocument.ts' + bust);
+        const { probeMark } = await import('/src/assets/assetInfo.ts' + bust);
+        const logo = input.mark
+          ? {
+            assetPath: input.mark.path,
+            images: [{ path: input.mark.path, data: input.mark.data }],
+            ...(await probeMark({ path: input.mark.path, data: input.mark.data })),
+          }
+          : null;
+        const out = [];
+        for (const spec of PRO_GRAPHIC_LIST) {
+          if (spec.id === 'lower-third') continue;
+          // Mirrors the wizard's package loop (AiStep.tsx §15.9): the same one-input show
+          // facts, channel deliberately null, a mark only where the type takes one.
+          const composed = composeGraphic(spec.id, input.language, {
+            lines: packageLines(spec.id, { name: input.name, title: input.title, channel: null }),
+            ...(spec.takesMark && logo ? { logo } : {}),
+          });
+          out.push({
+            graphic: spec.id,
+            label: spec.label,
+            html: composeDocument(composed.template),
+            adjustments: composed.adjustments,
+          });
+        }
+        return out;
+      }, {
+        language: saved.language,
+        name: entry.brief.name,
+        title: entry.brief.title,
+        mark: brand ? { path: `images/${brand.markFileName}`, data: brand.markDataUrl } : null,
+      });
+      record.recomposedSet = [];
+      for (const member of memberDocs) {
+        await shotPage.setContent(member.html, { waitUntil: 'load' });
+        await shotPage.evaluate(async () => {
+          try { window.play(); } catch { /* a broken lifecycle still paints - shoot what is there */ }
+          await document.fonts.ready;
+          await new Promise((resolve) => setTimeout(resolve, 1800));
+        });
+        await rasterSettledFrame(shotPage);
+        const name = `${record.slug}.${member.graphic}.png`;
+        await shotPage.screenshot({ path: path.join(dir, name), omitBackground: true });
+        record.recomposedSet.push({
+          graphic: member.graphic,
+          label: member.label,
+          file: `recomposed/${name}`,
+          adjustments: member.adjustments,
+        });
+      }
+    }
+
     done += 1;
-    console.log(`  ${record.slug} · ${composed.adjustments.join(', ') || 'no adjustments'}`);
+    console.log(`  ${record.slug} · ${composed.adjustments.join(', ') || 'no adjustments'}`
+      + `${record.recomposedSet ? ` · set: ${record.recomposedSet.map((m) => m.graphic).join(', ')}` : ''}`);
   }
   await writeFile(file, `${JSON.stringify(ledger, null, 2)}\n`);
   await browser.close();

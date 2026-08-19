@@ -104,7 +104,7 @@ test('the validator refuses the manifest mistakes the spec is strict about', asy
     const { validateOgrafManifest, validateOgrafPackage } = await import('/src/export/targets/ografSchema.ts');
     const base = {
       $schema: schemaUrl,
-      id: 'demo',
+      id: 'noacg-demo',
       name: 'Demo',
       main: 'graphic.mjs',
       supportsRealTime: true,
@@ -117,6 +117,13 @@ test('the validator refuses the manifest mistakes the spec is strict about', asy
       clean: validateOgrafManifest(base).length,
       vendorField: mutate({ noacgFlavour: 'lower-third' }),
       idWithSlash: mutate({ id: 'noacg/demo' }),
+      // Schema-legal, renderer-fatal: SuperFly.tv's OGraf server registers a Graphic with
+      // customElements.define(manifest.id, …), so an id with no hyphen throws before the
+      // Graphic is mounted. Verified against that renderer 2026-08-18 (docs/OGRAF.md).
+      idWithoutHyphen: mutate({ id: 'hairline' }),
+      idStartingWithADigit: mutate({ id: '3-up' }),
+      idWithUppercase: mutate({ id: 'noacg-Hairline' }),
+      idReservedByHtml: mutate({ id: 'font-face' }),
       wrongDefault: mutate({ schema: { type: 'object', properties: { f0: { type: 'boolean', default: 'true' } } } }),
       untypedProperty: mutate({ schema: { type: 'object', properties: { f0: { title: 'Name' } } } }),
       duplicateAction: mutate({ customActions: [{ id: 'select', name: 'A' }, { id: 'select', name: 'B' }] }),
@@ -234,6 +241,92 @@ test('skipAnimation lands the action instantly, in real time', async ({ page }) 
   expect(result.control, 'the control case was already settled — the assertion proves nothing').not.toBe('1');
 });
 
+test('the loaded Graphic resolves its own fonts and images against the PACKAGE, not the host page', async ({ page }) => {
+  // A Graphic is a component inside somebody else's document. A relative `fonts/inter.woff2`
+  // in the injected CSS therefore resolves against the RENDERER's directory, not the package —
+  // and the failure is silent, because `font-display: swap` paints the fallback face. Found by
+  // loading a real package into SuperFly.tv's OGraf server, which requested
+  // /renderer/renderer-layer/fonts/inter.woff2, got a 404, and aired the graphic in Arial
+  // (docs/OGRAF.md, "What an external renderer said"). Under SPX the same path is correct,
+  // because there the template IS the document — which is why nothing local caught it.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  const zip = await downloadOgraf(page);
+  const origin = 'http://ograf-assets.local';
+  await serve(page, zip, origin, 'hairline');
+
+  const result = await page.evaluate(async (origin) => {
+    const mod = await import(`${origin}/graphic.mjs`);
+    customElements.define('ograf-assets-under-test', mod.default);
+    type Driver = HTMLElement & { load(p: unknown): Promise<unknown>; dispose(p?: unknown): Promise<unknown> };
+    const el = document.createElement('ograf-assets-under-test') as Driver;
+    document.body.appendChild(el);
+    await el.load({ data: {}, renderType: 'realtime', renderCharacteristics: {} });
+    const css = el.querySelector('style')!.textContent!;
+    const refs = [...css.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/g)].map((m) => m[1]);
+    // Fetching each one is the dangling-reference half: the fake origin 404s anything the
+    // package does not contain, so a 200 means the file is really there under that path.
+    const statuses = await Promise.all(
+      refs.filter((ref) => !ref.startsWith('data:')).map(async (ref) => `${ref} -> ${(await fetch(ref)).status}`),
+    );
+    await el.dispose({});
+    el.remove();
+    return { refs, statuses, sawFontFace: /@font-face/.test(css) };
+  }, origin);
+
+  expect(result.sawFontFace, 'this design ships no bundled font — pick one that does').toBe(true);
+  expect(result.refs.length, 'the injected CSS references nothing at all').toBeGreaterThan(0);
+  for (const ref of result.refs) {
+    // Absolute, and pointing INTO the package. A `data:` URL is already self-contained.
+    expect(ref.startsWith(`${origin}/`) || ref.startsWith('data:'), `"${ref}" is not package-relative`).toBe(true);
+  }
+  expect(result.statuses.length, 'nothing was fetched — the containment half proves nothing').toBeGreaterThan(0);
+  for (const line of result.statuses) expect(line, 'the package does not contain what its CSS names').toContain('-> 200');
+});
+
+test('two DIFFERENT graphics in one document do not write into each other', async ({ page }) => {
+  // An OGraf renderer mounts every layer as a Web Component in ONE document — that is the
+  // arrangement the standard is for. Our field convention is `getElementById('fN')` and the
+  // ids are the same in every design, so before this was scoped, updating the graphic on
+  // layer 1 rewrote the graphic on layer 0: document.getElementById answered with whichever
+  // #f0 came first. Measured on SuperFly.tv's OGraf server (docs/OGRAF.md). Two instances of
+  // the SAME design is a different, still-documented limit — class-keyed GSAP selectors
+  // cannot be told apart — which is why this test uses two different designs.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await serve(page, await downloadOgraf(page), 'http://ograf-a.local', 'hairline');
+  await createProject(page, { name: 'Public Notice' });
+  await serve(page, await downloadOgraf(page), 'http://ograf-b.local', 'public_notice');
+
+  const result = await page.evaluate(async () => {
+    type Driver = HTMLElement & {
+      load(p: unknown): Promise<unknown>;
+      updateAction(p: unknown): Promise<unknown>;
+      playAction(p: unknown): Promise<unknown>;
+    };
+    const mount = async (origin: string, tag: string, data: Record<string, string>) => {
+      const mod = await import(`${origin}/graphic.mjs`);
+      customElements.define(tag, mod.default);
+      const el = document.createElement(tag) as Driver;
+      document.body.appendChild(el);
+      await el.load({ data, renderType: 'realtime', renderCharacteristics: {} });
+      await el.playAction({});
+      return el;
+    };
+    const a = await mount('http://ograf-a.local', 'ograf-neighbour-a', { f0: 'A owns this' });
+    const b = await mount('http://ograf-b.local', 'ograf-neighbour-b', {});
+    // Update ONLY b. a must be untouched, and b must actually have changed.
+    await b.updateAction({ data: { f0: 'B owns this' } });
+    return {
+      a: a.querySelector('#f0')?.textContent,
+      b: b.querySelector('#f0')?.textContent,
+      duplicateIds: document.querySelectorAll('#f0').length,
+    };
+  });
+
+  expect(result.duplicateIds, 'the two graphics did not both mount an #f0 — nothing was proven').toBe(2);
+  expect(result.b, "the updated graphic's own field did not change").toBe('B owns this');
+  expect(result.a, 'updating one graphic rewrote the graphic beside it').toBe('A owns this');
+});
+
 test('actions called concurrently, too early, or after dispose all answer with a ReturnPayload', async ({ page }) => {
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
   const zip = await downloadOgraf(page);
@@ -293,4 +386,50 @@ test('actions called concurrently, too early, or after dispose all answer with a
   expect(result.disposed).toBe(200);
   expect(result.afterDispose, 'an action after dispose() should answer 4xx, not throw').toBe(409);
   expect(result.cleared).toBe(true);
+});
+
+test('a production holding two designs with the same name ships two distinct manifest ids', async ({ page }) => {
+  // The OGraf spec requires ids to be unique per package, and a renderer registers each Graphic
+  // with `customElements.define(manifest.id, class)` — a repeat id throws before the second
+  // graphic is ever mounted. The catalog does hold same-named designs in different categories
+  // (bug05/lt54 "House Ident", card30/pi01 "Public Notice", ig38/tk13 "Results Rail",
+  // tt01/ig03 "Timing Tower", fr03/qz05 "Volt Split"), so one production can hold both members
+  // of a pair. What keeps them apart is the show export renaming the second graphic before any
+  // target packages it — the id derives from that same renamed template, so folder, file and id
+  // carry the suffix together. Sourcing the id anywhere else would let them disagree.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const result = await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const find = (category: string, name: string) => variantsFor(category).find((v) => v.name === name)!;
+    const pair = [find('corner-bug', 'House Ident'), find('lower-third', 'House Ident')];
+    const graphics = pair.map((variant, i) => {
+      const template = variant.create({});
+      return {
+        id: `g-${i}`, name: template.name, type: template.type,
+        savedAt: '2026-01-01T00:00:00.000Z', template, layer: 20 + i,
+      };
+    });
+    const show = {
+      id: 'c1c1c1c1-d2d2-4e3e-8f4f-a5a5a5a5a5a5', name: 'Duplicate Name Show',
+      graphics, updatedAt: '2026-01-01T00:00:00.000Z', hostedSlug: 'x',
+    };
+    const zip = await buildShowZipFor(show, 'ograf');
+    const manifestPaths = Object.keys(zip.files).filter((n) => n.endsWith('.ograf.json'));
+    const ids: string[] = [];
+    for (const path of manifestPaths) ids.push(JSON.parse(await zip.file(path)!.async('string')).id);
+    return { sourceNames: pair.map((v) => v.name), manifestPaths, ids };
+  });
+
+  // Both members really do carry the same catalog name — otherwise the test proves nothing.
+  expect(result.sourceNames).toEqual(['House Ident', 'House Ident']);
+  expect(result.ids, 'the OGraf ids must be distinct AND carry the folders\' own suffix').toEqual([
+    'noacg-house-ident',
+    'noacg-house-ident-2',
+  ]);
+  expect(result.manifestPaths).toEqual([
+    'duplicate_name_show/house_ident/house_ident.ograf.json',
+    'duplicate_name_show/house_ident_2/house_ident_2.ograf.json',
+  ]);
 });

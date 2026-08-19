@@ -157,7 +157,7 @@ these are the commitments.
 | Tier | Who pays | Price target | What it is | State |
 |---|---|---|---|---|
 | **NoaCG Lite** | us, free to the user | **100 graphics per €1** (~€0.01 each); measured **$0.00032** | **Promise: a proven catalog design, carrying your brand and your words - reliably, every time.** Grounded in **our catalog**: the model picks a proven design and adapts it. It does not invent a layout. | **its own value gate answered NO 2026-08-14; REVIVED by owner decision 2026-08-15, and the bar is a re-run of that same gate** |
-| **NoaCG Pro** | user, a little | **~€10 per 100 graphics** (~€0.10 each) | **Promise: an on-air look designed for your channel - a palette, type voice, accent form and motion character no shipped design carries - rendered by the platform, so the layout is always sound.** The model decides the design LANGUAGE; the platform composes every graphic in it (`docs/NOACG_PRO_PLAN.md` §15). Not "a composition no shipped design uses": composing the panel is the premise three rounds measured to fail, and §15.4 retires it. | **direction replaced by §15 Phase A (built 2026-08-15, bench-only).** Offered ONLY where the server says hosted Pro is available (`AI_PRO_ENABLED`) and the deployment has the backend to meter it; it never asks a user for a key |
+| **NoaCG Pro** | user, a little | **~€10 per 100 graphics** (~€0.10 each); measured **~$0.004 per package** | **Promise: an on-air look designed for your channel, and every graphic of the package built in it - a palette, type voice, accent form and motion character no shipped design carries - rendered by the platform, so the layout is always sound.** The model decides the design LANGUAGE; the platform composes every graphic in it (`docs/NOACG_PRO_PLAN.md` §15). Not "a composition no shipped design uses": composing the panel is the premise three rounds measured to fail, and §15.4 retires it. | **LIVE since 2026-08-15** on hosted deployments (`AI_PRO_ENABLED` + a metering backend; it never asks a user for a key). The package (lower third + sponsor bug + countdown from one generation) shipped 2026-08-16; three consecutive clean owner blind reads (§17/§19/§21) |
 | **Bring your own key** | the user's own provider account | whatever that provider charges, shown per model | Any model OpenAI, Anthropic, Google or Hugging Face offers, on the user's key. No NoaCG money, no NoaCG allowance. | shipped |
 | **NoaCG Extreme** | subscription | not set - after there is income | The newest frontier models designing directly. Expensive, technically the simplest. | not started, needs income first |
 
@@ -231,13 +231,14 @@ the owner's eyes, and that is the part that decides.
       and "good" now has one definition: passing the §2 re-run described above. Two ballot notes
       are still unfixed and belong in the build the re-run films: a rule/underline crossing the
       name on two designs, and a title with no contrast on a light package.
-- [ ] **Pro: the open broadcast specialist** (`docs/NOACG_PRO_PLAN.md`). Reconstruction is
-      retired (`benchmarks/pro/round-2026-08-08/` through `-10/` hold the evidence); the
-      replacement is a strong open-weight model authoring HTML/CSS/SVG directly in the platform
-      scaffold, complete-exemplar retrieval first, humans judging rendered output. Next slice:
-      the Phase 0 go/no-go spike - zero-token control run, then the 12-brief bank in paired
-      exemplar/no-exemplar arms on one or two pinned checkpoints, spend capped and approved
-      separately.
+- [ ] **Pro: the design-language tier** (`docs/NOACG_PRO_PLAN.md`). Both earlier premises are
+      retired on evidence: reconstruction (§16) and the free-form coder (§21 - four checkpoints
+      one-shot ~30% airable against Phase A's 14/15). What runs is Phase A: one text call buys a
+      design LANGUAGE, the platform composes the package. Open, in order: the two-round set read
+      (`benchmarks/pro/evidence/two-rounds-sets-blind.html`) that pins Pro's route; validating
+      the fail-closed custom lane (seven §22.1 gate leaks closed, re-read 21/21 - one clean
+      round justifies a validation round, not a ship); the topic card's read into the package.
+      Every paid round stays spend-capped and approved separately.
 - [ ] **A generated graphic can carry its own STATE MACHINE.** Every tier, not Pro. The platform has
       the engine, the node editor, the control pages and the hosted log - and **no generation path
       asks a model for a machine** (the only mention in `src/ai` is Lite's refusal code). A
