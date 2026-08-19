@@ -379,7 +379,8 @@ test('a normalized event becomes the production-data patch, under one root', () 
 
 test('a value the provider does not have is ABSENT from the patch, never null', () => {
   // A null in a merge patch DELETES the key (RFC 7386), and a graphic would then keep a stale
-  // value with no way to tell. Writing nothing is what docs/PRODUCTION_DATA_PLAN.md §2.6 asks for.
+  // value with no way to tell. An unresolvable path writing nothing is what the production-data
+  // resolver already does (migration 0048), so absent is the shape that matches it.
   const patch = eventToProductionData(normalizeEvent(UPCOMING_SOCCER.events[0]));
   assert.equal('score' in patch.match.home, false);
   assert.equal('score' in patch.match.away, false);
@@ -433,7 +434,7 @@ test('the production-data write target reports its dependency instead of guessin
   assert.equal(patch.supported, false);
   assert.equal(patch.endpoint, null);
   assert.match(patch.reason, /BLOCKED/);
-  assert.match(patch.reason, /PRODUCTION_DATA_PLAN/);
+  assert.match(patch.reason, /control_data_patch/);
 
   assert.equal(resolveWriteTarget('something-else').supported, false);
 });

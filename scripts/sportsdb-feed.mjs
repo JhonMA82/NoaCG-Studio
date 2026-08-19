@@ -3,9 +3,8 @@
 // to a published production.
 //
 // The shape is scripts/weather-feed.mjs's, deliberately: a connector is an EXTERNAL process that
-// reads a provider and writes through the API (docs/CLOUD_PLAYOUT.md §7,
-// docs/PRODUCTION_DATA_PLAN.md §2.8). There is no in-app poller and no scheduler here - one loop,
-// in one file, that Ctrl-C stops.
+// reads a provider and writes through the API (docs/CLOUD_PLAYOUT.md §7). There is no in-app
+// poller and no scheduler here - one loop, in one file, that Ctrl-C stops.
 //
 // Data by TheSportsDB (https://www.thesportsdb.com). The free V1 key is the public literal `123`.
 //
@@ -32,9 +31,9 @@
 //                         NOT the *.vercel.app one: that host 308-redirects and clients commonly
 //                         drop POST bodies on redirect)
 //   --graphic <name>      pool graphic name; repeat to drive several graphics
-//   --target update|patch write path. `patch` is the production-data contract and is not
-//                         shipped yet - it reports the dependency and exits (see
-//                         scripts/sportsdb/productionData.mjs)
+//   --target update|patch write path. `patch` is the production-data one: its database half is
+//                         on main (migration 0048) but no HTTP verb reaches it yet, so this
+//                         reports the dependency and exits (scripts/sportsdb/productionData.mjs)
 //   --root <name>         where the data hangs in the production tree (default `match`)
 //   --watch               keep refreshing instead of running once
 //   --interval <s>        seconds between refreshes with --watch (default 60, min 15)

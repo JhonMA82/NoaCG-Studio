@@ -5,9 +5,9 @@
 // slots into later: `createSportsDbSource` is one implementation of "a sports source", and
 // nothing above it names TheSportsDB.
 //
-// Deliberately NOT here (docs/PRODUCTION_DATA_PLAN.md §10.5): a poller, a scheduler, a cache, a
-// retry loop. A connector is an external process that fetches and pushes; the loop belongs to
-// the process, and scripts/sportsdb-feed.mjs owns exactly one, in about ten lines.
+// Deliberately NOT here: a poller, a scheduler, a cache, a retry loop. A connector is an
+// EXTERNAL process that fetches and pushes; the loop belongs to the process, and
+// scripts/sportsdb-feed.mjs owns exactly one, in about ten lines.
 
 import { createSportsDbClient } from './client.mjs';
 import { SportsDbError } from './errors.mjs';

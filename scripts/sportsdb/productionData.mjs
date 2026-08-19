@@ -9,11 +9,15 @@
 //     const patch = eventToProductionData(event);      // done, below
 //     await productionData.patch(productionId, patch); // NOT DONE - not ours to build
 //
-// The third line needs the production-data write contract that is being designed in the other
-// worktree (docs/PRODUCTION_DATA_PLAN.md, branch claude/new-session-db3cd5). Its Phase 2 names
-// `PATCH /api/data` with RFC 7386 merge-patch semantics and the existing per-production data
-// key - but that endpoint does not exist yet, and inventing a stand-in here would be the second
-// production-data implementation that plan explicitly forbids (§10).
+// The third line needs the production-data write path, which is being built in another worktree
+// and has landed by HALVES. The database half is on main: migration
+// 0048_production_data_tree.sql carries `control_data_patch(p_key, p_patch)` - RFC 7386 merge,
+// bindings resolved and diffed in one locked transaction, authorized by the same per-production
+// data key. The HTTP half is NOT: `api/data/[...path].ts` still routes `update` and nothing
+// else, so no caller outside the database can reach that RPC yet.
+//
+// Wiring a stand-in here (a direct service-role call, a second endpoint) would be the second
+// production-data ingress - the thing this connector exists NOT to become.
 //
 // So this file stops at the patch OBJECT. `resolveWriteTarget('patch')` reports the dependency
 // instead of faking it, and the transitional path below drives the SHIPPED graphic-addressed
@@ -26,20 +30,21 @@
 /**
  * Where the connector's data hangs in the production's tree.
  *
- * `match` rather than `sports.event` on purpose: docs/PRODUCTION_DATA_PLAN.md §2.2/§6 already
- * writes its worked examples as `match.home.score` and `match.clock`, and a connector that
- * invents a parallel vocabulary makes every binding in that plan wrong. It is a single option
- * because a production running two matches at once needs two roots (`matchA`, `matchB`) - which
- * costs one flag, not a framework.
+ * `match` rather than `sports.event` on purpose: the production-data work writes its worked
+ * examples as `match.home.score`, and migration 0048_production_data_tree.sql resolves exactly
+ * that grammar - a connector that invents a parallel vocabulary makes every one of those
+ * bindings wrong. It is a single option because a production running two matches at once needs
+ * two roots (`matchA`, `matchB`), which costs one flag, not a framework.
  */
 export const DEFAULT_ROOT = 'match';
 
 /** Drop null/undefined leaves and any object left empty by that, recursively.
  *
- *  This is what makes "no score yet" behave: docs/PRODUCTION_DATA_PLAN.md §2.6 writes nothing
- *  for a missing path, whereas a null in an RFC 7386 patch would DELETE the key. Sending
- *  neither is the honest option - the graphic keeps its authored default until a real value
- *  arrives, and an operator's manual value is not wiped by a feed that knows nothing. */
+ *  This is what makes "no score yet" behave: an unresolvable path writes nothing (migration
+ *  0048's `production_data_resolve` contributes no row for one), whereas a null in an RFC 7386
+ *  patch would DELETE the key. Sending neither is the honest option - the graphic keeps its
+ *  authored default until a real value arrives, and an operator's manual value is not wiped by
+ *  a feed that knows nothing. */
 export function pruneEmpty(value) {
   if (Array.isArray(value)) return value;
   if (value === null || typeof value !== 'object') return value;
@@ -106,7 +111,8 @@ export function teamToProductionData(team, { root = 'team', includeSource = true
 }
 
 /**
- * A patch object -> its leaf paths, in the dot grammar of docs/PRODUCTION_DATA_PLAN.md §2.2.
+ * A patch object -> its leaf paths, in the dot grammar the production-data resolver walks
+ * (`match.home.score`, `drivers.0.gap` - migration 0048).
  * Useful for printing what a fetch would write, and for the binding picker later.
  */
 export function flattenPatch(patch, prefix = '') {
@@ -126,8 +132,8 @@ export function flattenPatch(patch, prefix = '') {
  * TRANSITIONAL. A normalized event -> the field LABELS the shipped Data API writes by
  * (docs/DATA_API.md, "Field-label mapping").
  *
- * This exists because production data does not ship yet and a connector nobody can run is not
- * evidence of anything. It is label-addressed, never graphic-addressed: the connector still has
+ * This exists because no HTTP verb reaches the production-data patch yet, and a connector
+ * nobody can run is not evidence of anything. It is label-addressed, never graphic-addressed: the connector still has
  * no idea which graphic is on air (the operator names that with `--graphic`), and it contains no
  * template id anywhere. `Team A`/`Score A` are the scoreboard family's own field titles
  * (src/templates/scoreboards/shared.ts); the home/away aliases let the same payload land on
@@ -185,9 +191,10 @@ export function resolveWriteTarget(mode = 'update') {
       method: null,
       addressing: 'production data paths',
       reason:
-        'BLOCKED: the production-data write contract (PATCH /api/data, merge-patch by path) is ' +
-        'being built in the Production Data worktree - docs/PRODUCTION_DATA_PLAN.md §4, Phase 2. ' +
-        'The connector produces the patch object already; only the call is missing.',
+        'BLOCKED: the production-data write has landed by halves. The database half is on main ' +
+        '(migration 0048, control_data_patch), but no HTTP verb reaches it yet - api/data ' +
+        'routes update only. The connector produces the patch object already; only the ' +
+        'call is missing.',
     };
   }
   return {

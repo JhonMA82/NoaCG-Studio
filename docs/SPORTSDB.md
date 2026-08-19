@@ -3,7 +3,7 @@
 NoaCG's first external SPORTS source. It reads TheSportsDB, normalizes what it finds into
 NoaCG's own vocabulary, and hands that on as production data. It is a **connector**, not a
 feature of the studio: an external process that fetches and pushes, the shape
-`docs/PRODUCTION_DATA_PLAN.md` §2.8 asks for and `scripts/weather-feed.mjs` already follows.
+`docs/CLOUD_PLAYOUT.md` §7 asks for and `scripts/weather-feed.mjs` already follows.
 
 ```
 TheSportsDB V1 API
@@ -19,8 +19,8 @@ TheSportsDB V1 API
       X  production data write                 BLOCKED - see "Integration point" below
 ```
 
-Everything above the last line is built and tested offline. The last line waits on the contract
-being designed in the Production Data worktree, and is deliberately not improvised here.
+Everything above the last line is built and tested offline. The last line waits on the HTTP verb
+that reaches production data, and is deliberately not improvised here (§4).
 
 ---
 
@@ -145,12 +145,14 @@ and the normalized shape has exactly one `badge`.
 Graphics then bind to `match.home.name`, `match.home.score`, `match.home.logo`, `match.status`
 and so on - several graphics to the same paths, none of them known to this connector.
 
-- **The root is `match`** because `docs/PRODUCTION_DATA_PLAN.md` §2.2/§6 already writes its
-  examples that way. Two simultaneous matches use `--root matchA` / `--root matchB`; that is one
-  flag, not a framework.
+- **The root is `match`** because that is the grammar the production-data resolver walks
+  (migration `0048_production_data_tree.sql`), and its own examples read `match.home.score`.
+  Two simultaneous matches use `--root matchA` / `--root matchB`; that is one flag, not a
+  framework.
 - **A value the provider does not have is ABSENT, never `null`.** In an RFC 7386 merge patch a
-  `null` DELETES the key. Writing nothing is what the plan's §2.6 asks for, and it means a
-  feed that knows nothing cannot wipe an operator's manual value.
+  `null` DELETES the key, while an unresolvable path simply writes nothing (0048's
+  `production_data_resolve` yields no row for one) - so a feed that knows nothing cannot wipe
+  an operator's manual value.
 
 ---
 
@@ -162,11 +164,17 @@ const patch = eventToProductionData(event);        // done
 await productionData.patch(productionId, patch);   // BLOCKED - the other worktree owns this
 ```
 
-The write contract - `PATCH /api/data`, merge-patch by path, the existing per-production data
-key - is Phase 2 of `docs/PRODUCTION_DATA_PLAN.md` §4 and is being built on branch
-`claude/new-session-db3cd5`. Building a stand-in here would be the second production-data
-implementation that plan forbids (§10), so `resolveWriteTarget('patch')` **reports the
-dependency** instead of inventing an endpoint, and the feed refuses to run in that mode.
+The production-data write has landed by **halves**. The database half is on `main`: migration
+`0048_production_data_tree.sql` carries `control_data_patch(p_key, p_patch)` - an RFC 7386 merge
+with bindings resolved and diffed inside one locked transaction, authorized by the same
+per-production data key, and rate limited by the same ingest budget. **The HTTP half is not**:
+`api/data/[...path].ts` still routes `update` and nothing else, so nothing outside the database
+can reach that RPC.
+
+Wiring a stand-in here - a direct service-role call, or a second endpoint of our own - would be
+exactly the second production-data ingress this connector exists not to become. So
+`resolveWriteTarget('patch')` **reports the dependency** instead of inventing an endpoint, and
+the feed refuses to run in that mode.
 
 **Transitional path, so the connector is demonstrable today:** the shipped, graphic-addressed
 Data API (`POST /api/data/update`, `docs/DATA_API.md`). `eventToFieldLabels` maps a normalized
@@ -194,9 +202,8 @@ node scripts/sportsdb-feed.mjs --team "Arsenal" --key <data key> --graphic "Hous
 ```
 
 `--watch` is the ONLY refresh mechanism, and it lives in this process. There is no in-app
-poller, no scheduler and no second global service (`docs/PRODUCTION_DATA_PLAN.md` §10.5). If
-scheduled refresh ever belongs anywhere, it belongs to the Data Hub, which owns every source
-equally - not to this connector.
+poller, no scheduler and no second global service. If scheduled refresh ever belongs anywhere,
+it belongs to the Data Hub, which owns every source equally - not to this connector.
 
 **Failure behaviour is freeze**, exactly as `weather-feed.mjs`: a failed provider read or a
 failed POST writes nothing, so the graphics keep their last values, and the next tick retries.
