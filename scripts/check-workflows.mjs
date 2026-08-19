@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const workflowDir = path.join(repoRoot, '.github', 'workflows');
+const actionDir = path.join(repoRoot, '.github', 'actions');
 
 // Run the CLI's own module with this Node, not the `node_modules/.bin` shim. On Windows that
 // shim is a `.cmd`, and Node refuses to spawn a batch file without `shell: true` (EINVAL) - and
@@ -48,7 +49,8 @@ let files;
 try {
   files = readdirSync(workflowDir)
     .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
-    .sort();
+    .sort()
+    .map((name) => path.posix.join('.github/workflows', name));
 } catch (error) {
   console.error(`Cannot read ${workflowDir}: ${error.message}`);
   process.exit(1);
@@ -62,9 +64,30 @@ if (files.length === 0) {
   process.exit(1);
 }
 
+// COMPOSITE ACTIONS COUNT TOO. `.github/actions/*/action.yml` is workflow code by another name -
+// the jobs that `uses:` one cannot run without it - and it was outside this gate until a step
+// shared by three jobs moved into one. An unvalidated action.yml fails the same way an
+// unvalidated workflow does: not at build time, but on a push, in whichever job reached it
+// first. The validator takes an action file as happily as a workflow file, so including them
+// costs a directory read. Absent directory = nothing to add, which is not an error the way an
+// empty workflow directory is: a repo with no composite actions is a normal repo.
+try {
+  const actions = readdirSync(actionDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .filter((entry) => readdirSync(path.join(actionDir, entry.name)).includes('action.yml'))
+    .map((entry) => path.posix.join('.github/actions', entry.name, 'action.yml'))
+    .sort();
+  files = files.concat(actions);
+} catch (error) {
+  if (error.code !== 'ENOENT') {
+    console.error(`Cannot read ${actionDir}: ${error.message}`);
+    process.exit(1);
+  }
+}
+
 let failed = 0;
-for (const name of files) {
-  const target = path.join(workflowDir, name);
+for (const rel of files) {
+  const target = path.join(repoRoot, rel);
   const result = spawnSync(process.execPath, [cli, target], { cwd: repoRoot, encoding: 'utf8' });
   if (result.error) {
     console.error(`Could not run action-validator: ${result.error.message}`);
@@ -73,7 +96,7 @@ for (const name of files) {
   }
   if (result.status !== 0) {
     failed += 1;
-    console.error(`\n.github/workflows/${name} is invalid:`);
+    console.error(`\n${rel} is invalid:`);
     // The validator reports as JSON on stdout; print it as-is rather than reformatting, so the
     // paths and line numbers it gives are the ones a search will find.
     process.stderr.write(`${(result.stdout || result.stderr || '').trim()}\n`);
@@ -85,4 +108,4 @@ if (failed > 0) {
   process.exit(1);
 }
 
-console.log(`Workflows OK: ${files.length} validated (${files.join(', ')}).`);
+console.log(`Workflows OK: ${files.length} validated (${files.map((rel) => path.posix.basename(path.posix.dirname(rel)) === 'workflows' ? path.posix.basename(rel) : rel).join(', ')}).`);

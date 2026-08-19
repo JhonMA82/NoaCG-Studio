@@ -60,24 +60,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Resolve Playwright version
-        id: playwright-version
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browser
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
-
-      - name: Install Playwright browser
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-
-      - name: Install Playwright system dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+      - uses: ./.github/actions/playwright-chromium
 
       # No spec filter: this tier is the whole suite, by definition.
       - name: E2E shard
@@ -116,8 +99,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright-chromium
 
       - name: Catalog calibration tripwire
         run: npm run test:e2e:catalog
@@ -137,8 +119,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright-chromium
 
       # All three gates render every catalog variant against a live dev server, so they need one -
       # the same shape as ci.yml's factory job, trap and readiness poll included.
