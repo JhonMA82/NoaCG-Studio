@@ -5,7 +5,7 @@
 // (a 503, a timeout, an abandoned tab) kept the booking in the daily sums for 24 h - so ~33
 // failed starts disabled the tier fleet-wide at $0 real spend, and every infra failure burned
 // one of a student's three daily starts. The rule: a start and the fleet's money are consumed
-// IFF provider spend occurred (>= 1 settled call). Mirrored in SQL by migration 0048.
+// IFF provider spend occurred (>= 1 settled call). Mirrored in SQL by migration 0049.
 //
 // Every claim is asserted with its mutation: a released row must stop counting AND a
 // counted row must still count, or the predicate could release everything and pass.

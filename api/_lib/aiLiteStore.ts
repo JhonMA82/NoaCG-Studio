@@ -245,7 +245,7 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
     // A Pro reservation that never settled a call spent NOTHING - the row still carries its
     // booked worst case, and it either failed or ran out its lease unreported. Such a row
     // neither consumed a start nor any of the fleet's money, so the counts release it the
-    // moment it is terminal or expired. Predicate mirrored from migration 0048's
+    // moment it is terminal or expired. Predicate mirrored from migration 0049's
     // `ai_task_usage`; deliberately Pro-only - Lite's analog (a pre-call failure keeping its
     // $0.007 booking) is real but an order of magnitude less acute, and its quota semantics
     // change on its own evidence, not as a rider here.

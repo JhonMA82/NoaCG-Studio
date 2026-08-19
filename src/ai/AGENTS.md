@@ -708,7 +708,7 @@ default is ~31 s (half the cycle, Lite's rule; three attempts straddle one full 
 A reservation books the whole $0.15 ceiling; only the first SETTLED call replaces it with real
 spend. A run with ZERO settled calls (a 503, a timeout, an abandoned tab) provably paid for
 nothing - `pro_call_count` is server truth - so once it is terminal or its lease runs out it
-stops counting toward the daily starts and the fleet spend sum (migration 0048 in
+stops counting toward the daily starts and the fleet spend sum (migration 0049 in
 `ai_task_usage`; the same rule mirrored in the memory store, and `/api/ai/pro-outcome` zeroes
 the row and expires the reservation on `failed`). A run with ANY settled call keeps its start
 and its real cost - a validation failure spent real money and counts. The browser adds ONE

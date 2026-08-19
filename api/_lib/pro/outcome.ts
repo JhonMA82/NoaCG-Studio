@@ -63,7 +63,7 @@ export function proOutcomePatch(
     // reservation's booked worst case, and leaving it there let ~33 failed starts consume the
     // whole fleet's daily budget at $0 real spend. `proCallCount` is SERVER truth (the proxy
     // settles every billed call), so releasing on it never takes a client's word about money;
-    // a run with any settled call keeps its settled figure untouched. Migration 0048 applies
+    // a run with any settled call keeps its settled figure untouched. migration 0049 applies
     // the same rule inside `ai_task_usage`, which also covers runs that never report at all.
     ...(failed && record.proCallCount === 0 ? { providerCostUsd: 0 } : {}),
     // 'failed' is TERMINAL: expire the reservation so it can pay for nothing further. Without
