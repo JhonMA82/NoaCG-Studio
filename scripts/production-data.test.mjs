@@ -36,6 +36,7 @@ const {
   parsePath,
   patchForPath,
   reparseLeaf,
+  replacementPatch,
   resolveBindings,
   setPath,
   suggestPath,
@@ -199,6 +200,33 @@ test('reparseLeaf keeps a list a list when its box is edited', () => {
   assert.equal(reparseLeaf('text', '42'), 42);
   assert.equal(reparseLeaf(3, '4'), 4);
   assert.equal(reparseLeaf(undefined, 'Finland'), 'Finland');
+});
+
+test('replacementPatch turns before into after EXACTLY, removals included', () => {
+  // The round trip is the property that matters: applying the patch must reproduce `after`,
+  // because the hosted path can only accept patches and a surface that replaces a whole tree
+  // (Reset, Clear, Raw JSON) has to say the removals out loud.
+  const cases = [
+    [{ a: 1, b: 2 }, { a: 1 }],
+    [{ a: { b: 1, c: 2 } }, { a: { b: 1 } }],
+    [{ a: 1 }, {}],
+    [{}, { a: { b: 1 } }],
+    [{ match: { home: { score: 1 } }, weather: { t: 4 } }, { match: { home: { score: 2 } } }],
+    [{ rows: [1, 2] }, { rows: [3] }],
+    [{ a: { b: 1 } }, { a: 'scalar' }],
+  ];
+  for (const [before, after] of cases) {
+    const patch = replacementPatch(before, after);
+    assert.deepEqual(applyPatch(before, patch), after, `${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+  }
+});
+
+test('replacementPatch names only what changed', () => {
+  // A patch carrying untouched branches would be bigger than the edit and, on the wire, would
+  // re-send values a feed may have moved in the meantime.
+  assert.deepEqual(replacementPatch({ a: { b: 1 }, c: 2 }, { a: { b: 1 }, c: 3 }), { c: 3 });
+  assert.deepEqual(replacementPatch({ a: { b: 1 } }, { a: { b: 1 } }), {});
+  assert.deepEqual(replacementPatch({ a: { b: 1, c: 2 } }, { a: { b: 9, c: 2 } }), { a: { b: 9 } });
 });
 
 test('a clock string is never mistaken for a number', () => {

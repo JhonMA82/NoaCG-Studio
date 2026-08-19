@@ -177,6 +177,38 @@ export function mergePatch(target: JsonValue | undefined, patch: JsonValue): Jso
   return base;
 }
 
+/**
+ * The merge patch that turns `before` into `after` EXACTLY - including the removals.
+ *
+ * A merge patch can only say what it names, so "replace the whole tree" (Reset to seed, Clear,
+ * applying an edited Raw JSON) is not expressible as the new tree alone: every key the new tree
+ * DROPPED would silently survive. This walks both sides and emits an explicit `null` for each
+ * one, which is the RFC's delete.
+ *
+ * It exists because the hosted write path only accepts patches (the merge has to be atomic with
+ * the row lock - docs/PRODUCTION_DATA_PLAN.md §4), so a surface that replaces a tree has to say
+ * so in that vocabulary rather than reaching past it.
+ */
+export function replacementPatch(before: JsonValue | undefined, after: JsonObject): JsonObject {
+  const out: JsonObject = {};
+  const prev = isPlainObject(before) ? before : {};
+  for (const key of Object.keys(prev)) {
+    if (!(key in after)) out[key] = null;
+  }
+  for (const key of Object.keys(after)) {
+    const next = after[key];
+    const old = prev[key];
+    if (isPlainObject(next) && isPlainObject(old)) {
+      const nested = replacementPatch(old, next);
+      // An unchanged branch contributes nothing - the patch stays as small as the change.
+      if (Object.keys(nested).length > 0) out[key] = nested;
+    } else if (JSON.stringify(old) !== JSON.stringify(next)) {
+      out[key] = next;
+    }
+  }
+  return out;
+}
+
 /** `mergePatch` at the tree's root, where the result is always an object. */
 export function applyPatch(data: JsonObject, patch: JsonObject): JsonObject {
   const merged = mergePatch(data, patch);

@@ -26,11 +26,13 @@ import {
 import { graphicKindLabel, type Resolution } from '../../model/types';
 import {
   diffResolved,
+  replacementPatch,
   resolveBindings,
   type JsonObject,
   type ResolvedValues,
 } from '../../model/productionData';
 import { loadLiveData, saveLiveData } from '../../model/productionState';
+import { fetchProductionData, patchProductionData, productionDataKey } from '../../control/productionDataApi';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
 import { revealCue, stepSelection, usePlayoutVerbKeys, type PlayoutVerb } from '../playoutKeys';
@@ -272,21 +274,83 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // productionState.ts, never to the show record, which syncs and would churn per tick. The
   // DISPATCH half sits further down, beside `runVerb`.
   const [liveData, setLiveDataState] = useState<JsonObject>({});
+  /** The tree as it is RIGHT NOW, for callbacks that must not close over a stale render. */
+  const liveDataRef = useRef<JsonObject>(liveData);
+  liveDataRef.current = liveData;
+  /** The server re-read, reachable from the log follower — which is declared above the callback
+   *  it needs, because the follower must be in place before the wire's first row arrives. */
+  const refreshRef = useRef<() => Promise<void>>(async () => {});
   /** What was last put on the wire, per graphic per field — the diff baseline (see the effect). */
   const lastResolved = useRef<ResolvedValues>({});
   useEffect(() => {
-    setLiveDataState(id ? loadLiveData(id) : {});
+    // The local tree seeds an UNPUBLISHED production only. Published, the server's copy is the
+    // authority and arrives a moment later - seeding from localStorage first would show the
+    // operator a stale tree and then swap it under them.
+    setLiveDataState(id && !hostedSlug ? loadLiveData(id) : {});
     // A different production is a different tree AND a different baseline, so the next dispatch
     // reconciles the new production from scratch rather than against the old one's values.
     lastResolved.current = {};
-  }, [id]);
+  }, [id, hostedSlug]);
+
+  /**
+   * PUBLISHED = the SERVER owns the tree. `control_shows.data` is what a feed writes and what
+   * the patch RPC merges against, so keeping a second copy in localStorage would be two truths
+   * with no tiebreak. The key is the owner's own, read over RLS (control/productionDataApi.ts
+   * says why that is not the "never a web page" case the integrator doc warns about).
+   *
+   * `undefined` means NOT YET KNOWN, and that is load-bearing: until the key has resolved, this
+   * page must not dispatch the local tree to air. A published production opened cold would
+   * otherwise spend one render believing it was offline and push the last LOCAL tree - stale
+   * values, briefly, on air.
+   */
+  const [dataKey, setDataKey] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    if (!hostedSlug || !backendConfigured) {
+      setDataKey(null);
+      return;
+    }
+    void productionDataKey(id).then((key) => {
+      if (alive) setDataKey(key);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [id, hostedSlug, backendConfigured]);
+
+  /** Pull the server's tree in - at mount, and whenever a FEED row says it moved. */
+  const refreshServerData = useCallback(async () => {
+    if (!dataKey) return;
+    const current = await fetchProductionData(dataKey);
+    if (current) setLiveDataState(current.data as JsonObject);
+  }, [dataKey]);
+  refreshRef.current = refreshServerData;
+  useEffect(() => {
+    void refreshServerData();
+  }, [refreshServerData]);
 
   const setLiveData = useCallback(
     (next: JsonObject) => {
+      // Optimistic either way, so typing stays immediate.
       setLiveDataState(next);
-      saveLiveData(id, next);
+      if (!dataKey) {
+        saveLiveData(id, next);
+        return;
+      }
+      // Published: say the change as a PATCH - including the removals, which a merge patch can
+      // only express by naming them (model/productionData.ts replacementPatch). The ANSWER is
+      // what we then hold: a feed tick that landed in the same moment is already merged into
+      // it, so the operator's edit cannot silently overwrite the feed's.
+      const patch = replacementPatch(liveDataRef.current, next);
+      if (Object.keys(patch).length === 0) return;
+      void patchProductionData(dataKey, patch)
+        .then((server) => setLiveDataState(server as JsonObject))
+        .catch((error: Error) => {
+          setNote(`Production data not saved: ${error.message}`);
+          void refreshServerData();
+        });
     },
-    [id],
+    [id, dataKey, refreshServerData],
   );
 
   const bindings = show?.bindings;
@@ -388,6 +452,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           else if (msg.t !== 'staged') {
             rememberAired([{ graphic: row.graphic, msg }]);
             programRef.current?.apply([{ graphic: row.graphic, msg }]);
+            // A FEED wrote (control_data_patch marks its rows `src:'api'`), so the production's
+            // tree moved server-side. The row carries the resolved FIELD values, not the tree,
+            // so re-read it - and reuse this signal rather than adding a second subscription on
+            // control_shows just to learn the same fact.
+            if ((msg as { src?: string }).src === 'api') void refreshRef.current();
           }
           const entry = describeLogRow(row, cueLabel);
           if (entry) setWireLog((l) => appendLogEntries(l, [entry]));
@@ -587,6 +656,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * these are absolute values and re-sending one changes nothing.
    */
   useEffect(() => {
+    // PUBLISHED, the SERVER does this half: control_data_patch resolves the bindings and appends
+    // the update rows itself, and the log follower above brings them back here. Dispatching
+    // locally too would double every write - one row from the API, one from this page.
+    // `undefined` = the key has not resolved yet, so we do not know which world we are in and
+    // must not guess: guessing "offline" airs the stale local tree for a moment.
+    if (dataKey !== null) return;
     const changes = diffResolved(lastResolved.current, resolved);
     const graphics = Object.keys(changes);
     if (graphics.length === 0) return;
@@ -595,7 +670,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       [graphics.map((graphic) => ({ graphic, msg: { t: 'update' as const, data: changes[graphic] } }))],
       'Data',
     );
-  }, [resolved, runVerb]);
+  }, [resolved, runVerb, dataKey]);
 
   if (!show) {
     return (

@@ -633,8 +633,60 @@ build". That call now exists. The connector's remaining work is its own branch's
 
 ### Still open
 
-- **The client does not follow the server tree yet.** Once published, `control_shows.data` is the
-  authority, but the app's local tree does not read it back - so a value written by a feed is not
-  reflected in the operator's Data tab until that is wired. Phase 3.
 - The contextual `±` controls still write fields, not paths (§2.9), and `liveData.ts` is still
   frozen rather than retired.
+
+---
+
+## 15. The client follows the server tree (2026-08-19)
+
+The last of the two-truths problems. Once published, `control_shows.data` is the authority - a
+feed writes it, the patch RPC merges against it - but the app was still reading and writing its
+own localStorage copy, so a feed's write never appeared in the operator's Data tab and the next
+patch merged onto a base the operator had already moved.
+
+**The split is now explicit, on one fact: does this production have a data key?**
+
+| | Unpublished | Published |
+|---|---|---|
+| The tree lives in | `localStorage` (`productionState.ts`) | `control_shows.data` |
+| An operator edit | writes local, resolves + dispatches locally | `PATCH /api/data/patch` |
+| Field updates reach air via | this page's own dispatch | the RPC's own log rows, followed back |
+| A feed's write | n/a | re-read on any `src:'api'` log row |
+
+**The operator surface is now a CLIENT of the documented API** (`control/productionDataApi.ts`),
+not a second writer beside it. That is the point: the merge has to be atomic with the row lock,
+and that merge is service-role only, so the honest route from a browser is the endpoint that
+already fronts it. It also means the integrator's contract is dogfooded by the app itself.
+
+**About the key.** The owner reads their OWN production's `data_key` over RLS
+(`control_shows_owner_all` is `for all ... using (auth.uid() = owner_id)`, so the column is
+readable by its owner and the service role and nobody else). This is not the "never a web page"
+case `docs/DATA_API.md` warns about - that is about shipping a key to viewers. This is the
+owner's own key in the owner's own session, and it is strictly WEAKER than the control slug the
+same page already holds, which can play, stop and clear graphics.
+
+**Three details that are not cosmetic:**
+
+- **A whole-tree replace is not expressible as a merge patch.** Reset to seed, Clear and applying
+  edited Raw JSON all DROP keys, and a patch can only say what it names.
+  `replacementPatch(before, after)` walks both sides and emits an explicit `null` per removal,
+  and names nothing that did not change.
+- **The answer is what we hold, never the object we hoped for.** `patchProductionData` returns
+  the tree after the merge, so a feed tick that landed in the same moment is already in it and
+  the operator's edit cannot silently overwrite it.
+- **`dataKey === undefined` means NOT YET KNOWN, and the local dispatch waits for it.** Treating
+  "not resolved" as "offline" would make a published production, opened cold, spend one render
+  pushing its last LOCAL tree - stale values, briefly, on air.
+
+### Verification
+
+- `npm run build` exit 0; `production-data.spec.ts` + `productions.spec.ts` +
+  `production-controls.spec.ts` **37/37**; unit **17/17** (`replacementPatch` round-trips every
+  case through `applyPatch`).
+- **The published branch is NOT covered by the offline suite** and was not live-walked: it needs
+  an authenticated owner session against the real project, which this session could not create.
+  What was verified live is everything under it - the RPCs, the endpoints, the merge, the diff
+  (§14) - plus the RLS grant the key read depends on, read from 0008. The uncovered part is the
+  wiring in `ProductionPage`, and the way to close it is an owner opening a published
+  production's Data tab and watching a `scripts/weather-feed.mjs` tick land in it.

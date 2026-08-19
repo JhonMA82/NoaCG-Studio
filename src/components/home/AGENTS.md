@@ -103,6 +103,17 @@ Phase 1 is built - manual, local, no API.
   the Data tab unmounts the playout surface, so an edit made on Data would otherwise have no route
   to air. It holds the state, resolves bindings, diffs against what was last sent, and dispatches
   only the changes.
+- **PUBLISHED vs UNPUBLISHED is one fact: does the production have a data key?** Unpublished, the
+  tree is localStorage and this page resolves + dispatches it. Published, `control_shows.data` is
+  the authority: edits go out as `PATCH /api/data/patch` (`control/productionDataApi.ts`), the
+  RPC writes the log rows itself, and this page must NOT also dispatch or every write doubles.
+  A `src:'api'` row on the log is the signal that a FEED moved the tree - re-read it there rather
+  than subscribing to `control_shows` a second time.
+  **`dataKey === undefined` means not-yet-resolved and the local dispatch waits for it**; reading
+  it as "offline" makes a published production, opened cold, push its stale LOCAL tree to air for
+  one render.
+  A whole-tree replace (Reset, Clear, Raw JSON) goes through `replacementPatch` - a merge patch
+  can only say what it NAMES, so every dropped key needs an explicit `null`.
 - **THE RULE (plan §2.7): a bound field is not a cue value.** Take, ✎ Update and the PREVIEW all
   overlay the live tree over the cue's own values, so a cue prepared at 1-0 airs 3-2 if that is
   what the data says. The cue editor therefore renders a bound field READ-ONLY with its path - an
