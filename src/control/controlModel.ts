@@ -79,6 +79,26 @@ export function eventButtons(js: string): ControlButton[] {
   return machine ? machineControls(machine) : [];
 }
 
+/**
+ * The buttons grouped by their author-declared SECTION, in first-seen order, with everything
+ * undeclared under "Actions".
+ *
+ * Shared because it decides what an operator sees: the in-app page grouped and the hosted page
+ * rendered one flat wall of buttons, so a quiz's eight actions arrived unsorted on the smallest
+ * screen of the three. Grouping is the author's own metadata (`machine.controls`) and belongs to
+ * every surface that draws the buttons.
+ */
+export function controlSections(buttons: ControlButton[]): [string, ControlButton[]][] {
+  const sections: [string, ControlButton[]][] = [];
+  for (const b of buttons) {
+    const key = b.section ?? 'Actions';
+    const bucket = sections.find(([s]) => s === key);
+    if (bucket) bucket[1].push(b);
+    else sections.push([key, [b]]);
+  }
+  return sections;
+}
+
 /** One group's states, for the recovery snap picker: every state is enterable by SNAP by
  *  design (recovery, emergency jumps), so the list is the whole group, worn with the state
  *  NAMES the author gave them. Empty without an explicit machine — same gate as the buttons:

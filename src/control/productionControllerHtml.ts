@@ -167,7 +167,11 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   .seg button:first-child { border-radius:6px 0 0 6px; }
   .seg button:last-child { border-radius:0 6px 6px 0; border-right-width:1px; }
   .seg button.on { background:var(--amber); border-color:var(--amber); color:#14161a; font-weight:600; }
-  .events { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .events { margin-top:10px; }
+  .events h4 { margin:8px 0 4px; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--dim); font-weight:700; }
+  .events h4:first-child { margin-top:0; }
+  .events-row { display:flex; flex-wrap:wrap; gap:6px; }
   .events button { font:inherit; font-size:12.5px; color:var(--text); background:var(--panel-2);
     border:1px solid var(--line); border-radius:6px; padding:6px 11px; cursor:pointer; }
 
@@ -735,9 +739,34 @@ function paintEditor() {
   // The graphic's OPERATOR EVENTS (its state machine's buttons) — the capability module the
   // machine declares; a graphic with none shows none. Interactive graphics (polls, Q&A, chat)
   // add their operator actions in this same region (docs/PLAYOUT_DASHBOARD.md §8).
+  // GROUPED BY THE AUTHOR'S SECTION, as the two React surfaces do (controlModel
+  // controlSections): a quiz declares "Round" and "Judging" and a flat row of eight buttons
+  // throws that away. Same order, same "Actions" default, hand-rolled here only because this
+  // page ships without React or any import. (No backticks in this file's emitted script - it
+  // IS a template literal, and one would end the string mid-page.)
   var events = document.getElementById('editor-events');
   events.innerHTML = '';
+  var sections = [];
   (g ? g.events : []).forEach(function (e) {
+    var key = e.section || 'Actions';
+    var bucket = null;
+    sections.forEach(function (s) { if (s.name === key) bucket = s; });
+    if (bucket) bucket.buttons.push(e);
+    else sections.push({ name: key, buttons: [e] });
+  });
+  sections.forEach(function (section) {
+    if (sections.length > 1 || section.name !== 'Actions') {
+      var head = document.createElement('h4');
+      head.textContent = section.name;
+      events.appendChild(head);
+    }
+    var row = document.createElement('div');
+    row.className = 'events-row';
+    events.appendChild(row);
+    section.buttons.forEach(function (e) { row.appendChild(eventButton(e)); });
+  });
+
+  function eventButton(e) {
     var btn = document.createElement('button');
     btn.textContent = '⚡ ' + e.label;
     btn.onclick = function () {
@@ -749,8 +778,8 @@ function paintEditor() {
       send([{ graphic: cue.graphic, stream: 'program', msg: payload ? { t: 'event', event: e.event, payload: payload } : { t: 'event', event: e.event } }]);
       feed('⚡ ' + e.label + ': ' + cue.graphic);
     };
-    events.appendChild(btn);
-  });
+    return btn;
+  }
 }
 
 function tick() {
