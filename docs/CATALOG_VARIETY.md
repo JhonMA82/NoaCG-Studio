@@ -1,7 +1,15 @@
 # Catalog variety — where the sameness comes from, what the orphans are, and what expansion costs
 
 Investigation, 2026-08-09, against `main` at `a02d36b0` (459 designs, 65 graphic types, 21 packs).
-**Nothing here is built.** It is the measurement, the triage, and a proposal with a price on it.
+**Nothing here was built at the time of writing.** It is the measurement, the triage, and a
+proposal with a price on it.
+
+**Re-measured 2026-08-18 (493 designs, 66 types, 21 packs).** Three things changed and each is
+recorded where it belongs, not by rewriting the original numbers: the instrument was reading the
+two full-frame categories blind and now is not ("How it was measured"); eleven designs have since
+been built against §3's absence list, closing seven of the twelve lines in Browse and none of them
+in any kit (§3, §4.5); and the orphan count is now 151 of 493 (§2). Undated figures in this
+document are the 2026-08-09 ones.
 
 It supersedes the measurement half of `LOOKS_AND_PALETTES.md`, which counted the three DECLARED
 axes — style family, palette, typeface — and concluded the catalog ships "sixteen combinations".
@@ -31,6 +39,28 @@ Two instruments, both free (no model calls), both reading the same registry the 
 Both need the dev server up, like `scripts/factory.mjs` and `scripts/l3-sweep.mjs`. Rendered
 composition figures are quoted from `ADAPT_FIRST_PLAN.md` §1 (`scripts/catalog-geometry.mjs`,
 430 variants) rather than re-measured — that sweep answers the placement question already.
+
+**Instrument correction, 2026-08-18 — the two full-frame categories were measured BLIND.**
+`catalog-sameness.mjs` reads a design's class prefix off the first element in `<body>`, and the
+pattern it used only matched a root written with a SINGLE class. Both full-frame categories write
+theirs with two (`<div class="credits credits--editorial">`), so the scan skipped the root and
+landed on the next single-class element instead — the category's own full-frame background. Every
+end-credits and every starting-soon design therefore reported the same two values: `panel:
+solid-literal` (the background's opaque `#070a0f`) and `painted: ['-root']` (the background was the
+only part the scan could see). **32 designs, one look, no signal.** With the pattern fixed, the
+13 end-credits designs read back 12 distinct look signatures instead of 1 and the 19 starting-soon
+designs read back 18; no other category's numbers move by a single design. Two consequences for
+what follows:
+
+- **§5.2's `solid literal` row is almost entirely that artefact.** Catalog-wide the `solid-literal`
+  panel count falls from 33 to **1** once the prefix is read correctly. The row said 30 designs at
+  the time of writing, when 29 designs were blind — so the joint panel-treatment table needs a
+  `palette-freedom.mjs` re-run before its `solid literal` line can be quoted again. Every other row
+  in that table is unaffected in kind, but the designs that were miscounted into `solid literal`
+  belong in `none`, `panel-token` and `gradient` instead.
+- **Every distance quoted for those 32 designs was a LOWER bound**, because collapsing their look
+  vectors made them look more alike than they are. The gate in §4.3 could therefore have refused a
+  genuinely distinct full-frame design; it could not have admitted a duplicate one.
 
 **What the distance measure is, and what it is not.** Two designs are compared on fourteen visible
 decisions, the set of parts each one paints, whether they move identically, and whether they sit in
@@ -79,6 +109,13 @@ graphic CATEGORY predicts most of the rest.
 | display size | 8 | ~52px 20.9% | 2.6% | **39.4%** |
 | weight steps | 5 | 2 40.3% | 2.5% | 26.1% |
 | type size steps | 5 | 3 34.4% | 1.1% | 30.2% |
+
+**Two rows carry the blind-instrument artefact** (2026-08-18, see "How it was measured"): the
+`panel treatment` and `drawn parts` axes both read 32 full-frame designs as one constant value,
+which is an axis a CATEGORY explains perfectly by construction. Re-measured over 493 designs,
+panel treatment is family **19.5%** / category **37.6%** (was 16.7 / 49.7) and drawn parts family
+**5.1%** / category **33.0%** (was 5.2 / 36.3). The finding is unchanged in direction and smaller
+in size: the category still explains roughly twice what the family does.
 
 Read the last three rows twice. **The style family explains 1–3% of a design's typography.** It
 owns a blur, a skew and a radius. Composition, hierarchy, weight, tracking, drawn furniture — the
@@ -203,6 +240,11 @@ thirds are bottom-left.
 
 ## 2. The 119 kit-unreachable designs, triaged
 
+**Now 151 of 493** (re-measured 2026-08-18): **D 76** (was 59), **A 52** (was 37), B 12 and C 11
+both unchanged. Every count in this section is the 2026-08-09 one; the mechanisms and their order
+are not affected, and the two config-shaped buckets absorbed all 32 additions — which is the
+triage below holding, not being overturned. §3's status block accounts for eleven of the 32.
+
 ### 2.1 They are not a pile of near-duplicates
 
 Measured against the same yardstick, in the same categories:
@@ -278,6 +320,38 @@ Twenty-two orphans sit under 0.10 from a reachable sibling. **Ninety-seven do no
 ## 3. What is missing entirely
 
 Read off §1.6 and §1.7 — every line here is an absence the measurement found, not a wish list.
+
+**Status, re-measured 2026-08-18 against 493 designs** (the original numbers below are from 459;
+`scripts/catalog-sameness.mjs` with the prefix fix above, plus a per-absence sweep of the emitted
+CSS). Ten designs have since been built AGAINST this list — `lt59` `lt60` `lt61` (lower thirds),
+`card80`–`card83` (info cards), `ss18` `ss19` (starting soon), `cr13` (end credits) — and one more,
+the quote strap `ls33`, closed two of the same lines from the unrelated broadcast-journalism
+round. Together they move seven of the twelve:
+
+| absence | was | now | what closed it |
+|---|---|---|---|
+| **1. a serif** | 0 | **5** | `lt59` `ls33` `card80` `ss18` on playfair-display, `cr13` on source-serif-4 — the two bundled serifs are finally in use |
+| 2. a light, airy voice | 5 designs at weight ≤ 300 | 7 | only `lt60` was built for this line; still effectively open |
+| **3. a quiet, lower-case voice** | 88.5% force capitals somewhere | 88.2% — **unmoved** | the aggregate is the wrong measure here: `lt60` `card81` `cr13` `ss18` are the first four designs whose whole hierarchy is stated as a no-capitals decision in their own file |
+| **4. condensed-poster typography** | 4 | **8** | `lt61` `card82` `card83` `ss19` on anton / big-shoulders |
+| **5. a light package** | 0 designs, 2 palettes | **6 designs drawn on paper** | `lt59` `ls33` `card80` `card81` `ss18` `cr13` repaint the reading surface itself rather than take a light palette |
+| **6. print and texture** | 7 repeating gradients, 1 blend | **14** repeating gradients, 1 blend | the print register on `lt59` `lt61` `card80` `card82` `ss18` `cr13`; still 0 image surfaces |
+| 7. a column grid | 17 | 28 | partly: `lt59` `lt60` `card82` `card83` `ss18` `ss19` `cr13` set real tracks, but no fixture table or contents page |
+| **8. type as the composition** | 16 over 110 px | **20** | `card82` 168 px, `card83` 240 px, `ss19` 280 px |
+| **9. vertical or rotated type** | `writing-mode` 0, rotate 16 | **1**, rotate 17 | `card83`'s spine label |
+| 10. asymmetry and off-grid | — | — | not addressed |
+| 11. a picture in the composition | 0 | 0 | not addressed |
+| 12. motion beyond a masked line and a fade | — | — | not addressed |
+
+**What is NOT closed, and matters more than the ticks.** Every one of those eleven designs is a
+**kit-unreachable orphan** — six because `editorial` is a Browse-only family no kit resolves
+(mechanism A: `lt59` `ls33` `card80` `card83` `ss18` `cr13`), five because they belong to no
+graphic type and no pack lists them as an extra (mechanism D: `lt60` `lt61` `card81` `card82`
+`ss19`). So the absences are answered in BROWSE and in no kit: a user who picks a pack still
+cannot get a serif, a paper surface or a poster numeral. That is §4.2(a), the widened family
+contract, and it has not landed. Total orphans are now **151 of 493**, up from 119 of 459 — these
+eleven are eleven of the 32 added, which is what §2.2 predicts for anything built in `editorial`
+before the contract widens.
 
 **Typographic voices with no design at all**
 
@@ -406,6 +480,14 @@ extra rules keep the gate honest:
 - **The gate can only refuse, never approve.** A small distance proves sameness; a large one does
   not prove quality. Every design still faces the six gates, the five catalog gates, `l3-sweep`,
   and sibling judging against its lower-third counterpart (`DESIGN_LANGUAGE.md` §8).
+- **A blind axis makes the gate strict, not lax** (added 2026-08-18). While the two full-frame
+  categories were measured blind, `cr13` read 0.250 against `cr02` — clearing the floor by nothing
+  at all — and `ss18` read 0.286. Re-measured with the prefix fix they are **0.379** and **0.326**,
+  and `ss19` moves from 0.279 to **0.430**; all three are now the furthest design from anything in
+  their own category. A collapsed axis can only make two designs look MORE alike, so a blind gate
+  refuses good designs and never admits duplicates. That is the safe direction to fail in, and it
+  is still a reason to re-measure a category's numbers after touching the instrument: the same
+  fix moved end-credits' median nearest-neighbour distance from 0.171 to 0.245.
 
 ### 4.4 The cost of one direction, honestly
 
@@ -442,6 +524,15 @@ from output.
    are paired for numerals, and Newsroom is the pack that already declares a `paletteId`. It also
    settles editorial's fate — §1.3 says editorial as it stands is minimal, so this is the version
    of that family that would have been worth building.
+
+   **Status 2026-08-18: half of this is built, and it is the wrong half.** Six paper designs now
+   exist (`lt59` `ls33` `card80` `card81` `ss18` `cr13`) and between them they take absences 1, 5,
+   6 and part of 7 exactly as this line predicted. What does NOT exist is the DIRECTION: they are
+   `editorial`-family designs on the Broadsheet and Porcelain palettes, Newsroom is still
+   `family: 'minimal'` with `paletteId: 'ivory'`, and no pack lists any of the six. A kit cannot
+   offer one, so the printed voice reaches only a user browsing the whole catalog. Order (1) was
+   skipped and the designs were built first, which is the failure mode this list was written to
+   avoid — the remaining work is the family contract, not more paper designs.
 4. **Do NOT finish editorial or cinematic to kit grade as they are.** §1.3 measured editorial
    inside minimal, and cinematic's own designs at 0.10 from each other. Reaching kit grade would
    cost ~59 designs each and deliver, respectively, no new look and one very narrow one. Their
@@ -513,9 +604,18 @@ text using it will actually be), not a catalog of broken designs.
 | `--panel-bg` token | 264 | 14 | 165 | 85 |
 | **none** (no panel at all) | 108 | **83** | 7 | 18 |
 | **gradient** (a hand-drawn scrim) | 38 | **32** | 5 | 1 |
-| solid literal | 30 | 14 | 11 | 5 |
+| ~~solid literal~~ (see below) | ~~30~~ | 14 | 11 | 5 |
 | scrim (transparent-to-dark) | 15 | 2 | 1 | 12 |
 | tint-dark | 3 | 3 | 0 | 0 |
+
+**The `solid literal` row is an instrument artefact and must not be quoted** (2026-08-18). 29 of
+those 30 designs were the blind full-frame categories described under "How it was measured": the
+panel reader was looking at the category's opaque `#070a0f` background instead of the design's own
+box. Catalog-wide the count is **1** with the prefix read correctly, and those designs belong under
+`none`, `panel-token` and `gradient` instead. Their 14 catastrophic / 11 marginal / 5 clean split
+is a real `palette-freedom.mjs` result and still stands as a fact about those 30 designs; what is
+wrong is the reason the table gives for it. Re-cutting the joint table needs a `palette-freedom`
+re-run, which has not been done.
 
 Three named restrictions, which is the answer to the question:
 

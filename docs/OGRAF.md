@@ -36,7 +36,7 @@ package does not contain, fails the export rather than shipping.
 | Field | What we emit |
 | --- | --- |
 | `$schema` | the exact OGraf v1 schema URL |
-| `id` | the graphic's slug (never contains `/`) |
+| `id` | `noacg-<slug>` - a legal custom element name (see below) |
 | `version` | `"1.0.0"` |
 | `name` / `description` | the graphic's name and its SPX template description |
 | `main` | `"graphic.mjs"` |
@@ -125,22 +125,107 @@ disagree with each other.
   export time, so hosts that show a preview tile will show a placeholder.
 - **No `author`.** A graphic in NoaCG has no author field to fill it from; adding the tool's own
   name there would misdescribe what the field means.
-- **`id` is the graphic's slug**, not a reverse-DNS name. The spec only *recommends* reverse-DNS,
-  and the slug is what SPX, CasparCG and the file name already use, so one graphic reads the same
-  in every rundown. Uniqueness is per package folder.
+- **`id` is `noacg-<slug>`**, not a reverse-DNS name and not the bare slug. The spec only says an
+  id is any unicode except `/`, but a renderer may register the Graphic as
+  `customElements.define(manifest.id, class)` - SuperFly.tv's OGraf server does - and the HTML
+  standard requires such a name to start with an ASCII lowercase letter and to contain a hyphen.
+  The prefix supplies the hyphen whatever the design is called, survives a name that starts with
+  a digit, keeps the id clear of HTML's reserved element names, and gives the namespace the
+  spec's reverse-DNS recommendation is really after. Folder and file names keep the plain slug,
+  the way SPX and CasparCG expect. **Uniqueness comes from the NAME, not from a separate id
+  register.** The catalog does hold same-named designs in different categories (bug05/lt54
+  "House Ident", card30/pi01 "Public Notice", ig38/tk13 "Results Rail", tt01/ig03 "Timing Tower",
+  fr03/qz05 "Volt Split"), and one production may hold both members of such a pair. The
+  whole-show export resolves that by suffixing the graphic's name (`House Ident 2`) before any
+  target packages it, and the id derives from that same renamed template - so the folder, the
+  file and the manifest id carry the suffix together (`house_ident_2/`, `noacg-house-ident-2`).
+  Keep the id derived from `template.name`: giving it its own source would let the folder and
+  the id disagree, and a repeat id makes a renderer's `customElements.define(manifest.id, class)`
+  throw before the second graphic is ever mounted. Pinned by `e2e/ograf-conformance.spec.ts`.
 - **Custom action durations are `-1`.** Honest rather than wrong: the length depends on the
   machine's current state.
 - **Light DOM, not shadow DOM.** The graphic's markup is injected into the element directly so
   its own `getElementById` lookups behave exactly as under SPX. Host page CSS that targets bare
   element selectors could therefore reach into a graphic; our own CSS is class-scoped per graphic.
-- **One instance of a given Graphic per document.** The embedded runtime addresses its elements
-  with document-wide selectors, exactly as it does under SPX, where a template owns its page. Two
-  instances of the *same* design mounted into one document would write over each other. Renderers
-  that give each Graphic its own document or frame - the normal arrangement - are unaffected, and
-  different designs never collide because each carries its own class prefix.
+- **One instance of a given DESIGN per document.** Several *different* graphics in one document
+  are fine, which is the arrangement a Web Component renderer actually uses: each Graphic runs
+  against a `document` scoped to itself, so its `getElementById('fN')` lookups cannot reach a
+  neighbour's identically-named field, and disposing one leaves the others running. Two instances
+  of the *same* design still collide, because the design's motion is keyed on its own class names
+  and those are shared by both copies. Give the second copy its own document or frame.
 - **`graphic.mjs` is an ES module**, so a renderer must load the package over `http(s)` - browsers
   refuse module imports over `file://`. Our single-file targets (CasparCG, OBS/vMix, H2R) are the
   ones that run from a bare file on disk.
+
+## What an external renderer said
+
+Conformance checked against our own reading of the spec proves only that we read it the way we
+wrote it. On **2026-08-18** an exported package was loaded into a renderer nobody here wrote:
+
+- **SuperFly.tv's [OGraf Simple Rendering System](https://github.com/SuperFlyTV/ograf-server)**,
+  the "play OGraf Graphics in a browser" server the EBU's own repository README points at. Built
+  from source and run locally: package uploaded through its zip endpoint, the renderer page opened
+  in a browser, and every action driven through the server's HTTP control API rather than by
+  calling our class directly.
+- Separately, every manifest the catalog can emit - **1470 of them**, each design in all three
+  export intents - was validated against the **EBU's published JSON-Schema files** with a real
+  JSON-Schema engine (ajv, draft 2020-12) instead of our transcription of them.
+
+### What it refused, and what changed
+
+Three defects. Every one of them passed our own gate, and two were invisible rather than loud.
+
+1. **The manifest `id` was not a legal custom element name.** The renderer registers a Graphic
+   with `customElements.define(manifest.id, class)`, and the HTML standard requires such a name to
+   start with an ASCII lowercase letter and contain a hyphen. Our ids were the graphic's slug -
+   lowercase with underscores - so the load failed with
+   `"hairline" is not a valid custom element name` before the Graphic was ever mounted. **No NoaCG
+   package could load in that renderer at all.** The spec does not say an id must be usable this
+   way, but every example graphic the EBU ships has a hyphen in its id, and the reverse-DNS form
+   the spec recommends has one too. Ids are now `noacg-<slug>`, and the export gate refuses an id
+   `customElements.define` would reject.
+2. **Bundled fonts and images resolved against the renderer's directory, not the package.** A
+   Graphic is a component inside somebody else's document, so the injected CSS's
+   `url("fonts/inter.woff2")` was requested from `/renderer/renderer-layer/fonts/inter.woff2`.
+   It 404'd, `font-display: swap` painted the fallback, and the graphic aired in Arial with no
+   error anywhere - `document.fonts` reported `Inter: error` and nothing else did. Under SPX and
+   CasparCG that same relative path is correct, because there the template *is* the document,
+   which is why nothing local had ever caught it. Every relative reference in the injected CSS and
+   markup is now resolved against the package's own URL before injection.
+3. **Two graphics in one document wrote into each other.** The renderer mounts every layer as a
+   Web Component in one document - the arrangement the standard exists for. Our field convention
+   is one element per field addressed as `getElementById('fN')`, and those ids are the same in
+   every design, so `document.getElementById('f0')` answered with whichever graphic came first:
+   updating the Public Notice on layer 1 rewrote the Hairline on layer 0, while the notice's own
+   field kept its default. The prior claim here - that different designs cannot collide because
+   each carries its own class prefix - was true of the CSS and false of the fields. Each Graphic's
+   runtime now runs against a `document` scoped to its own element (the template's code is
+   unchanged; only the `document` it sees is), and `dispose()` no longer kills tweens
+   document-wide.
+
+### What it confirmed
+
+With those fixed, driven entirely through the external server's API:
+
+- `load` with data, `playAction` walking the default path (`currentStep` 0, then 1, then absent
+  once the graphic has gone past the end), `updateAction`, `stopAction`, and `customAction` for a
+  graphic whose machine declares `escalate` / `standDown` - all answering `200`.
+- `skipAnimation` accepted on play, stop and custom actions.
+- An unknown custom action answered **`400`** and our own message came back through the foreign
+  host verbatim: `This graphic defines no custom action "no-such-action".`
+- The bundled Inter face fetched from inside the package and reported `loaded`.
+- Two different graphics on two layers updated independently, each keeping its own field values.
+- All 1470 manifests valid against the EBU's schema files. The ajv harness was mutation-tested
+  first, so "0 rejected" is a result and not a harness that accepts anything: a vendor field
+  without the `v_` prefix, a missing `main`, a `default` typed against its property, a `null`
+  where a number belongs, an unknown constraint key, a fractional duration and `stepCount: -2`
+  were each rejected with the expected message.
+
+Two things this round could **not** settle. The renderer drops a Graphic's instance when the layer
+is cleared, so it never calls an action after `dispose()` - the `409` for that case remains our own
+guarantee rather than something this host exercised. And the community **OGraf DevTool** could not
+be run here: it serves graphics through a Service Worker, which the browser used for this round
+would not register.
 
 ## How conformance is checked
 
@@ -152,7 +237,15 @@ manifest is written. `e2e/ograf-conformance.spec.ts` then proves three things on
    intents;
 2. the validator actually refuses the mistakes the spec is strict about (an un-prefixed vendor
    field, a `default` typed against its property, a duplicate action id, a duration for an action
-   that does not exist, a `main` the package does not contain);
+   that does not exist, a `main` the package does not contain) **and the ones a renderer is strict
+   about that the schema is not** - an id `customElements.define` would reject;
 3. a real exported package, served over HTTP and driven like a renderer would drive it, honours
    the lifecycle - including `skipAnimation`, concurrent calls, and the status codes for calling
-   an action too early or after `dispose()`.
+   an action too early or after `dispose()`;
+4. that package's injected CSS points at the package for its fonts and images rather than at the
+   host page, and two different graphics mounted in one document leave each other's fields alone.
+
+Items 2 and 4 exist because an external renderer found what the transcription could not: a rule
+the schema does not encode is still a rule the operator sees broken. The external round itself is
+not automated - it is a hand check whose result is the section above, to be repeated when the
+generated Web Component or the manifest changes shape.

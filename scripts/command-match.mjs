@@ -56,6 +56,11 @@ export const SERVER_SCRIPTS = 'dev-bench|bench-dispatcher|ai-bench-server';
 
 export const SWEEP_SCRIPTS =
   'l3-sweep|type-floor|overflow-sweep|field-coverage|numerals|factory|catalog-geometry'
+  // The two CATALOG MEASUREMENT instruments (docs/CATALOG_VARIETY.md). Both launch Chromium over
+  // the whole registry, so they are browser work by every measure the guard cares about, and
+  // neither is named like its siblings - the same hole the `*spike*` family sat in until
+  // 2026-08-15. `palette-freedom` renders 490 designs TWICE, which is the heaviest of the two.
+  + '|catalog-sameness|palette-freedom'
   + `|acceptance-shots|render-smoke[\\w-]*|(?!(?:${SERVER_SCRIPTS})\\.)[\\w-]*bench[\\w-]*`
   + '|[\\w-]*spike[\\w-]*';
 

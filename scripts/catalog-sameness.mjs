@@ -119,7 +119,16 @@ function rules(css) {
   }
   return out;
 }
-const prefixOf = (v) => v.emitted.html.match(/<body>[\s\S]*?<div class="([a-z0-9-]+)"/)?.[1] ?? v.category;
+// The design's own class prefix: the FIRST class of the FIRST element in <body>.
+//
+// `[^"]*` before the closing quote is load-bearing. Without it the pattern only matched a
+// SINGLE-class root, so a root written `<div class="credits credits--editorial">` was skipped
+// and the lazy scan landed on the next single-class div instead — the category's full-frame
+// `.credits-background`. Both full-frame categories write their root that way, so all 13
+// end-credits and all 19 starting-soon designs read back with the same two values: the box
+// lookup found the background's opaque literal (panel `solid-literal`) and the painted-parts
+// scan matched only the background itself (`['-root']`). 32 designs, one look, no signal.
+const prefixOf = (v) => v.emitted.html.match(/<body>[\s\S]*?<div class="([a-z0-9-]+)[^"]*"/)?.[1] ?? v.category;
 const pxOf = (s) => { const m = String(s).match(/(-?[\d.]+)\s*px/); return m ? Number(m[1]) : null; };
 const bucket = (n, steps) => {
   if (n == null) return 'na';
@@ -222,6 +231,26 @@ const looks = built.map((v) => {
 });
 const lookById = new Map(looks.map((l) => [l.id, l]));
 const AXES = Object.keys(looks[0].vec);
+
+// SELF-CHECK: a whole category painting the SAME parts is a blind instrument, not a finding.
+//
+// This is the generic form of the bug that hid end-credits and starting-soon for a release
+// (docs/CATALOG_VARIETY.md, "How it was measured"): the parts scan was matching a wrapper's
+// class rather than the design's, so every design in both categories reported the same one
+// part - and nothing said so, because the other twelve axes still varied and the numbers just
+// read as a very uniform category. `painted` is the axis to watch precisely because it is the
+// one derived from the prefix: no two designs of the same category have ever drawn exactly the
+// same furniture, so a category-wide tie means the scan is looking at the wrong element.
+//
+// Checked against the blind run it was written for: it fires on both categories there and on
+// nothing at all once the prefix is read correctly.
+for (const cat of uniq(looks.map((l) => l.category))) {
+  const ls = looks.filter((l) => l.category === cat);
+  if (ls.length < 3 || uniq(ls.map((l) => l.painted.join('+'))).length !== 1) continue;
+  console.error(`WARNING: all ${ls.length} ${cat} designs paint exactly [${ls[0].painted.join(', ')}].`);
+  console.error("  That is the instrument, not the catalog - check that prefixOf() found this");
+  console.error('  category\'s own class prefix rather than a wrapper element around it.');
+}
 
 console.log(`\n═══ 2. THE LOOK VECTOR — fourteen decisions a viewer can see ═══`);
 console.log('axis        values  most common          explained by FAMILY   by CATEGORY');

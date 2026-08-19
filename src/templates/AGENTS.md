@@ -4,6 +4,19 @@ Loaded alongside the root AGENTS.md when working in this directory (Claude reads
 docs/DESIGN_LANGUAGE.md before generating or judging templates. After template changes, run the
 catalog sweep for the affected category (root AGENTS.md, "Verifying changes").
 
+**ADDING A DESIGN MOVES THREE BASELINES, and the five catalog gates only cover one of them.**
+`scripts/overflow-baseline.json` is re-recorded by the overflow sweep; `e2e/catalog-baseline.json`
+and `e2e/catalog-render-baseline.json` are re-recorded by their own spec:
+
+```bash
+UPDATE_CATALOG_BASELINE=1 UPDATE_RENDER_BASELINE=1 npx playwright test e2e/catalog-baseline.spec.ts
+```
+
+**`e2e/catalog-baseline.spec.ts` is not in `playwright.catalog.config.ts`**, so every local
+catalog gate can pass while CI's full plan goes red on it - which is exactly what happened on
+2026-08-19 to a nine-design branch with four green catalog runs behind it. The healthy diff is
+purely additive: ids added, nothing existing changed. Details: docs/VERIFICATION.md.
+
 blank.ts + the catalog, resolved through catalog.ts (CATALOG, variantsFor/variantById).
 
 **structuralAnchor.ts** - the one table answering "does a catalog structure carry this intent,
@@ -453,7 +466,7 @@ and a new parallel-group type needs its own - nothing mechanical will remind you
 
 ## Categories
 
-- **lowerThirds/specialist/** - ls01…ls40, the SPECIALIST pack: lower thirds drawn for ONE
+- **lowerThirds/specialist/** - ls01…ls41, the SPECIALIST pack: lower thirds drawn for ONE
   production rather than for any show (interview duos, host-and-guest, commentary booths,
   athletes, esports, worship, academic, politics, analysis, music, live-and-location, creator,
   and the BROADCAST-JOURNALISM group ls33-ls40, whose subject is the words or their status
@@ -490,7 +503,7 @@ and a new parallel-group type needs its own - nothing mechanical will remind you
   bound on the SPAN - `max-width` + `white-space: nowrap` + `text-overflow: ellipsis`.
   `overflow: hidden` on the WRAPPER clips the PAINT but not the layout box, and the runtime
   bench measures layout - so the token still collided with the name beside it.
-- **lowerThirds/** - lt01…lt57 on shared.ts (prefix 'lower-third', `dataRegion: true` - the
+- **lowerThirds/** - lt01…lt62 on shared.ts (prefix 'lower-third', `dataRegion: true` - the
   first category to create as NOACG_ANIM data blocks) + animPresets.ts (the shared marked-region
   GSAP preset bank, prefix-parameterized - it animates any category's `.{prefix}-box` structure;
   on a data category the preset's emit is converted at create, and blocks/presetApply.ts derives
@@ -546,7 +559,7 @@ and a new parallel-group type needs its own - nothing mechanical will remind you
   the track's content in one `.credits-loop-run`, appends as many `.credits-loop-clone` copies as
   the viewport needs, and travels exactly one run's height - a bare `repeat: -1` would snap the
   list back to the top, which everyone watching a wall of names is watching closely enough to see.
-- **tickers/** - tk01…tk21 (prefix 'ticker') + tickerPresets.ts (ticker-marquee / ticker-flip /
+- **tickers/** - tk01…tk22 (prefix 'ticker') + tickerPresets.ts (ticker-marquee / ticker-flip /
   ticker-rotate) + **tickerMotion.ts**; data-driven: #f0 lines -> #ticker-track items; marquee =
   items rendered twice, slide one set width, linear repeat:-1 (seamless loop). DATA BLOCKS via
   convertToDataRegion. f0 items + f1 label, plus an OPTIONAL f2 second cap (a topic, a source, a
@@ -554,7 +567,7 @@ and a new parallel-group type needs its own - nothing mechanical will remind you
   two-line ticker emits byte-identically to before it existed. **A strip that neither travels
   nor rotates does not belong here** (docs/PUBLIC_SERVICE_PACK.md §1): the static notices live
   in alerts/ and publicInfo/.
-- **alerts/** - al01…al12 (prefix 'alert', `TemplateType 'alert'`), a STANDARD-CONTRACT category:
+- **alerts/** - al01…al13 (prefix 'alert', `TemplateType 'alert'`), a STANDARD-CONTRACT category:
   assembleStandard + the shared preset bank + line masks + steps, nothing category-specific in the
   runtime. What it adds is the SEVERITY FLAG - four stacked `.alert-level-N` blocks
   (ALERT_LEVELS: advisory/watch/warning/emergency, fixed semantic colours, every pair ≥5:1) that
@@ -611,7 +624,7 @@ shapes; **sportsRuntimes.ts** holds the sports pack's fixtures shape. Both escap
 it reaches innerHTML and SKIP a malformed line rather than rendering an empty row, and both
 render into `#infographic-rows` with one direct child per item - exactly what `rows-cascade`
 measures.
-- **startingSoon/** - ss01…ss13, the HOLDING SCREEN set (prefix 'starting-soon'; hold-loop preset:
+- **startingSoon/** - ss01…ss20, the HOLDING SCREEN set (prefix 'starting-soon'; hold-loop preset:
   entrance + calm .starting-soon-pulse breathing + clock via shared/clock.ts). DATA BLOCKS via
   convertToDataRegion (self-assembled, calls it directly): the breath imports as a looping scale
   track (gap 6) and startClock/stopClock ride the step calls (§3b); the clock runtime stays
@@ -636,7 +649,7 @@ measures.
   via `GameTimerDesign.runtimeExtraJs` (outside the region, following the clock's globals)
   and `GameTimerDesign.autoEase` (a design's hand-tuned default ease pair, used only when
   the wizard easing is 'auto' - an explicit pick still wins).
-- **scoreboards/** - sb01…sb20 (prefix 'scoreboard', data blocks via convertToDataRegion;
+- **scoreboards/** - sb01…sb25 (prefix 'scoreboard', data blocks via convertToDataRegion;
   the fixed 4-field contract f0-f3 as scoreboard-masks so the standard presets drive them;
   update() pops a score's mask when it changes on air - speed via motionSpeed()).
   **A design may OWN its fields instead** (`SbDesign.fields`), plus `.popFields` (which fields
@@ -651,6 +664,14 @@ measures.
   `.scoreboard-mask > span { text-wrap: balance }` resolves to `text-wrap-mode: wrap` and
   OUTRANKS a plain `white-space: nowrap`, so a long club name wraps and grows a fixed strip
   mid-match while looking as though the nowrap was never written.
+  sb23-sb25 are the reference-set boards: **sb23 "Wire Bug" fills the scorebug type's EDITORIAL
+  cell** (a row of flat cells whose ground is the club colour, with the three kinds of number
+  told apart by grounds MIXED from the palette rather than written as hex - which is what keeps
+  it legible in a palette it was not drawn in), sb24 "Arena Board" draws the venue's own
+  hardware, and **sb25 "Court Board" is the one to read before inventing a field**: its
+  fouls-and-timeouts strip is the match board's existing `periods` breakdown, because
+  "FOULS | 4 | 2" already IS "label | home | away". A tally that fits the repeating field is
+  never a reason to grow the contract.
 - **shared/matchClock.ts** - the SPORTS CLOCK, design-owned JS outside the marked region (the
   shared/clock.ts rule: playout, not motion). Counts UP or DOWN per the design's
   `data-count`, stops itself at zero when counting down, resets to the element's own
@@ -685,7 +706,7 @@ measures.
   any `<div id="fN" style="…display: none">` in the emitted HTML. An `<img id="fN">` is the one
   exception and is excluded there: an empty image slot hides itself inline through
   `setFieldValue`, and `resetGraphicInline` restates that after clearing.
-- **infographics/** - ig01…ig36 (prefix 'infographic'; design owns fields + runtimeExtraJs) +
+- **infographics/** - ig01…ig38 (prefix 'infographic'; design owns fields + runtimeExtraJs) +
   igPresets (count-up / bars-grow / ring-fill / rows-cascade / **goal-ring** / **milestone-run**)
   + **igMotion.ts** + **dataRuntimes.ts** (the rebuilds several designs of a type share:
   schedule rows, bar rows, the GOAL meter in its two drawn shapes, the MILESTONE track).
@@ -703,6 +724,16 @@ measures.
   (real, editable keyframes) and NAMES the measured part. A count-up design may or may not pair a
   progress bar with its figure, so `PresetConfig.hasBars` tells the preset - without it a bar-less
   design (ig01) would carry a phantom timeline layer for an element it doesn't have.
+  **ig38 "Results Rail" is the category's first SIDE PANEL** - a fixed-width column at the frame's
+  edge that stays up while an anchor talks, rather than a centre-frame board that is shown and
+  cleared - and it reuses `seatBarsRuntimeJs` for its rows. **The trap it paid for, binding on
+  anything else that reuses a repeating runtime with a different composition in mind:** that
+  runtime nests the figure's cap INSIDE the bar's fill (so the readout rides a growing tip), so a
+  design that wants the figure pinned at one edge cannot express that as a grid column - the fill
+  is the cap's containing block, not the row. The rail takes the whole TRACK out of flow across
+  the row (the wash) and pins the cap against it, and reserves the figure's lane with the row's
+  own padding, because an out-of-flow cap reserves no width. The first draft laid the row out as
+  `label | figure` and rendered every figure on top of its district's name.
   **The ELECTION NIGHT mini-pack is ig34-ig36** (the catalog's first EDITORIAL infographics, all
   siblings of lt25 "Masthead"): a seat board whose parties are one "Party | seats" textarea, a
   coalition majority meter, and a turnout dial. Three rules they hold, each written into the
@@ -783,7 +814,7 @@ measures.
   it has no fixed target - the quiz reveal's posture). A tie calls nobody and says so.
 - **quiz/** - qz01…qz12 (prefix 'quiz'; f0 question, f1…fn options, hidden correct-answer and
   selected-answer dropdowns after them).
-- **frames/** - fr01…fr04 (prefix 'frame', type 'frame', SELF-ASSEMBLED like infographics: the
+- **frames/** - fr01…fr15 (prefix 'frame', type 'frame', SELF-ASSEMBLED like infographics: the
   DESIGN owns its fields, because a frame's field count follows its camera count - 2 lines for
   one camera, 4 for a two-up) + framePresets.ts (frame-draw / frame-fade / frame-slide). The one
   category that is not a panel of words: it is chrome around a HOLE, so `.frame-window`
@@ -924,6 +955,15 @@ picked file replaces it).
   (`TemplateVariant.logo: 'none' | 'optional' | 'built-in'`): built-in designs (corner bugs,
   credits' f2) always carry their slot; 'optional' designs get the wizard's Fields-step logo
   toggle + custom upload and only emit the field when it's on (`ResolvedOptions.logoEnabled`).
+  **The capability is the whole answer, including for a category that used to hard-wire it.**
+  End credits declared f2 for every design regardless of what the variant said, so a design
+  with no place for a mark still shipped the operator a Logo field it could never draw; the
+  assembler now gates the field, the hidden source AND the runtime's lookup on `logoEnabled`
+  (cr13 is the first credits design to declare anything but `'built-in'` - `'optional'`, so its
+  colophon has no mark by default and gains one when the toggle is on). A phantom field is not
+  cosmetic - it is a lie on every generated control page, and it moves every baseline when it
+  is removed. **A design gating a logo must gate its logo CSS on `logoEnabled` too**, or the
+  default build changes and every baseline moves for a slot nobody asked for.
   A design either hand-authors its slot (lt07's badge, lt08's docked square, card03) as
   design-owned `extraFields` (id computed after all user fields), or opts in with zero code:
   `shared/logoSlot.ts` `applyLogoSlot` injects the standard slot (filelist field +

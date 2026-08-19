@@ -42,9 +42,12 @@ import type { ProjectLegibility } from '../../model/designRules';
  *  held, at create. */
 export interface DesignEraseState {
   rect: EraseRect;
-  /** Whether the background samples counted as flat (assets/eraseRegion FLAT_BG_TOLERANCE). */
+  /** Whether every filled area had a clean background model — flat, or a smooth gradient
+   *  (assets/eraseRegion FLAT_BG_TOLERANCE). */
   uniform: boolean;
   maxDeviation: number;
+  /** True when any area was rebuilt with a fitted gradient rather than one colour. */
+  gradient?: boolean;
   /** The applied fill colour — the seeded field contrasts against exactly this. */
   fill: { r: number; g: number; b: number; a: number };
   /** Where the erased text ACTUALLY sat, measured from the pixels (SOURCE px). The seeded

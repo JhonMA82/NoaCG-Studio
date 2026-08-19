@@ -51,13 +51,18 @@ import type { ModelRoute } from '../../src/ai/modelTypes.js';
  * for one call at a time and RENEWED by every settled call, so a live generation keeps its seat
  * and an abandoned one frees it within a lease.
  *
- * **The spacing is NOT measured, and that is stated rather than hidden.** Lite's 17.8 s came
- * from 18 real generations; Pro has produced none through this route, and the browser telemetry
- * ring never reaches the server. So the default below is a starting value, tunable without a
- * deploy - and `POST /api/ai/pro-outcome` now records `runtime_ms`, which is what will let a
- * later change replace it with a real turnover the way Lite's was.
+ * **The spacing follows the first MEASURED turnover.** The original 8 s default was a guess;
+ * the first real slot turnover through this route measured 62 s (docs/NOACG_PRO_PLAN.md), and
+ * Lite's own rule - space at about half the turnover, so three attempts straddle one full
+ * cycle - puts the spacing near 31 s. With that, three attempts cover ~62 s of queue, exactly
+ * one slot cycle, where 8 s spacing had a student give up at 24 s against a 62 s cycle and a
+ * 30-seat room still mostly saw `shared_capacity`. Still env-tunable without a deploy
+ * (`AI_PRO_RETRY_SPACING_MS`, clamped 0.5-60 s), and `POST /api/ai/pro-outcome` keeps
+ * recording `runtime_ms` so the number can keep following the fleet's real behaviour.
+ * The in-function wait this buys (~62 s worst case) sits well inside the platform's 300 s
+ * function budget.
  */
-export const PRO_DEFAULT_RETRY_SPACING_MS = 8_000;
+export const PRO_DEFAULT_RETRY_SPACING_MS = 31_000;
 
 /** One classroom behind a NAT may submit 60 requests/minute (the Lite figure, same rooms).
  *  Admission polling may never be less bounded than the work it protects, so the attempt count

@@ -20,6 +20,11 @@
 //   * and all three are on screen in the same programme, often within a minute of each other,
 //     which is what makes "do these belong to each other" a question a person can actually answer.
 //
+// THE TOPIC CARD (29 of 60, the next figure down the same column) joined the list on 2026-08-19,
+// under the two-step rule `PRO_PACKAGE_IDS` (structure.ts) documents: it composes and calibrates
+// here, and enters the default package only after the owner's blind read of its set rows. The
+// bench reads PRO_GRAPHIC_LIST (everything); the product reads PRO_PACKAGE_LIST.
+//
 // ── THE INSTRUMENT THRESHOLDS ARE PER TYPE, AND THEY ARE MEASURED ─────────────────────────────
 //
 // Every calibrated number in `spike/spacingCheck.ts` and `spike/proportionCheck.ts` was taken on
@@ -35,11 +40,12 @@ import type { LineSpec } from '../../../model/wizard';
 import type { DesignLanguage } from './contract';
 import { composeFromLanguage, type ComposeOptions, type ComposedGraphic } from './compose';
 import { composeBugFromLanguage } from './composeBug';
+import { composeCardFromLanguage } from './composeCard';
 import { composeTimerFromLanguage } from './composeTimer';
-import { GRAPHIC_METRICS, PRO_GRAPHIC_IDS, type ProGraphicId } from './structure';
+import { GRAPHIC_METRICS, PRO_GRAPHIC_IDS, PRO_PACKAGE_IDS, type ProGraphicId } from './structure';
 
 export type { ProGraphicId };
-export { PRO_GRAPHIC_IDS };
+export { PRO_GRAPHIC_IDS, PRO_PACKAGE_IDS };
 
 /**
  * The instrument thresholds this graphic type is judged against.
@@ -179,10 +185,37 @@ export const PRO_GRAPHICS: Record<ProGraphicId, ProGraphicSpec> = {
     },
     compose: composeTimerFromLanguage,
   },
+  'topic-card': {
+    id: 'topic-card',
+    typeId: 'topic-card',
+    label: 'Topic card',
+    prefix: 'info-card',
+    frequency: 29,
+    takesMark: true,
+    // NOT in the default package until the owner's blind read of its set rows clears it - it is
+    // absent from `PRO_PACKAGE_IDS` (structure.ts, where the two-step rule is stated). Until
+    // then it is bench-reachable only: the control run, `pro-type-calibrate`, the paid round
+    // and the set gallery all see it.
+    //
+    // NOTHING OVERRIDDEN YET, deliberately: the info-card category compiles through the same
+    // `assembleStandard` contract the strap's calibration was taken on, so the honest starting
+    // claim is "the lower third's thresholds transfer" - and `pro-type-calibrate` is what says
+    // whether the shipped cards (card01-card06 and the pack4 topics) agree. An override written
+    // before that sweep would be taste wearing a threshold's name.
+    instruments: {},
+    compose: composeCardFromLanguage,
+  },
 };
 
-/** The package, in the registry's frequency order. */
+/** Every graphic Pro can compose, in the registry's frequency order - the BENCH's list. */
 export const PRO_GRAPHIC_LIST: ProGraphicSpec[] = PRO_GRAPHIC_IDS.map((id) => PRO_GRAPHICS[id]);
+
+/** The PACKAGE a Pro user gets: only the types whose set rows an owner read has cleared.
+ *  The wizard's checkbox list reads THIS list; the bench reads the full one above. The id set
+ *  itself lives in structure.ts (`PRO_PACKAGE_IDS`, with the two-step rule) because the
+ *  settings normalizer needs it without these canvas-bearing compose imports. */
+export const PRO_PACKAGE_LIST: ProGraphicSpec[] =
+  PRO_GRAPHIC_LIST.filter((spec) => PRO_PACKAGE_IDS.includes(spec.id));
 
 /**
  * Render one graphic of the package. The single seam a caller composing a whole SET goes through,
@@ -213,6 +246,19 @@ export function packageLines(
       return [{ title: 'Caption', sample: show.channel?.trim() || 'ON AIR' }];
     case 'countdown':
       return [{ title: 'Label', sample: 'STARTING IN' }];
+    case 'topic-card':
+      // The card names the DISCUSSION, not the person - the strap already does that. The type's
+      // own shipped samples (TOPIC_CARD_FIELDS, templates/pack4/content.ts), because a type
+      // describes the shape of a graphic's content and inventing fresh copy here would be a
+      // second sample voice inside one package. ALL THREE declared lines, not a subset: the
+      // type compiles every declared line field, and a line left empty still renders its mask -
+      // which the block accent then paints as a bare stub (found by LOOKING at the Volt
+      // control frame, the way the bug's top-rule defect was).
+      return [
+        { title: 'Topic', sample: 'The Story in Numbers' },
+        { title: 'Context', sample: 'Renewables grew 28% this year' },
+        { title: 'Detail', sample: 'Coal at its lowest share since 1965' },
+      ];
     case 'lower-third':
     default:
       return [

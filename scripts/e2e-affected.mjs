@@ -112,6 +112,10 @@ const MAP = [
   // The readable audience name is minted by the publish path but READ on the audience surfaces,
   // and rules union rather than shadowing - so this adds to the src/control/ list above.
   [/^src\/control\/joinName/, ['production-audience.spec.ts']],
+  // Loading a DATASET row into a cue: the matcher is shared by the in-app page (live) and the
+  // publish path (the hosted page's rows), so the production-data specs that drive the gesture
+  // have to run alongside the control ones the rule above selects.
+  [/^src\/control\/cueData/, ['production-data.spec.ts']],
   // The browser-output renderer (docs/CLOUD_PLAYOUT.md): its own MPA entry + the stage module.
   [/^src\/output\//, ['productions.spec.ts', 'snap-recovery.spec.ts']],
   [/^output\.html$/, ['productions.spec.ts']],
