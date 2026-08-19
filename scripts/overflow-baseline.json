@@ -364,6 +364,12 @@
    ".lower-third-mask:y"
   ]
  },
+ "ls41": {
+  "off": [],
+  "clip": [
+   ".lower-third-mask:y"
+  ]
+ },
  "ls33": {
   "off": [],
   "clip": [
@@ -590,6 +596,44 @@
    ".ticker-viewport:x"
   ]
  },
+ "tk22": {
+  "off": [
+   "#ticker-track:LR",
+   ".ticker-down:R",
+   ".ticker-down:R",
+   ".ticker-item:L",
+   ".ticker-item:R",
+   ".ticker-item:R",
+   ".ticker-item:R",
+   ".ticker-item:R",
+   ".ticker-item:R",
+   ".ticker-item:R",
+   ".ticker-item:R",
+   ".ticker-level:L",
+   ".ticker-level:R",
+   ".ticker-level:R",
+   ".ticker-level:R",
+   ".ticker-level:R",
+   ".ticker-level:R",
+   ".ticker-level:R",
+   ".ticker-level:R",
+   ".ticker-symbol:L",
+   ".ticker-symbol:R",
+   ".ticker-symbol:R",
+   ".ticker-symbol:R",
+   ".ticker-symbol:R",
+   ".ticker-symbol:R",
+   ".ticker-symbol:R",
+   ".ticker-up:R",
+   ".ticker-up:R",
+   ".ticker-up:R",
+   ".ticker-up:R",
+   ".ticker-up:R"
+  ],
+  "clip": [
+   ".ticker-viewport:x"
+  ]
+ },
  "tk13": {
   "off": [
    "#ticker-track:R",
@@ -784,6 +828,28 @@
    ".scoreboard-club:y",
    ".scoreboard-event:y",
    ".scoreboard-mask:y"
+  ]
+ },
+ "sb24": {
+  "off": [],
+  "clip": [
+   ".scoreboard-clock:y",
+   ".scoreboard-phase:y",
+   ".scoreboard-score:y",
+   ".scoreboard-score:y",
+   ".scoreboard-team:y",
+   ".scoreboard-team:y"
+  ]
+ },
+ "sb25": {
+  "off": [],
+  "clip": [
+   ".scoreboard-clock:y",
+   ".scoreboard-phase:y",
+   ".scoreboard-score:y",
+   ".scoreboard-score:y",
+   ".scoreboard-team:y",
+   ".scoreboard-team:y"
   ]
  },
  "sb21": {
@@ -1181,6 +1247,12 @@
   ]
  },
  "ss18": {
+  "off": [],
+  "clip": [
+   ".starting-soon-mask:y"
+  ]
+ },
+ "ss20": {
   "off": [],
   "clip": [
    ".starting-soon-mask:y"
@@ -2174,6 +2246,12 @@
    ".lower-third-mask:y"
   ]
  },
+ "ls41@image": {
+  "off": [],
+  "clip": [
+   ".lower-third-mask:y"
+  ]
+ },
  "sb09@image": {
   "off": [],
   "clip": [
@@ -2205,6 +2283,17 @@
   "clip": [
    ".scoreboard-mask:y",
    ".scoreboard-mask:y"
+  ]
+ },
+ "sb25@image": {
+  "off": [],
+  "clip": [
+   ".scoreboard-clock:y",
+   ".scoreboard-phase:y",
+   ".scoreboard-score:y",
+   ".scoreboard-score:y",
+   ".scoreboard-team:y",
+   ".scoreboard-team:y"
   ]
  },
  "card05@image": {
