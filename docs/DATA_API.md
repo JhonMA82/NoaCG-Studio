@@ -24,9 +24,17 @@ Authorization: Bearer <data key>
 - The key is **per production**, minted automatically when the production is published
   (`control_shows.data_key`, migration 0047). The production owner hands it to you; treat it
   like any API credential (server-side config, never a web page).
-- It is **update-only by construction**: the only thing that accepts it is this API, and this
-  API writes nothing but field updates. It cannot play, stop or clear a graphic, and it is
-  deliberately not the operator page's URL capability.
+- It carries **one invariant**, and this is the useful phrasing of it:
+
+  > External integrations manipulate production data, never individual graphic instances.
+  > Writes describe state, never graphic commands.
+
+  The only thing that accepts this key is this API, and this API writes nothing but data. It
+  cannot play, stop, take or clear a graphic, and it is deliberately not the operator page's URL
+  capability. (An earlier wording said "update-only by construction". That was a claim about
+  VERBS, and it prejudged the read-back an integrator legitimately needs after a restart -
+  `docs/PRODUCTION_DATA_PLAN.md` §7. The invariant above is the one that actually matters, and a
+  read endpoint is compatible with it.)
 - **Rotation / revocation** (owner-side): unpublishing and re-publishing the production mints
   a fresh key (the four viewer/operator URLs deliberately survive that; the data key
   deliberately does not). The owner can also overwrite or clear the key directly on the row -
@@ -217,13 +225,24 @@ tick; a `429` delays the next tick by its `Retry-After`; a `401` stops the feed.
 `--url` at the canonical host (`https://noacg.studio`, the default) - the `*.vercel.app`
 host answers with a `308`, and clients commonly drop POST bodies on redirect.
 
+## Where this is going
+
+`POST /api/data/update` addresses a GRAPHIC, which means your system has to know the
+production's rundown - the coupling **`docs/PRODUCTION_DATA_PLAN.md`** removes. That plan's
+Phase 1 (the operator-facing manual playground and the field bindings) is built; its Phase 2
+adds `PATCH /api/data` and `GET /api/data`, where you write **production data** by path and
+every graphic bound to that path follows. When it lands, this endpoint stays as the low-level
+direct-write path, and the patch verb becomes the one integrators should reach for first.
+
 ## What this API deliberately is not
 
 - **Not an operator.** No play, stop, next, take, or state jumps - airing is a human decision
   on an operator surface. A feed that could clear the frame would be a second operator with
   no face.
-- **Not a read API.** It answers about the request it just handled, nothing else. The
-  production's state belongs to the operator surfaces.
+- **Not a read API — yet.** Today it answers about the request it just handled, nothing else.
+  A read verb is approved for Phase 2 (an integrator reconciling after a restart should ask
+  what NoaCG believes rather than push a whole snapshot blindly); until then, the production's
+  state belongs to the operator surfaces.
 - **Not a renderer channel.** There is no path from here to the output page except the same
   log every operator writes; the renderer stays dumb on purpose.
 

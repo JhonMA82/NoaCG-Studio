@@ -8,6 +8,7 @@
 import type { SpxTemplate } from './types';
 import type { SavedGraphic } from './packets';
 import type { ProjectBrand } from './brand';
+import type { JsonObject, ProductionBindings } from './productionData';
 import { durable } from './durableStore';
 import { uuid } from './id';
 
@@ -82,6 +83,20 @@ export interface Show {
   /** The production's DATA TABLES (the Data workspace — docs/INTERACTIVE_PLAYOUT_PLAN.md D3).
    *  ADDITIVE OPTIONAL like cues; absent = none authored. */
   datasets?: ShowDataset[];
+  /**
+   * The production-data SEED (docs/PRODUCTION_DATA_PLAN.md §2.1) — the tree this production
+   * STARTS from, and what "Reset" returns the live tree to. Authored, so it travels: it syncs,
+   * duplicates and exports with the record.
+   *
+   * The LIVE tree is deliberately NOT here (model/productionState.ts says why at length): it
+   * moves at feed rate, and this record syncs last-write-wins with conflict copies that drop
+   * the production's slugs. ADDITIVE OPTIONAL — absent = no data authored.
+   */
+  data?: JsonObject;
+  /** Field BINDINGS: graphic name -> field id -> production-data path. A bound field takes its
+   *  value from the live tree at Take and on every change, never from a stored cue value
+   *  (docs/PRODUCTION_DATA_PLAN.md §2.7). ADDITIVE OPTIONAL. */
+  bindings?: ProductionBindings;
   /** The hosted control page's capability slug, once published (control/hostedControl.ts).
    *  Kept on the record so the URL survives reloads and the show export can bake the hosted
    *  receiver into its graphics. Rotating/unpublishing clears it. */
@@ -606,6 +621,42 @@ export function datasetValuesForFields(
     if (v !== undefined) out[f.key] = v;
   }
   return out;
+}
+
+/**
+ * Save the production-data SEED — what Reset returns the live tree to.
+ *
+ * This is the ONE write that puts data values on the show record, and it is a deliberate
+ * operator action ("Save as seed"), never something a value change triggers. That is the whole
+ * anti-churn rule of docs/PRODUCTION_DATA_PLAN.md §2.1, enforced by there being no other door.
+ */
+export function setShowSeedData(showId: string, data: JsonObject | undefined): Show[] {
+  return patchShow(showId, (show) => {
+    if (data && Object.keys(data).length > 0) show.data = data;
+    else delete show.data;
+    return true;
+  });
+}
+
+/** Bind a field to a production-data path, or unbind it with `null` — the operator's one and
+ *  only override gesture (docs/PRODUCTION_DATA_PLAN.md §2.7). */
+export function setFieldBinding(
+  showId: string,
+  graphic: string,
+  fieldId: string,
+  path: string | null,
+): Show[] {
+  return patchShow(showId, (show) => {
+    const bindings: ProductionBindings = { ...(show.bindings ?? {}) };
+    const forGraphic = { ...(bindings[graphic] ?? {}) };
+    if (path && path.trim() !== '') forGraphic[fieldId] = path.trim();
+    else delete forGraphic[fieldId];
+    if (Object.keys(forGraphic).length > 0) bindings[graphic] = forGraphic;
+    else delete bindings[graphic];
+    if (Object.keys(bindings).length > 0) show.bindings = bindings;
+    else delete show.bindings;
+    return true;
+  });
 }
 
 /** Set (or clear, with undefined) the production's unified look. */

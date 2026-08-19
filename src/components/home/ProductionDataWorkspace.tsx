@@ -17,6 +17,8 @@ import {
 } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
 import { parseTableFile, serializeCsv } from '../../model/csv';
+import type { JsonObject, ResolvedValues } from '../../model/productionData';
+import ProductionDataPanel from './ProductionDataPanel';
 
 /** A file name a spreadsheet will not argue with, from the table type's own name. */
 function templateFileName(label: string): string {
@@ -55,9 +57,15 @@ function boundColumns(show: Show, header: string[]): string[] {
 export default function ProductionDataWorkspace({
   show,
   setShows,
+  liveData,
+  setLiveData,
+  resolved,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
+  liveData: JsonObject;
+  setLiveData: (data: JsonObject) => void;
+  resolved: ResolvedValues;
 }) {
   const [newKind, setNewKind] = useState<ShowDataset['kind']>('quiz');
   const [importNote, setImportNote] = useState<string | null>(null);
@@ -172,12 +180,24 @@ export default function ProductionDataWorkspace({
 
   return (
     <section className="pd-data" data-testid="production-data">
+      {/* THE LIVE TREE first, then the tables. Two different questions, deliberately not merged
+          (docs/PRODUCTION_DATA_PLAN.md §2.8): production data is the ONE thing that is true
+          right now and it wires itself into graphics; a table is a BANK of candidate rows an
+          operator picks from. The tables section is named for what it holds, because the live
+          panel above it is what "production data" now means. */}
+      <ProductionDataPanel
+        show={show}
+        setShows={setShows}
+        liveData={liveData}
+        setLiveData={setLiveData}
+        resolved={resolved}
+      />
       <div className="pd-data-head">
-        <h2>Production data</h2>
+        <h2>Tables</h2>
         <p className="hint">
-          Tables this production owns. Column names bind to graphic fields: on the Playout tab,
-          a cue whose field titles match a table's columns can load any row — into PREVIEW,
-          never straight to air.
+          Tables this production owns — a question bank, a line-up, a roster. Column names bind
+          to graphic fields: on the Playout tab, a cue whose field titles match a table's columns
+          can load any row — into PREVIEW, never straight to air.
         </p>
         {datasets.length > 0 && actions}
       </div>

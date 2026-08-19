@@ -24,6 +24,13 @@ import {
   type ShowCue,
 } from '../../model/shows';
 import { graphicKindLabel, type Resolution } from '../../model/types';
+import {
+  diffResolved,
+  resolveBindings,
+  type JsonObject,
+  type ResolvedValues,
+} from '../../model/productionData';
+import { loadLiveData, saveLiveData } from '../../model/productionState';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
 import { revealCue, stepSelection, usePlayoutVerbKeys, type PlayoutVerb } from '../playoutKeys';
@@ -258,6 +265,58 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setShows(updateShowCue(id, d.cueId, { label: d.label, note: d.note || null, values: d.values }));
   }, [id]);
   useEffect(() => () => flushDraft(), [flushDraft]);
+
+  // ── PRODUCTION DATA: the tree, and what it resolves to (docs/PRODUCTION_DATA_PLAN.md) ────
+  // Held on THIS page rather than in the Data workspace, because the one sender lives here and
+  // the Data tab unmounts the playout surface. Runtime state: it is read from and written to
+  // productionState.ts, never to the show record, which syncs and would churn per tick. The
+  // DISPATCH half sits further down, beside `runVerb`.
+  const [liveData, setLiveDataState] = useState<JsonObject>({});
+  /** What was last put on the wire, per graphic per field — the diff baseline (see the effect). */
+  const lastResolved = useRef<ResolvedValues>({});
+  useEffect(() => {
+    setLiveDataState(id ? loadLiveData(id) : {});
+    // A different production is a different tree AND a different baseline, so the next dispatch
+    // reconciles the new production from scratch rather than against the old one's values.
+    lastResolved.current = {};
+  }, [id]);
+
+  const setLiveData = useCallback(
+    (next: JsonObject) => {
+      setLiveDataState(next);
+      saveLiveData(id, next);
+    },
+    [id],
+  );
+
+  const bindings = show?.bindings;
+  /** What every bound field SHOULD be showing right now. */
+  const resolved = useMemo(() => resolveBindings(liveData, bindings), [liveData, bindings]);
+  const resolvedRef = useRef<ResolvedValues>(resolved);
+  resolvedRef.current = resolved;
+
+  /**
+   * The values a Take, an Update or the PREVIEW must carry for one graphic — bound fields
+   * overlaid on the cue's own.
+   *
+   * THE RULE (plan §2.7): a bound field is never a stored cue value, so taking a cue prepared
+   * at 1–0 while the tree says 3–2 airs 3–2. Read through a ref so long-lived callbacks do not
+   * need this render's closure.
+   */
+  const withBoundValues = useCallback(
+    (graphic: string, values: Record<string, string>): Record<string, string> => ({
+      ...values,
+      ...(resolvedRef.current[graphic] ?? {}),
+    }),
+    [],
+  );
+
+  /** The paths this production has bound, per graphic — what the cue editor greys out. */
+  const boundFields = useCallback(
+    (graphic: string | null): Record<string, string> => (graphic ? (bindings?.[graphic] ?? {}) : {}),
+    [bindings],
+  );
+
   /** The cue as the operator currently sees it — draft over record. */
   const cueView = useCallback(
     (cue: ShowCue): Pick<CueDraft, 'label' | 'note' | 'values'> => {
@@ -441,7 +500,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // list is the snap PICKER's and is empty without an explicit machine by design, while a
   // machine-less graphic's `enter` still has to read "Enter" (controlModel.ts says why).
   const stateNames = useMemo(() => (previewTemplate ? machineStateNames(previewTemplate.js) : {}), [previewTemplate]);
-  const settleData = selectedCue ? JSON.stringify(cueView(selectedCue).values) : '';
+  // The PREVIEW settles with bound fields overlaid too, for the same reason Take does: the
+  // monitor has to show what a Take would actually put on air, not the cue's prepared value.
+  const settleData = selectedCue
+    ? JSON.stringify(withBoundValues(cueGraphicName(selectedCue) ?? '', cueView(selectedCue).values))
+    : '';
   const settlePreview = useCallback((data: string) => {
     postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data });
   }, []);
@@ -512,6 +575,27 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     },
     [hostedSlug, cueLabel, rememberAired],
   );
+
+  /**
+   * PRODUCTION DATA, the dispatch half: put the CHANGES on the wire, and nothing else.
+   *
+   * Diffing is not an optimisation. The log caps a production at 50 commands per 5 s (migration
+   * 0008) and every row fans out over Realtime to the renderer and to every open operator page,
+   * so a tree with one moving value must cost ONE row rather than one per bound graphic per
+   * tick. The baseline starts empty on purpose: the first pass after opening the page (or after
+   * switching production) reconciles every bound field once, which is safe precisely because
+   * these are absolute values and re-sending one changes nothing.
+   */
+  useEffect(() => {
+    const changes = diffResolved(lastResolved.current, resolved);
+    const graphics = Object.keys(changes);
+    if (graphics.length === 0) return;
+    lastResolved.current = resolved;
+    void runVerb(
+      [graphics.map((graphic) => ({ graphic, msg: { t: 'update' as const, data: changes[graphic] } }))],
+      'Data',
+    );
+  }, [resolved, runVerb]);
 
   if (!show) {
     return (
@@ -788,7 +872,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const graphic = cueGraphicName(cue);
     if (!graphic) return;
     flushDraft();
-    if (await runVerb([takeCueItems({ id: cue.id, graphic, values: cueView(cue).values })], 'Take')) {
+    // Bound fields come from the LIVE tree, not from what this cue stored when it was prepared
+    // (plan §2.7) — otherwise taking an old cue would re-air a stale score.
+    const values = withBoundValues(graphic, cueView(cue).values);
+    if (await runVerb([takeCueItems({ id: cue.id, graphic, values })], 'Take')) {
       setLiveCue((m) => withLiveCue(m, graphic, cue.id));
     }
   };
@@ -796,7 +883,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const updateLive = async () => {
     if (!editingCue || !selectedGraphic || !editingIsLive) return;
     flushDraft();
-    await runVerb([[{ graphic: selectedGraphic, msg: { t: 'update', data: cueView(editingCue).values } }]], 'Update');
+    // Same overlay as Take: ✎ Update must not push a bound field back to its prepared value.
+    const data = withBoundValues(selectedGraphic, cueView(editingCue).values);
+    await runVerb([[{ graphic: selectedGraphic, msg: { t: 'update', data } }]], 'Update');
   };
 
   /**
@@ -1079,7 +1168,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         />
       }
     >
-      {sub === 'data' && <ProductionDataWorkspace show={show} setShows={setShows} />}
+      {sub === 'data' && (
+        <ProductionDataWorkspace
+          show={show}
+          setShows={setShows}
+          liveData={liveData}
+          setLiveData={setLiveData}
+          resolved={resolved}
+        />
+      )}
       {sub === 'audience' && <ProductionAudienceWorkspace show={show} setShows={setShows} />}
       {!sub && (
       <>
@@ -1346,21 +1443,39 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   </div>
                 </label>
               )}
-              {descriptors.map((d) => (
-                <FieldRow
-                  key={d.key}
-                  descriptor={{ ...d, label: `${d.key.toUpperCase()} · ${d.label}` }}
-                  value={String(editingView.values[d.key] ?? d.defaultValue ?? '')}
-                  onChange={(v) => editDraft({ values: { [d.key]: String(v) } })}
-                  testIdPrefix="cue-field"
-                  images={cueImages}
-                  imageHint={
-                    poolGraphic.type === 'picture'
-                      ? 'Pictures come from this production — add more with ＋ Add pictures.'
-                      : "Pictures come from the graphic itself — add one in the editor's Assets tab."
-                  }
-                />
-              ))}
+              {descriptors.map((d) => {
+                // A BOUND field is not a cue value (plan §2.7): it takes the live tree's value
+                // at Take, at ✎ Update and in the preview, so an editable box here would show a
+                // number nothing will ever air. It reads out instead, wearing its path — and
+                // the one override gesture is Unbind, on the Data tab, deliberately.
+                const path = boundFields(selectedGraphic)[d.key];
+                if (path) {
+                  return (
+                    <label className="pd-field pd-field-bound" key={d.key} data-testid={`cue-bound-${d.key}`}>
+                      <span>
+                        {d.key.toUpperCase()} · {d.label}
+                        <b className="pd-bound-mark">🔗 {path}</b>
+                      </span>
+                      <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? '—'} readOnly tabIndex={-1} />
+                    </label>
+                  );
+                }
+                return (
+                  <FieldRow
+                    key={d.key}
+                    descriptor={{ ...d, label: `${d.key.toUpperCase()} · ${d.label}` }}
+                    value={String(editingView.values[d.key] ?? d.defaultValue ?? '')}
+                    onChange={(v) => editDraft({ values: { [d.key]: String(v) } })}
+                    testIdPrefix="cue-field"
+                    images={cueImages}
+                    imageHint={
+                      poolGraphic.type === 'picture'
+                        ? 'Pictures come from this production — add more with ＋ Add pictures.'
+                        : "Pictures come from the graphic itself — add one in the editor's Assets tab."
+                    }
+                  />
+                );
+              })}
               <label className="pd-field pd-field-note">
                 <span>Operator note</span>
                 <input

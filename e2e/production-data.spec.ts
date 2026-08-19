@@ -386,3 +386,200 @@ test('the empty workspace carries the doors and names the columns that would bin
   expect(layout.height).toBeLessThan(50);
   expect(layout.rightGap).toBeLessThanOrEqual(1);
 });
+
+// ── PRODUCTION DATA: the live tree, the bindings, and the rules that make them safe on air
+// (docs/PRODUCTION_DATA_PLAN.md). Everything below is Phase 1: local, manual, no API.
+
+/** Add one value to the production's live tree from the Data tab. */
+async function addValue(page: Page, path: string, value: string): Promise<void> {
+  await page.getByTestId('data-new-path').fill(path);
+  await page.getByTestId('data-new-value').fill(value);
+  await page.getByTestId('data-add').click();
+  await expect(page.getByTestId(`data-row-${path}`)).toBeVisible();
+}
+
+/** The pool graphic's name, as the bindings table prints it. */
+async function firstGraphicName(page: Page): Promise<string> {
+  const heading = await page.locator('.pd-bind-graphic h4').first().textContent();
+  return (heading ?? '').trim();
+}
+
+test('a bound field takes the LIVE value on air, and an old cue cannot re-air a stale one', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Match Night');
+
+  // ── The playground: a nested tree, typed by what was written rather than by a schema. ──
+  await page.getByTestId('tab-data').click();
+  await expect(page.getByTestId('production-live-data')).toBeVisible();
+  await addValue(page, 'match.home.name', 'Finland');
+  await addValue(page, 'match.home.score', '1');
+  await expect(page.getByTestId('data-row-match.home.score')).toContainText('number');
+  // A clock is TEXT - a value box that parsed 12:31 as a number would air 12.
+  await addValue(page, 'match.clock', '12:31');
+  await expect(page.getByTestId('data-row-match.clock')).toContainText('string');
+
+  // ── Bind the graphic's first field to the name. ──
+  const graphicName = await firstGraphicName(page);
+  await page.getByTestId(`bind-${graphicName}-f0`).fill('match.home.name');
+  await expect(page.getByTestId(`bind-value-${graphicName}-f0`)).toHaveText('Finland');
+
+  // ── On Playout the bound field READS OUT: it is not a cue value, so there is no box to type
+  //    a value into that nothing would ever air. ──
+  await page.getByTestId('tab-playout').click();
+  await expect(page.getByTestId('cue-bound-f0')).toBeVisible();
+  await expect(page.getByTestId('cue-field-f0')).toHaveCount(0);
+  const preview = page.frameLocator('iframe[title="Cue preview"]');
+  await expect(preview.locator('#f0')).toHaveText('Finland');
+
+  // Take it: air shows the live value.
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await page.getByTestId('verb-take').click();
+  await expect(program.locator('#f0')).toHaveText('Finland');
+
+  // ── THE RULE THAT MATTERS (plan 2.7): the data moves while this cue sits there prepared,
+  //    and taking it AGAIN airs the new value, never the one it was prepared with. ──
+  await page.getByTestId('tab-data').click();
+  await page.getByTestId('data-value-match.home.name').fill('Sweden');
+  await page.getByTestId('tab-playout').click();
+  await expect(program.locator('#f0')).toHaveText('Sweden');
+  await page.getByTestId('verb-take').click();
+  await expect(program.locator('#f0')).toHaveText('Sweden');
+
+  // ── Reload: the live tree is runtime state and survives, and it is NOT on the show record. ──
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('tab-data').click();
+  await expect(page.getByTestId('data-value-match.home.name')).toHaveValue('Sweden');
+  // The seed was never written, because saving one is a deliberate act - this is the whole
+  // anti-churn rule (plan 2.1): live values must not touch the synced Show record.
+  const onRecord = await page.evaluate(() => {
+    const shows = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as { name: string; data?: unknown }[];
+    return shows.find((s) => s.name === 'Match Night')?.data ?? null;
+  });
+  expect(onRecord).toBe(null);
+});
+
+test('the seed is the reset target, and unbinding hands the field back to the cue', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Seed Show');
+  await page.getByTestId('tab-data').click();
+  await addValue(page, 'counter', '5');
+
+  // Save as seed, move the value, reset - the seed is what Reset returns to.
+  await page.getByTestId('data-save-seed').click();
+  await expect(page.getByTestId('data-note')).toContainText('seed');
+  await page.getByTestId('data-up-counter').click();
+  await expect(page.getByTestId('data-value-counter')).toHaveValue('6');
+  await page.getByTestId('data-reset').click();
+  await expect(page.getByTestId('data-value-counter')).toHaveValue('5');
+
+  // Clear empties the tree; Reset brings the seed back, so Clear is never a data loss.
+  await page.getByTestId('data-clear').click();
+  await expect(page.getByTestId('data-empty-live')).toBeVisible();
+  await page.getByTestId('data-reset').click();
+  await expect(page.getByTestId('data-value-counter')).toHaveValue('5');
+
+  // ── Bind, then UNBIND: the one override gesture (plan 2.7). The cue's own editable field
+  //    comes back, which is what makes "manual override = unbind" a complete answer. ──
+  const graphicName = await firstGraphicName(page);
+  await page.getByTestId(`bind-${graphicName}-f0`).fill('counter');
+  await page.getByTestId('tab-playout').click();
+  await expect(page.getByTestId('cue-bound-f0')).toBeVisible();
+  await page.getByTestId('tab-data').click();
+  await page.getByTestId(`unbind-${graphicName}-f0`).click();
+  await page.getByTestId('tab-playout').click();
+  await expect(page.getByTestId('cue-field-f0')).toBeVisible();
+  await expect(page.getByTestId('cue-bound-f0')).toHaveCount(0);
+});
+
+test('nested trees, arrays and a missing path each behave as the contract says', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Shapes');
+  await page.getByTestId('tab-data').click();
+
+  // A whole payload pasted as JSON - the same shape the future ingress API will accept, which
+  // is what makes this panel the API's documentation as well as its playground.
+  await page.getByTestId('data-raw-toggle').click();
+  await page.getByTestId('data-raw-text').fill(
+    JSON.stringify({
+      poll: { open: true, options: [{ label: 'Yes', votes: 72 }] },
+      headlines: ['First story', 'Second story'],
+      drivers: [{ name: 'Driver A', gap: 'LEADER' }],
+    }),
+  );
+  await page.getByTestId('data-raw-apply').click();
+  // Nested objects, arrays of objects (indexed paths) and a scalar array as ONE leaf.
+  await expect(page.getByTestId('data-row-poll.open')).toBeVisible();
+  await expect(page.getByTestId('data-row-poll.options.0.votes')).toBeVisible();
+  await expect(page.getByTestId('data-row-drivers.0.gap')).toBeVisible();
+  await expect(page.getByTestId('data-value-headlines')).toHaveValue('First story\nSecond story');
+
+  // Malformed JSON is refused with its own reason, and the tree is untouched. (A successful
+  // apply CLOSES the panel - the edit is done - so this reopens it.)
+  await page.getByTestId('data-raw-toggle').click();
+  await page.getByTestId('data-raw-text').fill('{not json');
+  await page.getByTestId('data-raw-apply').click();
+  await expect(page.getByTestId('data-raw-error')).toBeVisible();
+  await expect(page.getByTestId('data-row-poll.open')).toBeVisible();
+
+  // ── A binding to a path that is not there writes NOTHING: the field keeps its own value
+  //    rather than going blank on air (plan 2.4, "freeze is not-writing"). ──
+  const graphicName = await firstGraphicName(page);
+  await page.getByTestId(`bind-${graphicName}-f0`).fill('nothing.here');
+  await expect(page.getByTestId(`bind-value-${graphicName}-f0`)).toContainText('no value');
+  await page.getByTestId('tab-playout').click();
+  const preview = page.frameLocator('iframe[title="Cue preview"]');
+  await expect(preview.locator('#f0')).not.toHaveText('');
+
+  // Deleting a value leaves the rest of the tree alone.
+  await page.getByTestId('tab-data').click();
+  await page.getByTestId('data-delete-poll.open').click();
+  await expect(page.getByTestId('data-row-poll.open')).toHaveCount(0);
+  await expect(page.getByTestId('data-row-poll.options.0.votes')).toBeVisible();
+});
+
+test('one value moves every graphic bound to it, and only the graphics bound to it', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Two Graphics');
+  await page.getByTestId('tab-data').click();
+  await addValue(page, 'shared.title', 'First');
+
+  // The one binding this pool offers, bound - then the value moves and the preview follows
+  // without anything being taken: a data write never plays, stops or takes anything.
+  const graphicName = await firstGraphicName(page);
+  await page.getByTestId(`bind-${graphicName}-f0`).fill('shared.title');
+  await page.getByTestId('tab-playout').click();
+  const preview = page.frameLocator('iframe[title="Cue preview"]');
+  await expect(preview.locator('#f0')).toHaveText('First');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+
+  await page.getByTestId('tab-data').click();
+  await page.getByTestId('data-value-shared.title').fill('Second');
+  await page.getByTestId('tab-playout').click();
+  await expect(preview.locator('#f0')).toHaveText('Second');
+  // Still nothing on air: state changed, no graphic was played.
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+});
+
+test('production data is scoped to its production, never shared between two', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Show One');
+  const showOneUrl = page.url();
+  await page.getByTestId('tab-data').click();
+  await addValue(page, 'shared.value', 'one');
+
+  // A second production, from its own project. Same path, its own tree - the store is keyed by
+  // production id, so nothing about "shared.value" is global.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Show Two');
+  await page.getByTestId('tab-data').click();
+  await expect(page.getByTestId('production-live-data')).toBeVisible();
+  await expect(page.getByTestId('data-row-shared.value')).toHaveCount(0);
+  await addValue(page, 'shared.value', 'two');
+
+  // Back to the first by its own URL (deterministic - no card hunting): still 'one'.
+  await page.goto(showOneUrl);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('tab-data').click();
+  await expect(page.getByTestId('data-value-shared.value')).toHaveValue('one');
+});

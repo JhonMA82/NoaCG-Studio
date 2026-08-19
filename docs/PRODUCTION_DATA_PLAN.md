@@ -1,8 +1,12 @@
 # Production Data - plan
 
 A production holds a **tree of live values** that its graphics read from, so an external system
-says *"the home score is 4"* and never *"sb03 is on air"*. This document is the design; nothing
-in it is built yet.
+says *"the home score is 4"* and never *"sb03 is on air"*.
+
+**Status: PHASE 1 IS BUILT** (2026-08-19). The manual playground, the binding model, the diff
+and the Take/Update/preview overlay all ship; there is no API, no server column and no migration
+yet. Phase 2 (server ingress) and Phase 3 (controller convergence) are still design only - §4.
+What Phase 1 actually landed is §12.
 
 Read `docs/CLOUD_PLAYOUT.md` (§7 is the ingress doctrine), `docs/DATA_API.md` (the shipped
 first slice) and `docs/INTERACTIVE_PLAYOUT_PLAN.md` D3/D5 first - this plan is a thin layer
@@ -338,10 +342,21 @@ to keep Phase 1 manual-only.
 - 16 KB body cap stays. Scenario C (20 drivers by 5 values) is about 3 KB.
 - Cross-production writes are structurally impossible: the key **is** the production address.
 
-**One honest change to flag:** adding `GET /api/data` makes the key read+write, which weakens the
-"update-only by construction" claim in `docs/DATA_API.md`. Read-back is genuinely useful (an
-integrator reconciling after a restart), so the recommendation is to add it and **amend the doc**,
-not to add a second key scope. Split scopes only if a real customer needs write-without-read.
+**`GET /api/data` is APPROVED for Phase 2** (owner decision, 2026-08-19). An integrator
+reconciling after a restart, a crash or a network partition needs to ask what NoaCG currently
+believes rather than blindly pushing a whole snapshot. The invariant is therefore restated - in
+`docs/DATA_API.md` too - from the weaker
+
+> ~~update-only by construction~~
+
+to the stronger and more useful
+
+> **External integrations manipulate production data, never individual graphic instances. Writes
+> describe state, never graphic commands.**
+
+Reading is compatible with that; playing a graphic never is. Scope names (`production:data:read`,
+`production:data:write`) are reserved in the design so a later split is additive, but **no scope
+system is built** - one key, both verbs, until a real caller needs otherwise.
 
 **Not now:** per-key scopes, multiple keys per production, key naming/rotation UI, audit trails,
 per-path permissions. All enterprise API-key management, none of it earned yet.
@@ -425,3 +440,84 @@ so the five catalog gates are not in scope.
 - **Phase 1's local-only live tree means a published production's data lives in one operator's
   browser.** That is exactly how cues already work, so it is consistent - but it is the honest
   reason Phase 2 is not optional if this is ever used on a real show with two operators.
+
+---
+
+## 12. What Phase 1 landed (2026-08-19)
+
+| File | What |
+|---|---|
+| `src/model/productionData.ts` (new) | The whole semantic contract, PURE and import-free: merge-patch, paths, the stringify rule, `resolveBindings`, `diffResolved`, `suggestPath`, `parseLiteral`, `reparseLeaf`. |
+| `src/model/productionState.ts` (new) | The live tree's storage - plain localStorage, per production, never synced, never in the durable write queue. |
+| `src/model/shows.ts` | `Show.data` (the seed) + `Show.bindings`, both additive-optional; `setShowSeedData` + `setFieldBinding`. |
+| `src/components/home/ProductionDataPanel.tsx` (new) | The playground and the bindings table. |
+| `src/components/home/ProductionDataWorkspace.tsx` | Hosts the panel above the tables; the tables section is renamed "Tables" so "Production data" means one thing. |
+| `src/components/home/ProductionPage.tsx` | Owns the tree (the one sender lives here); the resolve/diff/dispatch effect; the bound-value overlay on Take, ✎ Update and the preview; bound fields read out in the cue editor. |
+| `scripts/production-data.test.mjs` (new) | 15 unit tests including the merge-patch conformance table; wired into the build gate. |
+| `e2e/production-data.spec.ts` | 5 new specs beside the existing 10. |
+
+**Two things the review changed:**
+
+- **`Show.data` is the SEED only, written by a deliberate "Save as seed".** There is no other
+  door onto the record, which is what makes the anti-churn rule structural rather than
+  remembered. The e2e spec asserts the record stays untouched while values move.
+- **`reparseLeaf` exists because of a defect the specs caught.** A scalar array renders as
+  newline-joined text, and `<input>` sanitises newlines out of its own value - so editing a list
+  in the row editor silently joined it into one string. The row now uses a textarea for
+  multi-line values and reads the edit back **in the type it already had**.
+
+### The high-frequency clock question, answered against the real implementation
+
+The concern was raised before building; here are the measured facts.
+
+| Fact | Where | Number |
+|---|---|---|
+| Per-production command cap | `control_send`, migration 0008 | **50 per 5 s** (10/s) |
+| Ingest budget (the API's half) | migration 0047 | 25 per 5 s |
+| Log retention | migration 0029 | rows older than **7 days**, deleted **at publish only** |
+| Renderer catch-up page | `hostedControl.ts` | 500 rows, up to 40 pages |
+| Renderer boot replay start | `output/main.ts` | the per-graphic `control_report` **baseline**, not log zero |
+
+**Delivery is not the problem.** A 1 Hz clock costs one row per second - a tenth of the cap - and
+a renderer rebooting mid-show replays from its own debounced report baseline, so catch-up depth
+is bounded by report frequency, not by how long the clock has been running. Diff-before-send is
+sufficient for Phase 1, and it is what keeps a tree with one moving value at one row rather than
+one row per bound graphic.
+
+**Volume is the real cost, and it is deferred honestly.** 3,600 rows per hour per production
+accumulate for up to 7 days, and the prune runs only when someone publishes. A production left
+running for days without a re-publish grows a large log. Nothing about this needs solving now,
+and **no second transport should ever be introduced for it** - the eventual answers, in order of
+preference, are: a time-based prune that does not wait for a publish; coalescing repeated writes
+to the same path within a window before they become rows; and only then, if ever, a separate
+ephemeral delivery policy for values marked as such.
+
+**The better answer for a clock specifically:** a continuously running clock should not be
+production data at all. Templates already run their own countdowns locally from a duration field
+plus a start event - that is the state-machine model working as designed. Production data is for
+values that CHANGE DISCRETELY (a score, a period, a headline, a lap number). Binding a per-second
+tick to a data path is the anti-pattern, not the load case to engineer for. That distinction is
+worth saying in the integrator docs when Phase 2 ships.
+
+### Verification
+
+- `npm run build` - **exit 0** (typecheck, api typecheck, eslint `--max-warnings 0`,
+  dependency-cruiser, the unit-test set, vite build, prerender, secret scan).
+- `node --test scripts/production-data.test.mjs` - **15/15**.
+- `npx playwright test e2e/production-data.spec.ts` - **15/15** (10 pre-existing + 5 new).
+- `npm run test:e2e:focus:queued` - **316/0**.
+
+### Unresolved risks
+
+1. **Phase 1's live tree is per-browser.** A published production operated from two machines has
+   two trees, and only the operator's own writes reach air. This is the honest reason Phase 2 is
+   not optional for a real multi-operator show; it is not a defect in Phase 1's model, which is
+   the same shape cues already have.
+2. **The mount reconcile sends every bound field once** per production page open. Idempotent and
+   bounded by graphic count, but it is a burst of N rows on a page that was already correct.
+   Worth revisiting if a production ever carries many bound graphics.
+3. **Binding suggestions will often be ambiguous** in real productions (`Name` matching several
+   paths). Refusing to guess is right; whether the datalist picker makes manual binding fast
+   enough is unproven until someone binds a real rundown.
+4. **`liveData.ts` still exists** - the CSV poller inside template JS, outside the log. It is
+   frozen, not retired. It remains the one genuine second data path.
