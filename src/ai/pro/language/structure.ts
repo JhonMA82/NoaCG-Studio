@@ -122,8 +122,24 @@ export const PACKAGE_UNIT_PX = HEADING_PX;
 /** The graphic types Pro composes. Ordered by the registry's own frequency figure - how many of
  *  the 60 reference formats ask for that graphic (`src/templates/types/registry.ts`), which is
  *  what "a show cannot go on air without it" is answered by here rather than by taste. */
-export const PRO_GRAPHIC_IDS = ['lower-third', 'sponsor-bug', 'countdown'] as const;
+export const PRO_GRAPHIC_IDS = ['lower-third', 'sponsor-bug', 'countdown', 'topic-card'] as const;
 export type ProGraphicId = (typeof PRO_GRAPHIC_IDS)[number];
+
+/**
+ * The PACKAGE a Pro user gets by default - the subset of the composable types whose set rows an
+ * owner blind read has cleared.
+ *
+ * A new type joins in TWO steps, and the gap between the lists is the rule: it enters
+ * `PRO_GRAPHIC_IDS` when it composes and calibrates (so the control run, the paid round and the
+ * set gallery all reach it), and enters THIS list only after the owner's read. A validation
+ * phase decides whether a thing ships, never assumes it - wiring a type straight into the
+ * default package would ship it to every Pro user on the strength of its own instruments, the
+ * §16 class of mistake. The topic card sits in that gap now (added 2026-08-19, read pending).
+ *
+ * It lives HERE, not in graphics.ts, because the stored-package normalizer (settings.ts) needs
+ * it and settings must stay off the canvas-bearing compose modules graphics.ts imports.
+ */
+export const PRO_PACKAGE_IDS: readonly ProGraphicId[] = ['lower-third', 'sponsor-bug', 'countdown'];
 
 /**
  * What a graphic TYPE contributes to the resolved spacing: its own type anchor, its own mark
@@ -215,6 +231,27 @@ export const GRAPHIC_METRICS: Record<ProGraphicId, GraphicMetrics> = {
       reveal: 'timer-line-reveal',
       fade: 'timer-line-reveal',
     },
+  },
+  // 29 of 60 - the next type down the registry's own frequency column. The card that stays up
+  // DURING the discussion: a topic or question, with room for its source. Structurally the
+  // strap's sibling (the info-card category compiles through the same `assembleStandard`
+  // contract), which is why its metrics read like a wider, taller lower third rather than a
+  // new shape.
+  'topic-card': {
+    // 44px - the info-card catalog's own heading size (card01/card06 both set it), not a
+    // number invented here. Bigger than a strap's role line, smaller than its name: a card is
+    // read for seconds, not glanced at.
+    primaryPx: 44,
+    steppedSecondary: true,
+    // The type declares `logo: 'optional'`, and outside a lower third the shared slot draws
+    // the mark as its stacked BAND: a fixed 64px with 20px of clear space beneath it
+    // (`applyLogoSlot`) - the same transcribed pair the sponsor bug states, because it is the
+    // same slot painting it.
+    mark: { heightPx: 64, gapPx: 20 },
+    // The topic-card type declares line-reveal / slide-up / mask-wipe / fade (+ slide-down,
+    // flip-3d) - the full standard-contract set, so all four characters resolve onto real
+    // category presets exactly as the strap's do.
+    motion: { snap: 'slide-up', glide: 'mask-wipe', reveal: 'line-reveal', fade: 'fade' },
   },
 };
 

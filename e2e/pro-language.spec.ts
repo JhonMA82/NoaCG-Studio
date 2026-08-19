@@ -474,8 +474,11 @@ test.describe('one design language, the whole package', () => {
       return out;
     });
 
-    // Three graphic types x four deliberately far-apart languages.
-    expect(rows).toHaveLength(12);
+    // Every composable graphic type x four deliberately far-apart languages. The count is
+    // asserted (not merely iterated) so a type silently dropping out of the loop cannot read
+    // as a pass - four types today, and the number follows the list.
+    expect(rows).toHaveLength(4 * 4);
+    expect(new Set(rows.map((r) => r.graphic)).size, 'every declared type was measured').toBe(4);
     for (const row of rows) {
       expect(row.codes, `${row.graphic} in ${row.language}`).toEqual([]);
     }
@@ -556,8 +559,15 @@ test.describe('one design language, the whole package', () => {
       const bug = composeGraphic('sponsor-bug', STUB_LANGUAGES[0], {
         lines: packageLines('sponsor-bug', show),
       });
+      const card = composeGraphic('topic-card', STUB_LANGUAGES[0], {
+        lines: packageLines('topic-card', show),
+      });
       const machine = parseAnimData(timer.template.js)?.machine ?? null;
       return {
+        cardTypeId: card.variant.typeId,
+        // The topic-card type's own contract: its declared line fields, no mark compiled when
+        // none was supplied.
+        cardFields: card.template.fields.map((f) => `${f.field}:${f.ftype}`),
         timerVariantId: timer.variant.id,
         timerTypeId: timer.variant.typeId,
         // The countdown type declares a PARALLEL pause/resume group and two control events. A
@@ -575,6 +585,9 @@ test.describe('one design language, the whole package', () => {
 
     expect(built.timerTypeId).toBe('countdown');
     expect(built.bugTypeId).toBe('sponsor-bug');
+    expect(built.cardTypeId).toBe('topic-card');
+    expect(built.cardFields, 'the topic-card type\'s own declared line fields')
+      .toEqual(['f0:textfield', 'f1:textfield', 'f2:textfield']);
     expect(built.groupIds, 'the countdown carries its declared parallel clock group').toContain('clock');
     expect(built.controlEvents, 'and the buttons that drive it').toEqual(
       expect.arrayContaining(['pause', 'resume']),
@@ -613,17 +626,20 @@ test.describe('one design language, the whole package', () => {
       };
     });
 
-    // The premise: without the rule, all three are the same word.
+    // The premise: without the rule, every member is the same word.
     expect(new Set(named.before).size, 'a composed graphic takes the language name').toBe(1);
     // …and with it, each says which graphic it is. That name is the export slug and the template
-    // FOLDER an operator reads in the playout server, so three identical ones is not a caption
-    // problem - it is a package that cannot be operated once it leaves the wizard.
+    // FOLDER an operator reads in the playout server, so identical ones is not a caption
+    // problem - it is a package that cannot be operated once it leaves the wizard. Asserted over
+    // the FULL composable list, so the naming rule holds for a bench-only type (the topic card)
+    // before it ever enters the default package.
     expect(named.set).toEqual([
       `${named.languageName} lower third`,
       `${named.languageName} sponsor bug`,
       `${named.languageName} countdown`,
+      `${named.languageName} topic card`,
     ]);
-    expect(new Set(named.set).size, 'no two members share a name').toBe(3);
+    expect(new Set(named.set).size, 'no two members share a name').toBe(4);
     // A single result keeps the shipped behaviour: the language's own name, unsuffixed.
     expect(named.alone).toEqual([named.languageName]);
   });
@@ -631,7 +647,9 @@ test.describe('one design language, the whole package', () => {
   test('the stored package is normalized: known ids, package order, and empty means all', async ({ page }) => {
     const cases = await page.evaluate(async () => {
       const { loadAiSettings, saveAiSettings } = await import('/src/ai/settings.ts');
-      const { PRO_GRAPHIC_IDS } = await import('/src/ai/pro/language/structure.ts');
+      // The PACKAGE ids, not everything the composer knows: a type between its two steps
+      // (composable, read pending - the topic card today) must never enter a stored package.
+      const { PRO_PACKAGE_IDS } = await import('/src/ai/pro/language/structure.ts');
       const read = (stored: unknown) => {
         localStorage.setItem('spx-gfx-ai', JSON.stringify({ proPackage: stored }));
         return loadAiSettings().proPackage;
@@ -641,9 +659,10 @@ test.describe('one design language, the whole package', () => {
         missing: read(undefined),
         // The user unticked the last box, or a hand-edited value.
         empty: read([]),
-        // Ticked out of order, plus an id from a build that offered something else.
-        outOfOrder: read(['countdown', 'ghost-type', 'lower-third']),
-        all: [...PRO_GRAPHIC_IDS],
+        // Ticked out of order, an id from a build that offered something else, and a type that
+        // COMPOSES but has not passed its read - both classes must normalize away identically.
+        outOfOrder: read(['countdown', 'ghost-type', 'topic-card', 'lower-third']),
+        all: [...PRO_PACKAGE_IDS],
         saved: [] as string[],
       };
       // The SAVE side normalizes too, or the stored value and the loaded one disagree.

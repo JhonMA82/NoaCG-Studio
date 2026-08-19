@@ -23,6 +23,7 @@ import { tk18 } from './tk18';
 import { tk19 } from './tk19';
 import { tk20 } from './tk20';
 import { tk21 } from './tk21';
+import { tk22 } from './tk22';
 
 export const TICKERS: TemplateVariant[] = [
   tk05, // House Wire — noacg news wire with a live clock cap (sibling lt11)
@@ -36,6 +37,7 @@ export const TICKERS: TemplateVariant[] = [
   tk15, // Public Notice Crawl — the opaque, oversized emergency strip
   tk17, // Bilingual Crawl — both languages per item, equally weighted
   tk14, // Market Board — minimal index crawl: arrow + sign + colour deltas
+  tk22, // Market Decks — glass double-decker: the lead quote still, the rest crawling
   tk13, // Results Rail — sport results crawl with the score boxed out
   tk02, // Volt Rail — sport marquee (sibling lt05/lt06)
   tk03, // Glass Flip — glass item flip (sibling lt08/lt09)

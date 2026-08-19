@@ -211,6 +211,47 @@ export interface AiGatewayErrorBody {
   };
 }
 
+/**
+ * The gateway refusal as the BROWSER sees it, with nothing dropped. The client used to throw a
+ * bare `Error(message)` here, which discarded `code` and `retryable` - so no caller could tell
+ * "the provider blipped, ask again" from "the quota is gone, stop", and the one place that
+ * wanted to retry had only prose to branch on.
+ */
+export class ModelGatewayError extends Error {
+  readonly code: AiGatewayErrorCode;
+  readonly retryable: boolean;
+  readonly status: number;
+
+  constructor(code: AiGatewayErrorCode, message: string, retryable: boolean, status: number) {
+    super(message);
+    this.name = 'ModelGatewayError';
+    this.code = code;
+    this.retryable = retryable;
+    this.status = status;
+  }
+}
+
+/**
+ * May this failed model call be retried IN-SESSION, once?
+ *
+ * Deliberately narrow: only a provider-side outage (`unavailable`, and the server said
+ * retryable) qualifies - the one failure class where asking again is the fix. Everything else
+ * is a durable answer (quota, auth, a bad request), and re-asking spends the room's request
+ * budget re-hearing it. The retry is safe because it stays INSIDE the reservation: an
+ * unsettled call consumed no call budget, no start and no money
+ * (api/_lib/pro/reservationAccounting.test.ts pins all three), and `attempt` bounds it to one.
+ */
+export function shouldRetryModelCall(error: unknown, attempt: number): boolean {
+  return attempt === 0
+    && error instanceof ModelGatewayError
+    && error.retryable
+    && error.code === 'unavailable';
+}
+
+/** How long to wait before the one in-session retry. Sits above the server's own internal
+ *  250-500 ms backoff (aiGateway.ts) so the pair does not land inside the same provider blip. */
+export const MODEL_CALL_RETRY_DELAY_MS = 1500;
+
 /** Which PRODUCT SURFACE issued a gateway call, when the answer changes what the server is
  *  allowed to do. The gateway is otherwise surface-agnostic on purpose - the SPX harness, the
  *  brainstorm call and a bare prompt all look alike to it - so this stays a small, closed set

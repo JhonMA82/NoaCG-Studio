@@ -15,6 +15,7 @@ import { apiError, json, readJson } from '../http.js';
 import { adminDb, adminNotFound, requireAdmin, writeAudit } from '../adminAuth.js';
 import { resetSystemSettingsCache, systemSettings } from '../systemSettings.js';
 import { APPROVED_MODEL_CATALOG } from '../aiModelCatalog.js';
+import { proGateTerms } from '../pro/gate.js';
 import { FEATURE_LABELS, isFeatureKey } from '../../../src/entitlements/contract.js';
 import type { AdminSystemState } from '../../../src/admin/types.js';
 
@@ -49,6 +50,10 @@ export default {
         })),
         maintenanceNotice: settings.maintenanceNotice,
         betaUserIds: settings.betaUserIds,
+        // Which deployment term is vanishing hosted Pro, if any. The public status endpoint
+        // collapses these into one `not-configured` (a refusal must not enumerate the
+        // server's configuration); the operator gets the term-by-term view.
+        hostedPro: await proGateTerms(),
       };
       return json(response);
     }

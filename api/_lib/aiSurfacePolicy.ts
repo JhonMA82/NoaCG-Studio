@@ -21,6 +21,7 @@
 //      guarantee about a hand-rolled request, which no server-side signal could provide.
 
 import { boolEnv } from './aiLiteProfile.js';
+import { proProfile } from './aiProProfile.js';
 import type { GatewayExecutionPolicy, GatewayRoutingPolicy } from './aiGateway.js';
 import type { AiGatewaySurface, ModelRoute } from '../../src/ai/modelTypes.js';
 
@@ -107,7 +108,7 @@ export function surfaceRoutePolicy(
 
 /**
  * The EXECUTION policy for a surface - attempt budget, timeout - as opposed to the routing
- * policy above. Undefined for every surface but the spike, so nothing else changes.
+ * policy above. Only the spike and Pro carry one; everything else is unchanged.
  *
  * WHY THE SPIKE NEEDS ONE. `configuredTimeoutMs()` clamps the shared default to 300 s, which
  * is right for the product: every managed surface answers a user who is waiting. The Phase 0
@@ -132,6 +133,15 @@ export function surfaceRoutePolicy(
  * the whole brief. One retry, not the default two.
  */
 export function surfaceExecutionPolicy(surface: AiGatewaySurface | undefined): GatewayExecutionPolicy | undefined {
-  if (surface !== 'spike') return undefined;
-  return { timeoutMs: 900_000, retryLimit: 1 };
+  if (surface === 'spike') return { timeoutMs: 900_000, retryLimit: 1 };
+  // PRO: bind the call to the timeout its own env var has always CLAIMED to set.
+  // `AI_PRO_TIMEOUT_MS` sized the reservation lease (aiProProfile.ts `activeLeaseMs`) while the
+  // actual provider call ran on the shared `AI_TIMEOUT_MS` default - so the variable read as
+  // Pro's timeout and bounded everything except the thing a student was waiting on. The value
+  // rides through unchanged (default 120 s); what changes is that moving it now moves the call.
+  // The retry budget deliberately stays the shared default: the bounded retry for Pro lives in
+  // the BROWSER (src/ai/pro/language/generate.ts), where it re-admits against the reservation
+  // instead of stretching one serverless request.
+  if (surface === 'pro') return { timeoutMs: proProfile().timeoutMs };
+  return undefined;
 }

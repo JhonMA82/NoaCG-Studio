@@ -95,6 +95,39 @@ export function SystemSection({ session }: { session: AdminSessionResponse }) {
       </section>
 
       <section className="admin-block">
+        <h3>Hosted Pro gate</h3>
+        <p className="admin-muted">
+          Every term below must hold or the Pro tier is <strong>absent</strong> for every visitor - the wizard
+          shows no door and the public endpoints answer only &quot;not configured&quot;, deliberately. This is
+          the one place that says which term failed.
+        </p>
+        {(() => {
+          const gate = state.data.hostedPro;
+          // An older server answers without the field; a missing diagnosis must read as
+          // "unknown", never crash the incident page.
+          if (!gate) return <p className="admin-muted">This server does not report the gate.</p>;
+          const terms: { key: string; ok: boolean; label: string; fix: string }[] = [
+            { key: 'enabled', ok: gate.enabled, label: 'Tier switched on', fix: 'AI_PRO_ENABLED' },
+            { key: 'auth', ok: gate.auth, label: 'Accounts backend', fix: 'Supabase auth env' },
+            { key: 'ledger', ok: gate.ledger, label: 'Generation ledger', fix: 'Supabase env + IP_HASH_SALT (16+ chars)' },
+            { key: 'task', ok: gate.task, label: 'Task registry accepts the profile', fix: 'AI_PRO_GATEWAY_PROVIDERS / AI_LITE_GATEWAY_PROVIDERS + approved catalog' },
+            { key: 'managedKey', ok: gate.managedKey, label: 'Managed key for every funded route', fix: 'AI_GATEWAY_API_KEY' },
+            { key: 'routesEnabled', ok: gate.routesEnabled, label: 'No funded route disabled', fix: 'Model routes table below' },
+          ];
+          return (
+            <ul className="admin-muted" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {terms.map((term) => (
+                <li key={term.key}>
+                  {term.ok ? '✓' : '✗'} {term.label}
+                  {term.ok ? null : <> - <span className="admin-mono">{term.fix}</span></>}
+                </li>
+              ))}
+            </ul>
+          );
+        })()}
+      </section>
+
+      <section className="admin-block">
         <h3>Model routes</h3>
         <p className="admin-muted">
           Turning a route off stops it serving traffic. Routes cannot be added here - the catalog is audited and
