@@ -201,8 +201,15 @@ async function loadReference(file) {
         const s = ring.map((p) => p[c]).sort((m, n) => m - n);
         return s[Math.floor(s.length / 2)];
       });
-      const covered = ring.filter((p) => close(p, med, 10)).length / ring.length;
-      if (covered >= 0.6) backdrop = med;
+      // A GREYISH border widens the tolerance: a near-white transparency checker whose two
+      // tiles sit ~12 counts apart is too subtle for the tile detector to prove and too
+      // varied for the flat test at 10 - the one real file in that gap kept its checker and
+      // fired a false footprint finding. A saturated border keeps the tight tolerance (a
+      // coloured design background must never read as a stand-in).
+      const greyMed = Math.max(...med) - Math.min(...med) <= 12 && med[0] >= 90;
+      const tol = greyMed ? 16 : 10;
+      const covered = ring.filter((p) => close(p, med, tol)).length / ring.length;
+      if (covered >= 0.6) backdrop = { tone: med, tol };
     }
 
     const canvas = document.createElement('canvas');
@@ -218,45 +225,67 @@ async function loadReference(file) {
     // faithfully taught the model to paint the bar dark, converging on the corrupted
     // reference. Interior pixels sharing the backdrop's tone are design and stay.
     if (backdrop || checker) {
-      const standIn = (r, gg, b) => {
-        const px = [r, gg, b];
-        if (backdrop) return close(px, backdrop, 12);
-        return (
-          Math.max(r, gg, b) - Math.min(r, gg, b) <= 14 &&
-          (close(px, checker.g1, 16) || close(px, checker.g2, 16))
-        );
-      };
       const id = g.getImageData(0, 0, W, H);
       const d = id.data;
       const seen = new Uint8Array(W * H);
       const queue = [];
-      const push = (x, y) => {
+      // A border SEED qualifies against the global tones. A NEIGHBOUR during the flood
+      // qualifies by LOCAL CONTINUITY instead: greyish (for a checker) and within a small
+      // step of the pixel it was reached from. A vignette or a glow drifts the checker's
+      // tiles far past any global tolerance over the frame - the v4 round left residue on
+      // two files and fired false footprint findings off it - while the drift per PIXEL is
+      // tiny; local continuity follows it, and a design edge is still a hard jump that
+      // stops the flood.
+      const seedQualifies = (p) => {
+        const px = [d[p], d[p + 1], d[p + 2]];
+        if (backdrop) return close(px, backdrop.tone, backdrop.tol);
+        return (
+          Math.max(...px) - Math.min(...px) <= 16 &&
+          (close(px, checker.g1, 24) || close(px, checker.g2, 24))
+        );
+      };
+      const stepQualifies = (p, fromP) => {
+        const px = [d[p], d[p + 1], d[p + 2]];
+        if (backdrop) return close(px, backdrop.tone, backdrop.tol);
+        if (Math.max(...px) - Math.min(...px) > 16 || px[0] < 60) return false;
+        const from = [d[fromP], d[fromP + 1], d[fromP + 2]];
+        // Within one checker STEP of the neighbour: the two tile tones sit ~20-50 apart, so
+        // the tolerance must span a tile boundary while a design edge (a saturated or dark
+        // panel against the checker) still reads as a jump past it.
+        return Math.max(
+          Math.abs(px[0] - from[0]),
+          Math.abs(px[1] - from[1]),
+          Math.abs(px[2] - from[2]),
+        ) <= 60;
+      };
+      const push = (x, y, fromP) => {
         if (x < 0 || y < 0 || x >= W || y >= H) return;
         const i = y * W + x;
         if (seen[i]) return;
         const p = i * 4;
         // The #333 letterbox around a non-16:9 fit is part of the outer region too.
         const letterbox = d[p] === 0x33 && d[p + 1] === 0x33 && d[p + 2] === 0x33;
-        if (!letterbox && !standIn(d[p], d[p + 1], d[p + 2])) return;
+        if (!letterbox && !(fromP === null ? seedQualifies(p) : stepQualifies(p, fromP))) return;
         seen[i] = 1;
         queue.push(i);
       };
       for (let x = 0; x < W; x++) {
-        push(x, 0);
-        push(x, H - 1);
+        push(x, 0, null);
+        push(x, H - 1, null);
       }
       for (let y = 0; y < H; y++) {
-        push(0, y);
-        push(W - 1, y);
+        push(0, y, null);
+        push(W - 1, y, null);
       }
       while (queue.length) {
         const i = queue.pop();
         const x = i % W;
         const y = (i / W) | 0;
-        push(x + 1, y);
-        push(x - 1, y);
-        push(x, y + 1);
-        push(x, y - 1);
+        const p = i * 4;
+        push(x + 1, y, p);
+        push(x - 1, y, p);
+        push(x, y + 1, p);
+        push(x, y - 1, p);
       }
       for (let i = 0; i < seen.length; i++) {
         if (!seen[i]) continue;
@@ -292,7 +321,7 @@ async function loadReference(file) {
     return {
       fittedBase64: fitted.split(',')[1],
       checkerboard: Boolean(checker),
-      backdrop: backdrop ? `#${backdrop.map((v) => v.toString(16).padStart(2, '0')).join('')}` : null,
+      backdrop: backdrop ? `#${backdrop.tone.map((v) => v.toString(16).padStart(2, '0')).join('')}` : null,
       region,
       sourceWidth: img.naturalWidth,
       sourceHeight: img.naturalHeight,
@@ -862,6 +891,7 @@ if (control) {
     }
     if (reference.checkerboard) console.log('  painted transparency checkerboard detected - masked.');
     if (reference.backdrop) console.log(`  flat stand-in backdrop ${reference.backdrop} detected - masked.`);
+    if (reference.region) console.log(`  graphic region ${reference.region.w}x${reference.region.h} at ${reference.region.x},${reference.region.y}.`);
     try {
       const result = await runGraphic(slug, reference, async (previous) => {
         return page.evaluate(async (input) => {
