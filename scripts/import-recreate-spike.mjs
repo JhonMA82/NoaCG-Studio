@@ -142,9 +142,15 @@ async function loadReference(file) {
     const ox = Math.round((W - w) / 2);
     const oy = Math.round((H - h) / 2);
 
-    // Detect the painted checkerboard on the SOURCE pixels: sample a corner patch, find two
-    // dominant near-grey tones alternating with a square period. Greys only - a design's own
-    // two-colour pattern is saturated or dark, a transparency checker is #ffffff/#cccccc-ish.
+    // Detect the painted checkerboard on the SOURCE pixels by its LOCAL STRUCTURE: two
+    // NEUTRAL tones alternating on a SQUARE lattice. Absolute lightness is deliberately not
+    // part of the test. The earlier rule required a light checker (a tone at or above 90) and
+    // walked with a fixed tolerance from the anchor pixel; one reference's checker is dark -
+    // measured tiles 72 and 119 - so it read as design, the graphic's bounding box inflated to
+    // the whole frame and every round fired a false footprint finding on it. What actually
+    // separates a transparency checker from a design's own two-colour pattern is that BOTH
+    // tones are grey, that they sit only MODERATELY apart (33-47 counts across the real files,
+    // never a design's black-on-white), and that the parity holds across a block of tiles.
     const sc = document.createElement('canvas');
     sc.width = img.naturalWidth;
     sc.height = img.naturalHeight;
@@ -155,8 +161,51 @@ async function loadReference(file) {
       const p = (y * sc.width + x) * 4;
       return [sd[p], sd[p + 1], sd[p + 2]];
     };
-    const greyish = ([r, g, b]) => Math.max(r, g, b) - Math.min(r, g, b) <= 12 && r >= 90;
+    const neutral = ([r, g, b]) => Math.max(r, g, b) - Math.min(r, g, b) <= 12;
+    const lum = ([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b;
     const close = (a, b, tol) => Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2])) <= tol;
+    // The tile STEP window. Below the floor there is no alternation to prove; above the
+    // ceiling it is a design edge, not two greys of one checker.
+    const TILE_MIN_STEP = 8;
+    const TILE_MAX_STEP = 90;
+    // Walk one axis through the anchor and binarize against the walk's OWN two levels, never
+    // against a fixed tolerance from the anchor pixel - the tolerance that proves a light
+    // checker's step swallows a darker one whole, which is how the dark file went missing.
+    // Returns the tile period and the absolute coordinate where the first WHOLE tile starts.
+    const scanAxis = (ax, ay, axis) => {
+      const extent = axis === 'x' ? sc.width : sc.height;
+      const centre = axis === 'x' ? ax : ay;
+      // Centred on the anchor, so a probe near the right or bottom edge still has room for
+      // several tiles to the inside.
+      const from = Math.max(0, centre - 210);
+      const span = [];
+      const limit = Math.min(420, extent - from);
+      for (let i = 0; i < limit; i++) span.push(axis === 'x' ? at(from + i, ay) : at(ax, from + i));
+      if (span.length < 24) return null;
+      if (span.filter(neutral).length < span.length * 0.9) return null;
+      const sorted = span.map(lum).sort((m, n) => m - n);
+      const lo = sorted[Math.floor(sorted.length * 0.1)];
+      const hi = sorted[Math.floor(sorted.length * 0.9)];
+      if (hi - lo < TILE_MIN_STEP || hi - lo > TILE_MAX_STEP) return null;
+      const mid = (lo + hi) / 2;
+      const runs = [];
+      let start = 0;
+      let bit = lum(span[0]) > mid;
+      for (let i = 1; i < span.length; i++) {
+        const b = lum(span[i]) > mid;
+        if (b !== bit) { runs.push({ start, len: i - start }); start = i; bit = b; }
+      }
+      runs.push({ start, len: span.length - start });
+      // The first and last runs are cut by where the walk happened to begin and end.
+      const whole = runs.slice(1, -1);
+      if (whole.length < 3) return null;
+      const lens = whole.map((r) => r.len).sort((m, n) => m - n);
+      const period = lens[Math.floor(lens.length / 2)];
+      if (period < 4 || period > 96) return null;
+      // Every whole run is one tile wide: a gradient or a run of design blocks is not.
+      if (whole.some((r) => Math.abs(r.len - period) > Math.max(1, period * 0.25))) return null;
+      return { period, start: from + whole[0].start };
+    };
     // Several anchors, because the checker is only visible where the GRAPHIC is not - a HUD
     // frame decorates every corner, a glow tints one - and a single-corner probe missed 3 of
     // the 5 real files. The first anchor whose neighbourhood walks like a checker wins.
@@ -167,21 +216,46 @@ async function loadReference(file) {
       [sc.width - 120, Math.floor(sc.height / 2)], [Math.floor(sc.width / 2), sc.height - 120],
     ];
     for (const [ax, ay] of anchors) {
-      if (checker || ax < 0 || ay < 0) continue;
-      const c0 = at(ax, ay);
-      if (!greyish(c0)) continue;
-      // Walk right until the tone changes: that run length is the tile period candidate.
-      let p = 0;
-      for (let x = ax + 1; x < Math.min(sc.width, ax + 200); x++) {
-        if (!close(at(x, ay), c0, 14)) { p = x - ax; break; }
+      if (checker || ax < 0 || ay < 0 || ax >= sc.width || ay >= sc.height) continue;
+      const across = scanAxis(ax, ay, 'x');
+      if (!across) continue;
+      const down = scanAxis(ax, ay, 'y');
+      if (!down) continue;
+      // A checker's tiles are SQUARE; a design's stripes are not.
+      if (Math.abs(across.period - down.period) > Math.max(1, across.period * 0.25)) continue;
+      const period = Math.round((across.period + down.period) / 2);
+      let x0 = across.start;
+      let y0 = down.start;
+      while (x0 + 3 * period > sc.width && x0 - period >= 0) x0 -= period;
+      while (y0 + 3 * period > sc.height && y0 - period >= 0) y0 -= period;
+      if (x0 + 3 * period > sc.width || y0 + 3 * period > sc.height) continue;
+      // The PAIR match: nine tile CENTRES (never an edge, where JPEG ringing decides), each
+      // assigned its tone by (i + j) parity. One design panel landing on the lattice breaks
+      // the parity, which is what a global two-tone match could never notice.
+      const centres = [];
+      for (let j = 0; j < 3; j++) {
+        for (let i = 0; i < 3; i++) {
+          centres.push({
+            parity: (i + j) % 2,
+            tone: at(x0 + i * period + (period >> 1), y0 + j * period + (period >> 1)),
+          });
+        }
       }
-      if (p < 4 || p > 96 || ax + 2 * p >= sc.width || ay + 2 * p >= sc.height) continue;
-      const c1 = at(ax + p, ay);
-      const diagonal = at(ax + p, ay + p);
-      const below = at(ax, ay + p);
-      if (greyish(c1) && !close(c0, c1, 10) && close(diagonal, c0, 14) && close(below, c1, 14)) {
-        checker = { g1: c0, g2: c1, period: p };
-      }
+      if (!centres.every((c) => neutral(c.tone))) continue;
+      const mean = (list) => [0, 1, 2].map((c) => Math.round(
+        list.reduce((sum, t) => sum + t.tone[c], 0) / list.length,
+      ));
+      const even = centres.filter((c) => c.parity === 0);
+      const odd = centres.filter((c) => c.parity === 1);
+      const g1 = mean(even);
+      const g2 = mean(odd);
+      const separation = Math.abs(lum(g1) - lum(g2));
+      if (separation < TILE_MIN_STEP || separation > TILE_MAX_STEP) continue;
+      // Each tile within a third of the step of its own tone: the two groups stay apart.
+      const spread = Math.max(6, separation / 3);
+      if (!even.every((c) => close(c.tone, g1, spread))) continue;
+      if (!odd.every((c) => close(c.tone, g2, spread))) continue;
+      checker = { g1, g2, period };
     }
 
     // The reference's own FLAT outer backdrop is a stand-in too (the light grey or dark
@@ -201,13 +275,14 @@ async function loadReference(file) {
         const s = ring.map((p) => p[c]).sort((m, n) => m - n);
         return s[Math.floor(s.length / 2)];
       });
-      // A GREYISH border widens the tolerance: a near-white transparency checker whose two
-      // tiles sit ~12 counts apart is too subtle for the tile detector to prove and too
-      // varied for the flat test at 10 - the one real file in that gap kept its checker and
-      // fired a false footprint finding. A saturated border keeps the tight tolerance (a
-      // coloured design background must never read as a stand-in).
-      const greyMed = Math.max(...med) - Math.min(...med) <= 12 && med[0] >= 90;
-      const tol = greyMed ? 16 : 10;
+      // One tolerance for every border. A widening for greyish borders used to live here,
+      // bought to rescue the file whose checker the tile detector could not prove; that file
+      // was misread as a NEAR-WHITE low-contrast checker when it is in fact a DARK one, the
+      // tile detector now proves it directly, and the widening turned out to buy nothing:
+      // every flat-backdrop reference covers 100% of its ring at 10, while the widening
+      // lifted three checkerboard references from 3-14% to 45-50% - all of it travel toward
+      // a false stand-in, none of it toward a verdict that changes.
+      const tol = 10;
       const covered = ring.filter((p) => close(p, med, tol)).length / ring.length;
       if (covered >= 0.6) backdrop = { tone: med, tol };
     }
@@ -229,25 +304,86 @@ async function loadReference(file) {
       const d = id.data;
       const seen = new Uint8Array(W * H);
       const queue = [];
-      // A border SEED qualifies against the global tones. A NEIGHBOUR during the flood
-      // qualifies by LOCAL CONTINUITY instead: greyish (for a checker) and within a small
-      // step of the pixel it was reached from. A vignette or a glow drifts the checker's
-      // tiles far past any global tolerance over the frame - the v4 round left residue on
-      // two files and fired false footprint findings off it - while the drift per PIXEL is
-      // tiny; local continuity follows it, and a design edge is still a hard jump that
-      // stops the flood.
+      // Where the stand-in IS, by the checker's local signature - computed once over the
+      // frame. Tone alone cannot decide this and no band can be tuned to: one reference is
+      // vignetted so hard that its tiles run 63/110 at the left edge and 98/157 at the right,
+      // past any global tolerance, while another's near-black ticker pill sits just 19 counts
+      // off its dark tile - so a band wide enough for the first swallows the second whole.
+      // What holds across both, measured on every file here, is the PAIR: the two tones drift
+      // TOGETHER and their SEPARATION stays 36-59 wherever it is sampled. So a pixel belongs
+      // to the stand-in only if stepping one whole TILE from it - which flips the lattice
+      // parity - lands on the other tone. Flat design scores zero on that test however close
+      // its own tone happens to sit to a tile, which is what a tone match could never see.
+      // Decided per 4px BLOCK rather than per pixel, because a pixel sitting exactly on a
+      // tile boundary carries a blend of both tones, reads as flat, and would lay down a grid
+      // of rejected seams the flood could not cross.
+      const BLOCK = 4;
+      const bw = Math.ceil(W / BLOCK);
+      let checkerish = null;
+      if (checker) {
+        const bh = Math.ceil(H / BLOCK);
+        // The lattice as it appears on the FITTED canvas, which is what the flood walks.
+        const pf = Math.max(3, Math.round(checker.period * k));
+        const sep = Math.abs(lum(checker.g1) - lum(checker.g2));
+        const lumAt = (x, y) => {
+          const p = (y * W + x) * 4;
+          return 0.299 * d[p] + 0.587 * d[p + 1] + 0.114 * d[p + 2];
+        };
+        // Two of the four neighbours must answer, so a tile pressed against the design still
+        // qualifies on the neighbours that are still checker, while flat design never gets
+        // there. Asked from three points a QUARTER TILE apart rather than one: a single probe
+        // that happens to land on a tile boundary reads the blend of both tones, scores
+        // nothing, and leaves its block behind as a speck - and specks are what inflate the
+        // graphic's bounding box, which is the whole finding this mask exists to get right.
+        const q = Math.max(1, pf >> 2);
+        const answers = (x, y) => {
+          const c = lumAt(x, y);
+          let votes = 0;
+          let asked = 0;
+          for (const [dx, dy] of [[pf, 0], [-pf, 0], [0, pf], [0, -pf]]) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+            asked++;
+            const gap = Math.abs(lumAt(nx, ny) - c);
+            if (gap >= sep * 0.45 && gap <= sep * 2) votes++;
+          }
+          // HALF of the neighbours that exist, not two of an assumed four: within one tile of
+          // the frame edge only two are in bounds, so a flat "two" is unreachable there and
+          // left a speck in every corner.
+          return asked > 0 && votes >= Math.max(1, Math.ceil(asked / 2));
+        };
+        checkerish = new Uint8Array(bw * bh);
+        for (let by = 0; by < bh; by++) {
+          for (let bx = 0; bx < bw; bx++) {
+            const x = Math.min(W - 1, bx * BLOCK + (BLOCK >> 1));
+            const y = Math.min(H - 1, by * BLOCK + (BLOCK >> 1));
+            const probes = [[x, y], [x + q, y + q], [x - q, y - q]];
+            const hit = probes.some(([px, py]) => (
+              px >= 0 && py >= 0 && px < W && py < H && answers(px, py)
+            ));
+            if (hit) checkerish[by * bw + bx] = 1;
+          }
+        }
+      }
+      const onChecker = (p) => {
+        const i = p >> 2;
+        return checkerish[(((i / W) | 0) / BLOCK | 0) * bw + (((i % W) / BLOCK) | 0)] === 1;
+      };
+      // A border SEED qualifies on that signature alone. A NEIGHBOUR during the flood must
+      // ALSO be within a small step of the pixel it was reached from: the drift per pixel is
+      // tiny even where the drift over the frame is not, so local continuity follows a
+      // vignette (the v4 round left residue on two files without it) while a design edge
+      // stays a hard jump that stops the flood at pixel accuracy the block grid cannot give.
       const seedQualifies = (p) => {
         const px = [d[p], d[p + 1], d[p + 2]];
         if (backdrop) return close(px, backdrop.tone, backdrop.tol);
-        return (
-          Math.max(...px) - Math.min(...px) <= 16 &&
-          (close(px, checker.g1, 24) || close(px, checker.g2, 24))
-        );
+        return Math.max(...px) - Math.min(...px) <= 16 && onChecker(p);
       };
       const stepQualifies = (p, fromP) => {
         const px = [d[p], d[p + 1], d[p + 2]];
         if (backdrop) return close(px, backdrop.tone, backdrop.tol);
-        if (Math.max(...px) - Math.min(...px) > 16 || px[0] < 60) return false;
+        if (Math.max(...px) - Math.min(...px) > 16 || !onChecker(p)) return false;
         const from = [d[fromP], d[fromP + 1], d[fromP + 2]];
         // Within one checker STEP of the neighbour: the two tile tones sit ~20-50 apart, so
         // the tolerance must span a tile boundary while a design edge (a saturated or dark
@@ -297,30 +433,81 @@ async function loadReference(file) {
       g.putImageData(id, 0, 0);
     }
     // The graphic's own bounding box in the fitted frame (stand-in already neutralised) -
-    // stated in the first prompt so size and position are contract, not convergence.
+    // stated in the first prompt so size and position are contract, not convergence. Taken
+    // over the SUBSTANTIAL parts only: a plain min/max over every pixel that differs from the
+    // fill asserts that each one is design, so a single speck the mask could not clear - JPEG
+    // noise on a tile boundary, a few blocks in one corner - restates a lower third as a
+    // full-screen graphic and the model builds to that. Components under a fiftieth of the
+    // largest are dropped, which is scale-relative on purpose: a design's second element is
+    // never that small beside its first, and a graphic that is small ALL OVER keeps its box,
+    // because the threshold is measured against itself rather than against the frame.
     const md = g.getImageData(0, 0, W, H).data;
-    let rx0 = W, ry0 = H, rx1 = -1, ry1 = -1;
-    for (let y = 0; y < H; y += 2) {
-      for (let x = 0; x < W; x += 2) {
-        const p = (y * W + x) * 4;
-        if (
-          Math.abs(md[p] - 0x33) > 12 ||
-          Math.abs(md[p + 1] - 0x33) > 12 ||
-          Math.abs(md[p + 2] - 0x33) > 12
-        ) {
-          if (x < rx0) rx0 = x;
-          if (x > rx1) rx1 = x;
-          if (y < ry0) ry0 = y;
-          if (y > ry1) ry1 = y;
+    const RB = 4;
+    const rw = Math.ceil(W / RB);
+    const rh = Math.ceil(H / RB);
+    const ink = new Uint8Array(rw * rh);
+    for (let by = 0; by < rh; by++) {
+      for (let bx = 0; bx < rw; bx++) {
+        let on = 0;
+        for (let y = by * RB; !on && y < Math.min(H, by * RB + RB); y++) {
+          for (let x = bx * RB; x < Math.min(W, bx * RB + RB); x++) {
+            const p = (y * W + x) * 4;
+            if (
+              Math.abs(md[p] - 0x33) > 12 ||
+              Math.abs(md[p + 1] - 0x33) > 12 ||
+              Math.abs(md[p + 2] - 0x33) > 12
+            ) { on = 1; break; }
+          }
         }
+        ink[by * rw + bx] = on;
       }
     }
-    const region = rx1 < 0 ? null : { x: rx0, y: ry0, w: rx1 - rx0 + 2, h: ry1 - ry0 + 2 };
+    const parts = [];
+    const owner = new Int32Array(rw * rh).fill(-1);
+    for (let seed = 0; seed < ink.length; seed++) {
+      if (!ink[seed] || owner[seed] >= 0) continue;
+      owner[seed] = parts.length;
+      const stack = [seed];
+      const part = { area: 0, x0: rw, y0: rh, x1: -1, y1: -1 };
+      while (stack.length) {
+        const at2 = stack.pop();
+        const x = at2 % rw;
+        const y = (at2 / rw) | 0;
+        part.area++;
+        if (x < part.x0) part.x0 = x;
+        if (x > part.x1) part.x1 = x;
+        if (y < part.y0) part.y0 = y;
+        if (y > part.y1) part.y1 = y;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= rw || ny >= rh) continue;
+          const nk = ny * rw + nx;
+          if (ink[nk] && owner[nk] < 0) { owner[nk] = owner[seed]; stack.push(nk); }
+        }
+      }
+      parts.push(part);
+    }
+    let region = null;
+    if (parts.length) {
+      const biggest = parts.reduce((m, p) => Math.max(m, p.area), 0);
+      const kept = parts.filter((p) => p.area * 50 >= biggest);
+      const rx0 = Math.min(...kept.map((p) => p.x0)) * RB;
+      const ry0 = Math.min(...kept.map((p) => p.y0)) * RB;
+      const rx1 = Math.min(W, (Math.max(...kept.map((p) => p.x1)) + 1) * RB);
+      const ry1 = Math.min(H, (Math.max(...kept.map((p) => p.y1)) + 1) * RB);
+      region = { x: rx0, y: ry0, w: rx1 - rx0, h: ry1 - ry0 };
+    }
 
     const fitted = canvas.toDataURL('image/png');
     return {
       fittedBase64: fitted.split(',')[1],
       checkerboard: Boolean(checker),
+      // Reported so a bad mask can be diagnosed from the run log. Both times this detector
+      // was wrong, the only visible symptom was a footprint finding several steps downstream.
+      checkerTiles: checker
+        ? { g1: checker.g1, g2: checker.g2, period: checker.period }
+        : null,
       backdrop: backdrop ? `#${backdrop.tone.map((v) => v.toString(16).padStart(2, '0')).join('')}` : null,
       region,
       sourceWidth: img.naturalWidth,
