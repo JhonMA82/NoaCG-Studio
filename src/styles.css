@@ -1011,6 +1011,12 @@ body.resizing-rows { user-select: none; cursor: row-resize; }
 .panel-body { flex: 1; overflow: auto; padding: 12px; }
 .panel-section { margin-bottom: 18px; }
 .panel-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); margin: 0 0 8px; }
+/* The editor panels write their subtitle as a separate clause ("Rehearse — operator view"),
+   which survives the uppercase because the dash separates it. The Viewing control's subtitle
+   CONTINUES its title instead, so uppercasing merged the two into one unreadable run. Kept
+   narrow to that one heading; the wizard's own `.wz-step .panel-section > h3 .muted` rule is
+   more specific and still wins on the wizard steps. */
+.viewing-section > h3 .muted { text-transform: none; letter-spacing: 0; }
 
 .field-row { margin-bottom: 12px; }
 .field-row .field-meta { display: flex; justify-content: space-between; align-items: baseline; }

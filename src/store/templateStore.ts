@@ -586,7 +586,12 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
 // AFTER their applyTemplate returns, so their state wins over this generic marking.
 let projectSaveTimer: ReturnType<typeof setTimeout> | null = null;
 useTemplateStore.subscribe((state, prev) => {
-  if (state.template === prev.template) return;
+  // The legibility settings are part of the SAVED document (GraphicDoc.legibility), not a
+  // view preference, so a change to them drifts the working document exactly as a template
+  // edit does. Without this the editor's Viewing control looked like it worked and lost the
+  // choice on reload — the wizard's copy only ever persisted because creating a project
+  // changes the template in the same breath.
+  if (state.template === prev.template && state.legibility === prev.legibility) return;
   if (!state.saved.dirty) {
     useTemplateStore.setState((s) => ({ saved: { ...s.saved, dirty: true } }));
   }
