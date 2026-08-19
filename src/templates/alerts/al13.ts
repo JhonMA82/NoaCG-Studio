@@ -77,7 +77,16 @@ ${alertLineMasks(o)}
    span would place nothing at all. */
 .alert-lines {
   display: grid;                   /* kicker | headline | desk | stamp */
-  grid-template-columns: auto minmax(0, 1fr) auto auto;  /* only the headline yields width */
+  /* THE HEADLINE KEEPS A FLOOR and every other column may shrink. A row of auto tracks beside a
+     flexible one looks safe and is not: with a long desk name the flexible track collapses
+     to zero and the headline paints straight across the cell beside it (the runtime bench
+     measured an 88% overlap at doubled text). The floor keeps the headline a real column, and
+     each end cell trims its own token below. */
+  grid-template-columns:
+    minmax(0, auto)                          /* the kicker, trimmed by its own span */
+    minmax(calc(540px * var(--scale)), 1fr)  /* the headline's floor - it never collapses */
+    minmax(0, auto)                          /* the desk, trimmed by its own span */
+    minmax(0, auto);                         /* the stamp, trimmed by its own span */
   align-items: stretch;            /* each cell runs the band's full height */
   width: 100%;                     /* the grid fills the band */
   min-width: 0;                    /* let a long headline wrap instead of stretching the grid */
@@ -144,8 +153,15 @@ ${alertLineMasks(o)}
   letter-spacing: var(--label-tracking);  /* tracked caps breathe */
   text-transform: uppercase;       /* reads as a stamp, whatever the operator types */
   font-style: italic;              /* the rolling-news lean, on the word rather than the block */
-  white-space: nowrap;             /* the kicker never wraps */
   color: var(--accent-ink);        /* the family's ink on an accent-filled block */
+  /* The trim is the SPAN's own, never the cell's: a parent clipping its child is a graphic
+     cutting text it did not measure, and the runtime bench refuses it. Bounding the token here
+     makes an over-long kicker read as trimmed instead of shoving the headline off the band. */
+  display: inline-block;           /* so the bound applies to the word's own box */
+  max-width: calc(340px * var(--scale));  /* the width a kicker word may take */
+  overflow: hidden;                /* a longer word is trimmed… */
+  text-overflow: ellipsis;         /* …and the trim is marked */
+  white-space: nowrap;             /* the kicker never wraps */
 }
 
 /* The headline - the largest type the band will hold, and the only part that wraps. */
@@ -164,8 +180,14 @@ ${alertLineMasks(o)}
   font-weight: 700;                /* small caps need weight to hold */
   letter-spacing: var(--label-tracking);  /* tracked caps breathe */
   text-transform: uppercase;       /* reads as a section stamp */
-  white-space: nowrap;             /* the desk never wraps */
   color: var(--text-color);        /* full strength on its tinted cell */
+  /* The same span-owned trim as the kicker: the desk and the stamp are atomic tokens, so each
+     bounds itself rather than letting its cell grow into the headline's column. */
+  display: inline-block;           /* so the bound applies to the token's own box */
+  max-width: calc(300px * var(--scale));  /* the width a desk name may take */
+  overflow: hidden;                /* a longer name is trimmed… */
+  text-overflow: ellipsis;         /* …and the trim is marked */
+  white-space: nowrap;             /* the desk never wraps */
 }
 
 /* The stamp - when the line was last true. Tabular, so a band that is updated on air never
@@ -177,6 +199,7 @@ ${alertLineMasks(o)}
   letter-spacing: 0;               /* figures are not tracked */
   font-variant-numeric: tabular-nums;  /* the cell's width never moves */
   color: var(--text-color);        /* primary text colour */
+  max-width: calc(220px * var(--scale));  /* a stamp is a time, never a sentence */
 }`,
     hasAccent: false,
   }),

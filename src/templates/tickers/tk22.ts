@@ -95,8 +95,8 @@ export const tk22: TemplateVariant = defineTickerVariant(
   display: flex;                   /* chip left, quote filling the rest */
   align-items: center;             /* both on one centre line */
   gap: calc(26px * var(--scale));  /* air between the chip and the quote */
-  height: calc(64px * var(--scale));  /* the deck's stated height */
-  padding: 0 calc(30px * var(--scale));  /* the deck's own frame */
+  min-height: calc(64px * var(--scale));  /* the deck's height - a FLOOR, so a wrapped quote fits */
+  padding: calc(6px * var(--scale)) calc(30px * var(--scale));  /* the deck's frame, with air for a second line */
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);  /* the keyline dividing the decks */
 }
 
@@ -126,9 +126,17 @@ export const tk22: TemplateVariant = defineTickerVariant(
   letter-spacing: 0.01em;          /* mono figures need a hair of air */
   font-variant-numeric: tabular-nums;  /* the level reprints without moving the deck */
   color: var(--text-color);        /* primary text colour */
-  overflow: hidden;                /* a very long quote is cut… */
-  text-overflow: ellipsis;         /* …and the cut is marked */
-  white-space: nowrap;             /* the lead is one line by construction */
+}
+/* THE LEAD WRAPS, it is never trimmed. A market lead is a quote an operator may write long
+   ("DJIA 34,567.89 +120.34 (+0.35%) - best session since March"), and both ways of refusing
+   that are worse than letting it run to a second line: trimming it hides the half that moved,
+   and nowrap pushes it out of a strip whose own overflow then cuts it mid-figure. So this is
+   the auto-fit pattern - a cap plus wrapping - and the deck below grows to hold it. */
+.ticker-lead > span {
+  display: block;                  /* so the cap and the wrapping apply to the line's own box */
+  max-width: calc(1120px * var(--scale));  /* the width the deck can give a quote */
+  overflow-wrap: break-word;       /* an unbroken run of figures breaks rather than overflowing */
+  text-wrap: balance;              /* a wrapped quote gets even rows */
 }
 
 /* The lower deck - the crawl's window. */
