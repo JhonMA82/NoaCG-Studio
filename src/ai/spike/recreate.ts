@@ -39,6 +39,11 @@ export interface RecreateReference {
   /** True when the picture carries a painted transparency checkerboard (a JPEG "with alpha"
    *  downloaded from a stock site) - the model is told it means EMPTY, never a pattern. */
   checkerboard: boolean;
+  /** The graphic's measured bounding box in the fitted 1920x1080 frame (the stand-in
+   *  backdrop excluded). Stated in the first prompt, because the first round's dominant
+   *  defect class was a faithful design drawn at the wrong size and place - preventing it
+   *  costs one sentence, correcting it costs an iteration. */
+  region?: { x: number; y: number; w: number; h: number };
 }
 
 export interface RecreateEmitOptions {
@@ -100,7 +105,11 @@ Rules for the rebuild (each one is measured by the harness):
 - Choose the bundled typeface closest to the picture's letterforms; approximate weights and
   tracking rather than substituting a different voice.
 - Give the graphic an entrance and an exit in the design's own spirit (a strap slides, a
-  scorebug pops, a panel fades) through the standard animation region.${checkerNote}
+  scorebug pops, a panel fades) through the standard animation region.${checkerNote}${
+    reference.region
+      ? `\n- In the 1920x1080 frame, the graphic occupies approximately ${reference.region.w}x${reference.region.h}px with its top-left corner near x=${reference.region.x}, y=${reference.region.y}. Draw it at exactly that size and position.`
+      : ''
+  }
 - The template is named "${name}".
 
 Emit the complete template now - all three files.`;

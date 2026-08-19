@@ -267,11 +267,33 @@ async function loadReference(file) {
       }
       g.putImageData(id, 0, 0);
     }
+    // The graphic's own bounding box in the fitted frame (stand-in already neutralised) -
+    // stated in the first prompt so size and position are contract, not convergence.
+    const md = g.getImageData(0, 0, W, H).data;
+    let rx0 = W, ry0 = H, rx1 = -1, ry1 = -1;
+    for (let y = 0; y < H; y += 2) {
+      for (let x = 0; x < W; x += 2) {
+        const p = (y * W + x) * 4;
+        if (
+          Math.abs(md[p] - 0x33) > 12 ||
+          Math.abs(md[p + 1] - 0x33) > 12 ||
+          Math.abs(md[p + 2] - 0x33) > 12
+        ) {
+          if (x < rx0) rx0 = x;
+          if (x > rx1) rx1 = x;
+          if (y < ry0) ry0 = y;
+          if (y > ry1) ry1 = y;
+        }
+      }
+    }
+    const region = rx1 < 0 ? null : { x: rx0, y: ry0, w: rx1 - rx0 + 2, h: ry1 - ry0 + 2 };
+
     const fitted = canvas.toDataURL('image/png');
     return {
       fittedBase64: fitted.split(',')[1],
       checkerboard: Boolean(checker),
       backdrop: backdrop ? `#${backdrop.map((v) => v.toString(16).padStart(2, '0')).join('')}` : null,
+      region,
       sourceWidth: img.naturalWidth,
       sourceHeight: img.naturalHeight,
     };
@@ -849,7 +871,12 @@ if (control) {
           const [provider, ...model] = input.route.split(':');
           const result = await recreateEmit({
             name: input.name,
-            reference: { mediaType: 'image/png', base64: input.referenceB64, checkerboard: input.checkerboard },
+            reference: {
+              mediaType: 'image/png',
+              base64: input.referenceB64,
+              checkerboard: input.checkerboard,
+              region: input.region ?? undefined,
+            },
             route: { provider, model: model.join(':') },
             decoding: input.decoding,
             validate: productionSpxValidator(null, [], { fieldPaints: true }),
@@ -870,6 +897,7 @@ if (control) {
           name: slug,
           referenceB64: reference.fittedBase64,
           checkerboard: reference.checkerboard,
+          region: reference.region,
           route,
           decoding,
           previous,
