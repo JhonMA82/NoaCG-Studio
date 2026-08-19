@@ -254,30 +254,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Cache the browser binary rather than pulling ~170 MB from the Playwright CDN once
-      # per shard. Keyed on Playwright's own version (read after install, so it is the
-      # resolved one) instead of the lockfile hash: an unrelated dependency bump must not
-      # throw away a browser that did not change.
-      - name: Resolve Playwright version
-        id: playwright-version
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browser
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
-
-      - name: Install Playwright browser
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-
-      # The cache holds the browser, never the runner's system libraries - those come with
-      # the image and must still be reconciled on a cache hit.
-      - name: Install Playwright system dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+      # Cache the browser binary rather than pulling ~170 MB from the Playwright CDN once per
+      # shard, and bound the apt call that used to hang. Shared with the two gate jobs below.
+      - uses: ./.github/actions/playwright-chromium
 
       - name: E2E shard
         env:
@@ -328,8 +307,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright-chromium
 
       - name: Catalog calibration tripwire
         run: npm run test:e2e:catalog
@@ -349,8 +327,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright-chromium
 
       # The factory needs a dev server. Its dedicated runner prevents a collision with the
       # offline-pinned Playwright servers, and the shell trap always cleans the process up.
