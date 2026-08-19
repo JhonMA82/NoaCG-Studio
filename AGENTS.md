@@ -250,7 +250,9 @@ Six rules; the full procedure is **`docs/VERIFICATION.md`**.
    minutes, on a clean checkout. **A clean `git merge main` is not proof the integration
    worked**: both sides were verified against a tree that no longer exists. After taking `main`
    in, run `npm run test:e2e:integration:queued` (the affected plan from the FORK POINT, so it
-   covers BOTH sides' changes) before pushing or landing.
+   covers BOTH sides' changes) before pushing or landing. **A job that stops AT its own
+   `timeout-minutes` is not a verdict** - re-run the unchanged SHA before bisecting: shards split
+   by spec FILE, so a healthy shard that drew the slow files reads exactly like a regression.
 5. **After a catalog change run the five catalog gates** (`type-floor`, `overflow-sweep
    --baseline`, `test:e2e:catalog`, `field-coverage`, `numerals`) plus `l3-sweep` for the affected
    category. They MEASURE the rendered graphic, because every source check would have passed a

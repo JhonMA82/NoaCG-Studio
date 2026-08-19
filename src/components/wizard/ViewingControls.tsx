@@ -33,7 +33,12 @@ export default function ViewingControls({ value, onChange }: Props) {
   };
 
   return (
-    <div className="panel-section" data-testid="wz-viewing">
+    <div className="panel-section viewing-section" data-testid="wz-viewing">
+      {/* The subtitle CONTINUES the title rather than labelling it from the right, so it must
+          stay sentence case. The wizard's step CSS already does that for its own headings; the
+          editor's `.panel-section h3` uppercases everything inside, which ran the two together
+          into "VIEWING WHERE THIS GRAPHIC WILL BE WATCHED". `.viewing-section` is what carries
+          the exemption to the editor's Style panel. */}
       <h3>Viewing <span className="muted">where this graphic will be watched</span></h3>
       <div className="row" style={{ gap: 8, alignItems: 'center' }}>
         <span style={{ whiteSpace: 'nowrap' }}>Watched on:</span>

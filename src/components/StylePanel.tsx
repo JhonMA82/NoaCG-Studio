@@ -19,6 +19,7 @@ import { detectPrefix } from '../model/structure';
 import { zoneDecls } from '../templates/lowerThirds/shared';
 import FontPicker from './wizard/FontPicker';
 import StyleControls from './style/StyleControls';
+import ViewingControls from './wizard/ViewingControls';
 import { SIZE_STEPS as SIZES, TYPE_SIZE_STEPS as TYPE_SIZES } from '../model/styleVocabulary';
 
 const ZONES: Zone9[] = [
@@ -37,6 +38,8 @@ export default function StylePanel() {
   const setCss = useTemplateStore((s) => s.patchCss);
   const setActiveTab = useTemplateStore((s) => s.setActiveTab);
   const addAsset = useTemplateStore((s) => s.addAsset);
+  const legibility = useTemplateStore((s) => s.legibility);
+  const setLegibility = useTemplateStore((s) => s.setLegibility);
   const [note, setNote] = useState<string | null>(null);
 
   const vars = listCssVariables(template.css);
@@ -209,6 +212,13 @@ export default function StylePanel() {
           </p>
         </div>
       )}
+
+      {/* WHERE this graphic will be watched, on the SAME control the wizard offers - so the
+          decision is not frozen at create time. A saved project made before this existed (or
+          made on a TV default that later turned out to be a phone overlay) can change its
+          viewing target here, and the export panel's legibility warnings re-measure off the
+          store value on their own. `?? {}` is the default state, which serializes to nothing. */}
+      <ViewingControls value={legibility ?? {}} onChange={(next) => setLegibility(next)} />
 
       {note && <p className="hint">{note}</p>}
     </div>

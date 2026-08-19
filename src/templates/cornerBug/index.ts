@@ -43,6 +43,7 @@ import { bug33 } from './bug33';
 import { bug34 } from './bug34';
 import { bug35 } from './bug35';
 import { bug36 } from './bug36';
+import { bug37 } from './bug37';
 
 export const CORNER_BUGS: TemplateVariant[] = [
   // The general logo bug — a mark and a caption (type: sponsor-bug).
@@ -98,6 +99,7 @@ export const CORNER_BUGS: TemplateVariant[] = [
   bug34, // Frost Location Chip — glass
   bug35, // Venue Chip — sport
   bug36, // Quiet Location Chip — minimal
+  bug37, // House Temp — the weather pack's corner temperature bug (noacg)
 ];
 
 export function cornerBugById(id: string): TemplateVariant | undefined {

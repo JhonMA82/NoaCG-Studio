@@ -296,3 +296,54 @@ test('the computed floors scale off the template frame: 16:9 = 9:16, 720p smalle
   expect(floors.portrait).toBe('50');
   expect(floors.hd720).toBe('33');
 });
+
+test('the editor can change the viewing target of an already-saved project', async ({ page }) => {
+  // The R4 slice put the viewing decision only in the wizard, which froze it at create time
+  // for every project that already existed. The Style panel carries the SAME control, the
+  // change persists with the project, and the export panel's warnings re-measure under it.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const name = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    return variantById('lt14')?.name ?? null;
+  });
+  expect(name).toBeTruthy();
+  await createProject(page, name!);
+
+  // Before: the warning is phrased for the TV default.
+  await page.getByTestId('dock-tab-export').click();
+  const warning = page.locator('.issue.warn', { hasText: 'legibility-size' });
+  await expect(warning.first()).toContainText('we recommend for TV viewing distance', { timeout: 15_000 });
+
+  await page.getByTestId('dock-tab-style').click();
+  await expect(page.getByTestId('wz-viewing')).toBeVisible();
+  await page.getByTestId('wz-viewing-profile').selectOption('mobile');
+
+  // The store took it, and the debounced autosave wrote it to the working slot — a template
+  // edit is NOT required to persist a legibility change.
+  await expect
+    .poll(async () =>
+      page.evaluate(async () => {
+        const { loadProject } = await import('/src/model/project.ts');
+        return loadProject()?.legibility ?? null;
+      }),
+    )
+    .toEqual({ viewing: { profile: 'mobile' } });
+
+  // After: the same measurement, re-run under the new target, in the phone's words — and
+  // still a warning, never a block.
+  await page.getByTestId('dock-tab-export').click();
+  await expect(warning.first()).toContainText('phone screens', { timeout: 15_000 });
+  await expect(page.locator('.issue.error')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Validate & download/i })).toBeEnabled();
+
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.locator('.topbar')).toBeVisible();
+  await awaitDurableReady(page);
+  const restored = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().legibility;
+  });
+  expect(restored).toEqual({ viewing: { profile: 'mobile' } });
+});
