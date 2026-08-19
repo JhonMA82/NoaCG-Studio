@@ -51,6 +51,7 @@ import { ls37 } from './ls37';
 import { ls38 } from './ls38';
 import { ls39 } from './ls39';
 import { ls40 } from './ls40';
+import { ls41 } from './ls41';
 
 export const SPECIALIST_LOWER_THIRDS: TemplateVariant[] = [
   // Interview — two people, equal billing
@@ -97,6 +98,7 @@ export const SPECIALIST_LOWER_THIRDS: TemplateVariant[] = [
   // Creator — handles and stream identity
   ls31, // Creator Stack — a row of handle chips, one per platform (noacg)
   ls32, // Stream Identity — handle, live dot, and a goal figure (sport)
+  ls41, // Creator Avatar - round avatar, handle, platforms, status chip (glass)
   // Broadcast journalism — the words, their status, and the record around them
   ls33, // Quote Strap — the quoted line leads, ruled off from its attribution (editorial)
   ls34, // Translation Strap — spoken line over translation, a language tag per line (minimal)
