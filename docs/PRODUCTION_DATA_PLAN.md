@@ -7,10 +7,11 @@ says *"the home score is 4"* and never *"sb03 is on air"*.
 
 - **Phase 1 SHIPPED** - the manual playground, the binding model, the diff, and the
   Take/Update/preview overlay. Local, no API, no credentials. Detail: **§12**.
-- **Phase 2, the DB half AUTHORED** - migration `0048` adds the server tree, the plpgsql merge
-  and `control_data_patch`/`control_data_read`. **Not applied, not executed, and no HTTP verbs
-  sit on it yet.** Detail and what remains: **§13**.
-- **Phase 3** (controller convergence, `liveData.ts` retirement) is still design only - §4.
+- **Phase 2 SHIPPED and APPLIED** - migration `0048` is pushed to the linked project, and
+  `PATCH /api/data/patch` + `GET /api/data/state` are live on the existing catch-all. Authoring
+  detail is **§13**; what applying it proved, and the live walk, is **§14**.
+- **Phase 3** (the client following the server tree, controller convergence, `liveData.ts`
+  retirement) is still design only - §4 and §14's "still open".
 
 Read `docs/CLOUD_PLAYOUT.md` (§7 is the ingress doctrine), `docs/DATA_API.md` (the shipped
 first slice) and `docs/INTERACTIVE_PLAYOUT_PLAN.md` D3/D5 first - this plan is a thin layer
@@ -530,8 +531,9 @@ worth saying in the integrator docs when Phase 2 ships.
 
 ## 13. Phase 2, the DB half (2026-08-19)
 
-**Built: migration `0048_production_data_tree.sql`.** The HTTP verbs are NOT built - see
-"what remains" below.
+**Migration `0048_production_data_tree.sql`** - what it adds and why it is shaped this way.
+(This section was written before it was applied; §14 records the apply, the live walk, and the
+HTTP verbs that followed.)
 
 | Added | What |
 |---|---|
@@ -574,23 +576,65 @@ feed sending `3.0` formats as `"3.0"` server-side where TypeScript's `String(3)`
 Neither is wrong and no template reads the difference, but a connector wanting an exact string
 should send a string.
 
-### What remains in Phase 2
-
-1. `PATCH /api/data` and `GET /api/data` as new segments on the existing `api/data/[...path].ts`
-   catch-all - zero new functions.
-2. Publishing `bindings` onto the row (`control/hostedControl.ts` publish path), without which
-   the RPC resolves nothing for a real production.
-3. The client following the server tree when published, so the two do not diverge.
-
-### Verification
+### Authoring-time verification
 
 - `npm run build` - **exit 0** (`definer-grants.test.mjs` covers 0048's new functions).
 - `node --test scripts/production-data.test.mjs scripts/production-data-migration.test.mjs` -
   **22/22**, and the conformance guard was mutation-tested rather than assumed.
 
-**The plpgsql has NOT been executed.** There is no local Postgres in this checkout (no docker,
-`supabase db lint` needs a local or linked database) and the Supabase MCP is unauthenticated in
-this session, so every check above is static. The migration's own `do $$` self-check calls every
-body it adds and refuses to apply on any behavioural failure - that is what closes this gap, at
-apply time. **0048 also stacks on 0047, which project notes record as UNAPPLIED**; 0047 must go
-in first.
+At this point the plpgsql had never been executed - every check above is static text analysis,
+and there is no local Postgres in this checkout. **§14 is where that gap closed**: applying the
+migration ran its `do $$` self-check, which calls every body it adds and refuses to apply on any
+behavioural failure.
+
+---
+
+## 14. Phase 2 is complete and APPLIED (2026-08-19)
+
+Migration `0048` was pushed to the linked project with `supabase db push`; the ledger read clean
+first (0001-0047 present, no drift - **the project note claiming 0047 was unapplied was stale**).
+The migration's own self-check ran on apply, which is what finally EXECUTED the plpgsql: every
+merge-patch conformance case, the format rules, and the resolve rules all ran against the real
+bodies before the migration was allowed to land.
+
+**The HTTP half shipped with it**, as new segments on the existing catch-all - zero new
+functions, the endpoint budget untouched:
+
+| Verb | What |
+|---|---|
+| `PATCH`/`POST /api/data/patch` | merge a patch into the tree; answers the whole tree + what moved |
+| `GET /api/data/state` | the read-back an integrator reconciles against |
+
+Named `/data/patch` and `/data/state` rather than `PATCH /api/data`, because the catch-all routes
+exactly ONE segment on this deployment (`check:api-route-depth`, measured). `hostedControl.ts`
+now publishes `Show.bindings` onto the row, without which the RPC would resolve nothing.
+
+### The live walk (real project, real RPCs, cleaned up afterwards)
+
+A throwaway production row with two bound graphics, driven through `control_data_patch`, then
+deleted along with its log rows:
+
+| Sent | Result |
+|---|---|
+| `{match:{home:{name,score:1},away:{score:0}},headlines:[...]}` | 2 rows: `Ticker {f0:"One\nTwo"}` (array joined) + `Scorebug {f1:"1",f2:"0"}` |
+| `{match:{home:{score:2}}}` | 1 row: `Scorebug {f1:"2"}` - **only the changed field, only its graphic** |
+| the same patch again | **no rows** - idempotent, no budget spent |
+| `{weather:{temp:17.4}}` (unbound) | no rows; the tree still moved |
+| `{match:{home:{score:null}}}` | key deleted from the tree, **no row** - the live field keeps its last good value |
+
+Grants were verified from outside too: `anon` calling either RPC gets
+`42501 permission denied`, `service_role` with an unknown key gets `unknown data key`.
+
+### What this unblocks
+
+`scripts/sportsdb/productionData.mjs` on `claude/sportsdb-connector-803b2f` stops at
+`productionData.patch(productionId, patch)` with a comment naming this contract as "not ours to
+build". That call now exists. The connector's remaining work is its own branch's.
+
+### Still open
+
+- **The client does not follow the server tree yet.** Once published, `control_shows.data` is the
+  authority, but the app's local tree does not read it back - so a value written by a feed is not
+  reflected in the operator's Data tab until that is wired. Phase 3.
+- The contextual `±` controls still write fields, not paths (§2.9), and `liveData.ts` is still
+  frozen rather than retired.

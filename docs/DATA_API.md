@@ -225,14 +225,62 @@ tick; a `429` delays the next tick by its `Retry-After`; a `401` stops the feed.
 `--url` at the canonical host (`https://noacg.studio`, the default) - the `*.vercel.app`
 host answers with a `308`, and clients commonly drop POST bodies on redirect.
 
-## Where this is going
+## Production data - the verb to reach for first
 
-`POST /api/data/update` addresses a GRAPHIC, which means your system has to know the
-production's rundown - the coupling **`docs/PRODUCTION_DATA_PLAN.md`** removes. That plan's
-Phase 1 (the operator-facing manual playground and the field bindings) is built; its Phase 2
-adds `PATCH /api/data` and `GET /api/data`, where you write **production data** by path and
-every graphic bound to that path follows. When it lands, this endpoint stays as the low-level
-direct-write path, and the patch verb becomes the one integrators should reach for first.
+`POST /api/data/update` above addresses a GRAPHIC, so your system has to know the production's
+rundown. **`PATCH /api/data/patch` addresses the DATA instead**: you write `match.home.score`,
+and every field any graphic has BOUND to that path follows - on whichever graphics exist, live
+or not. A scoreboard never learns that "sb03" is on air. Design: `docs/PRODUCTION_DATA_PLAN.md`.
+
+```bash
+curl -X PATCH https://noacg.studio/api/data/patch \
+  -H "Authorization: Bearer $NOACG_DATA_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"match":{"home":{"score":4}}}'
+```
+
+```jsonc
+{
+  "ok": true,
+  "data": { "match": { "home": { "score": 4 } } },   // the whole tree AFTER the merge
+  "writes": [                                        // only what actually moved
+    { "graphic": "House Scorebug", "event": 18251, "applied": { "f1": "4" } }
+  ]
+}
+```
+
+- **The body is any JSON object.** There is no schema: nest as deep as you like. `POST` is
+  accepted as well as `PATCH`, for proxies that drop the latter.
+- **Merge semantics are RFC 7386 JSON Merge Patch**: objects merge, a `null` VALUE deletes its
+  key, arrays replace wholesale. So a patch names only what changed.
+- **Writes are absolute state, never intent.** There is no "+1" - send the value. That makes a
+  retry safe: sending `4` three times leaves 4.
+- **Only what changed is sent on.** The bindings are resolved against the tree before your patch
+  and after it, and only fields whose value actually differs become log rows. Re-sending the
+  same score writes nothing and **spends none of your rate budget** - which is what makes a
+  polling connector cheap.
+- **A path nothing is bound to still updates the tree**, it just moves no graphic. Bindings are
+  the operator's business, on the production's Data tab; your feed does not need to know them.
+- **A missing or unwritable value writes nothing** rather than blanking a field, so a feed that
+  drops a key leaves the last good value on air. Deleting a key with `null` behaves the same
+  way: the tree loses it, the graphic keeps what it had.
+- Values become field strings: numbers and booleans stringify, and an array of scalars joins
+  with newlines (which is what a ticker's line-list field wants).
+
+### Reading the current state
+
+```bash
+curl https://noacg.studio/api/data/state -H "Authorization: Bearer $NOACG_DATA_KEY"
+```
+
+Answers `{ "ok": true, "data": {...}, "bindings": {...} }` - what NoaCG currently believes,
+so a connector reconciles after a restart or a partition instead of blindly pushing a whole
+snapshot. It is idempotent and spends no ingest budget. It returns no capability: the data key
+never widens into an operator one.
+
+**Bindings must be published.** The RPC resolves against the bindings pinned on the production
+at publish time, so a production whose bindings were authored after its last publish accepts
+data and moves nothing until it is published again.
 
 ## What this API deliberately is not
 

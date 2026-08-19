@@ -262,3 +262,75 @@ export async function sendDataUpdate(key: string, graphic: string, data: Record<
   if (error) throw new Error(error.message);
   return Number(eventId);
 }
+
+// ── Production DATA: addressed by PATH, never by graphic (0048) ──────────────────────────────
+// This is the pair `/api/data/update` should have been. A caller patches `match.home.score`,
+// and every field any graphic BOUND to that path follows - so a scoreboard never learns which
+// graphic is on air, which is the coupling docs/PRODUCTION_DATA_PLAN.md exists to remove.
+
+/** One graphic the patch actually moved. */
+export interface DataPatchWrite {
+  graphic: string;
+  event: number;
+  applied: Record<string, string>;
+}
+
+export interface DataPatchResult {
+  /** The production's whole tree AFTER the merge - what the caller can reconcile against. */
+  data: Record<string, unknown>;
+  writes: DataPatchWrite[];
+}
+
+/**
+ * Merge a patch into the production's tree through control_data_patch (0048).
+ *
+ * Everything that makes this safe happens in the DATABASE, in one transaction with the row
+ * locked: the RFC 7386 merge, the binding resolution, the diff against the pre-patch tree, the
+ * rate gates, and the append. Two feeds racing through separate serverless instances therefore
+ * cannot lose an update between a read and a write - which is exactly what a merge computed
+ * here, in the function, would allow.
+ *
+ * A patch that changes no bound value writes NO log rows and still succeeds: re-sending the
+ * same score is the normal shape of a polling connector and must not spend the production's
+ * budget.
+ */
+export async function patchProductionData(key: string, patch: Record<string, unknown>): Promise<DataPatchResult> {
+  const { data, error } = await (await sb()).rpc('control_data_patch', { p_key: key, p_patch: patch });
+  if (error) throw new Error(error.message);
+  const row = (data ?? {}) as { data?: unknown; writes?: unknown };
+  return {
+    data: (row.data ?? {}) as Record<string, unknown>,
+    writes: Array.isArray(row.writes) ? (row.writes as DataPatchWrite[]) : [],
+  };
+}
+
+/** What NoaCG currently believes this production's state is - the read an integrator makes
+ *  after a restart or a partition instead of blindly pushing a whole snapshot. Null = unknown
+ *  key. Deliberately returns no capability: the data key never widens into an operator one. */
+export async function readProductionData(
+  key: string,
+): Promise<{ data: Record<string, unknown>; bindings: Record<string, Record<string, string>> } | null> {
+  const { data, error } = await (await sb()).rpc('control_data_read', { p_key: key });
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const row = data as { data?: unknown; bindings?: unknown };
+  return {
+    data: (row.data ?? {}) as Record<string, unknown>,
+    bindings: (row.bindings ?? {}) as Record<string, Record<string, string>>,
+  };
+}
+
+/** A patch body is any JSON OBJECT - there is no schema, by design. The refusals here are the
+ *  two that are never a caller's intent: a non-object, and a top-level array. */
+export function parseDataPatch(body: unknown): { ok: true; patch: Record<string, unknown> } | { ok: false; error: string } {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    return { ok: false, error: 'The body must be a JSON object of production data.' };
+  }
+  const raw = body as Record<string, unknown>;
+  // A caller wrapping the tree in `{"data": {...}}` is the most likely mistake, so accept it
+  // rather than writing a literal `data` branch nobody bound anything to.
+  const patch = raw.data !== undefined && typeof raw.data === 'object' && raw.data !== null && !Array.isArray(raw.data) && Object.keys(raw).length === 1
+    ? (raw.data as Record<string, unknown>)
+    : raw;
+  return { ok: true, patch };
+}
