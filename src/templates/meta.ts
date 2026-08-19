@@ -292,6 +292,14 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   ig34: { category: 'results', subtype: 'seat-count', structures: ['bars', 'rows'], positionalSemantics: ['items', 'organization', 'topic', 'topic'], extraCapabilities: ['repeating'] },
   ig35: { category: 'progress', subtype: 'progress-bar', structures: ['bars', 'single-line'], positionalSemantics: ['score', 'score', 'score', 'organization'], extraCapabilities: ['progress'] },
   ig36: { category: 'stats', subtype: 'stat-panel', structures: ['single-line'], positionalSemantics: ['percentage', 'headline', 'percentage', 'topic'] },
+  // The WEATHER mini-pack (lt62 / ig37 / bug37). Its field TITLES are the Production Data API
+  // contract (scripts/weather-feed.mjs addresses them by label - see each design's header), and
+  // it files by what each graphic IS: a current-conditions strap is a locator lower third, a
+  // forecast board is a statistics panel, a temperature chip is a location bug. The 'weather'
+  // PROGRAMME FORMAT is what gathers them - ranking, not filing (the election pack's rule).
+  lt62: { category: 'lower-third', subtype: 'locator', structures: ['multi-line'], positionalSemantics: ['location', 'amount', 'description', 'description'] },
+  ig37: { category: 'stats', subtype: 'stat-panel', structures: ['grid', 'multi-line'], positionalSemantics: ['headline', 'date', 'amount', 'amount', 'description', 'date', 'amount', 'amount', 'description', 'date', 'amount', 'amount', 'description'] },
+  bug37: { category: 'bug', subtype: 'location', structures: ['corner-chip'], positionalSemantics: ['amount', 'location'] },
   // info-card split (§4): card04 turned out to be a QUOTE card (Quote + Name + Role) — the
   // quote category's first catalog content, found by the factory's schema-length assertion.
   card04: { category: 'quote', subtype: 'quote', structures: ['multi-line', 'name-role'], positionalSemantics: ['description', 'name', 'role'] },

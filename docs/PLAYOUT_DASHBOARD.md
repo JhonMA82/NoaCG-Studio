@@ -73,6 +73,13 @@ Two columns, full height, nothing scrolls but the two lists.
   airs). With the toggle, that makes the whole surface operable from the keys alone — which is
   also what makes a **Stream Deck** work today, since one is a keyboard emulator by default. A
   dedicated plugin (WebSocket, live button state) is a separate project and is not started.
+- **The keymap is ONE module, `src/components/playoutKeys.ts`**, read by both React surfaces
+  (the exported controller carries its own copy because it ships without React). Written twice,
+  it diverged: until 2026-08-18 the **hosted control page had no verb keys at all** — the page a
+  class operates from was the one where `↑`/`↓` did nothing — and its TAKE re-took a live cue
+  instead of taking it off, the exact behaviour §2 says one surface must never wear twice. A new
+  key or a changed meaning goes in that module and in the controller's `keydown` block, never in
+  a surface.
 - **The editor edits the PREVIEW cue by default** and says so ("changes air on ⟳ Take"). A
   switch offers the ON-AIR cue instead, where ✎ Update pushes edits live.
 - **An edit to the ON-AIR cue says it has not been sent.** Data never airs by itself — that is
@@ -163,6 +170,20 @@ If this surface replaces the production dashboard, it carries the dashboard's tw
 **Publish / republish**, and both capability links — the **output URL** (the browser source) and
 the **control page URL** (to operate from another device). They belong in the header's menu, one
 click from the operator, never on a page they have to navigate away to.
+
+**ONE LINE PER CAPABILITY, the explanation behind its own ▸.** The panel grew a paragraph under
+every row and became a page: five explanations between five rows put the CONTROL PAGE — the link
+a class operates from — below an account of an SPX file most of them never download. So each
+row's help collapses (`LinkRow`, ProductionPage.tsx), and the arrow sits in the same column down
+the panel so it is found rather than hunted. Two rules the shape has to keep:
+
+- **The audience row's help opens by default.** Every other explanation describes something
+  PRIVATE; this one says "public", and that is the one omission here that could reach air.
+- **A secondary capability is QUIET, never hidden.** The SPX template file is a smaller, dimmer
+  row directly under the output URL it is a second form of — it belongs to the one playout host
+  that cannot take a link, so it must stay findable without competing with the links copied
+  every show. Same for the readable-name field. Hiding either behind a "more" would trade one
+  crowded panel for a lost control.
 
 ## 7b. The ⚡ GRAPHIC ACTIONS block, in the operator's words
 

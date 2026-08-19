@@ -174,6 +174,49 @@ production - is `scripts/data-api-demo.mjs`:
 node scripts/data-api-demo.mjs --url https://noacg.studio --key <data key>
 ```
 
+## Worked example: a live weather production (Open-Meteo)
+
+The first real external-data integration: the WEATHER mini-pack (`lt62` "House Weather",
+`ig37` "House Forecast", `bug37` "House Temp") driven by `scripts/weather-feed.mjs`, a
+Node connector polling [Open-Meteo](https://open-meteo.com) (keyless, free for
+non-commercial use; weather data by Open-Meteo.com, licensed CC BY 4.0 - keep the
+attribution when you use it).
+
+**The field titles are the contract.** The three graphics title their fields deliberately -
+`Place`, `Temperature`, `Condition`, `Wind` on the strap and the bug, plus `Day 1 name`,
+`Day 1 high`, `Day 1 low`, `Day 1 condition` (and the same four for days 2 and 3) on the
+forecast board - and the connector posts exactly those labels. Retitling a field in a saved
+graphic breaks the feed's mapping for that production; the `ignored` list in each response
+is where a broken label shows up first.
+
+**The templates stay dumb** (docs/CLOUD_PLAYOUT.md §7): the WMO weather-code wording, the
+weekday names and the compass points live in the connector (`--lang en|fi`), and every value
+lands as a plain string - so an operator can type `Sunny` over the feed at any time, and the
+next tick takes it back (later log rows win).
+
+The walk:
+
+1. Create the three weather graphics from the wizard (search "weather"), add them to one
+   production, publish it, and open its `/output` URL somewhere visible.
+2. Read the production's data key (see "For the production owner" below).
+3. Start the feed - one POST per graphic per tick, default every 10 minutes (min 60 s;
+   even three graphics per tick sits far inside the 25-per-5s ingest budget):
+
+   ```bash
+   node scripts/weather-feed.mjs --key <data key> \
+     --graphic "House Weather" --graphic "House Forecast" --graphic "House Temp" \
+     --lat 60.17 --lon 24.94 --place HELSINKI --lang fi
+   ```
+
+4. Take the graphics on air from the operator page; the values keep updating on air,
+   because a data update never plays or stops anything.
+
+Failure semantics are the §7 doctrine: a failed Open-Meteo fetch or a failed POST writes
+nothing (the graphics keep the last posted values - freeze IS not-writing) and retries next
+tick; a `429` delays the next tick by its `Retry-After`; a `401` stops the feed. Point
+`--url` at the canonical host (`https://noacg.studio`, the default) - the `*.vercel.app`
+host answers with a `308`, and clients commonly drop POST bodies on redirect.
+
 ## What this API deliberately is not
 
 - **Not an operator.** No play, stop, next, take, or state jumps - airing is a human decision
