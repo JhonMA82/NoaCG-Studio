@@ -18,7 +18,8 @@ import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 // audience): publish is the courier, not the author.
 import { audienceBrandFor } from '../audience/audienceBrand';
 import { joinNameCandidates } from './joinName';
-import type { ControlMessage } from './controlModel';
+import { fieldDescriptors, type ControlMessage } from './controlModel';
+import { cueDataRows, type CueDataRow } from './cueData';
 
 /** The operator page's URL for a control slug — the one shape every surface mints. */
 export function controlPageUrl(slug: string): string {
@@ -51,6 +52,18 @@ export interface PanelGraphicSpec {
    * build simply carries no entries and is normalized to `[]` on read.
    */
   entries: PanelEntry[];
+  /**
+   * The production DATASET rows this graphic can load, resolved at publish time by the shared
+   * matcher (`control/cueData.ts`, the same one the in-app page runs live). The hosted page had
+   * no data loading at all, so half of the Data workspace was unreachable from the surface a
+   * class operates from.
+   *
+   * Published rather than matched on the page because the hosted page never sees the show
+   * record - only what publishing wrote. That gives it the same freshness contract cues and
+   * entries already have: edit a dataset, publish changes. Additive: an older row simply
+   * carries none and normalizes to `[]` on read.
+   */
+  dataRows: CueDataRow[];
 }
 
 export interface ControlShowRow {
@@ -188,6 +201,10 @@ export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics(
         .filter((a) => isImageAsset(a.path))
         .map((a) => ({ value: a.path, label: a.path })),
       entries: entriesForSavedGraphic(g, library).map((e) => ({ id: e.id, label: e.label, values: e.values })),
+      dataRows: cueDataRows(
+        fieldDescriptors(template.fields).map((d) => ({ key: d.key, label: d.label })),
+        show.datasets ?? [],
+      ),
     };
   });
 }
@@ -199,6 +216,7 @@ function readPanel(panel: unknown): PanelGraphicSpec[] {
     ...g,
     images: Array.isArray(g.images) ? g.images : [],
     entries: Array.isArray(g.entries) ? g.entries : [],
+    dataRows: Array.isArray(g.dataRows) ? g.dataRows : [],
   }));
 }
 

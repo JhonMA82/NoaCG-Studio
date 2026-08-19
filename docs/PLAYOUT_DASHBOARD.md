@@ -86,8 +86,18 @@ Two columns, full height, nothing scrolls but the two lists.
   the staged-vs-take rule and it does not change — so the surface has to say when what is on
   screen is ahead of what is on air: the fate line names how many changes are waiting and ✎
   Update wears an amber dot. It compares against what was last SENT, never against the stored
-  cue, since those legitimately differ.
-- **Activity is one collapsed line** at the bottom; it expands.
+  cue, since those legitimately differ. **On the hosted page "last sent" is read off the WIRE**,
+  so an update somebody else aired clears the warning here too - the same fact, from the only
+  source a shared surface can trust.
+- **Activity is one collapsed line** at the bottom; it expands. Both React surfaces carry it, and
+  it earns its place most on the HOSTED one: that is the multi-operator surface, where "did that
+  take go, or was that somebody else?" is a real question. Those rows were already arriving there
+  to drive PROGRAM and were being thrown away.
+- **A production DATA row loads into the edited cue** where the Data workspace has a table whose
+  column names match this graphic's field titles (`control/cueData.ts` - one matcher, including
+  the A/B side gesture). The in-app page matches LIVE against the show; the hosted page renders
+  rows the same matcher resolved AT PUBLISH TIME, which is the freshness contract its cues and
+  entries already have: edit a dataset, publish changes.
 
 ## 3. Layout — phone
 
@@ -205,6 +215,11 @@ is a control that will not be used.
   suppressed callbacks, so call-painted looks need the trailing data write). Use it when air and
   the dashboard have got out of step — a renderer restart, a missed press. Normal operation is
   the ⚡ actions and » Next.
+- **Both React surfaces carry the whole block** — header, snap, section grouping, help line.
+  The hosted page used to render the ⚡ buttons as one flat row with no snap at all, which put
+  the recovery control on every surface EXCEPT the one being operated from a phone, away from
+  the machine running the renderer. Sections come from `controlModel.ts controlSections`, the
+  author's own `machine.controls` metadata, grouped identically by all three deployments.
 
 ## 7c. The ± LIVE NUMBERS block — the one data write that airs immediately
 

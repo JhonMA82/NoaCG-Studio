@@ -942,6 +942,15 @@ picked file replaces it).
   (`TemplateVariant.logo: 'none' | 'optional' | 'built-in'`): built-in designs (corner bugs,
   credits' f2) always carry their slot; 'optional' designs get the wizard's Fields-step logo
   toggle + custom upload and only emit the field when it's on (`ResolvedOptions.logoEnabled`).
+  **The capability is the whole answer, including for a category that used to hard-wire it.**
+  End credits declared f2 for every design regardless of what the variant said, so a design
+  with no place for a mark still shipped the operator a Logo field it could never draw; the
+  assembler now gates the field, the hidden source AND the runtime's lookup on `logoEnabled`
+  (cr13 is the first credits design to declare anything but `'built-in'` - `'optional'`, so its
+  colophon has no mark by default and gains one when the toggle is on). A phantom field is not
+  cosmetic - it is a lie on every generated control page, and it moves every baseline when it
+  is removed. **A design gating a logo must gate its logo CSS on `logoEnabled` too**, or the
+  default build changes and every baseline moves for a slot nobody asked for.
   A design either hand-authors its slot (lt07's badge, lt08's docked square, card03) as
   design-owned `extraFields` (id computed after all user fields), or opts in with zero code:
   `shared/logoSlot.ts` `applyLogoSlot` injects the standard slot (filelist field +

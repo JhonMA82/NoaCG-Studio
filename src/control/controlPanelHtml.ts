@@ -524,7 +524,10 @@ GRAPHICS.forEach(function (g) {
     var evHost = el('div', { class: 'events' });
     var sections = {};
     g.events.forEach(function (e) {
-      var name = e.section || 'Events';
+      // "Actions" is the undeclared-section name on EVERY other surface (controlModel
+      // controlSections); this page said "Events", so the same graphic's same buttons sat under
+      // two different headings depending on which panel an operator had open.
+      var name = e.section || 'Actions';
       if (!sections[name]) {
         var wrap = el('div', {}, [el('h3', {}, [name])]);
         sections[name] = el('div', { class: 'btns' });

@@ -369,6 +369,10 @@ answer: the log read back in the words an operator would use, newest first.
 - **Rehearsal keeps its own log**, built from the same `ControlSendItem`s through the same
   `describeLogRow`. That is what makes the panel identical in both modes, and it is the only
   reason any of this is provable without a backend.
+- **The HOSTED control page carries the same panel** (2026-08-19). It is the multi-operator
+  surface, so it is where "did that take go, or was that somebody else?" is actually asked - and
+  it was already reading every one of these rows to drive its PROGRAM monitor and discarding
+  them. Same `describeLogRow`, same cap, same history seed.
 - Opening a published production seeds the panel with recent history (one tail read behind the
   log head — `followControlLog` starts AT the head by design, being recovery rather than a
   history reader). Global event ids mean that window is a ceiling on rows READ, not on rows
@@ -547,6 +551,12 @@ last-known-good). Choose concrete providers only after licensing/cost review.
 - **Templates in the panel spec instead of a second payload?** The panel spec is deliberately
   live-resolved and light (operator pages re-publish cheaply); the output payload is
   deliberately pinned and heavy. Different lifecycles, different columns.
+- **The production's DATASETS on the output payload, so the hosted page could match rows
+  itself?** No: the output payload is what the OUTPUT capability URL serves, and a dataset is
+  operator material - a question bank holds the answers. Publishing the matched ROWS onto the
+  `panel` spec instead (`dataRows`, 2026-08-19) keeps them behind the control link, ships less,
+  and needs no migration: `panel` is jsonb with no version, so an older row simply carries none
+  and normalizes to `[]` on read.
 - **`hello`/`graphic-online` on the wire?** The hosted path's boot recovery is self-service
   (the renderer rebuilds itself from `live`); the announce round-trip is a BroadcastChannel
   affordance and stays there.

@@ -153,6 +153,27 @@ function renderRequirements(template: SpxTemplate): Array<Record<string, unknown
   ];
 }
 
+/**
+ * The manifest `id` — and, because a real renderer uses it that way, a legal CUSTOM ELEMENT NAME.
+ *
+ * The spec only says an id is any unicode except "/", so `hairline` reads as conformant. It is
+ * not loadable. SuperFly.tv's OGraf server — the community renderer the EBU's own README points
+ * at — registers the Graphic with `customElements.define(manifest.id, class)`, and the HTML
+ * standard requires such a name to start with an ASCII lowercase letter and to contain a hyphen.
+ * Our slugs are lowercase with UNDERSCORE separators, so every NoaCG package failed that call
+ * with `"hairline" is not a valid custom element name` before the graphic was ever mounted.
+ * Nothing in the manifest schema catches it; it is a spec-legal id that no browser can register.
+ *
+ * The `noacg-` prefix supplies the required hyphen whatever the design is called, guarantees the
+ * leading letter (a graphic named "3 Up" slugs to `3_up`), and keeps the id off the HTML
+ * standard's reserved names. It is also the namespace the spec's reverse-DNS recommendation is
+ * really asking for, in the shape a browser can take. Folder and file names keep the plain slug:
+ * they follow the SPX and CasparCG conventions, and the id has never had to match them.
+ */
+export function ografGraphicId(name: string): string {
+  return `noacg-${slug(name).replace(/_/g, '-')}`;
+}
+
 /** The .ograf.json manifest (required fields per spec §2 + the field-driven data schema). */
 export function buildOgrafManifest(
   template: SpxTemplate,
@@ -163,7 +184,7 @@ export function buildOgrafManifest(
   const durations = actionDurations(template, stepCount, actions.map((a) => a.id as string));
   return {
     $schema: OGRAF_SCHEMA_URL,
-    id: slug(template.name), // slugs never contain "/" (spec forbids it in ids)
+    id: ografGraphicId(template.name),
     version: '1.0.0',
     name: template.name,
     description: template.settings.description || template.name,
@@ -350,6 +371,36 @@ const TEMPLATE_HTML = ${JSON.stringify(bodyContent(templateHtmlForModule(templat
 
 const TEMPLATE_CSS = ${JSON.stringify(template.css)};
 
+// The package's own base URL. A Graphic is a COMPONENT inside the renderer's page, not the
+// page itself, so a relative \`fonts/inter.woff2\` in the injected CSS resolves against the
+// RENDERER's document — which is somebody else's directory. Under SPX and CasparCG the
+// template IS the document and the same path is correct, which is why this is invisible until
+// a real OGraf renderer loads the package: the font 404s, \`font-display: swap\` paints the
+// fallback, and the graphic airs in the wrong typeface with no error anywhere. Every relative
+// resource is therefore resolved against this module before injection. (The non-real-time
+// document does the same job with a <base href>; it has its own document to put one in.)
+const PACKAGE_BASE = new URL('./', import.meta.url).href;
+
+/** Absolute-ise one reference, leaving anything already absolute (or a data: URL) alone. */
+function packageUrl(ref) {
+  if (/^(?:[a-z][a-z0-9+.-]*:|\\/\\/|#)/i.test(ref)) return ref;
+  return new URL(ref, PACKAGE_BASE).href;
+}
+
+// Each rewrite substitutes the REFERENCE inside the match it was found in, rather than rebuilding
+// the surrounding syntax — quoting and spacing survive untouched, and this file never contains a
+// literal reference of its own for a package scanner to trip over.
+const substitute = (whole, ref) => {
+  const trimmed = ref.trim();
+  const resolved = packageUrl(trimmed);
+  return resolved === trimmed ? whole : whole.replace(trimmed, resolved);
+};
+
+const withPackageUrls = {
+  css: (css) => css.replace(/url\\(\\s*(['"]?)([^'")]+)\\1\\s*\\)/gi, (whole, _q, ref) => substitute(whole, ref)),
+  html: (html) => html.replace(/\\b(?:src|href|poster|data)\\s*=\\s*(['"])([^'"]+)\\1/gi, (whole, _q, ref) => substitute(whole, ref)),
+};
+
 // Non-real-time rendering runs in an isolated, virtual-clock document. The document is
 // recreated for every seek, so no prior playback, timer, GSAP state, or seek order can leak.
 const OFFLINE_DOCUMENT = ${JSON.stringify(offlineDocument(template))};
@@ -364,9 +415,41 @@ const CUSTOM_ACTION_IDS = ${JSON.stringify(actionIds)};
 const MAIN_GROUP_ID = ${JSON.stringify(mainGroupId)};
 const MAIN_PATH = ${JSON.stringify(mainPath)};
 
+/**
+ * A \`document\` scoped to ONE mounted Graphic.
+ *
+ * The field convention is one element per field, addressed as \`getElementById('fN')\` — the
+ * same ids in every design NoaCG makes, because under SPX a template owns its page and there
+ * is nothing to collide with. An OGraf renderer is the opposite arrangement: every layer is a
+ * Web Component in ONE document, so a second Graphic's \`#f0\` is a duplicate of the first's,
+ * \`document.getElementById\` answers with whichever is earlier in the document, and updating
+ * the graphic on layer 1 rewrites the graphic on layer 0. Measured exactly that way against
+ * SuperFly.tv's OGraf server (docs/OGRAF.md); class prefixes scope the CSS but not the ids.
+ *
+ * The template's code is still what the editor shows: only the \`document\` it sees is scoped,
+ * by being a parameter of the function its body runs in. Lookups resolve inside this Graphic;
+ * everything else on document (readyState, addEventListener, fonts, createElement) passes
+ * straight through to the real one.
+ */
+function scopedDocument(root) {
+  const scoped = {
+    getElementById: (id) => root.querySelector('[id="' + String(id).replace(/"/g, '\\\\"') + '"]'),
+    querySelector: (sel) => root.querySelector(sel),
+    querySelectorAll: (sel) => root.querySelectorAll(sel),
+  };
+  return new Proxy(document, {
+    get(target, key) {
+      if (key in scoped) return scoped[key];
+      const value = target[key];
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+}
+
 // initTemplate(): runs the template's own JS AFTER the markup is in the DOM and returns
-// its runtime entry points. The code inside is exactly what the editor shows.
-function initTemplate() {
+// its runtime entry points. The code inside is exactly what the editor shows — the
+// \`document\` parameter shadows the global one so its lookups stay inside this Graphic.
+function initTemplate(document) {
 ${template.js.replace(/^/gm, '  ')}
 
   // The machine globals ride along when the template has a state machine, so the wrapper can
@@ -457,20 +540,22 @@ class Graphic extends HTMLElement {
     // Inject the template's style + markup into this element (light DOM: the template's
     // own getElementById lookups keep working exactly as in SPX).
     const style = document.createElement('style');
-    style.textContent = TEMPLATE_CSS;
+    style.textContent = withPackageUrls.css(TEMPLATE_CSS);
     this.appendChild(style);
     const holder = document.createElement('div');
-    holder.innerHTML = TEMPLATE_HTML;
+    holder.innerHTML = withPackageUrls.html(TEMPLATE_HTML);
     this.appendChild(holder);
 
-    this._runtime = initTemplate();
+    this._runtime = initTemplate(scopedDocument(this));
     this._step = -1; // not on air yet
     if (params && params.data) this._runtime.update(JSON.stringify(params.data));
     return { statusCode: 200 };
   }
 
   async _dispose() {
-    if (window.gsap) window.gsap.killTweensOf('*');
+    // Only this Graphic's own elements: '*' is document-wide, and a renderer mounts every
+    // layer in one document, so clearing layer 1 froze the graphic still on air on layer 0.
+    if (window.gsap) window.gsap.killTweensOf(this.querySelectorAll('*'));
     if (this._frame) { this._frame.remove(); this._frame = null; }
     this.innerHTML = '';
     this._runtime = null;

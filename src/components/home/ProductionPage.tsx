@@ -5,7 +5,6 @@ import { useTemplateStore } from '../../store/templateStore';
 import {
   addGraphicToShow,
   addShowCue,
-  datasetValuesForFields,
   duplicateLayers,
   graphicLayer,
   loadShows,
@@ -27,10 +26,12 @@ import { graphicKindLabel, type Resolution } from '../../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
 import { revealCue, stepSelection, usePlayoutVerbKeys, type PlayoutVerb } from '../playoutKeys';
+import { cueDataRows, hasSideFields, nextRow, rowsForSide } from '../../control/cueData';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
 import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import {
+  controlSections,
   eventButtons,
   eventLegality,
   fieldDescriptors,
@@ -221,7 +222,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setAiredData((prev) => {
       let next = prev;
       for (const item of items) {
-        if (item.msg.t === 'update') next = { ...next, [item.graphic]: item.msg.data };
+        // MERGED, not replaced: an update may be PARTIAL (a ± live-number bump carries one
+        // field on purpose), and replacing the baseline with it marked every other field as
+        // unsent — an amber "3 changes not on air yet" about values that were on air.
+        if (item.msg.t === 'update') next = { ...next, [item.graphic]: { ...next[item.graphic], ...item.msg.data } };
         else if (item.msg.t === 'stop' && next[item.graphic]) {
           // Taken off air: forget it, or the next rebuild would restore a graphic nobody is
           // running any more.
@@ -898,61 +902,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const eventPayloadKeys = new Set(events.flatMap((e) => e.payload ?? []));
   const liveNumberFields = descriptors.filter((d) => d.kind === 'number' && !eventPayloadKeys.has(d.key));
 
-  // THE SIDE GESTURE. A dataset row is ONE team, but a two-team board titles its fields
-  // "Team A" / "Score A" / "Team B" / … — so a row can never match them directly and the whole
-  // teams preset bound nothing. Dropping the standalone side token off the FIELD TITLE is what
-  // closes it, and it closes cleanly across the board's whole shape:
-  //
-  //     Team A → Team · Score A → Score · Team A colour → Team colour · Team A logo → Team logo
-  //     Period, Clock → unchanged, no column, skipped as before
-  //
-  // It is done HERE, at the call site, over an unchanged `datasetValuesForFields` — that
-  // function already takes {key,label} pairs, so rewriting the labels needs no model change, no
-  // persisted-format change and no migration. The plain literal match still runs first, so a
-  // column named exactly "Team A" keeps working and the quiz binding is untouched.
-  const SIDES = ['A', 'B'] as const;
-  const hasSides = descriptors.some((d) => SIDES.some((s) => new RegExp(`\\b${s}\\b`).test(d.label)));
-  /** A field title with its side token removed — "Team A colour" → "Team colour". */
-  const stripSide = (label: string, side: string) =>
-    label.replace(new RegExp(`\\s+${side}\\b`), '').replace(/\s{2,}/g, ' ').trim();
-  /** The descriptors a row is matched against: sideless for the CHOSEN side, and the other
-   *  side's fields removed entirely so loading team A can never overwrite team B. */
-  const sideDescriptors = (side: string) =>
-    descriptors
-      .filter((d) => !SIDES.some((s) => s !== side && new RegExp(`\\b${s}\\b`).test(d.label)))
-      .map((d) => ({ key: d.key, label: stripSide(d.label, side) }));
-
-  /** Rows the edited cue can load (D3's binding): any production dataset with at least one
-   *  column whose label matches a field title, each row labelled by its first non-empty cell
-   *  in column order — the question, the team, the name. */
-  const loadableRows: { value: string; label: string }[] = [];
-  const matchLabels = hasSides
-    ? SIDES.flatMap((s) => sideDescriptors(s)).concat(descriptors.map((d) => ({ key: d.key, label: d.label })))
-    : descriptors.map((d) => ({ key: d.key, label: d.label }));
-  for (const ds of show.datasets ?? []) {
-    const labels = new Set(ds.columns.map((c) => c.label.trim().toLowerCase()));
-    if (!matchLabels.some((d) => labels.has(d.label.trim().toLowerCase()))) continue;
-    ds.rows.forEach((row, i) => {
-      const first = ds.columns.map((c) => row.values[c.key] ?? '').find((v) => v.trim() !== '');
-      loadableRows.push({ value: `${ds.id}:${row.id}`, label: `${ds.name}: ${(first ?? `row ${i + 1}`).slice(0, 60)}` });
-    });
-  }
+  /** Rows the edited cue can load (D3's binding) — the SHARED matcher, `control/cueData.ts`,
+   *  so the hosted control page offers exactly the rows this page does. Live here (a dataset
+   *  edited a second ago is loadable); published for the hosted page. */
+  const dataRows = cueDataRows(descriptors, show.datasets ?? []);
+  const hasSides = hasSideFields(descriptors);
+  const loadableRows = rowsForSide(dataRows, loadSide);
   /** Load one row into the edited cue's DRAFT (never air), remembering it per cue so ↷ Next
    *  walks the bank in order. */
-  const loadRow = (value: string) => {
-    if (!value || !editingCue) return;
-    const [datasetId, rowId] = value.split(':');
-    const ds = (show.datasets ?? []).find((d) => d.id === datasetId);
-    const row = ds?.rows.find((r) => r.id === rowId);
-    if (!ds || !row) return;
-    // A sided board loads into the CHOSEN side only; everything else matches as before. The
-    // plain titles go in as well and win where they exist, so a column named exactly "Team A"
-    // still binds literally.
-    const fields = hasSides
-      ? [...sideDescriptors(loadSide), ...descriptors.map((d) => ({ key: d.key, label: d.label }))]
-      : descriptors;
-    editDraft({ values: datasetValuesForFields(ds, row, fields) });
-    setLastLoaded((m) => ({ ...m, [editingCue.id]: value }));
+  const loadRow = (id: string) => {
+    const row = dataRows.find((r) => r.id === id);
+    if (!row || !editingCue) return;
+    editDraft({ values: row.values });
+    setLastLoaded((m) => ({ ...m, [editingCue.id]: id }));
   };
 
   // ── Graphic-specific ACTIONS (the ⚡ buttons — docs/PLAYOUT_DASHBOARD.md §8). They act ON
@@ -960,13 +922,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // only while the selected cue's graphic is up on its layer. ──
   const machineState = selectedGraphic ? machineStates[selectedGraphic] ?? null : null;
   const stateLabel = formatMachineState(stateNames, machineState);
-  const eventSections: [string, ControlButton[]][] = [];
-  for (const b of events) {
-    const key = b.section ?? 'Actions';
-    const bucket = eventSections.find(([s]) => s === key);
-    if (bucket) bucket[1].push(b);
-    else eventSections.push([key, [b]]);
-  }
+  // Grouped by the SHARED helper (controlModel `controlSections`), so the hosted page's ⚡ block
+  // and this one can never sort the author's sections differently.
+  const eventSections = controlSections(events);
 
   /** The data that belongs to AIR: the cue live on the selected layer, draft included when it
    *  is also the one being edited. Events and snaps act on the live graphic, so their values
@@ -1304,7 +1262,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                         teams table can only ever describe half the graphic. */}
                     {hasSides && (
                       <span className="pd-side-pick" data-testid="cue-load-side">
-                        {SIDES.map((s) => (
+                        {(['A', 'B'] as const).map((s) => (
                           <button
                             key={s}
                             type="button"
@@ -1323,20 +1281,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                     <select className="grow" value="" onChange={(e) => loadRow(e.target.value)} data-testid="cue-load-row">
                       <option value="">Pick a row from the production's data…</option>
                       {loadableRows.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
+                        <option key={o.id} value={o.id}>{o.label}</option>
                       ))}
                     </select>
                     {/* The running-order gesture: next question, next name — one press. Loads
                         the row AFTER the one this cue last loaded (the first, before any). */}
                     <button
                       onClick={() => {
-                        const at = editingCue ? loadableRows.findIndex((o) => o.value === lastLoaded[editingCue.id]) : -1;
-                        const next = loadableRows[at + 1];
-                        if (next) loadRow(next.value);
+                        const next = nextRow(dataRows, loadSide, editingCue ? lastLoaded[editingCue.id] ?? null : null);
+                        if (next) loadRow(next.id);
                       }}
                       disabled={
                         !editingCue ||
-                        loadableRows.findIndex((o) => o.value === lastLoaded[editingCue.id]) >= loadableRows.length - 1
+                        !nextRow(dataRows, loadSide, lastLoaded[editingCue.id] ?? null)
                       }
                       title="Load the next row"
                       data-testid="cue-load-next"
