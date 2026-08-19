@@ -134,12 +134,19 @@ function composeGraphicWithLines(
 }
 
 /**
- * The four stub languages across the two NEW graphic types - eight rows, zero tokens, measured by
+ * The four stub languages across every graphic type BEYOND the strap - zero tokens, measured by
  * the same instruments a paid round is scored by.
+ *
+ * DERIVED from the composable list, never enumerated: it named the two Phase B types by hand,
+ * and the topic card then joined `PRO_GRAPHIC_IDS` with full compose coverage while the control
+ * run silently skipped it - a control that does not follow the list re-opens exactly the hole
+ * it exists to close, one type at a time. The strap stays excluded because its four control
+ * rows ARE the §15.5 baseline table; re-composing it here would duplicate every row.
  */
 export function newTypeAnchors(mark?: ControlMark | null): ProControlAnchor[] {
   const out: ProControlAnchor[] = [];
-  for (const graphic of ['sponsor-bug', 'countdown'] as const) {
+  for (const graphic of Object.keys(PRO_GRAPHICS) as ProGraphicId[]) {
+    if (graphic === 'lower-third') continue;
     for (const language of STUB_LANGUAGES) out.push(anchorFor(language, graphic, mark ?? null));
   }
   return out;
