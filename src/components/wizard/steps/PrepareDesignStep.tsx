@@ -124,6 +124,7 @@ export default function PrepareDesignStep({
     rect,
     uniform: result.sampling.uniform,
     maxDeviation: result.sampling.maxDeviation,
+    gradient: result.sampling.gradient,
     fill: result.sampling.fill,
     ink: result.ink ?? undefined,
   });
@@ -279,10 +280,16 @@ export default function PrepareDesignStep({
       {pending && (
         <div className="wz-prep-verdict bad" data-testid="erase-warning">
           <p>
-            The background under this box isn't flat (its samples differ by{' '}
-            {pending.result.sampling.maxDeviation} — flat is ≤ {FLAT_BG_TOLERANCE}), so a clean
-            fill isn't possible. Best result: re-export the design without the text and import
-            that. You can also use the average-colour fill shown above.
+            The background right behind the text isn't flat and no smooth gradient explains it
+            (its samples differ by {pending.result.sampling.maxDeviation} — clean is ≤{' '}
+            {FLAT_BG_TOLERANCE}
+            {pending.result.sampling.segments
+              ? `, for ${
+                  pending.result.sampling.segments.total - pending.result.sampling.segments.clean
+                } of ${pending.result.sampling.segments.total} text areas`
+              : ''}
+            ), so a clean rebuild isn't possible. Best result: re-export the design without the
+            text and import that. You can also use the average-colour fill shown above.
           </p>
           <div className="row" style={{ gap: 8 }}>
             <button data-testid="erase-continue-anyway" onClick={applyPending}>
@@ -296,7 +303,7 @@ export default function PrepareDesignStep({
         <div className="wz-prep-verdict good" data-testid="erase-done">
           <p>
             {erases.every((e) => e.uniform)
-              ? 'The background is flat — the text was erased cleanly.'
+              ? 'The text was erased cleanly — flat backgrounds filled, smooth gradients rebuilt.'
               : 'Filled with the average background colour (some samples were not flat).'}{' '}
             {seedCount === 1
               ? 'A text field will sit in the erased region when the project is created.'
@@ -316,7 +323,7 @@ export default function PrepareDesignStep({
                     : e.ink
                       ? '1 line'
                       : 'no text found'}
-                  {e.uniform ? '' : ' · average fill'}
+                  {e.uniform ? (e.gradient ? ' · gradient rebuilt' : '') : ' · average fill'}
                 </span>
                 <button
                   data-testid={`erase-remove-${i}`}

@@ -25,6 +25,7 @@ import { ss16 } from './ss16';
 import { ss17 } from './ss17';
 import { ss18 } from './ss18';
 import { ss19 } from './ss19';
+import { ss20 } from './ss20';
 
 export const STARTING_SOON: TemplateVariant[] = [
   // ── Before the show ──
@@ -36,6 +37,7 @@ export const STARTING_SOON: TemplateVariant[] = [
   ss10, // minimal — the quiet ceremony hold
   ss11, // sport — the venue / doors-open hold
   ss18, // editorial - the printed paper programme, counting to a start time
+  ss20, // glass - the layered event badge: kicker tab, plaque, countdown strap, room ribbon
   // ── During the show ──
   ss06, // noacg — the BRB break card
   ss12, // glass — the compact returning-soon capsule over the picture

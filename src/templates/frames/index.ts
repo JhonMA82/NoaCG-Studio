@@ -8,6 +8,7 @@ import { fr01 } from './fr01';
 import { fr02 } from './fr02';
 import { fr03 } from './fr03';
 import { fr04 } from './fr04';
+import { fr15 } from './fr15';
 import { structuralFrames } from './structuralLayouts';
 
 export const FRAMES: TemplateVariant[] = [
@@ -15,6 +16,7 @@ export const FRAMES: TemplateVariant[] = [
   fr02, // Frost Interview — glass two-up remote interview (sibling lt08)
   fr03, // Volt Split — sport split screen, leaning divider (sibling lt05 / vs01)
   fr04, // Clean Share — minimal screen-share + presenter inset (sibling lt01 / card42)
+  fr15, // Signal HUD — sport instrument surround: corner assemblies, hex nodes, a data rail
   ...structuralFrames,
 ];
 

@@ -4,9 +4,10 @@ import { framedCardPng, CARD_TEXT_RECT } from './_png';
 
 // The Import Graphic PREPARE step (docs/IMPORT_MVP.md): erasing baked-in text from the
 // artwork, deterministically and offline. The user drags a box over the text; the engine
-// samples the background just outside it, flat-fills when the samples agree
-// (FLAT_BG_TOLERANCE), refuses honestly when they don't, and the erase always re-runs from
-// the ORIGINAL pixels so adjusting can never compound fills.
+// finds the type inside it, samples the background around each piece, rebuilds it where a
+// flat colour or a fitted linear gradient explains the samples (FLAT_BG_TOLERANCE), refuses
+// honestly where neither does, and the erase always re-runs from the ORIGINAL pixels so
+// adjusting can never compound fills.
 
 async function dropCard(page: Page, buffer: Buffer, name = 'card.png') {
   await page.goto('/app');
@@ -118,8 +119,32 @@ test('erase: a 2x retina export is erased in SOURCE pixels', async ({ page }) =>
   expect(px.r).toBeGreaterThan(200); // …and cleaned at that resolution
 });
 
-test('erase: a non-flat background is refused honestly, with continue-anyway available', async ({ page }) => {
+test('erase: a smooth gradient background is REBUILT per pixel, not averaged', async ({ page }) => {
   await dropCard(page, framedCardPng(1000, 600, { background: 'gradient' }));
+  await toEraseSurface(page);
+  await drawRect(page, MARK.x0, MARK.y0, MARK.x1, MARK.y1);
+
+  // The ramp is a plane the linear fit reconstructs — clean verdict, no warning.
+  await expect(page.getByTestId('erase-done')).toContainText('erased cleanly');
+  await expect(page.getByTestId('erase-warning')).toHaveCount(0);
+
+  await createProject(page);
+
+  // The fill FOLLOWS the ramp: a pixel near the bar's left edge must be darker than one
+  // near its right edge by about the ramp's own slope — a mean fill would paint both the
+  // same and fail this in both directions.
+  const leftX = CARD_TEXT_RECT.x + 0.03;
+  const rightX = CARD_TEXT_RECT.x + CARD_TEXT_RECT.width - 0.03;
+  const left = await assetPixel(page, leftX, TEXT_CENTER.y);
+  const right = await assetPixel(page, rightX, TEXT_CENTER.y);
+  const ramp = (fx: number) => Math.round(190 + fx * 60); // the generator's own formula
+  expect(Math.abs(left.r - ramp(leftX))).toBeLessThanOrEqual(6);
+  expect(Math.abs(right.r - ramp(rightX))).toBeLessThanOrEqual(6);
+  expect(right.r - left.r).toBeGreaterThan(10);
+});
+
+test('erase: a busy background is refused honestly, with continue-anyway available', async ({ page }) => {
+  await dropCard(page, framedCardPng(1000, 600, { background: 'noise' }));
   await toEraseSurface(page);
   await drawRect(page, MARK.x0, MARK.y0, MARK.x1, MARK.y1);
 

@@ -299,6 +299,10 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   // PROGRAMME FORMAT is what gathers them - ranking, not filing (the election pack's rule).
   lt62: { category: 'lower-third', subtype: 'locator', structures: ['multi-line'], positionalSemantics: ['location', 'amount', 'description', 'description'] },
   ig37: { category: 'stats', subtype: 'stat-panel', structures: ['grid', 'multi-line'], positionalSemantics: ['headline', 'date', 'amount', 'amount', 'description', 'date', 'amount', 'amount', 'description', 'date', 'amount', 'amount', 'description'] },
+  // The count-night SIDE RAIL. It files under results beside ig34 for the same reason - an
+  // operator reaches for it as a results board - but its structure is declared as a side panel,
+  // which is the placement that makes it a different graphic from the centre-frame boards.
+  ig38: { category: 'results', subtype: 'vote-result', structures: ['side-panel', 'rows'], coverage: 'panel', positionalSemantics: ['items', 'topic', 'headline', 'description', 'topic'], extraCapabilities: ['repeating'] },
   bug37: { category: 'bug', subtype: 'location', structures: ['corner-chip'], positionalSemantics: ['amount', 'location'] },
   // info-card split (§4): card04 turned out to be a QUOTE card (Quote + Name + Role) — the
   // quote category's first catalog content, found by the factory's schema-length assertion.
@@ -394,6 +398,9 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   ls38: { category: 'lower-third', subtype: 'live-tag', structures: ['multi-line'], positionalSemantics: ['topic', 'headline', 'time'] },
   ls39: { category: 'lower-third', subtype: 'name-tag', structures: ['multi-line'], positionalSemantics: ['answer', 'headline', 'source'] },
   ls40: { category: 'lower-third', subtype: 'speaker', structures: ['name-role', 'multi-line'], positionalSemantics: ['name', 'organization', 'role', 'topic'] },
+  // The creator strap whose avatar is a real image field - so it declares the picture slot the
+  // other two creator designs (ls31, ls32) have no room for.
+  ls41: { category: 'lower-third', subtype: 'name-tag', structures: ['image-text', 'multi-line'], positionalSemantics: ['social-handle', 'social-handle', 'topic'], extraCapabilities: ['image-upload'] },
 
   // ── The PUBLIC-SERVICE pack's tickers (tk11…tk17, tk20) ────────────────────
   //
@@ -411,6 +418,9 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   // The double-decker holds the current story STILL above the crawl, which is what makes it a
   // news ticker rather than one more crawl.
   tk20: { category: 'ticker', subtype: 'news-ticker', structures: ['strip', 'multi-line'], positionalSemantics: ['items', 'topic', 'headline'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
+  // The markets double-decker: the same held-still deck over a crawl, filed as a MARKET ticker
+  // because that is the word an operator reaches for it by.
+  tk22: { category: 'ticker', subtype: 'market-ticker', structures: ['strip', 'multi-line'], positionalSemantics: ['items', 'topic', 'headline'], extraCapabilities: ['ticker', 'repeating', 'loop'] },
 
   // ── The PUBLIC-SERVICE pack's alerts (templates/alerts) ────────────────────
   //
@@ -427,6 +437,7 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   al09: { category: 'alert', subtype: 'breaking', structures: ['strip', 'multi-line'], positionalSemantics: ['topic', 'headline', 'source'] },
   al10: { category: 'alert', subtype: 'notice', structures: ['multi-line'], coverage: 'panel', positionalSemantics: ['headline', 'description', 'time'] },
   al11: { category: 'alert', subtype: 'breaking', structures: ['strip', 'multi-line'], positionalSemantics: ['topic', 'headline', 'source'] },
+  al13: { category: 'alert', subtype: 'breaking', structures: ['strip', 'multi-line'], positionalSemantics: ['topic', 'headline', 'topic', 'time'] },
 
   // ── The PUBLIC-SERVICE pack's public information (templates/publicInfo) ────
   //
@@ -468,6 +479,7 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   // a declaration against the compiled schema rather than against the line count.
   ss18: { category: 'holding', subtype: 'starting', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['headline', 'description', 'headline', 'duration', 'time'], extraCapabilities: ['countdown', 'loop'] },
   ss19: { category: 'holding', subtype: 'break', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['headline', 'topic', 'description', 'duration'], extraCapabilities: ['countdown', 'loop'] },
+  ss20: { category: 'holding', subtype: 'starting', structures: ['full-panel'], coverage: 'full', positionalSemantics: ['topic', 'headline', 'description', 'location', 'duration'], extraCapabilities: ['countdown', 'loop'] },
 };
 
 // ── Per-assembler fallback (single-valued, proposal §4) ─────────────────────
