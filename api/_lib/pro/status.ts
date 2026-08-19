@@ -18,6 +18,10 @@ export default {
       requiresSignIn: gate.requiresSignIn,
       ...(gate.reason ? { reason: gate.reason } : {}),
       maxGenerationCostUsd: gate.profile.maxProviderCostUsd,
+      // The custom lane is offered only where hosted Pro is AND its own flag is on - a lane
+      // reported on a deployment that cannot serve it is a door the wizard would draw and the
+      // server would refuse.
+      ...(gate.available && gate.profile.customEnabled ? { customLane: true } : {}),
     };
     if (gate.available && gate.user) {
       // Measured against the SAME profile the reservation will use, which is why the gate

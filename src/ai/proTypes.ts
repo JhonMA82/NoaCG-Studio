@@ -27,6 +27,13 @@ export interface ProStatusResponse {
   /** What one generation may cost NoaCG, both figures in USD. Reported so the wizard can be
    *  honest about the tier without the browser having to know a price table. */
   maxGenerationCostUsd: number;
+  /**
+   * Does this deployment offer the CUSTOM lane (the fail-closed iterate engine,
+   * src/ai/pro/custom/loop.ts)? Additive optional so an older server reads as "no". The
+   * server flag is `AI_PRO_CUSTOM_ENABLED`, default off - the lane is productized for
+   * validation and its ship decision belongs to the P4 confirmation round's read.
+   */
+  customLane?: boolean;
   allowance?: ProAllowance;
 }
 

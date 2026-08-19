@@ -41,10 +41,10 @@ import {
   type ViewingTarget,
 } from '../../model/designRules';
 
-export interface IterateScreenshot {
-  mediaType: string;
-  base64: string;
-}
+import { iterationMessage, type CustomScreenshot } from '../pro/custom/loop';
+
+export { iterationMessage };
+export type IterateScreenshot = CustomScreenshot;
 
 export interface IterateEmitOptions {
   brief: SpikeBrief;
@@ -79,33 +79,10 @@ export interface IterateEmitResult {
   model: string;
 }
 
-/** The iteration message: what was measured, then the files, then the frame. The findings
- *  come FIRST because they are the contract - the screenshot is evidence, not the brief. */
-export function iterationMessage(
-  findings: string[], template: SpxTemplate, screenshot?: IterateScreenshot,
-): ContentBlock[] {
-  const text = `Your template rendered with these problems. The graphic is NOT deliverable
-until every one of them is fixed - fix ALL of them and re-emit the complete template
-(all three files, complete):
-${findings.map((f) => `- ${f}`).join('\n')}
-${screenshot ? '\nThe attached image is YOUR template, rendered at 1920x1080 with the sample\nvalues - look at it. Every finding above is visible in it.\n' : ''}
-=== index.html ===
-${template.html}
-
-=== template.css ===
-${template.css}
-
-=== template.js ===
-${template.js}`;
-  const blocks: ContentBlock[] = [{ type: 'text', text }];
-  if (screenshot) {
-    blocks.push({
-      type: 'image',
-      source: { type: 'base64', media_type: screenshot.mediaType, data: screenshot.base64 },
-    });
-  }
-  return blocks;
-}
+// The iteration message now lives in the PRODUCT engine (src/ai/pro/custom/loop.ts) and is
+// re-exported above: the custom lane became product code, and a bench that renders its
+// feedback through a second copy of the message is a bench measuring a conversation the
+// product no longer holds.
 
 export async function iterateEmit(options: IterateEmitOptions): Promise<IterateEmitResult> {
   const { brief, route, decoding, validate, brand, previous, rules } = options;

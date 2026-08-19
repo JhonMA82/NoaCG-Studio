@@ -101,6 +101,14 @@ function providerSlugs(): string[] {
 export interface ProProfile {
   id: 'pro';
   enabled: boolean;
+  /**
+   * The CUSTOM LANE's own switch (`AI_PRO_CUSTOM_ENABLED`), default OFF and separate from
+   * `enabled` on purpose: the iterate engine is productized FOR VALIDATION
+   * (docs/NOACG_PRO_PLAN.md §21.2/§23.1 - one clean re-read is grounds to validate, never to
+   * ship), so whether any deployment offers it is a deliberate flip after the P4 confirmation
+   * round's read, not a consequence of hosting Pro at all.
+   */
+  customEnabled: boolean;
   promptVersion: string;
   /** Every route a hosted Pro generation is allowed to spend on. The pipeline picks among
    *  them; this profile only says which are funded, priced and audited.
@@ -142,6 +150,7 @@ export function proProfile(): ProProfile {
   return {
     id: 'pro',
     enabled: boolEnv('AI_PRO_ENABLED'),
+    customEnabled: boolEnv('AI_PRO_CUSTOM_ENABLED'),
     // Bumped whenever the hosted contract changes what a generation is held to, so ledger rows
     // stay attributable to the rules that produced them. Same single-source rule as Lite's:
     // the literal below IS the version and `.env.example` ships the variable commented out.

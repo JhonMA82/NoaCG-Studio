@@ -44,6 +44,7 @@ const MAP = [
   // union'd with it: the language path shares nothing with the concept-and-compile pipeline
   // pro.spec.ts covers, so its guarantees had no gate at all until this spec existed.
   [/^src\/ai\/pro\/language\//, ['pro-language.spec.ts']],
+  [/^src\/ai\/pro\/custom\//, ['pro-custom.spec.ts', 'pro-language.spec.ts']],
   // …and the platform HALF of that composer, which since Phase B (§15.9) is the graphic-type
   // registry and two category assemblers rather than one. A Pro sponsor bug is compiled through
   // `types/bugs.ts` and a Pro countdown through `types/clocks.ts`, and both take their mark
