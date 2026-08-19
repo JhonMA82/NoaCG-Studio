@@ -567,6 +567,19 @@ export interface AdminSystemState {
   maintenanceNotice: { message: string; level: 'info' | 'warning'; until: string | null } | null;
   /** Users who see beta-marked features and templates regardless of their plan. */
   betaUserIds: string[];
+  /** Hosted Pro's deployment gate, term by term. The public endpoints answer only
+   *  `not-configured`, deliberately - this is the operator's view of WHICH term vanished the
+   *  tier. Keys mirror `ProGateTerms` (api/_lib/pro/gate.ts), the one computation both share.
+   *  Optional so a client ahead of its server degrades to "unknown" rather than crashing. */
+  hostedPro?: {
+    enabled: boolean;
+    auth: boolean;
+    ledger: boolean;
+    task: boolean;
+    managedKey: boolean;
+    routesEnabled: boolean;
+    configured: boolean;
+  };
 }
 
 // ── templates ──────────────────────────────────────────────────────────────────────────

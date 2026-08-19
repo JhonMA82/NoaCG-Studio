@@ -242,15 +242,27 @@ export class MemoryLiteGenerationStore implements LiteGenerationStore {
 
   async usage(profileId: AiLedgerProfile, userId: string, now: number): Promise<LiteUsageSnapshot> {
     const records = [...this.records.values()].filter((record) => record.profile === profileId);
-    const userRecords = records.filter((record) => record.userId === userId);
+    // A Pro reservation that never settled a call spent NOTHING - the row still carries its
+    // booked worst case, and it either failed or ran out its lease unreported. Such a row
+    // neither consumed a start nor any of the fleet's money, so the counts release it the
+    // moment it is terminal or expired. Predicate mirrored from migration 0048's
+    // `ai_task_usage`; deliberately Pro-only - Lite's analog (a pre-call failure keeping its
+    // $0.007 booking) is real but an order of magnitude less acute, and its quota semantics
+    // change on its own evidence, not as a rider here.
+    const released = (record: LiteGenerationRecord): boolean =>
+      profileId === 'pro'
+      && record.proCallCount === 0
+      && (record.status === 'failed' || record.status === 'expired' || record.expiresAt <= now);
+    const counted = records.filter((record) => !released(record));
+    const userRecords = counted.filter((record) => record.userId === userId);
     return {
       dailyStarts: userRecords.filter((record) => record.createdAt >= now - DAY).length,
       monthlyStarts: userRecords.filter((record) => record.createdAt >= now - MONTH).length,
       dailySuccesses: userRecords.filter((record) => record.createdAt >= now - DAY && SUCCESS.has(record.status)).length,
       monthlySuccesses: userRecords.filter((record) => record.createdAt >= now - MONTH && SUCCESS.has(record.status)).length,
       activeForUser: userRecords.filter((record) => ACTIVE_FOR_USER.has(record.status) && record.expiresAt > now).length,
-      activeGlobal: records.filter((record) => ACTIVE_FOR_FLEET.has(record.status) && record.expiresAt > now).length,
-      dailyFleetSpendUsd: records
+      activeGlobal: counted.filter((record) => ACTIVE_FOR_FLEET.has(record.status) && record.expiresAt > now).length,
+      dailyFleetSpendUsd: counted
         .filter((record) => record.createdAt >= now - DAY)
         .reduce((sum, record) => sum + record.providerCostUsd, 0),
     };

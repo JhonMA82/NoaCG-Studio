@@ -3,16 +3,17 @@
 
 import { getAccessToken } from '../backend/auth';
 import { defaultModelForProvider, loadAiSettings } from './settings';
-import type {
-  AiGatewayErrorBody,
-  AiGatewayRequestBody,
-  AiGatewayResponseBody,
-  AiGatewaySurface,
-  ModelContentBlock,
-  ModelRequest,
-  ModelResult,
-  ModelRoute,
-  StructuredOutput,
+import {
+  ModelGatewayError,
+  type AiGatewayErrorBody,
+  type AiGatewayRequestBody,
+  type AiGatewayResponseBody,
+  type AiGatewaySurface,
+  type ModelContentBlock,
+  type ModelRequest,
+  type ModelResult,
+  type ModelRoute,
+  type StructuredOutput,
 } from './modelTypes';
 
 export type ContentBlock = ModelContentBlock;
@@ -97,7 +98,17 @@ export async function callModelDetailed(request: GatewayModelRequest): Promise<M
   });
   if (!response.ok) {
     const error = await response.json().catch(() => null) as AiGatewayErrorBody | null;
-    throw new Error(error?.error.message ?? 'The AI request failed.');
+    // A TYPED refusal: `code` and `retryable` survive to the caller, so a retry decision can
+    // branch on what the server actually said rather than on prose (modelTypes.ts). A response
+    // with no parseable body never came from the gateway's own vocabulary (a platform 502/503
+    // serves HTML), so it is classified by status: a 5xx is the outage shape and retryable, a
+    // 4xx is a durable refusal.
+    throw new ModelGatewayError(
+      error?.error.code ?? (response.status >= 500 ? 'unavailable' : 'invalid_request'),
+      error?.error.message ?? 'The AI request failed.',
+      error?.error.retryable ?? response.status >= 500,
+      response.status,
+    );
   }
   return response.json() as Promise<AiGatewayResponseBody>;
 }
