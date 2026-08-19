@@ -168,6 +168,13 @@ async function loadReference(file) {
     // ceiling it is a design edge, not two greys of one checker.
     const TILE_MIN_STEP = 8;
     const TILE_MAX_STEP = 90;
+    // How far a TEXTURED backdrop is followed (used only where the border ring proved uniform).
+    // The step is four times the measured texture wobble (under 3 counts between neighbours);
+    // the reach is where the set separates cleanly - the textured backdrop is fully cleared by
+    // 18, and the full-bleed design's gradient only starts being eaten at 18 as well, so the
+    // reach sits below that and the uniform gate keeps that design out of this branch anyway.
+    const TEXTURE_STEP = 12;
+    const TEXTURE_REACH = 14;
     // Walk one axis through the anchor and binarize against the walk's OWN two levels, never
     // against a fixed tolerance from the anchor pixel - the tolerance that proves a light
     // checker's step swallows a darker one whole, which is how the dark file went missing.
@@ -284,7 +291,13 @@ async function loadReference(file) {
       // a false stand-in, none of it toward a verdict that changes.
       const tol = 10;
       const covered = ring.filter((p) => close(p, med, tol)).length / ring.length;
-      if (covered >= 0.6) backdrop = { tone: med, tol };
+      // UNIFORM is a stronger claim than "has a backdrop", and only the strong claim earns the
+      // textured walk below. Measured on the set, the two sit far apart: a real stand-in
+      // backdrop covers 90-100% of its own border ring at this tolerance, while the one
+      // full-bleed design that trips the 0.6 gate at all covers 63% - it is not a graphic on a
+      // backdrop, it is a design that happens to be dark at its edges, and its blue field is
+      // content the model must rebuild.
+      if (covered >= 0.6) backdrop = { tone: med, tol, uniform: covered >= 0.85 };
     }
 
     const canvas = document.createElement('canvas');
@@ -382,7 +395,20 @@ async function loadReference(file) {
       };
       const stepQualifies = (p, fromP) => {
         const px = [d[p], d[p + 1], d[p + 2]];
-        if (backdrop) return close(px, backdrop.tone, backdrop.tol);
+        if (backdrop) {
+          if (close(px, backdrop.tone, backdrop.tol)) return true;
+          // A studio backdrop is rarely one flat number: the dashboard reference lays a fine
+          // grid and a faint diagonal sheen over near-black, so a pure tone match left a cloud
+          // of unmasked backdrop that read as design and stated a 664px side panel as a
+          // 1656px graphic. The texture is only ever a LOCAL wobble - neighbouring pixels
+          // there differ by under 3 counts, against the saturated bar that walls the design
+          // off - so continuity follows it. The envelope is what stops continuity becoming a
+          // licence to walk a gradient forever, and this branch is gated on the ring being
+          // uniform because a full-bleed design's background is a gradient exactly like that.
+          return backdrop.uniform
+            && close(px, [d[fromP], d[fromP + 1], d[fromP + 2]], TEXTURE_STEP)
+            && close(px, backdrop.tone, TEXTURE_REACH);
+        }
         if (Math.max(...px) - Math.min(...px) > 16 || !onChecker(p)) return false;
         const from = [d[fromP], d[fromP + 1], d[fromP + 2]];
         // Within one checker STEP of the neighbour: the two tile tones sit ~20-50 apart, so
