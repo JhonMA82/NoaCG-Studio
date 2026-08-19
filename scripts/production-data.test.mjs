@@ -15,6 +15,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
+// The rules live in ONE place, because they are implemented twice - here against the real
+// TypeScript module, and in 0048's self-check against the real plpgsql body.
+import { MERGE_PATCH_CONFORMANCE } from './merge-patch-conformance.mjs';
 
 const source = readFileSync(fileURLToPath(new URL('../src/model/productionData.ts', import.meta.url)), 'utf8');
 const js = ts.transpileModule(source, {
@@ -37,74 +40,6 @@ const {
   setPath,
   suggestPath,
 } = mod;
-
-/**
- * THE MERGE-PATCH CONTRACT. Every case here is RFC 7386 behaviour that a live production
- * depends on, and every case must hold identically in TypeScript and in the future plpgsql
- * twin. Add a case here before changing either implementation.
- */
-const MERGE_PATCH_CONFORMANCE = [
-  {
-    name: 'a nested patch keeps the siblings it did not mention',
-    base: { a: { b: 1, c: 2 } },
-    patch: { a: { b: 5 } },
-    expect: { a: { b: 5, c: 2 } },
-  },
-  {
-    name: 'null deletes exactly its own key',
-    base: { a: { b: 1, c: 2 } },
-    patch: { a: { b: null } },
-    expect: { a: { c: 2 } },
-  },
-  {
-    name: 'a patch creates the branch it needs',
-    base: {},
-    patch: { match: { home: { score: 4 } } },
-    expect: { match: { home: { score: 4 } } },
-  },
-  {
-    name: 'arrays REPLACE wholesale - no element merging',
-    base: { rows: [1, 2, 3] },
-    patch: { rows: [9] },
-    expect: { rows: [9] },
-  },
-  {
-    name: 'a scalar replaces an object',
-    base: { a: { b: 1 } },
-    patch: { a: 'gone' },
-    expect: { a: 'gone' },
-  },
-  {
-    name: 'an object replaces a scalar',
-    base: { a: 'text' },
-    patch: { a: { b: 1 } },
-    expect: { a: { b: 1 } },
-  },
-  {
-    name: 'deleting a key that is not there is not an error',
-    base: { a: 1 },
-    patch: { b: null },
-    expect: { a: 1 },
-  },
-  {
-    name: 'an empty patch changes nothing',
-    base: { a: { b: 1 } },
-    patch: {},
-    expect: { a: { b: 1 } },
-  },
-  {
-    name: 'false and 0 are values, not absences',
-    base: { open: true, votes: 7 },
-    patch: { open: false, votes: 0 },
-    expect: { open: false, votes: 0 },
-  },
-  {
-    name: 'deleting a whole branch',
-    base: { match: { home: { score: 1 } }, weather: { temp: 4 } },
-    patch: { weather: null },
-    expect: { match: { home: { score: 1 } } },
-  },
-];
 
 test('merge-patch conformance table (TypeScript side)', () => {
   for (const c of MERGE_PATCH_CONFORMANCE) {

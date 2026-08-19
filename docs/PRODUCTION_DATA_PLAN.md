@@ -3,10 +3,14 @@
 A production holds a **tree of live values** that its graphics read from, so an external system
 says *"the home score is 4"* and never *"sb03 is on air"*.
 
-**Status: PHASE 1 IS BUILT** (2026-08-19). The manual playground, the binding model, the diff
-and the Take/Update/preview overlay all ship; there is no API, no server column and no migration
-yet. Phase 2 (server ingress) and Phase 3 (controller convergence) are still design only - §4.
-What Phase 1 actually landed is §12.
+**Status (2026-08-19):**
+
+- **Phase 1 SHIPPED** - the manual playground, the binding model, the diff, and the
+  Take/Update/preview overlay. Local, no API, no credentials. Detail: **§12**.
+- **Phase 2, the DB half AUTHORED** - migration `0048` adds the server tree, the plpgsql merge
+  and `control_data_patch`/`control_data_read`. **Not applied, not executed, and no HTTP verbs
+  sit on it yet.** Detail and what remains: **§13**.
+- **Phase 3** (controller convergence, `liveData.ts` retirement) is still design only - §4.
 
 Read `docs/CLOUD_PLAYOUT.md` (§7 is the ingress doctrine), `docs/DATA_API.md` (the shipped
 first slice) and `docs/INTERACTIVE_PLAYOUT_PLAN.md` D3/D5 first - this plan is a thin layer
@@ -521,3 +525,72 @@ worth saying in the integrator docs when Phase 2 ships.
    enough is unproven until someone binds a real rundown.
 4. **`liveData.ts` still exists** - the CSV poller inside template JS, outside the log. It is
    frozen, not retired. It remains the one genuine second data path.
+
+---
+
+## 13. Phase 2, the DB half (2026-08-19)
+
+**Built: migration `0048_production_data_tree.sql`.** The HTTP verbs are NOT built - see
+"what remains" below.
+
+| Added | What |
+|---|---|
+| `control_shows.data jsonb not null default '{}'` | the live tree, server-side |
+| `control_shows.bindings jsonb not null default '{}'` | pinned at publish beside `panel`/`output` |
+| `jsonb_merge_patch(target, patch)` | RFC 7386, the plpgsql twin of `mergePatch` |
+| `production_data_format(value)` | the twin of `formatValue`; NULL means WRITE NOTHING |
+| `production_data_resolve(data, bindings)` | the twin of `resolveBindings`, as a set of `(graphic, field, value)` |
+| `control_data_patch(key, patch)` | merge + resolve + diff + append, in ONE locked transaction |
+| `control_data_read(key)` | the approved read-back (§7) |
+
+**Three design points worth keeping:**
+
+- **The diff baseline is derived, never stored.** `control_data_patch` resolves the bindings
+  against the tree BEFORE the patch and against the tree AFTER it, and writes only the fields
+  whose string differs. There is no "last sent" state to keep true, and a re-sent identical
+  score writes no rows at all - which matters because a polling connector re-sends constantly
+  and must not spend the production's budget doing it.
+- **`for update` is the reason this is an RPC and not function code.** A patch is a
+  read-modify-write of one jsonb column; two feeds through separate serverless instances would
+  lose one of the two updates. The row is locked and merged in one transaction.
+- **Both rate gates count what the call is ABOUT to write** (`v_recent + v_pending > 50`,
+  `v_ingest + v_pending > 25`). A patch touching three graphics costs three rows, so a gate
+  reading only the trailing count would let one call overshoot by the number of graphics.
+
+**The drift guard is real, and was mutation-tested.** `scripts/merge-patch-conformance.mjs` now
+owns the merge rules as data; `scripts/production-data.test.mjs` runs them against the real
+TypeScript module, 0048's self-check runs them against the real plpgsql body, and
+`scripts/production-data-migration.test.mjs` fails the build if the literal embedded in the
+migration stops matching the shared table. Adding a case to the shared file was confirmed to
+fail that guard with a message naming the file to update.
+
+**A temp table was removed during review.** The first draft collected the diff in a
+`create temporary table`, which inside a `search_path = ''` definer function resolves only
+through Postgres's implicit `pg_temp` rule - correct, but a subtlety a reader would have to
+know to trust the function. It is a plain aggregate query into a jsonb now.
+
+**One honest formatting difference between the twins:** jsonb preserves a trailing zero, so a
+feed sending `3.0` formats as `"3.0"` server-side where TypeScript's `String(3)` gives `"3"`.
+Neither is wrong and no template reads the difference, but a connector wanting an exact string
+should send a string.
+
+### What remains in Phase 2
+
+1. `PATCH /api/data` and `GET /api/data` as new segments on the existing `api/data/[...path].ts`
+   catch-all - zero new functions.
+2. Publishing `bindings` onto the row (`control/hostedControl.ts` publish path), without which
+   the RPC resolves nothing for a real production.
+3. The client following the server tree when published, so the two do not diverge.
+
+### Verification
+
+- `npm run build` - **exit 0** (`definer-grants.test.mjs` covers 0048's new functions).
+- `node --test scripts/production-data.test.mjs scripts/production-data-migration.test.mjs` -
+  **22/22**, and the conformance guard was mutation-tested rather than assumed.
+
+**The plpgsql has NOT been executed.** There is no local Postgres in this checkout (no docker,
+`supabase db lint` needs a local or linked database) and the Supabase MCP is unauthenticated in
+this session, so every check above is static. The migration's own `do $$` self-check calls every
+body it adds and refuses to apply on any behavioural failure - that is what closes this gap, at
+apply time. **0048 also stacks on 0047, which project notes record as UNAPPLIED**; 0047 must go
+in first.
