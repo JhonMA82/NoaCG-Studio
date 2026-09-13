@@ -32,3 +32,11 @@ test('recovery after an error prints a RECOVERED line before the events', () => 
   const lines = linesFor({ ok: true, tick: 9, events: ['LANDED claude/c'] }, { lastError: 'git fetch failed' });
   assert.deepEqual(lines, ['WATCH RECOVERED - wave-tick answers again', 'tick 9: LANDED claude/c']);
 });
+
+test('degraded observations cannot masquerade as quiet success', () => {
+  const result = { ok: true, tick: 4, events: [], warnings: ['git fetch failed'] };
+  assert.deepEqual(linesFor(result), ['WATCH WARNING - git fetch failed']);
+  assert.deepEqual(linesFor(result, { lastWarnings: result.warnings }), []);
+  assert.deepEqual(linesFor({ ...result, warnings: [] }, { lastWarnings: result.warnings }),
+    ['WATCH RECOVERED - observation warnings cleared']);
+});

@@ -20,6 +20,9 @@ refusal exits 1 with the real error. On a refusal, continue in the current check
 section 4 that its reads may be stale. Never create, move or delete it by hand, and never run a dev
 server in it: it reserves no dev port, and SessionStart exempts it from the 5180-5298 block.
 
+On recovery, read `node scripts/wave-recover.mjs --plan <stored-plan> --json` first. Retrieve
+only the assignment or result needed for a decision; a new plan still runs the cheap set below.
+
 ## Then always - the cheap set
 
 It produces the wave table, so if the window later runs short the routing already exists.

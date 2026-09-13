@@ -18,12 +18,40 @@ import {
   looksFinishedUnqueued,
   nextState,
   parseArgs,
+  persistTick,
   summaryLine,
   wavePlanFresh,
 } from './wave-tick.mjs';
 
 const NOW = Date.parse('2026-09-01T22:00:00Z');
 const MINUTE = 60_000;
+
+test('worker state changes produce one delta and unchanged reports stay quiet', () => {
+  const report = { state: 'ready', sha: 'a'.repeat(40), nextAction: 'review result' };
+  const current = { branches: [], blocked: [], jobs: [], workerReports: { 'codex/a': report } };
+  assert.match(deltaBetween(null, current)[0], /WORKER codex\/a ready/);
+  assert.deepEqual(deltaBetween({ workerReports: current.workerReports }, current), []);
+  assert.deepEqual(deltaBetween({ workerReports: { 'codex/a': { ...report, at: 1 } } },
+    { ...current, workerReports: { 'codex/a': { ...report, at: 2 } } }), []);
+});
+
+test('event append failure cannot advance the saved observation cursor', () => {
+  let wrote = false;
+  assert.throws(() => persistTick({ statePath: 'state', eventPath: 'events', state: { tick: 2 }, events: ['LANDED x'], at: NOW }, {
+    append: () => { throw new Error('disk full'); }, write: () => { wrote = true; },
+  }), /disk full/);
+  assert.equal(wrote, false);
+});
+
+test('interruption before snapshot replacement leaves a durable event and the old cursor', () => {
+  const calls = [];
+  assert.throws(() => persistTick({ statePath: 'state', eventPath: 'events', state: { tick: 2 }, events: ['LANDED x'], at: NOW }, {
+    append: (_file, text) => calls.push(text), write: () => calls.push('temporary'),
+    rename: () => { throw new Error('interrupted'); },
+  }), /interrupted/);
+  assert.match(calls[0], /tick 2 LANDED x/);
+  assert.equal(calls[1], 'temporary');
+});
 
 const branch = (over = {}) => ({
   name: 'claude/a-thing',

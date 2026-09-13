@@ -18,10 +18,11 @@ GOAL   One sentence: what is true when this is done.
 WHY    The real problem it solves, or the goal it serves.
 READ   file, file, file.
 DELEGATE <if used: pool, tools/read-write mode, absolute worktree, result route; evidence in GOAL/GATE>
-DO     1. …  2. …  3. …
-CORE   which steps are the core; the rest is the tail a short session cuts first.
+CORE   The coherent outcome that must stand on its own; optional tail only if time remains.
+       Investigate, choose implementation, verify and repair within TOUCHES.
 TRAPS  only what is written in no repo file
 GATE   npm run build and the necessary focused checks. Commit the verified outcome; queueing starts CI.
+       Report state changes via wave-launch progress with the returned worker ID (hosts.md).
 QUEUE  Then, as your LAST THREE actions and in this order:
        1. run /check (review, simplify, verify) on the branch - name each leg's mode;
        2. write docs/handoffs/<date>-a-<slug>.md: what is left and why, evidence and traps that
@@ -61,27 +62,20 @@ QUEUE  Then, as your LAST THREE actions and in this order:
   what breaks otherwise, so the session can TEST the assignment instead of obeying it. A session
   sensing a cosmetic why behind a functional cost keeps the function, does the rest, and puts the
   tension in the handoff (`incidents.md` "the vanity rename").
-- **WHY is a TARGET, not a route.** DO is the planner's best route to it: a better route inside the
-  row's `TOUCHES` is built and reported, one that changes scope is argued in the handoff instead.
-  Every session asks once before step 1 - do these steps serve the WHY, or only the letter of the
-  ask? A faster horse built perfectly is a failed assignment. **The repo outranks the plan** the
-  same way: a named file that does not do what its row says is wrong, never authoritative - find
-  the real one, work against it, and name both, so the planner's error is visible not absorbed.
-  A DETAIL quoted into a prompt is evidence of intent, never a specification (core, "INTENT BINDS,
-  THE DETAIL DOES NOT") - say so IN THE ROW, so it serves the intent by the better means.
+- **WHY is a TARGET, not a route.** Workers own implementation. Assign GOAL + WHY + TOUCHES/MINTS + GATE, with pointers.
+  DO is optional and reserved for a required constraint or reproduction, never a coding recipe.
+  The worker checks assumptions against the repository, chooses the route, tests and repairs it.
+  Scope expansion returns to the coordinator's collision pass before touching another row's files.
 - **READ points, it never summarizes.** Name the files; the session reads them at current HEAD.
 - **TRAPS carries only what exists nowhere but a chat.** A trap already in a repo file gets a
   pointer. Reprinting an area contract is how these get fat.
-- **DO is verifiable steps**, not a topic list. Reproduce-before-fixing for any bug. A row whose
-  artefact is a BINARY names how it inspects it - a `.pptx` read as zipped XML or rendered to PNG,
-  never opened in a browser, the call row CA hung on and never came back from (2026-09-10).
-- **BRANCH is a LABEL until the row renames it.** `isolation: worktree` mints `worktree-agent-<id>`,
-  nothing applies the BRANCH line, and no check compares them - so DO step 1 is `git branch -m
-  <branch>` and a confirm it took, since it fails when that name already exists (`launch.md`).
-- **A starting prompt is a MULTI-STEP ASSIGNMENT, and should be big.** Not one task - a numbered
-  run of them, each finishing before the next begins, each committed once verified, all on the one
-  branch and queued at the end: one branch, one gate and one landing instead of three, and step two
-  gets step one's context free. Everything in it belongs to the same `TOUCHES` set.
+- **A starting prompt owns a coherent outcome, not a prescribed implementation.** Keep related
+  phases on one branch, commit verified phases, queue once. The worker chooses the steps.
+- Confirm the assigned branch and worktree before editing. Rename only a harness-created
+  temporary branch; native Codex worktrees already carry the assigned branch (`hosts.md`).
+- At meaningful state changes, use `wave-launch progress` from the assigned checkout with the
+  recorded `--worker-id`, `--state`, `--next-action` and optional `--blocker` (see `hosts.md`).
+  These SHA-bound claims feed the existing tick; ready never means independently verified.
 - **CORE says where a long session may stop.** A prompt with six steps and no stated core is a
   prompt that lands nothing when step four goes wrong.
 - **GATE is `npm run build` plus CI**; add a local browser job only for what CI cannot do.
@@ -118,10 +112,7 @@ QUEUE  Then, as your LAST THREE actions and in this order:
 
 ## The confirmation pass - one sweep, before the plan ships
 
-**Every prompt is a PLAN, not a dispatch**, and a plan's facts are CHECKED, never recalled.
-Starting many sessions at once never excuses a thin prompt: each one is written with plan-mode
-care - the why stated so the session can test the assignment, the route reasoned rather than
-guessed, the traps named. **Then ONE PASS over the finished prompts CONFIRMS every fact in them:**
+**One pass confirms assignment facts before dispatch:**
 
 - every path in a `TOUCHES` or `READ` line grepped and seen doing the thing its row is about (a
   grep with a line range, never an open) - `node scripts/wave-plan-check.mjs` proves existence,

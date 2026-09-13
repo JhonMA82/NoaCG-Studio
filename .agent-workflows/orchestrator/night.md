@@ -94,8 +94,8 @@ Each tick, in this order, and nothing else:
    from outside; the Stop hook `scripts/hooks/stop-wait.mjs` catches the same failure from inside,
    at the turn that ends on a wait), and the heartbeat append to the wave-state file. It prints only the DELTA since
    the last tick; a no-event tick prints one line. Every event is ALSO appended to
-   `<git-common-dir>/noacg-jobs/wave-tick-events.log`, because an event is announced exactly once
-   and stdout can be lost to compaction - the morning report reads that log, not the loop's
+   `<git-common-dir>/noacg-jobs/wave-tick-events.log`, before the snapshot cursor advances. A crash can repeat an event; reconcile
+   durable state before acting. Stdout can be lost to compaction - the morning report reads that log, not the loop's
    memory. The script observes and never acts - launching, holding and every judgement stay in
    this session.
 2. Read the delta. What refused, and which kind (`report.md`); what landed; who is waiting. A

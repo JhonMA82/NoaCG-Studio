@@ -144,7 +144,7 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'node scripts/owner-receipts.mjs',
       "Landing authority belongs to GitHub's merge queue",
       // Big prompts are the point: one branch, one gate, one landing instead of three.
-      'A starting prompt is a MULTI-STEP ASSIGNMENT, and should be big.',
+      'A starting prompt owns a coherent outcome, not a prescribed implementation.',
       // The whole workflow rests on this: it assigns work and does none of it, and it never
       // reaches into another worktree - not to merge, not to check, not to tidy. Printing a merge
       // order reads like an offer to merge, so the boundary is pinned in both directions. The
