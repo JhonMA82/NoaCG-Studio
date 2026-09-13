@@ -72,7 +72,10 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
   await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
   // Publishing opens the links popover; Escape closes it (quiz-output.spec.ts says why there
   // is nothing to click).
+  const links = page.getByTestId('production-links');
+  await expect(links).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(links).toBeHidden();
 
   const first = await capabilities();
   expect(first.control).toBeTruthy();
@@ -82,6 +85,7 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
 
   // Unpublish exactly as an operator does — the links popover's own button.
   await page.getByTestId('production-links-toggle').click();
+  await expect(page.getByTestId('production-unpublish')).toBeVisible();
   await page.getByTestId('production-unpublish').click();
   await expect(page.getByTestId('production-mode')).not.toContainText('SHOW', { timeout: 30_000 });
   await expect(page.getByTestId('production-note')).toContainText('come back unchanged');
@@ -93,7 +97,9 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
 
   await page.getByTestId('production-publish').click();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(links).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(links).toBeHidden();
 
   expect(await capabilities()).toEqual(first);
 

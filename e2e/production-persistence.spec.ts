@@ -168,6 +168,20 @@ test('the record survives republish-shaped edits: slugs stay, the unpublished-ch
   expect(after).toEqual({ hosted: 'test-hosted-slug', output: 'test-output-slug' });
 });
 
+test('Escape closes the links popover before the next toggle reopens it', async ({ page }) => {
+  const id = await seedProduction(page, 'Links Escape Probe');
+  await page.evaluate(async (showId) => {
+    const { setShowHostedSlug } = await import('/src/model/shows.ts');
+    setShowHostedSlug(showId, 'test-hosted-slug');
+  }, id);
+  await settleDurableWrites(page);
+  await page.goto(`/app#/production/${id}`);
+  await page.getByTestId('production-links-toggle').click();
+  await page.keyboard.press('Escape');
+  await page.getByTestId('production-links-toggle').click();
+  await expect(page.getByTestId('production-unpublish')).toBeVisible();
+});
+
 test('the audience and presenter links are offered separately, and only once they exist', async ({ page }) => {
   // Three capability URLs with three different audiences, and the one mistake that matters is
   // reading the wrong one out on air. The PRESENTER link had no surface at all: the pointers

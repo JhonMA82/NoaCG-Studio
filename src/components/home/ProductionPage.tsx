@@ -1616,6 +1616,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           show={show}
           open={linksOpen}
           onToggle={() => setLinksOpen((o) => !o)}
+          onClose={() => setLinksOpen(false)}
           backendConfigured={backendConfigured}
           busy={busy}
           outputUrl={outputUrl}
