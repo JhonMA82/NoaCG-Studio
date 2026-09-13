@@ -1,5 +1,11 @@
 # OGraf-first - the strategic review
 
+**Evidence supplement, 2026-09-13:** [OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md)
+and [OGRAF_FULL_STACK_PLAN.md](OGRAF_FULL_STACK_PLAN.md) add the primary Zero Density editor/agent
+case study and detailed full-stack seams. They preserve this ratified direction and the current
+CasparCG priority. Their pinned source findings supersede older ecosystem coverage/maturity
+claims, but do not authorize implementation or a migration of the authoring document.
+
 **Status: RATIFIED by the owner 2026-08-29, with four amendments, applied below**: the authoring
 model is named NoaCG-native/code-as-truth (never "SPX-canonical"); the Server API wording is
 corrected (status is pollable, there is no durable/push graphic-state stream); untrusted-package

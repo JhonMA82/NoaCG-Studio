@@ -1,5 +1,15 @@
 # The OGraf ecosystem - verdicts, boundaries, interop strategy
 
+**Updated source comparison, 2026-09-13:** [OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md)
+makes Zero Density OGraf Studio the primary editor/agent case study, compares Eyevinn directly,
+and refreshes Ferryman, ograf-form, ograf-devtool, ograf-server and EBU source at pinned revisions.
+Its subsystem matrix uses REUSE DIRECTLY / REUSE A COMPONENT / COPY THE PATTERN / INTEROP TEST
+TARGET / LEARN ONLY / NOACG ALREADY HAS THE BETTER MODEL. The older project-level verdicts below
+remain historical context; newer source evidence supersedes conflicting maturity/coverage claims.
+[OGRAF_FULL_STACK_PLAN.md](OGRAF_FULL_STACK_PLAN.md) supplies the editor/controller/server/renderer
+boundaries and backlog. Neither report authorizes implementation; CasparCG and current
+creation/editing/animation remain the practical priority.
+
 **Status: research dossier, 2026-08-29. Nothing here authorizes implementation.** This file
 extends `docs/OGRAF_FIRST_REVIEW.md` (ratified 2026-08-29) with the ecosystem reading that review
 deferred: a verdict per open-source project, the boundary of generic OGraf operation inside NoaCG,
@@ -25,6 +35,7 @@ NoaCG.
 
 | Project | Licence | Verdict | One line |
 |---|---|---|---|
+| Zero Density OGraf Studio | AGPL-3.0-only, including its runtime package | **REFERENCE ONLY + INTEROP TARGET** | primary editor/agent case study; copy bounded patterns, not its scene-model/runtime foundation; 2026-09-13 matrix in `OGRAF_STUDIO_RESEARCH.md` |
 | ograf-server (SuperFlyTV) | MIT | **INTEROP TARGET** | the reference Server API implementation; drive our packages through it forever, depend on it never |
 | ograf-form (SuperFlyTV) | MIT | **REFERENCE ONLY** (oracle) | the reference GDD-to-controls mapping; cross-check `ografContract.ts` against it, do not embed it |
 | ograf-devtool (SuperFlyTV) | MIT | **REFERENCE ONLY + INTEROP TARGET** | borrow its Service-Worker local-package trick; run our packages through it as a compliance check |
@@ -59,10 +70,12 @@ What its architecture actually is, verified in source:
   graphics, list/get renderers, and the instance lifecycle (`load`, `updateAction`,
   `playAction`, `stopAction`, `customActions/{id}`, `clear`). Every REST call is proxied as
   JSON-RPC down the renderer's WebSocket.
-- **No auth** (namespaces are isolation, not authentication), and **no instance recovery**: a
-  renderer page reload re-registers the renderer but restores no loaded graphics -
-  `listGraphicInstances()` is a TODO. Recovery is "reload the page, controller re-loads
-  everything". With `ts-node` in production deps and a 0.0.5 WebSocket glue lib, this is a
+- **No durable instance recovery found in the inspected renderer path**: a renderer page reload
+  recreates in-memory layer/instance state. **Correction, 2026-09-13:** the commented-out
+  `listGraphicInstances()` method is not proof that discovery is missing: `LayerHandler.getInfo()`
+  and the renderer API handler report loaded instances through target information. Discovery
+  and durable restoration are different (`OGRAF_FULL_STACK_PLAN.md` section 4).
+  With `ts-node` in production deps and a 0.0.5 WebSocket glue lib, this is a
   reference and demo system, not hardened infrastructure - which is fine, because that is its
   job.
 
@@ -73,19 +86,21 @@ external proof there is, and its generated `/ograf/v1` routes are the conformanc
 Server API facade `/output` will one day wear. Adopting it *inside* NoaCG would import a second
 playout system - Koa/JSON-RPC/React-19/MobX beside our command log - that solves less than the
 log already solves: the log has durable ordering, boot recovery and per-graphic baselines
-(`docs/CLOUD_PLAYOUT.md`); ograf-server has a TODO where recovery goes. The comparison is the
+(`docs/CLOUD_PLAYOUT.md`); the inspected ograf-server renderer holds instance state in memory.
+The comparison is the
 single best piece of evidence yet that the command-log architecture is the right vendor layer
 under the standard's deliberately-unspecified territory.
 
 ### 1b. ograf-form - the reference GDD mapping, used as an oracle
 
-<https://github.com/SuperFlyTV/ograf-form>. MIT, npm `ograf-form` 1.0.0, a **framework-free Web
+<https://github.com/SuperFlyTV/ograf-form>. MIT, package `ograf-form` **1.1.0 at the 2026-09-13
+refresh**, a **framework-free Web
 Component with zero runtime dependencies** - the best-behaved artifact in the ecosystem. One
 maintainer (nytamin). It dispatches on `gddType` prefix with fallback to the JSON basic type,
 renders **arrays-of-objects as a real editable table**, and renders customAction payload schemas
-the same way - it is what the reference controller embeds. Gaps: no dedicated image preview,
-select-multiple, or duration control (they fall back up the GDD ladder); tuples and
-patternProperties are TODO.
+the same way - it is what the reference controller embeds. **Correction, 2026-09-13:** version
+1.1.0 includes dedicated `select-multiple`; the earlier missing-control claim is superseded.
+The new source comparison records the current control coverage and NoaCG adapter limits.
 
 **Verdict argued.** Embedding it would put two form-generation systems in one product - our
 control layer derives `FieldDescriptor[]`/`ControlButton[]` from the same manifest
@@ -102,8 +117,9 @@ real operator need.
 ### 1c. ograf-devtool - borrow the trick, run the check
 
 <https://github.com/SuperFlyTV/ograf-devtool>. MIT, React 18, hosted at
-ograf-devtool.superfly.tv. Interactive only - no CLI, no headless mode, so it can never be a
-gate. Two things matter:
+ograf-devtool.superfly.tv. It does not expose a dedicated checker CLI in the inspected package.
+That does not prevent a queued browser harness from using it as an independent test target;
+the previous "can never be a gate" conclusion was too strong (2026-09-13). Two things matter:
 
 - **The local-package serving trick is worth lifting as a pattern**: File System Access API plus
   a Service Worker that intercepts the graphic iframe's fetches and answers them from local
@@ -152,11 +168,11 @@ Web Animations API; steps are per-step visibility + data; there is no SVG import
 machine, no non-OGraf target. Honest credits: clean lifecycle emission, offline ajv validation
 against the bundled v1 schema, real `skipAnimation` handling, and a renderer-simulating preview.
 
-**Verdict argued.** This is the hidden-scene-model pattern pillar 1 exists to refuse, shipped
-small and clean enough to study in an afternoon. Nothing in it does anything NoaCG does not
-already do with more reach; its value is (a) as an import fixture source (a *differently
-authored* conformant package), and (b) as evidence that others see the same gap and that the
-open-editor bar is currently low.
+**Updated verdict, 2026-09-13.** Keep NoaCG's source authority, but do not dismiss this editor
+as offering nothing useful. Its compact WAAPI lanes, vendor-metadata round-trip, feed mapping
+and lifecycle tests are concrete comparison evidence. Studio is now the primary authoring case
+study; Eyevinn makes a smaller direct comparison and foreign fixture source. The original
+characterization of its users/investment above was inference, not measured adoption evidence.
 
 ### 1f. Ferryman - the AE road, spoken as conventions, kept as fixtures
 
@@ -168,8 +184,9 @@ while the energy moves to a commercial-looking After Effects CEP extension that 
 Its model, verified in source and docs: input is a Bodymovin/Lottie JSON; **editable layers are
 a naming convention** (`_headline`, `_image` - underscore prefix surfaces the layer as a
 template field); the animation is a **sealed artifact** - fields are surgical replacements of
-text sourceData/image asset paths inside the Lottie JSON, replayed by lottie-web, so AE motion
-arrives pixel-perfect because nothing re-interprets it. **AE comp markers named `start`, `stop`,
+text sourceData/image asset paths inside the Lottie JSON, replayed by lottie-web. **Correction,
+2026-09-13:** preserving the Lottie artifact does not establish After Effects pixel parity;
+renderer support and assets still constrain fidelity. **AE comp markers named `start`, `stop`,
 `next`, `loop`, `update` segment the timeline** and are the whole behaviour vocabulary - steps
 without a state machine. The OGraf export writes the manifest, a generated `graphic.mjs`, the
 rewritten Lottie JSON and a **vendored ~300 KB lottie-web player in every package**, plus SPX

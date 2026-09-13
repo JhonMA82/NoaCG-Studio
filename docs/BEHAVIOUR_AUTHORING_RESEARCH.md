@@ -1,5 +1,10 @@
 # Behaviour authoring - the P2 research thread
 
+**Comparison update, 2026-09-13:** [OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md) finds
+rich visual tracks and data collections, but Studio's declared custom actions currently only
+acknowledge calls. It is therefore animation/binding evidence, not a replacement for this
+behaviour-authoring investigation or NoaCG's executable machine/control contract.
+
 **Status: research round 1, 2026-09-01.** Programme P2 (`docs/PROGRAMMES.md`) runs as a standing
 research thread by owner amendment: the search for the authoring surface starts now and never
 pauses; implementation waits for evidence plus a ruling. This document is that thread's record -

@@ -1,5 +1,13 @@
 # EDITOR_RESEARCH.md - the master editor research and direction document
 
+**Source-research update, 2026-09-13:** [OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md)
+is now the primary open-source editor/agent case study, with Eyevinn as the smaller direct
+comparison. It covers Studio's actual scene/compiler/runtime, tracks, lifecycle, bindings,
+SVG/Lottie limits, MCP and exact licence boundaries. The component responsibilities and
+independently scoped work packages are in [OGRAF_FULL_STACK_PLAN.md](OGRAF_FULL_STACK_PLAN.md).
+This adds evidence to the settled rulings below; it authorizes no implementation. Read the
+comparison before a major animation or agent-authoring architecture decision.
+
 **What this is.** The direction document for the NoaCG authoring system, written to the owner's
 master brief (`docs/backlog/editor-master-research-brief.md`, verbatim, 2026-08-28). It replaces
 the first edition of this file (2026-08-28, five products from their product pages) with what the

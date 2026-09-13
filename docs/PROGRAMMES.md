@@ -144,6 +144,10 @@ Claims: `docs/NORTH_STAR_2027.md` §5 P5, proven by recurring novel-brief benchm
 
 ## P6 OGraf & Interoperability
 
+Research handoff, 2026-09-13: [OGRAF_FULL_STACK_PLAN.md](OGRAF_FULL_STACK_PLAN.md) supplies the
+dependency map for existing rungs, and [OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md)
+is the primary authoring/agent case study. No stage is advanced by documentation alone.
+
 State: AUTHORIZED (ratified 2026-08-29, `docs/OGRAF_FIRST_REVIEW.md`) and **may start now**. First
 tenant of this register; nothing about it is redesigned here. The NOW date (`docs/GOALS.md`,
 `## NOW`) is a forecast of when the ladder matters, never a precondition for starting it (owner,
@@ -158,6 +162,11 @@ Owner actions: the GSAP written clarification; the ecosystem-listing PR and any 
 (gated); Yle's production trial.
 
 ## P7 Creation & Advanced Editor
+
+Before major timeline or agent-authoring design, read the pinned Studio/Eyevinn comparison in
+[OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md). Its property-track and revision/evidence
+backlog items are design handoffs inside the existing code-as-truth direction, not a second
+scene-model programme (2026-09-13).
 
 State: DESIGN (owner-amended, 2026-09-01: design/research begins early, not in Jul-Aug).
 Incremental creation/import/preset work continues under existing plans. **The required failure

@@ -183,6 +183,8 @@ Layers of documentation, top to bottom:
 | `VIDEO_MODEL_BENCHMARK.md` | How video models are benchmarked as TRANSPORTS rather than separate generators: every selected model enters the existing harness and produces the same Motion Director plan. |
 | `CONTROL_PANEL_RESEARCH.md` | Measured 2026-08-30: what competing tools let a user do between a drawing and a control panel, and which of those capabilities OGraf obliges us to keep. Names the owner's capability bar; authorizes nothing. |
 | `OGRAF_ECOSYSTEM.md` | Research dossier, 2026-08-29, extending `OGRAF_FIRST_REVIEW.md`: a verdict per open-source project in the ecosystem, and the interop boundaries. **Nothing here authorizes implementation.** |
+| `OGRAF_STUDIO_RESEARCH.md` | Pinned 2026-09-13 primary editor/agent case study: Zero Density OGraf Studio, direct Eyevinn comparison, Ferryman/GDD/conformance refresh, licence boundaries and subsystem build-versus-reuse verdicts. Research only. |
+| `OGRAF_FULL_STACK_PLAN.md` | Research-only editor/controller/Server API/renderer architecture, identity and recovery contracts, CasparCG acceptance matrix, dependency-ordered work packages and native-renderer boundaries. |
 | `STUDENT_RELEASE_ACCEPTANCE.md` | The owner acceptance checklist of the CLOSED student release (`GOALS_ARCHIVE.md`). The agent-automatable half is done and named, so nothing a spec already pins is re-tested by hand; the rest needs real hardware. |
 
 ## Untracked companions (primary checkout only)

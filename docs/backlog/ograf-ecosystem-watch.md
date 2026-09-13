@@ -1,5 +1,11 @@
 # OGraf ecosystem watch - the standing evidence ledger for the bet we already made
 
+**2026-09-13 evidence:** Zero Density's OGraf Studio v0.17 is the primary editor/agent case
+study in [OGRAF_STUDIO_RESEARCH.md](../OGRAF_STUDIO_RESEARCH.md), pinned to source and licence.
+The refresh also covers Eyevinn, Ferryman, ograf-form 1.1.0, ograf-devtool, ograf-server and EBU.
+Studio's release and current font-export/Resolve reports strengthen the case for independent
+interop testing; they do not establish universal renderer compatibility or native-output maturity.
+
 **Filed:** 2026-08-28. **Source:** the monthly competitor routine's 2026-08-28 run
 (`docs/ROUTINES.md`, "Monthly - competitor review").
 

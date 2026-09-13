@@ -1,5 +1,12 @@
 # Native playout research - getting NoaCG to SDI, NDI and IP on its own
 
+**Boundary clarification, 2026-09-13:** [OGRAF_FULL_STACK_PLAN.md](OGRAF_FULL_STACK_PLAN.md)
+preserves Editor -> Controller -> OGraf Server/API -> Renderer -> output, with CasparCG the
+immediate production path and a possible native NoaCG stack much later. Zero Density's editor
+is authoring evidence, not evidence for native output pacing or device support. "Rent the engine
+forever" below is the earlier research preference, not a permanent prohibition on that destination.
+No engine choice or component licence clearance is made by this research update.
+
 **Status: RESEARCH ONLY, nothing built, nothing decided.** No code in this repo changes because of
 this document. It exists to answer one question honestly: what would it take for NoaCG to put
 graphics (and video, and stills) on air through SDI / NDI / IP *without* asking the user to run
