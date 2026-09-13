@@ -1,5 +1,5 @@
 ---
-kind: behavior
+kind: agent
 date: 2026-09-13
 ---
 # Production links popover reopens reliably
