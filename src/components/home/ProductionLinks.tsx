@@ -189,6 +189,7 @@ export default function ProductionLinks({
   embedFileName,
   onDownloadEmbed,
   onPublish,
+  onClose,
   onUnpublish,
 }: {
   show: Show;
@@ -210,6 +211,7 @@ export default function ProductionLinks({
   embedFileName: string;
   onDownloadEmbed: () => void;
   onPublish: () => void;
+  onClose: () => void;
   onUnpublish: () => void;
 }) {
   if (!show.hostedSlug) {
@@ -240,7 +242,7 @@ export default function ProductionLinks({
           the repair is the cap `.pd-links` now carries rather than the flip — hanging off a
           header pinned to the top of the page, down stays the better side. It is on the shell
           anyway, because the measurement must not fork per popover. */}
-      <LibMenu open={open} onClose={onToggle} surface="pd-links" role="none" testid="production-links">
+      <LibMenu open={open} onClose={onClose} surface="pd-links" role="none" testid="production-links">
         <LinkRow
           label="Output URL"
           testId="output-url"
