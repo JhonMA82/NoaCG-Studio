@@ -163,6 +163,11 @@ Owner actions: the GSAP written clarification; the ecosystem-listing PR and any 
 
 ## P7 Creation & Advanced Editor
 
+Owner-requested follow-up, 2026-09-14: [EDITOR_REBUILD_PLAN.md](EDITOR_REBUILD_PLAN.md) turns
+the Studio research into a concrete basic-editor implementation sequence after the owner's
+usability rejection. Planning is delivered; product implementation and user acceptance are
+not complete. [Receipt](backlog/editor-basics-rebuild.md).
+
 Before major timeline or agent-authoring design, read the pinned Studio/Eyevinn comparison in
 [OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md). Its property-track and revision/evidence
 backlog items are design handoffs inside the existing code-as-truth direction, not a second

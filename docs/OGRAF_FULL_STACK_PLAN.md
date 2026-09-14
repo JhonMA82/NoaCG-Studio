@@ -270,6 +270,12 @@ production. Studio's editor/runtime has no evidence that settles this choice.
 
 ## 8. Work packages and dependency order
 
+**Editor follow-up, 2026-09-14:** the owner requested a concrete rebuild of the basic editing
+experience. [EDITOR_REBUILD_PLAN.md](EDITOR_REBUILD_PLAN.md) now supplies the scoped sequence
+for that work, extending package C beyond schema research into interaction quality. It is
+not dependent on the later Server API or native-renderer packages. Product work has not
+started in the research task.
+
 All new items below are parked planning artifacts. "Ready to specify" is not "start now".
 Existing NOW work continues. The scopes intentionally avoid simultaneous changes to the canonical
 model, generic control adapter and output host by unrelated implementation sessions.

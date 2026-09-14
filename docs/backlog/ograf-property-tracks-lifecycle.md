@@ -23,6 +23,11 @@ would violate NoaCG's source authority and discard unsupported authored code.
 
 ## What it would take
 
+The owner-requested [editor rebuild plan](../EDITOR_REBUILD_PLAN.md), dated 2026-09-14,
+now supplies the implementation sequence. Fold this contract work into its foundations and
+timing phases; do not schedule a competing track-schema rewrite. Current source already
+has independent property tracks, so the first question is interaction/evaluation quality.
+
 First reconcile `TIMELINE_V2_PLAN.md`, `SVG_ANIMATION_DIRECTION.md`, `animData.ts`, `animEdit.ts`,
 `animEval.ts`, `timelineLens.ts` and the current machine. Specify an additive supported shape or
 a versioned migration only if needed. Include target identity, units, incoming easing/curve,

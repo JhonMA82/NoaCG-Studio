@@ -8,6 +8,12 @@ student-production priorities remain in force.
 
 ## 1. Decision
 
+**Usability correction, 2026-09-14:** the owner's subsequent feedback rejects the current
+basic animation/keyframe experience. The source-authority advantages below do not establish
+that NoaCG has a better visual editor or that its implemented controls are good enough.
+[EDITOR_REBUILD_PLAN.md](EDITOR_REBUILD_PLAN.md) specifies the requested rebuild using Studio
+as the interaction reference, with task-based acceptance before capability claims.
+
 Keep NoaCG's editable code document, SVG import/editing, behaviour-to-control contract, independent
 CLI and command/recovery architecture. Learn from OGraf Studio's property-track model, explicit
 lifecycle markers, shared compilation boundary, revision-checked authoring operations and visual
