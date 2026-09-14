@@ -2,6 +2,9 @@
 
 ## Big projects are phased, never one-shotted
 
+Use `specs.md` for the compact spec, acceptance ledger and convergence check. Existing goals
+and programme authority remain canonical; no second constitution or retrospective spec project.
+
 Owner, 2026-08-28, for the big roads ahead (the editor, the desktop client, broadcast-scale
 control): *"they can't be one-shotted… planned out step by step and implemented with care, one
 thing at a time"* - and *"we are not in a hurry. Enterprise software takes years."* The rules:

@@ -246,6 +246,9 @@ export function evaluate(candidates, { entries, durations, latency, remainingMin
     if (launch) {
       heldOn = 'launched';
       reason = `already launched as ${launch.branch} at ${new Date(launch.at).toISOString().slice(11, 16)}Z`;
+    } else if (size === 'large') {
+      heldOn = 'decompose';
+      reason = 'autonomously split into bounded units preserving parent acceptance; ask only for a genuine intent decision';
     } else if (!collision.clear) {
       heldOn = 'collision';
       reason = `collides with ${collision.hits.map((hit) => hit.branch).join(', ')}`;
