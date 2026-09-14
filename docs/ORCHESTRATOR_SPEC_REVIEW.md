@@ -6,7 +6,7 @@ activate a product programme. The implementation details and remaining proof lim
 
 ## Decision
 
-Keep NoaCG's orchestration and landing system. Add a conditional spec-to-task/evidence link,
+Keep NoaCG's orchestration and landing system. Add a conditional spec-to-wave/evidence link,
 replace the instruction to make assignments big, and make worker returns artifact-first. No
 Symphony deployment, Spec Kit installation, new tracker, constitution, background daemon or
 retroactive spec conversion is justified. The main missing layer is semantic continuity across
@@ -114,26 +114,28 @@ planner/builder/evaluator service for every fix. Source:
 1. For substantial new intent, write/review a compact spec with stable AC headings and authority
    references. Existing explicit approval counts. New product direction gets owner steering here,
    before implementation, while independent approved rows proceed.
-2. Use `work.json` to retain criterion-to-task coverage, bounded size, dependencies and evidence.
-   The spec contains behaviour; the plan contains design; wave state contains runtime ownership.
+2. Use `work.json` strictly for criterion acceptance and evidence. Bounded units, sizes, dependencies
+   and lifecycle stay in existing plans/waves/jobs. The spec contains behaviour, never scheduling.
    A parent integration scenario stays open even if every child shipped its local feature.
-3. `SPEC <record> <task>` is optional on the existing prompt, required by workflow for new
-   substantial implementation. The wave checker validates references; dispatch checks readiness
-   just before launch. Future-dependent rows remain legal at planning time. Classification is a
+3. `SPEC <record> AC-1,AC-2` is optional on the existing prompt, required by workflow for new
+   substantial implementation with `SIZE small|standard`. Wave checks validate scope; existing
+   candidates/launch controls decide eligibility. Future-dependent rows stay legal. Classification is a
    planner judgment, not a keyword heuristic pretending to understand task size.
 4. Workers preserve findings and receipt files, return a short coordination result, and checkpoint
    unresolved IDs before context pressure. A fresh worker starts only after ownership is settled.
-5. Review current behaviour against every criterion, reopen/add bounded gap work, and repeat.
+5. After each worker finishes, review behaviour against criteria, plan bounded gap work, and repeat.
    The checker distinguishes open records from evidence-complete records; it never interprets a
    process exit as behaviour. Evidence rungs and parent completion still require honest review.
-6. Land verified independent slices through the existing queue. Consolidate parallel task records
+6. Land verified independent slices through the existing queue. Consolidate parallel evidence
    in one assigned row rather than racing on a shared JSON file. The parent remains open when
    unfinished, and resumes under the same original intent in later authorized waves.
 
-The parser reads one record and one spec plus referenced receipts. It does not load every spec,
+The parser reads one acceptance record and one spec plus referenced receipts. It does not load every spec,
 run evidence commands, scan transcripts, launch providers, alter deadlines, rewrite goals or
-write a second task database. Unknown record versions fail read-only. No existing persisted
-format changes. The shared module reaches both runtimes through existing thin adapters.
+write a second task database. Version 1 migrates on read to v2 without promoting old task flags;
+unknown versions fail read-only. The wave tick observes parent acceptance separately from branch
+landing using an additive observation field; execution authority is unchanged. Shared thin adapters
+reach the same procedure on both runtimes.
 
 ## Removed, simplified, or deliberately left alone
 
@@ -142,17 +144,18 @@ format changes. The shared module reaches both runtimes through existing thin ad
   artifact return rule. The existing host-specific receipts and relay determine delivery.
 - Replaced handoff-WHY verbatim inheritance with a check against active spec/owner authority.
 - Added no always-loaded deep module: the measured core stays 199/200 lines; common planning path
-  changes from 629 to 628/640. This is measured instruction overhead, not a claimed reduction in
+  stays at 629/640 after the acceptance-only clarification. This is measured overhead, not a reduction in
   whole-session tokens. Host modules and actual tool output still contribute to real context.
 - Kept relay, recovery, claim guards, candidate ordering, serialized browser jobs and queue
   watchers. Native capability does not justify deletion until a same-invariant live trial passes.
 - Do not migrate the generated root instruction corpus in this change. Its 72 KB deepest chains
-  remain a separate measured concern, with compiler/ratchet safeguards that a quick rewrite risks.
+  have an explicit owner follow-up, `backlog/instruction-context-rot-after-spec-pilot.md`, with
+  compiler/ratchet safeguards that a quick rewrite risks. This pilot does not close that concern.
 
 ## Verification and rollout limits
 
 The executable tests exercise actual temporary Git repositories and receipt files: a valid
-record, lost acceptance IDs, cycles, draft/large dispatch refusal, dependency evidence, incomplete
+record, lost acceptance IDs, v1 on-read migration, draft scope/large-wave refusal, incomplete
 reviews, altered receipts, changed code, untracked code, invalid revisions, malformed records,
 both pool labels and legacy waves. They test state/exit behaviour, not only instruction markers.
 The build already discovers `scripts/**/*.test.mjs`; no new CI service or package is required.
@@ -164,8 +167,9 @@ retrieved at restart, retained AC IDs, gaps found after a claimed slice completi
 work resumed without duplicate ownership. Compare with a similar prior wave; do not infer token
 savings from the core file alone. No paid probe or unattended wave is started by this review.
 
-Adopt for the next naturally occurring substantial assignment. If review bookkeeping dominates,
-keep one spec and consolidate tasks rather than adding child specs. If the current manual dispatch
-check is bypassed in a real launch, integrate it with that exact native launch adapter after a
+Exercise on the selected standing browser-holder recovery request through the real Orchestrator.
+If review bookkeeping dominates,
+keep one spec and consolidate acceptance rather than adding child specs. If scope checking
+is bypassed in a real launch, integrate it with that exact native launch adapter after a
 reproduction; do not claim this increment is an unbypassable execution guard. A verifier can also
 mislabel size or evidence: semantic review and owner feedback remain necessary.

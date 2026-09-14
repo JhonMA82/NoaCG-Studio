@@ -26,7 +26,8 @@ costs the owner the re-checking this workflow exists to remove.
 ### 1. What's next
 
 For spec-backed work, link its work record and list unresolved acceptance IDs. Update that record
-before ending the session: verified slice, partial parent, next bounded task, evidence paths.
+before ending the session: acceptance observations and evidence paths. The next bounded task and
+execution status stay in the existing wave/job records, never in `work.json`.
 The handoff is operational evidence; it cannot rewrite the owner intent or close a parent spec.
 
 A short list, best next step first. Concrete enough to act on without re-reading the chat.

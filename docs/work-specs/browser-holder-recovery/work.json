@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "4378e10614c725fa91324572890e9ab592eb37683caac52cef998cd1aa2da013",
+  "authority": {
+    "status": "agreed",
+    "source": "docs/backlog/e2e-webserver-hang-blocks-the-machine.md"
+  },
+  "review": null
+}

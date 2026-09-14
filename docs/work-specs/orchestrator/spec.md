@@ -16,7 +16,7 @@ durable launch claims, recovery and GitHub queue landing. Routine fixes keep the
 route. Non-goals: replace the scheduler, install upstream frameworks, build a tracker, auto-close
 product promises, force fresh contexts on every task, or retrospectively specify old programmes.
 
-Derived design: conditional spec module and a read-only task/evidence checker; technical rationale
+Derived design: conditional spec module and a read-only acceptance/evidence checker; technical rationale
 and plan are [the architecture review](../../ORCHESTRATOR_SPEC_REVIEW.md). The original brief
 authorizes these reversible workflow improvements; it does not authorize new paid runs.
 
@@ -26,16 +26,18 @@ Map the important mechanisms to prevented failures before changing them. Existin
 candidate, horizon, recovery/dispatch and landing regression checks still pass. Do not replace
 their runtime ownership or write authority with a second state store.
 
-### AC-2: Bounded tasks retain the entire acceptance inventory
+### AC-2: Bounded wave assignments retain acceptance without duplicating execution state
 
-A record missing any spec acceptance ID, containing a dependency cycle or an unknown dependency
-is rejected. A draft, oversized task, or task with unverified prerequisites cannot dispatch.
-An eligible independent task can proceed; a planned dependent can coexist with its prerequisite
-in the wave plan without blocking the whole wave.
+Per the owner's clarification, `work.json` contains acceptance/evidence only. Scope validates
+criterion IDs; size and dependencies stay in the existing wave. Oversized candidates request
+autonomous decomposition and do not starve bounded independent work. A future dependent can
+coexist with its prerequisite in the wave plan. Version 1 migrates on read without promoting
+task-completion flags to accepted behaviour.
 
 ### AC-3: Partial work and stale evidence cannot close the parent record
 
-Task checkboxes alone are insufficient. Missing/failed/unverified acceptance evidence, changed
+Worker completion or branch landing alone is insufficient. The real wave observer separately
+reports open parent criteria and the Orchestrator continues bounded gap work. Missing/failed/unverified acceptance evidence, changed
 receipts, a changed spec or a changed reviewed implementation produces open/invalid, not an
 evidence-complete record. Actual behavioural review stays separate from record integrity.
 
@@ -51,3 +53,11 @@ real-world decision-quality gains from this local mechanism test.
 Codex and Claude Code wrappers still point to canonical shared procedures. Equivalent records
 are handled identically for both pool names; legacy prompts without SPEC remain valid. No runtime
 SDK, new daemon, recurring task, or package installation is needed for the checker.
+
+### AC-6: Real Orchestrator pilot continues after a partial worker delivery
+
+Use a naturally occurring bounded substantial feature, backed by an existing owner/frontier item.
+Observe one worker finish with parent criteria still unmet, then autonomous bounded continuation
+and scenario-based review to convergence. Exercise Codex and Claude Code if practical, recording
+actual runtime limitations. Preserve normal launch/worktree/landing authority. The broader
+instruction-context audit remains an explicit post-pilot follow-up, not silently complete.

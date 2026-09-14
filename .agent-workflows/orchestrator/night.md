@@ -98,8 +98,10 @@ Each tick, in this order, and nothing else:
    and stdout can be lost to compaction - the morning report reads that log, not the loop's
    memory. The script observes and never acts - launching, holding and every judgement stay in
    this session.
-2. Read the delta. What refused, and which kind (`report.md`); what landed; who is waiting. A
-   stalled worker is REPORTED, never killed - but its slot counts as free when launching cohort
+2. Read the delta. What refused, and which kind (`report.md`); what landed; who is waiting.
+   `PARENT OPEN` or open-parent summary means acceptance is unfinished even if its workers landed:
+   plan the next bounded gap row under `specs.md` and use the existing refill controls below.
+   A stalled worker is REPORTED, never killed - but its slot counts as free when launching cohort
    rows, so one hung session cannot park the rest of the night behind it.
    **A branch tip that has stopped moving is NOT the stall signal**, and reading it as one has
    already produced a wrong diagnosis (`incidents.md` "the seven-hour hang that was not one"). The

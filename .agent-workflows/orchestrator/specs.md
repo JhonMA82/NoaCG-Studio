@@ -27,29 +27,30 @@ a better solution openly; changing the goal needs owner steering, not a rewritte
 
 Before dispatch, assess uncertain decisions, touched subsystems, dependency depth, and time for
 real verification using existing `wave-horizon` estimates. `large`, a phase with several distinct
-outcomes, or a verification step that cannot fit means split. Prefer a smaller task under one
-spec first. Split into child specs only when one milestone remains too large to reason about.
+outcomes, or a verification step that cannot fit means AUTONOMOUSLY SPLIT. Task size and context
+pressure are never owner checkpoints. Ask only when a split reveals a genuine product/intent
+decision; preserve the agreed outcome otherwise. Prefer smaller wave rows under one spec first.
 
-Keep stable parent acceptance IDs. Each child names its parent path and IDs; the parent's task
-names the child path in its goal/plan and still needs parent-level evidence. A child completing
+Keep stable parent acceptance IDs. Each child names its parent path and IDs; the existing plan
+names the child path and still needs parent-level evidence. A child completing
 does not satisfy an integrated parent scenario automatically. Every criterion stays assigned,
 including cross-child integration and preservation scenarios. Never delete an unmet criterion
 to make coverage pass. Explain the split; it changes delivery units, not product scope.
 
-Use `docs/work-specs/README.md` for the small versioned `work.json` format. Tasks name one outcome,
-size, acceptance IDs, dependencies and a safe stopping point. Planner owns decomposition changes;
-parallel workers write distinct evidence files and their handoffs, then a consolidation row
-updates the shared record after landing. Allocate that file in TOUCHES, never have siblings race.
+Use `docs/work-specs/README.md` for the versioned acceptance/evidence ledger. `work.json` contains
+NO task lifecycle, ready set, launch, dependency or landing state. The existing plan/wave/job
+system owns all execution. Planner decomposes there; workers write separate evidence/handoffs,
+and one assigned consolidation row updates acceptance. Allocate that file in TOUCHES.
 
-`SPEC docs/work-specs/<slug>/work.json T1` binds one prompt to one task. `wave-plan-check` validates
-it; immediately before initial launch, refill or resumed dispatch also run:
+`SPEC docs/work-specs/<slug>/work.json AC-1,AC-2` binds a row to its acceptance scope; `SIZE small`
+or `SIZE standard` is required. The wave check validates these before launch. Scope-only check:
 
-    node scripts/work-spec.mjs dispatch docs/work-specs/<slug>/work.json T1
+    node scripts/work-spec.mjs scope docs/work-specs/<slug>/work.json AC-1,AC-2
 
-This is eligibility, not a claim/launcher. Existing collision checks, launch ledger, host ownership,
-guarded resume, window and serialized landing still apply. Never follow a refused check with a
-provider call. Large tasks, unmet dependencies and draft specs are not dispatchable. Old plans
-without SPEC remain supported; classify new substantial work deliberately, not by keyword guessing.
+This checks intent coverage, not execution eligibility. Existing collisions, candidates, launch
+ledger, host ownership, guarded resume, windows and serialized landing decide execution. A large
+candidate returns `decompose`; replace it with bounded rows autonomously. Old no-SPEC plans remain
+supported. Do not use classification or a missing SIZE line to bypass substantial-work scoping.
 
 ## Context and worker return
 
@@ -72,16 +73,22 @@ task checkboxes. Inspect preserved behaviour and integrated scenarios as well as
 Store a concise review under the spec's `evidence/`, with command/run references, observations,
 limitations and every AC marked pass, fail or unverified. Hash the evidence files in `work.json`.
 
-An actionable gap continues a matching task or adds a new stable task with the missing AC IDs.
-No automatic change to the spec or plan. Repeat implementation and review within the authorized
-window; carry open work to the next wave when it ends. A missing human/hardware observation stays
-unverified, while independent work and proven slices may still land.
+After EVERY worker completion or landing on this parent, read its acceptance ledger before any
+completion report. `wave-tick` reports parent acceptance separately from branch landing. For open
+criteria, autonomously continue a matching wave row or plan a new bounded gap row with those IDs,
+using existing refill/ownership/collision controls. Update the operational plan, never shrink the
+spec. A done worker does not close its parent. Continue until reviewed convergence or an actual
+window/access/intent boundary; carry unresolved IDs durably if such a boundary is reached.
 
     node scripts/work-spec.mjs converge docs/work-specs/<slug>/work.json
 
-The read-only checker refuses lost IDs, pending work, missing/altered evidence, old spec hashes
+The read-only checker refuses missing criteria, missing/altered evidence, old spec hashes
 and a changed reviewed tree. `evidence-complete` means the record is consistent, NOT that a hash
 or an agent's prose proves behaviour. The reviewer must judge the actual evidence; a zero process
 exit, file existence or regex match is not functional verification. Keep implemented,
 machine-verified, scenario-proven, owner-accepted and production-proven distinct as PROGRAMMES
 already requires. Queueing declares the bounded branch finished, never silently the whole parent.
+
+After this pilot, follow `docs/backlog/instruction-context-rot-after-spec-pilot.md`: audit actual
+loaded context, stale instructions and deeper chains. Do not let this ledger become another layer
+over stale guidance or treat a smaller core file as proof that context rot is solved.

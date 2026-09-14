@@ -1,5 +1,8 @@
 # Verification receipt - 2026-09-14
 
+Historical v1 implementation receipt. The owner's later clarification replaced its task-state
+semantics with an acceptance-only v2 ledger; use the latest review in `work.json` for current proof.
+
 Scope: `codex/orchestrator-spec-convergence`, base
 `ee3e7db42fc54ce61273e2f451b0326819d4c607` against origin/main. Source of scope:
 `node scripts/review-request.mjs`. Reviewed the shared workflow changes, new spec module,

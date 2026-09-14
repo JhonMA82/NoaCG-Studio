@@ -11,8 +11,18 @@ import { fileURLToPath } from 'node:url';
 // receipt remains valid in a Linux checkout. Binary artifacts are linked from the receipt.
 export const digest = (text) => createHash('sha256').update(text.toString().replace(/\r\n/g, '\n')).digest('hex');
 const nonempty = (value) => typeof value === 'string' && value.trim().length > 0;
-const strings = (value) => Array.isArray(value) && value.every(nonempty);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+/** v1 accidentally mixed execution with acceptance. Discard its task-state interpretation
+ * on read, retain evidence references, and require a fresh criterion review. Never promote
+ * old task confidence to acceptance. Writers serialize v2; unknown versions stay read-only. */
+export function migrateWork(work) {
+  if (work?.version !== 1) return work;
+  const evidence = [...(Array.isArray(work.review?.evidence) ? work.review.evidence : []),
+    ...(Array.isArray(work.tasks) ? work.tasks.flatMap((task) => Array.isArray(task?.evidence) ? task.evidence : []) : [])];
+  return { version: 2, specSha256: work.specSha256, authority: work.authority,
+    migratedFrom: 1, priorEvidence: evidence, review: null };
+}
 
 /** Ignore examples in fenced blocks: only real AC headings define acceptance. */
 export function acceptanceIds(text) {
@@ -46,21 +56,21 @@ function readLocal(root, relative) {
   return readFileSync(file);
 }
 
-/** A malformed/future record has no executable interpretation. No migration or writes. */
-export function inspectWork(work, specText, { read = () => { throw new Error('artifact reader unavailable'); } } = {}) {
+/** Acceptance only. A launch, worker exit, task checkbox or landing cannot change this verdict. */
+export function inspectWork(record, specText, { read = () => { throw new Error('artifact reader unavailable'); } } = {}) {
+  const work = migrateWork(record);
   const problems = [];
   const gaps = [];
-  if (!work || work.version !== 1) return { problems: ['unsupported work-spec version; read-only'], gaps, ready: [] };
+  if (!work || work.version !== 2) return { problems: ['unsupported work-spec version; read-only'], gaps, openCriteria: [] };
   const ids = acceptanceIds(specText);
+  const open = new Set(ids);
   if (!ids.length || new Set(ids).size !== ids.length) problems.push('spec needs unique ### AC-N: acceptance headings');
-  if (work.specSha256 !== digest(specText)) problems.push('spec changed: reconcile tasks and record the current intent before dispatch');
+  if (work.specSha256 !== digest(specText)) problems.push('spec changed: reconcile acceptance against the authorized intent');
   if (!nonempty(work.authority?.source)) problems.push('authority.source must reference the owner instruction or existing authorization');
   if (!['draft', 'agreed'].includes(work.authority?.status)) problems.push('authority.status must be draft or agreed');
-  if (!Array.isArray(work.tasks) || !work.tasks.length) return { problems: [...problems, 'tasks must be a nonempty array'], gaps, ready: [] };
-
-  const taskIds = work.tasks.map((task) => task?.id);
-  if (taskIds.some((id) => !/^T\d+$/.test(id)) || new Set(taskIds).size !== taskIds.length) problems.push('task IDs must be unique T numbers');
-  const tasks = new Map(work.tasks.map((task) => [task?.id, task]));
+  for (const field of ['tasks', 'state', 'ready', 'dependencies', 'launches', 'jobs']) {
+    if (Object.hasOwn(work, field)) problems.push(`${field}: execution state belongs to the existing wave/job/landing system`);
+  }
   const checkEvidence = (evidence, label) => {
     if (!Array.isArray(evidence) || !evidence.length) { gaps.push(`${label}: evidence missing`); return; }
     for (const item of evidence) {
@@ -72,32 +82,6 @@ export function inspectWork(work, specText, { read = () => { throw new Error('ar
       } catch (error) { gaps.push(`${label}: ${error.message}`); }
     }
   };
-  for (const task of work.tasks) {
-    if (!task || typeof task !== 'object') { problems.push('invalid task'); continue; }
-    const label = task.id;
-    if (!nonempty(task.goal) || !nonempty(task.stop)) problems.push(`${label}: goal and safe stop condition required`);
-    if (!['small', 'standard', 'large'].includes(task.size)) problems.push(`${label}: size must be small, standard or large`);
-    if (!['planned', 'active', 'verified'].includes(task.state)) problems.push(`${label}: invalid state`);
-    if (!strings(task.covers) || !task.covers.length || task.covers.some((id) => !ids.includes(id))) problems.push(`${label}: covers must name acceptance IDs from the spec`);
-    if (!strings(task.dependsOn) || task.dependsOn.some((id) => !tasks.has(id) || id === label)) problems.push(`${label}: invalid dependencies`);
-    if (task.state === 'verified') checkEvidence(task.evidence, label);
-    else gaps.push(`${label}: ${task.state ?? 'unknown'}`);
-  }
-  // A cycle is never repaired by pretending one dependency completed.
-  const visited = new Set();
-  const active = new Set();
-  function visit(id) {
-    if (active.has(id)) { problems.push(`dependency cycle at ${id}`); return; }
-    if (visited.has(id)) return;
-    active.add(id);
-    for (const next of Array.isArray(tasks.get(id)?.dependsOn) ? tasks.get(id).dependsOn : []) if (tasks.has(next)) visit(next);
-    active.delete(id);
-    visited.add(id);
-  }
-  for (const id of taskIds) visit(id);
-  for (const id of ids) {
-    if (!work.tasks.some((task) => Array.isArray(task?.covers) && task.covers.includes(id))) problems.push(`${id}: lost in decomposition; assign it to a task`);
-  }
   if (work.review) {
     if (work.review.specSha256 !== work.specSha256) gaps.push('review is for an older spec');
     if (!/^[a-f0-9]{40}$/.test(work.review.revision ?? '')) gaps.push('review needs a full Git revision');
@@ -105,16 +89,16 @@ export function inspectWork(work, specText, { read = () => { throw new Error('ar
     const claims = Array.isArray(work.review.criteria) ? work.review.criteria : [];
     if (claims.length !== ids.length || new Set(claims.map((claim) => claim?.id)).size !== ids.length || claims.some((claim) => !ids.includes(claim?.id))) gaps.push('review must account for every acceptance ID exactly once');
     for (const claim of claims) {
+      const before = gaps.length;
       if (claim?.status !== 'pass') gaps.push(`${claim?.id}: ${claim?.status ?? 'unverified'}; continue its task or add a gap task`);
       checkEvidence(claim?.evidence, claim?.id ?? 'criterion');
+      if (gaps.length === before) open.delete(claim?.id);
     }
   } else gaps.push('convergence review missing');
   if (work.authority?.status !== 'agreed') gaps.push('spec is a draft; implementation is not authorized by this record');
-  // Evidence failures on completed prerequisites block dependents, not independent work.
-  const ready = problems.length || work.authority?.status !== 'agreed' ? [] : work.tasks.filter((task) =>
-    task.state === 'planned' && task.size !== 'large' && task.dependsOn.every((id) =>
-      tasks.get(id).state === 'verified' && !gaps.some((gap) => gap.startsWith(`${id}:`)))).map((task) => task.id);
-  return { problems, gaps, ready };
+  // A broken review envelope cannot leave a misleading empty open-criteria list.
+  if (problems.length || gaps.some((gap) => !/^AC-\d+:/.test(gap))) ids.forEach((id) => open.add(id));
+  return { problems, gaps, openCriteria: [...open] };
 }
 
 /** Only review bookkeeping may differ from the reviewed tree. Code, tests, spec and
@@ -130,34 +114,50 @@ function freshnessProblems(root, recordPath, revision) {
   return files.filter((file) => file !== recordPath && !file.startsWith(evidenceDir)).map((file) => `review stale: ${file}`);
 }
 
-export function checkWorkFile(recordPath, { root = ROOT, task, dispatch = true } = {}) {
+export function checkWorkFile(recordPath, { root = ROOT, criteria } = {}) {
   try {
     if (!/^docs\/work-specs\/[a-z0-9-]+\/work\.json$/.test(recordPath)) throw new Error('record must be docs/work-specs/<slug>/work.json');
-    const work = JSON.parse(readLocal(root, recordPath));
+    const work = migrateWork(JSON.parse(readLocal(root, recordPath)));
     const spec = `${path.posix.dirname(recordPath)}/spec.md`;
-    const verdict = inspectWork(work, readLocal(root, spec).toString('utf8'), { read: (file) => readLocal(root, file) });
-    if (task) {
-      const selected = work?.tasks?.find((item) => item?.id === task);
-      if (!selected || selected.size === 'large' || work.authority?.status !== 'agreed') verdict.problems.push(`${task}: unknown, oversized or draft task`);
-      else if (dispatch && !verdict.ready.includes(task)) verdict.problems.push(`${task}: not dispatchable (dependency, evidence, or state)`);
+    const specText = readLocal(root, spec).toString('utf8');
+    const ids = acceptanceIds(specText);
+    const verdict = inspectWork(work, specText, { read: (file) => readLocal(root, file) });
+    if (criteria) {
+      const selected = criteria.split(',');
+      if (selected.some((id) => !ids.includes(id)) || new Set(selected).size !== selected.length) verdict.problems.push('scope must name distinct acceptance IDs from the spec');
+      if (work.authority?.status !== 'agreed') verdict.problems.push('scope is not backed by agreed intent');
     }
-    if (!verdict.problems.length && !verdict.gaps.length) verdict.gaps.push(...freshnessProblems(root, recordPath, work.review.revision));
+    // Check freshness even on partial reviews, so old passes do not hide changed behaviour.
+    if (work.review && /^[a-f0-9]{40}$/.test(work.review.revision ?? '')) {
+      const stale = freshnessProblems(root, recordPath, work.review.revision);
+      if (stale.length) { verdict.gaps.push(...stale); verdict.openCriteria = ids; }
+    }
     return { ...verdict, status: verdict.problems.length ? 'invalid' : verdict.gaps.length ? 'open' : 'evidence-complete' };
-  } catch (error) { return { status: 'invalid', problems: [error.message], gaps: [], ready: [] }; }
+  } catch (error) { return { status: 'invalid', problems: [error.message], gaps: [], openCriteria: [] }; }
+}
+
+/** Derived observations only; no execution state or decisions are persisted in the ledger. */
+export function planAcceptance(text, { check = checkWorkFile } = {}) {
+  const records = [...new Set([...text.matchAll(/^\s*SPEC\s+(\S+)/gm)].map((match) => match[1]))];
+  return records.map((record) => {
+    const result = check(record);
+    return { record, status: result.status, openCriteria: result.openCriteria,
+      problems: result.problems.length, gaps: result.gaps.length };
+  });
 }
 
 export function main(argv = process.argv.slice(2)) {
-  const [mode, record, task] = argv;
-  if (!['status', 'dispatch', 'converge'].includes(mode) || !record || (mode === 'dispatch' && !task)) {
-    console.error('Usage: node scripts/work-spec.mjs status|converge <record> | dispatch <record> <task>');
+  const [mode, record, criteria] = argv;
+  if (!['status', 'scope', 'converge'].includes(mode) || !record || (mode === 'scope' && !criteria)) {
+    console.error('Usage: node scripts/work-spec.mjs status|converge <record> | scope <record> AC-1,AC-2');
     return 1;
   }
-  const result = checkWorkFile(record, { task: mode === 'dispatch' ? task : undefined });
+  const result = checkWorkFile(record, { criteria: mode === 'scope' ? criteria : undefined });
   // The coordinator normally needs a decision and pointers, not every unfinished task.
   const output = argv.includes('--details') ? result : {
     status: result.status,
-    counts: { problems: result.problems.length, gaps: result.gaps.length, ready: result.ready.length },
-    problems: result.problems.slice(0, 10), gaps: result.gaps.slice(0, 10), ready: result.ready.slice(0, 10),
+    counts: { problems: result.problems.length, gaps: result.gaps.length, openCriteria: result.openCriteria.length },
+    problems: result.problems.slice(0, 10), gaps: result.gaps.slice(0, 10), openCriteria: result.openCriteria.slice(0, 10),
     details: `node scripts/work-spec.mjs status ${record} --details`,
   };
   console.log(JSON.stringify(output, null, 2));
