@@ -52,6 +52,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { alignmentState, mentionsId } from './alignment-answers.mjs';
+import { checkWorkFile } from './work-spec.mjs';
 import { drain, handoffFiles, newestWavePlan, parseHandoffSection } from './handoff-drain.mjs';
 import { inStore, wavePlansDir } from './wave-plan-store.mjs';
 import { isStanding, readReceipts } from './owner-receipts.mjs';
@@ -64,7 +65,7 @@ const REPO_ROOT = path.resolve(HERE, '..');
 /** The worker pools a row may name. The two Antigravity pools are billed separately (owner, 2026-09-01). */
 export const POOLS = Object.freeze(['opus', 'fable', 'sonnet', 'agy-gemini', 'agy-claude-gpt', 'codex']);
 export const CLAUDE_POOLS = Object.freeze(['opus', 'fable', 'sonnet']);
-export const PROMPT_KEYS = /^(SESSION|BRANCH|MODEL|POOL|START|TOUCHES|MINTS|GOAL|WHY|READ|DO|CORE|TAIL|TRAPS|GATE|CHECK|QUEUE)\b/;
+export const PROMPT_KEYS = /^(SESSION|BRANCH|MODEL|POOL|START|TOUCHES|MINTS|GOAL|WHY|READ|SPEC|DO|CORE|TAIL|TRAPS|GATE|CHECK|QUEUE)\b/;
 const REQUIRED_COLUMNS = ['letter', 'goal', 'start', 'touches', 'mints', 'pool', 'browser'];
 
 function columnKey(header) {
@@ -334,7 +335,7 @@ export function economyNotes(text, rows) {
  * `alignment` (the pending answers from alignment-answers), `candidates` (the weekly review's rows
  * this plan is inside the window of, from weekly-candidates).
  */
-export function checkPlan(text, { exists, handoffs = [], receipts = [], alignment = [], candidates = [], now = Date.now(), night = false } = {}) {
+export function checkPlan(text, { exists, handoffs = [], receipts = [], alignment = [], candidates = [], now = Date.now(), night = false, workSpec = (file, task) => checkWorkFile(file, { task, dispatch: false }) } = {}) {
   const problems = [];
   const table = parseWaveTable(text);
   problems.push(...table.problems);
@@ -377,6 +378,16 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], alignmen
     if (exists) problems.push(...touchProblems({ ...row, letter }, exists));
     if (!block) problems.push(`row ${letter}: no prompt block opens with "SESSION ${letter}"`);
     else if (block.lastKey !== 'QUEUE') problems.push(`row ${letter}: the prompt's last keyword line is ${block.lastKey ?? 'missing'}, not QUEUE`);
+    // Optional for old waves and routine fixes. Once a row names a spec, its bounded
+    // task must exist and be bounded. Dependency readiness is checked at dispatch, so
+    // a planned follow-on does not prevent its prerequisite from launching.
+    const specLines = block?.lines.filter((line) => /^SPEC\b/.test(line.trim())) ?? [];
+    if (specLines.length > 1) problems.push(`row ${letter}: only one SPEC task per assignment`);
+    for (const line of specLines) {
+      const ref = line.trim().match(/^SPEC\s+(\S+)\s+(T\d+)\s*$/);
+      if (!ref) problems.push(`row ${letter}: SPEC needs <work.json path> <task ID>`);
+      else problems.push(...workSpec(ref[1], ref[2]).problems.map((problem) => `row ${letter}: ${problem}`));
+    }
   }
   for (const letter of blocks.keys()) {
     if (!seenLetters.has(letter)) problems.push(`prompt block SESSION ${letter} has no wave-table row`);
@@ -475,6 +486,7 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
     candidates: weekly.owed,
     now,
     night: /-night-/.test(path.basename(planPath)),
+    workSpec: (file, task) => checkWorkFile(file, { root, task, dispatch: false }),
   });
   if (argv.includes('--json')) {
     console.log(JSON.stringify({ plan: planPath, weekly, ...verdict }, null, 2));

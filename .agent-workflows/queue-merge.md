@@ -25,6 +25,11 @@ not the merge queue's, so that door is gone and `contracts/retired.json` says so
 
 ## 1. Be finished
 
+For a SPEC assignment, verify its task evidence in `work.json` before declaring this slice done.
+To declare the parent complete, follow `orchestrator/specs.md`'s convergence review and run
+`node scripts/work-spec.mjs converge <record>`. An open parent does not block a verified slice
+from landing. Routine fixes need no spec record; owner acceptance remains its separate evidence rung.
+
 Queueing pins the branch at its CURRENT commit. If you commit again afterwards the job refuses and
 asks you to queue again, because the thing that was queued is not the thing that is there. That is
 deliberate: it is what makes "I queued it" mean "it was done".

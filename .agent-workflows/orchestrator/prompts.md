@@ -17,6 +17,7 @@ TOUCHES <files>   MINTS <slot, or ->
 GOAL   One sentence: what is true when this is done.
 WHY    The real problem it solves, or the goal it serves.
 READ   file, file, file.
+SPEC   docs/work-specs/<slug>/work.json T1 (substantial work only; omit otherwise)
 DELEGATE <if used: pool, tools/read-write mode, absolute worktree, result route; evidence in GOAL/GATE>
 DO     1. …  2. …  3. …
 CORE   which steps are the core; the rest is the tail a short session cuts first.
@@ -78,12 +79,11 @@ QUEUE  Then, as your LAST THREE actions and in this order:
 - **BRANCH is a LABEL until the row renames it.** `isolation: worktree` mints `worktree-agent-<id>`,
   nothing applies the BRANCH line, and no check compares them - so DO step 1 is `git branch -m
   <branch>` and a confirm it took, since it fails when that name already exists (`launch.md`).
-- **A starting prompt is a MULTI-STEP ASSIGNMENT, and should be big.** Not one task - a numbered
-  run of them, each finishing before the next begins, each committed once verified, all on the one
-  branch and queued at the end: one branch, one gate and one landing instead of three, and step two
-  gets step one's context free. Everything in it belongs to the same `TOUCHES` set.
-- **CORE says where a long session may stop.** A prompt with six steps and no stated core is a
-  prompt that lands nothing when step four goes wrong.
+- **A starting prompt is a bounded outcome**, possibly several related steps in one `TOUCHES`
+  set. If discovery, implementation and verification cannot fit, split before dispatch using
+  `specs.md`; size `large` is a decomposition signal, not a launchable SPEC task.
+- **CORE is an independently verifiable stop**, not permission to drop required behaviour.
+  Preserve every unfinished acceptance ID in the work record; a landed slice is not a done parent.
 - **GATE is `npm run build` plus CI**; add a local browser job only for what CI cannot do.
 - **QUEUE is mandatory on every prompt and is the last thing in it**, because the session running
   it may never see this file. Landing is serialized, not permissioned: a finished session queues
@@ -111,10 +111,9 @@ QUEUE  Then, as your LAST THREE actions and in this order:
 - **A continuation prompt printed only in chat does not exist.** The handoff FILE is the one
   channel the next orchestrator reads. Chat is for the human watching; the file is for the system.
 - A row that **delegates** says so and names its fallback pool, on `routing.md`'s terms (step 3).
-- **A prompt that sanctions a fan-out says: collect results via FILES at agreed paths, never wait
-  on notifications.** A launched session never receives its own subagents' completion
-  notifications - they route to this orchestrator, which relays any stray report to the owning
-  session. Paid for twice; evidence: `incidents.md` "the fan-out that waited on notifications".
+- **Delegates write findings and evidence to agreed FILES before returning.** Return only task,
+  outcome, artifact paths, unresolved acceptance IDs and next action (target 200 words). Route
+  stray notifications to the owner via the existing relay; do not paste investigation logs.
 
 ## The confirmation pass - one sweep, before the plan ships
 

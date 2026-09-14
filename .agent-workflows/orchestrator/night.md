@@ -53,11 +53,11 @@ chain instead of by pre-approval:
   what catches the belief being wrong, and what it finds goes in the continuation's own handoff
   either way.
 - **A continuation is a FRONTIER row the landing just uncovered, and nothing else.** Its GOAL and
-  WHY come from the landed handoff's own "what is left"; that why traces to `## NOW`, an ACTIVE
+  WHY use the handoff's "what is left" as evidence, checked against its active spec and `## NOW`, an ACTIVE
   programme, an owner receipt or the wave's stated goals; its files are free; and it waits on no
   human - an item that needs a ruling, a walk, a payment or a credential goes to needs-you in the
-  report, never continued around. The loop writes the prompt in the section-5 format, quoting the
-  handoff's why verbatim, and names its POOL like any row. Work whose why the loop cannot trace is
+  report, never continued around. The loop writes the prompt in the section-5 format, preserving
+  the spec's acceptance IDs when present, and names its POOL. Work whose why the loop cannot trace is
   a candidate row in the report, never a launch - the north star is what keeps an unattended loop
   from optimising toward nowhere.
 - **Bounds:** chain depth at most 2 from any owner-started session; total continuations per wave

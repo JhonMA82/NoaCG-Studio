@@ -159,9 +159,8 @@ These fire while the wave table is being written, before any module is loaded.
   section 4 and plan the row anyway. **A technical problem is never his**: a ROW, never an ask.
 - **Verify before you list.** A blocker, a collision or a landing order stated as fact came from a
   command run in this session - not from a handoff's prose, not from memory of yesterday.
-- **`TOUCHES` is a forecast**, not a copy of a handoff's retrospective file list. **Letters are
-  stable, and so is scope**: never silently merge two pasted tasks or split one; if the shape is
-  wrong, say so in section 4 and offer it.
+- **`TOUCHES` is a forecast**, not a retrospective file list. Keep letters stable; explain any
+  decomposition in section 4 and preserve parent acceptance IDs (`orchestrator/specs.md`).
 - **Stay usable all day.** "Can B start now" is answered from a fresh `worktree-activity.mjs`
   plus `npm run jobs`, never by re-planning.
 
@@ -180,6 +179,7 @@ These fire while the wave table is being written, before any module is loaded.
 | [`orchestrator/report.md`](orchestrator/report.md) | the morning report, after a wave has run |
 | [`orchestrator/recovery.md`](orchestrator/recovery.md) | a launched row came back substantially wrong: repair it, or rewind and redo |
 | [`orchestrator/coherence.md`](orchestrator/coherence.md) | the weekly coherence session, and how a big project is phased |
+| [`orchestrator/specs.md`](orchestrator/specs.md) | substantial work, decomposition, or a SPEC row's dispatch/completion |
 | [`orchestrator/incidents.md`](orchestrator/incidents.md) | the evidence behind a rule, or recording new evidence |
 
 **Specialist workflows this one routes to and never re-implements:** `queue-merge` (how work

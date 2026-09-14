@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "specSha256": "859d870c7d8838096646c10067bb8bfe504b90d90f3fabb074b7aea3072bd2d1",
+  "authority": {
+    "status": "agreed",
+    "source": "docs/work-specs/orchestrator/owner-intent.md - owner request 2026-09-14"
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "goal": "Map existing invariants and upstream concepts to a minimal architecture",
+      "size": "standard",
+      "covers": [
+        "AC-1"
+      ],
+      "dependsOn": [],
+      "state": "verified",
+      "stop": "Comparison names preserved mechanisms and review limits",
+      "evidence": [
+        {
+          "path": "docs/work-specs/orchestrator/evidence/verification.md",
+          "sha256": "c11f287ed82a087f5bed0588f4e03401b9ce52a2e87d7c4304f2b209c70f4719"
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "goal": "Reject lost requirements, oversized dispatch and unsupported convergence records",
+      "size": "standard",
+      "covers": [
+        "AC-2",
+        "AC-3"
+      ],
+      "dependsOn": [
+        "T1"
+      ],
+      "state": "verified",
+      "stop": "State, evidence and Git freshness scenarios pass",
+      "evidence": [
+        {
+          "path": "docs/work-specs/orchestrator/evidence/verification.md",
+          "sha256": "c11f287ed82a087f5bed0588f4e03401b9ce52a2e87d7c4304f2b209c70f4719"
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "goal": "Connect bounded work to shared workflows without increasing common context",
+      "size": "small",
+      "covers": [
+        "AC-4",
+        "AC-5"
+      ],
+      "dependsOn": [
+        "T2"
+      ],
+      "state": "verified",
+      "stop": "Both pool paths and legacy prompts pass; common context budget holds",
+      "evidence": [
+        {
+          "path": "docs/work-specs/orchestrator/evidence/verification.md",
+          "sha256": "c11f287ed82a087f5bed0588f4e03401b9ce52a2e87d7c4304f2b209c70f4719"
+        }
+      ]
+    }
+  ]
+}
