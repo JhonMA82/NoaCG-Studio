@@ -691,6 +691,10 @@ export default function GraphicControlPage({ id }: { id: string }) {
                   <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
                     {btns.map((b) => {
                       const legal = isEventLegal(legality, b.event, machineState);
+                      // Empty when everything the press moves is a hidden holder (the
+                      // reported-field pattern), and the payload wording is then what the
+                      // operator needed anyway.
+                      const moved = adjustWords(b);
                       return (
                         <button
                           key={b.event}
@@ -700,11 +704,8 @@ export default function GraphicControlPage({ id }: { id: string }) {
                           title={
                             !legal
                               ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
-                              : // Empty when everything the press moves is a hidden holder (the
-                                // reported-field pattern), and the payload wording below is then
-                                // what the operator needed anyway.
-                                adjustWords(b)
-                                ? `Fires "${b.event}" and moves ${adjustWords(b)} with it`
+                              : moved
+                                ? `Fires "${b.event}" and moves ${moved} with it`
                                 : b.payload?.length
                                   ? active
                                     ? `Fires "${b.event}" with ${payloadWords(b)} from “${active.label}”`

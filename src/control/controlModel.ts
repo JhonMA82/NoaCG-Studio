@@ -221,29 +221,25 @@ export function adjustWords(
   button: MovingButton,
   labelOf: (key: string) => string | undefined,
 ): string {
-  const named = (key: string) => labelOf(key);
-  const both = (key: string, source: string) => {
-    const a = named(source);
-    const b = named(key);
-    return a && b ? ([a, b] as const) : null;
+  // `add`/`remove` move a line INTO or OUT OF a list, and the list is the half the operator
+  // recognises - so the destination decides whether there is a sentence at all. An unnameable
+  // SOURCE (a hidden holder, which the contract allows as a word source) becomes "a line":
+  // dropping the whole phrase would take the nameable list down with it.
+  const listPhrase = (key: string, source: string, joiner: string) => {
+    const list = labelOf(key);
+    return list ? [`${labelOf(source) ?? 'a line'} ${joiner} ${list}`] : [];
   };
   return [
     ...Object.entries(button.adjust ?? {}).flatMap(([key, delta]) => {
-      const label = named(key);
+      const label = labelOf(key);
       return label ? [`${label} ${delta > 0 ? '+' : ''}${delta}`] : [];
     }),
     ...Object.entries(button.set ?? {}).flatMap(([key, value]) => {
-      const label = named(key);
+      const label = labelOf(key);
       return label ? [`${label} to ${value || '(empty)'}`] : [];
     }),
-    ...Object.entries(button.add ?? {}).flatMap(([key, source]) => {
-      const pair = both(key, source);
-      return pair ? [`${pair[0]} into ${pair[1]}`] : [];
-    }),
-    ...Object.entries(button.remove ?? {}).flatMap(([key, source]) => {
-      const pair = both(key, source);
-      return pair ? [`${pair[0]} out of ${pair[1]}`] : [];
-    }),
+    ...Object.entries(button.add ?? {}).flatMap(([key, source]) => listPhrase(key, source, 'into')),
+    ...Object.entries(button.remove ?? {}).flatMap(([key, source]) => listPhrase(key, source, 'out of')),
   ].join(', ');
 }
 

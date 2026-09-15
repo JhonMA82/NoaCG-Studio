@@ -14,6 +14,7 @@ import {
   overflowNote,
   OVERFLOW_FIELD_HINT,
   OVERFLOW_FIELD_MARK,
+  type ControlButton,
 } from '../control/controlModel';
 import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
@@ -767,6 +768,15 @@ function HostedCueEditor({
   const descriptors = useMemo(() => fieldDescriptors(spec.fields), [spec.fields]);
   const fieldGroups = useMemo(() => groupCueFields(descriptors), [descriptors]);
   const descriptorByKey = useMemo(() => new Map(descriptors.map((d) => [d.key, d])), [descriptors]);
+  /** A ⚡ button's hover. Empty words mean everything the press moves is a hidden holder (the
+   *  reported-field pattern), which has no operator name and so gets no sentence rather than
+   *  its field id. */
+  const eventHint = (e: ControlButton) => {
+    const moved = adjustWords(e, (key) => descriptorByKey.get(key)?.label);
+    return moved
+      ? `Fires "${e.event}" and moves ${moved} with it — only where the graph allows it`
+      : `Fires "${e.event}" — only where the graph allows it`;
+  };
   const events = useMemo(() => eventButtons(spec.js), [spec.js]);
   const eventSections = useMemo(() => controlSections(events), [events]);
   const legality = useMemo(() => eventLegality(spec.js), [spec.js]);
@@ -1089,14 +1099,7 @@ function HostedCueEditor({
                         },
                       ]);
                     }}
-                    title={
-                      // Empty when everything the press moves is a hidden holder (the
-                      // reported-field pattern) - a holder has no operator word, so it gets no
-                      // sentence rather than its field id.
-                      adjustWords(e, (key) => descriptorByKey.get(key)?.label)
-                        ? `Fires "${e.event}" and moves ${adjustWords(e, (key) => descriptorByKey.get(key)?.label)} with it — only where the graph allows it`
-                        : `Fires "${e.event}" — only where the graph allows it`
-                    }
+                    title={eventHint(e)}
                   >
                     ⚡ {e.label}
                   </button>

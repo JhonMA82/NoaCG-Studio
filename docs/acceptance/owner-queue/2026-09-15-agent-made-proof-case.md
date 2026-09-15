@@ -69,8 +69,9 @@ browser tooling, which costs several seconds a click that a person at a keyboard
 What the product itself added was imperceptible - every press showed on air and in the cue before
 the next screenshot.
 
-The whole walk, from the empty folder to two graphics on air, took about 50 minutes, and almost
-all of it was designing and building the two graphics. Nothing in the door needed a retry.
+The whole walk, from the empty folder at 12:33 UTC to both graphics on air with points on the
+board at 13:06, took **33 minutes**, and almost all of it was designing and building the two
+graphics rather than fighting the tools. Nothing in the door needed a retry.
 
 ## The defect it found, and fixed
 

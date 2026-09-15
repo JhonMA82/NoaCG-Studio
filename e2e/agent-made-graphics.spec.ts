@@ -120,11 +120,9 @@ test('the transport verbs keep their column on a tall window', async ({ page }) 
   await page.setViewportSize({ width: 1440, height: 900 });
   await importProofCase(page);
 
+  const VERBS = ['verb-take', 'verb-retake', 'verb-update', 'verb-next', 'verb-out'];
   const boxes = await Promise.all(
-    ['verb-take', 'verb-retake', 'verb-update', 'verb-next', 'verb-out'].map(async (id) => ({
-      id,
-      box: await page.getByTestId(id).boundingBox(),
-    })),
+    VERBS.map(async (id) => ({ id, box: await page.getByTestId(id).boundingBox() })),
   );
   for (const { id, box } of boxes) expect(box, `${id} has no box`).not.toBeNull();
 
@@ -140,4 +138,18 @@ test('the transport verbs keep their column on a tall window', async ({ page }) 
       ).toBe(true);
     }
   }
+
+  // AND THE COLUMN KEPT ITS FLOOR. Non-overlapping boxes are the symptom; the floor is the
+  // mechanism, and asserting it names the regression directly - any future change that lets the
+  // monitors eat the track again fails here with a number rather than through a geometry riddle.
+  //
+  // The floor is what it is because of the margin it buys the LABELS: at the first cut's 186px
+  // the tightest verb measured 90px of ink in a 90px box, so its padding was entirely spent.
+  // That measurement is deliberately NOT asserted. It is font geometry, this laptop only ever
+  // rasterises Windows faces, and the platform CI renders on is one no operator drives the
+  // dashboard from - so a red there would say something about Linux metrics rather than about
+  // the product (e2e/AGENTS.md, "An assertion on rendered TEXT geometry needs a BOUND"). The
+  // reasoning and the numbers live in src/styles/playout-dashboard.css instead.
+  const column = await page.locator('.pd-verbs').boundingBox();
+  expect(Math.round(column!.width), 'the verb column lost its floor').toBeGreaterThanOrEqual(206);
 });

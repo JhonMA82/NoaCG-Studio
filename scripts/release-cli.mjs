@@ -299,15 +299,28 @@ console.log('\nVerifying from the registry…');
 const REGISTRY_WAIT_MS = 6 * 60 * 1000;
 const POLL_MS = 5000;
 const deadline = Date.now() + REGISTRY_WAIT_MS;
-let after = await registry(`${encodeURIComponent(PKG)}/${version}`);
+/** One poll. A 5xx or a dropped connection costs this attempt and nothing else: `registry`
+ *  throws on anything that is not 200 or 404, and letting that escape here would abort the
+ *  script with a stack trace at the exact moment the publish has just gone out - which reads
+ *  as the lost release this whole block exists to stop reporting. */
+const look = async () => {
+  try {
+    return await registry(`${encodeURIComponent(PKG)}/${version}`);
+  } catch {
+    return null;
+  }
+};
+let after = await look();
 if (!after) console.log(`  npm is still processing the publish — waiting up to ${REGISTRY_WAIT_MS / 60000} minutes for it to appear…`);
 while (!after && Date.now() < deadline) {
   await new Promise((resolve) => setTimeout(resolve, POLL_MS));
-  after = await registry(`${encodeURIComponent(PKG)}/${version}`);
+  after = await look();
 }
 if (!after || after.version !== version) {
   fail(
-    `the run was green but ${PKG}@${version} did not appear on the registry within ${REGISTRY_WAIT_MS / 60000} minutes`,
+    // --verify-only watched no run in this invocation, and a message about one would be a
+    // sentence this script cannot stand behind.
+    `${verifyOnly ? '' : 'the run was green but '}${PKG}@${version} did not appear on the registry within ${REGISTRY_WAIT_MS / 60000} minutes`,
     `npm accepts a publish asynchronously, so it may still land. Check with \`npm view ${PKG} versions\`, and re-run the proof with \`npm run release:cli -- --verify-only\` rather than re-tagging.`,
   );
 }

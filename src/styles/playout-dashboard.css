@@ -234,14 +234,30 @@
        1600×1000 (28px), fine at 1366×768, 1600×900 and 1920×1080, which is why the ratified
        frames never showed it.
 
-       The floor is 186px, two buttons wide, and the monitors shrink into it - which is the
-       owner's own tie-breaker where the two compete: "I would rather have the controls big
-       than the monitors too big" (2026-08-21). `.pd-frame` takes its height from its width, so
-       a narrower monitor is a smaller picture and nothing about its shape changes. 1366×768
-       and 1600×900 are untouched, because the verbs were already wider than the floor there;
-       1920×1080 gives the monitors' pair up 25px (161px of verbs became 186px), which is the
-       whole cost of the fix on a frame that was not broken. */
-    grid-template-columns: minmax(0, auto) minmax(186px, 1fr);
+       The floor is 206px and the monitors shrink into it, which is the owner's own tie-breaker
+       where the two compete: "I would rather have the controls big than the monitors too big"
+       (2026-08-21). `.pd-frame` takes its height from its width, so a narrower monitor is a
+       smaller picture and nothing about its shape changes.
+
+       206px IS THE RATIFIED 1366×768 FRAME'S OWN NUMBER rather than one picked here, which is
+       what makes it defensible: that window already gave the verbs exactly 206px, so the
+       smallest supported size is unchanged and every wider one now matches it. It also buys the
+       margin the first cut of this fix did not have. At a 186px floor the block's tightest verb
+       measured 90px of ink in a 90px box - nothing overlapped, but the padding was entirely
+       gone, so a fallback face under `font-display: swap`, OS text scaling or one longer label
+       would have pushed the text over its own border. At 206px that verb has a 100px box and
+       10px of slack, the same as at 1366×768. The monitors' pair gives up 20px for it.
+
+       The floor cannot be derived from the buttons, which is the shape you would reach for
+       first: `.pd-verbs` is a nested grid whose own columns are `minmax(0, 1fr)`, so its
+       min-content is 153px - SMALLER than this floor and smaller than the 255px its widest row
+       actually needs. Measured 2026-09-15; a `min-content` track would have made the block
+       narrower, not safer. `e2e/agent-made-graphics.spec.ts` asserts this number instead, so a
+       change that lets the monitors eat the track again fails by name. IF A LABEL IS EVER
+       LENGTHENED, re-measure the slack: the check is `getBoundingClientRect().width` of a
+       `.pd-verb` against a `Range` over its contents, and 10px on the tightest verb is what this
+       floor was chosen to leave. */
+    grid-template-columns: minmax(0, auto) minmax(206px, 1fr);
     /* STRETCH, not `end`: the monitors set the row's height and the verb column takes exactly
        that. Left to its own height the stack ran TALLER than the monitors (six 44px buttons
        plus the chip is 310px against 245px of monitor at 1536×814), which made the sticky head
