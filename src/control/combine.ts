@@ -97,10 +97,20 @@ export function stepBlocked(step: ProfileStep, now: CombineNow): string | null {
  * when any step is — the later ones are judged when they fire, because a walk's second step is
  * routinely illegal at the moment the first is pressed (that is what the walk is for), and a
  * button greyed by a step three seconds in the future would be unpressable for the whole show.
+ *
+ * "First" means the first step THIS PRESS WOULD SEND, which is why the ticks come in. A control
+ * whose first step is an unticked `ask` sends its second step first, and greying it against a
+ * step the operator has already said no to would make the button unpressable over a choice they
+ * made deliberately.
  */
-export function combineBlocked(control: CombinedControl, now: CombineNow): string | null {
-  const first = control.steps[0];
-  if (!first) return 'this control has no steps yet';
+export function combineBlocked(
+  control: CombinedControl,
+  now: CombineNow,
+  ticked: ReadonlySet<number>,
+): string | null {
+  if (control.steps.length === 0) return 'this control has no steps yet';
+  const first = planCombine(control, ticked)[0]?.steps[0]?.step;
+  if (!first) return 'every step of this control is unticked, so a press would send nothing';
   return stepBlocked(first, now);
 }
 
@@ -200,7 +210,7 @@ interface Run {
   groups: StepGroup[];
   pressedAt: number;
   handle: unknown;
-  fire: (group: StepGroup) => void;
+  fire: (due: StepGroup[]) => void;
 }
 
 /**
@@ -212,6 +222,13 @@ interface Run {
  * delayed `+1` counts from what the audience is looking at rather than from what was on screen
  * three seconds ago (§6b). Nothing about a group is computed in advance except which steps are in
  * it and when it goes.
+ *
+ * `fire` takes a LIST of groups, not one, and that is load-bearing rather than tidy. A timer can
+ * wake late — a background tab throttles `setTimeout` to about a second — so one wake-up routinely
+ * has several groups due, and handing them over one at a time made each call resolve against the
+ * same unchanged surface state: five delayed `+1`s on one field all counted from the same figure
+ * and the score moved by one. Everything due goes over in one call so the caller resolves the
+ * whole run of them in one pass, with each step seeing what the ones before it just did.
  *
  * Deliberately NOT persisted. §6d: the wait lives in the surface that pressed, a reload loses the
  * unsent tail, and the state chip says so. Persisting it would mean a production whose combined
@@ -234,7 +251,7 @@ export class CombineScheduler {
    * only be reached by a surface that got ahead of itself, and two runs of one control firing
    * into each other is the worst of the two answers.
    */
-  press(controlId: string, groups: StepGroup[], fire: (group: StepGroup) => void): void {
+  press(controlId: string, groups: StepGroup[], fire: (due: StepGroup[]) => void): void {
     this.drop(controlId);
     if (groups.length === 0) return;
     this.runs.set(controlId, { groups: groups.slice(), pressedAt: this.clock.now(), handle: null, fire });
@@ -283,14 +300,16 @@ export class CombineScheduler {
     for (const controlId of [...this.runs.keys()]) this.drop(controlId);
   }
 
-  /** Fire everything due, then arm the next. One place decides both, so a group can never be
-   *  skipped by a timer that woke late: the loop reads the CLOCK rather than trusting that one
-   *  wake-up equals one group. */
+  /** Fire everything due IN ONE CALL, then arm the next. One place decides both, so a group can
+   *  never be skipped by a timer that woke late: the loop reads the CLOCK rather than trusting
+   *  that one wake-up equals one group, and everything it collects goes over together. */
   private advance(controlId: string): void {
     const run = this.runs.get(controlId);
     if (!run) return;
     const elapsed = this.clock.now() - run.pressedAt;
-    while (run.groups.length > 0 && run.groups[0].at <= elapsed) run.fire(run.groups.shift()!);
+    const due: StepGroup[] = [];
+    while (run.groups.length > 0 && run.groups[0].at <= elapsed) due.push(run.groups.shift()!);
+    if (due.length > 0) run.fire(due);
     if (run.groups.length === 0) {
       this.runs.delete(controlId);
       this.onChange();
@@ -324,16 +343,20 @@ export interface StepNames {
 }
 
 /**
- * One step in a sentence, for the button's hover and for the activity feed. The marks ride at the
- * end because they are when and whether, and the step is what.
+ * One step in a sentence — THE one wording, used by the button's hover, the activity feed and the
+ * composer's own step list. One function because three places wording a step three ways is how an
+ * operator comes to read two different descriptions of the thing they are about to press.
  *
- * `marks: false` drops them, which is what a TICK's own label wants: the tick already says "if
- * ticked" by being a tick, and its wait belongs to the sequence rather than to the choice.
+ * The marks ride at the end because they are when and whether, and the step is what. `marks: false`
+ * drops them, which is what a TICK's own label wants: the tick already says "if ticked" by being a
+ * tick, and its wait belongs to the sequence rather than to the choice.
  */
 export function stepWords(step: ProfileStep, names: StepNames, opts: { marks?: boolean } = {}): string {
   const marks: string[] = [];
   if (opts.marks !== false && step.after) marks.push(`after ${step.after} s`);
-  if (opts.marks !== false && step.ask) marks.push('if ticked');
+  // The DEFAULT, not just "it is a tick": the composer needs to see which way it starts, and the
+  // hover is no worse for saying it.
+  if (opts.marks !== false && step.ask) marks.push(step.ask.default ? 'ticked by default' : 'unticked by default');
   const tail = marks.length > 0 ? ` (${marks.join(', ')})` : '';
   if (step.kind === 'event') return `${names.control(step.graphic, step.control)} on ${step.graphic}${tail}`;
   if (step.kind === 'verb') return `${VERB_WORDS[step.verb]} “${names.cue(step.cue)}”${tail}`;

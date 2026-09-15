@@ -751,9 +751,19 @@
 .pd-combine-head { display: flex; align-items: center; gap: 6px; }
 .pd-combine-head .muted { font-size: 11px; flex: 0 0 auto; }
 /* The step list is NUMBERED, because the order is the meaning: a reader has to be able to say
-   "the third step" and have the surface agree. */
-.pd-combine-steps { margin: 6px 0 6px 20px; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+   "the third step" and have the surface agree. The numbers come from a COUNTER rather than from
+   the `<ol>`'s own marker — a flex row is not a `list-item`, so the marker never paints, and a
+   list that says it is ordered while showing no numbers is the worse of the two. */
+.pd-combine-steps { margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 3px; counter-reset: combine-step; }
 .pd-combine-steps > li { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.pd-combine-steps > li::before {
+  counter-increment: combine-step;
+  content: counter(combine-step) ".";
+  flex: 0 0 18px;
+  text-align: right;
+  color: var(--text-dim, #9aa1ad);
+  font-variant-numeric: tabular-nums;
+}
 .pd-combine-step-text { flex: 1 1 auto; min-width: 0; }
 .pd-combine-steps button { font-size: 11px; padding: 2px 6px; flex: 0 0 auto; }
 /* The picker wraps rather than scrolls: this column is narrow on a laptop and five controls in a

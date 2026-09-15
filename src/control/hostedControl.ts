@@ -869,8 +869,18 @@ export function clearCueItems(liveGraphic: string): ControlSendItem[] {
   ];
 }
 
-/** `control_send_many` takes at most 8 items — a verb, not an ingest API — so an all-layers
- *  clear pays two items per layer and goes out in batches of four layers. */
+/**
+ * THE MOST ITEMS ONE `control_send_many` CALL TAKES (migration 0029: a count outside 1..8 raises
+ * `not a command batch` and the WHOLE insert is refused). It is a verb, not an ingest API.
+ *
+ * Exported because a second caller now builds a batch whose length it cannot know in advance —
+ * a production's combined control sends one row per step, and a step is not one item (a Take is
+ * three, an Out is two). A surface that forgot the cap would lose an operator's whole press to a
+ * database exception, which is why the number lives here rather than being remembered twice.
+ */
+export const COMMAND_BATCH_MAX = 8;
+
+/** An all-layers clear pays two items per layer, so it goes out in batches of four layers. */
 const LAYERS_PER_CLEAR_BATCH = 4;
 
 /**

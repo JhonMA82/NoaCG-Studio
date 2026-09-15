@@ -30,7 +30,7 @@
 import { useState } from 'react';
 import type { ControlButton } from '../../control/controlModel';
 import { arrangeControls, arrangeFor } from '../../control/controlModel';
-import { VERB_WORDS } from '../../control/combine';
+import { stepWords, VERB_WORDS, type StepNames } from '../../control/combine';
 // `put` is the format module's own guard for a user-named key, not a second copy of it: a control
 // id is the author's own event name, and a bare `map[control] = entry` loses one called
 // `__proto__` with no error at all — a panel reporting a save that stored nothing.
@@ -108,23 +108,15 @@ function freeId(combine: CombinedControl[]): string {
   for (let n = 1; ; n += 1) if (!taken.has(`combined-${n}`)) return `combined-${n}`;
 }
 
-/** One step in the composer's own words. Short, because it sits in a narrow list under the ⚡
- *  block; the full sentence with its marks is on the button's hover in the block itself. */
-function stepLine(step: ProfileStep, targets: CombineTarget[]): string {
-  const marks: string[] = [];
-  if (step.after) marks.push(`after ${step.after} s`);
-  if (step.ask) marks.push(step.ask.default ? 'ask, on' : 'ask, off');
-  const tail = marks.length > 0 ? ` · ${marks.join(' · ')}` : '';
+/** How the composer spells what a step points at, for the ONE `stepWords` every surface uses. The
+ *  panel knows this from `targets` alone; deriving it here rather than wording steps itself is what
+ *  keeps the list under the composer and the hover on the button saying the same thing. */
+function namesFrom(targets: CombineTarget[]): StepNames {
   const find = (kind: CombineTarget['kind'], id: string) => targets.find((t) => t.kind === kind && t.id === id);
-  if (step.kind === 'verb') {
-    return `${VERB_WORDS[step.verb]} ${find('cue', step.cue)?.label ?? step.cue}${tail}`;
-  }
-  const target = find('graphic', step.graphic);
-  if (step.kind === 'patch') {
-    return `${Object.keys(step.values).length} field(s) → ${target?.label ?? step.graphic}${tail}`;
-  }
-  const control = target?.controls.find((c) => c.id === step.control);
-  return `${control?.label ?? step.control} → ${target?.label ?? step.graphic}${tail}`;
+  return {
+    control: (graphic, control) => find('graphic', graphic)?.controls.find((c) => c.id === control)?.label ?? control,
+    cue: (id) => find('cue', id)?.label ?? id,
+  };
 }
 
 export default function ProductionControlsPanel({
@@ -174,6 +166,7 @@ export default function ProductionControlsPanel({
   const [pickers, setPickers] = useState<Record<string, StepRow>>({});
 
   const combine = profile?.combine ?? [];
+  const stepNames = namesFrom(targets);
 
   const pickerFor = (id: string): StepRow =>
     (Object.prototype.hasOwnProperty.call(pickers, id) ? pickers[id] : undefined) ?? EMPTY_ROW;
@@ -558,7 +551,7 @@ export default function ProductionControlsPanel({
                   <ol className="pd-combine-steps" data-testid={`combine-steps-${control.id}`}>
                     {control.steps.map((step, index) => (
                       <li key={index} data-testid={`combine-step-${control.id}-${index}`}>
-                        <span className="pd-combine-step-text">{stepLine(step, targets)}</span>
+                        <span className="pd-combine-step-text">{stepWords(step, stepNames)}</span>
                         <button
                           disabled={index === 0}
                           onClick={() => moveStep(control.id, index, -1)}

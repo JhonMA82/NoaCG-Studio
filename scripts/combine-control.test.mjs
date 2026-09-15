@@ -96,6 +96,20 @@ function fakeClock() {
       clearTimer: (id) => timers.delete(id),
     },
     armed: () => timers.size,
+    /** A THROTTLED TAB: the clock jumps the whole way first, and only then does the timer that
+     *  was due somewhere back there get to run. That is what a background tab does to
+     *  `setTimeout` (about one wake-up a second), and it is the case a per-wake-up loop cannot
+     *  be tested against with the perfect clock below - `advance` walks the timers in order and
+     *  never leaves more than one due at a time. */
+    jump(ms) {
+      now += ms;
+      for (;;) {
+        const due = [...timers.entries()].filter(([, t]) => t.at <= now).sort((a, b) => a[1].at - b[1].at)[0];
+        if (!due) break;
+        timers.delete(due[0]);
+        due[1].fn();
+      }
+    },
     advance(ms) {
       const target = now + ms;
       for (;;) {
@@ -239,13 +253,41 @@ test('Take is the one verb legal on a graphic that is not up yet', () => {
 
 test('the FIRST step decides the greying, not the ones after it', () => {
   const now = bothLive();
+  const none = new Set();
   // The totals board is off air, which the +1 steps depend on - and they are all in the future.
   now.graphics.get('Totals board').live = false;
-  assert.equal(combineBlocked(proofCase(), now), null);
+  assert.equal(combineBlocked(proofCase(), now, none), null);
   // Grey it by the step that is actually about to go.
   now.graphics.get('Votes board').live = false;
-  assert.equal(combineBlocked(proofCase(), now), '“Votes board” is not on air');
-  assert.equal(combineBlocked({ id: 'c6', name: 'Empty', steps: [] }, now), 'this control has no steps yet');
+  assert.equal(combineBlocked(proofCase(), now, none), '“Votes board” is not on air');
+  assert.equal(combineBlocked({ id: 'c6', name: 'Empty', steps: [] }, now, none), 'this control has no steps yet');
+});
+
+test('the greying follows the TICKS, so an unticked first step does not grey the button', () => {
+  // The button asks "what would this press send", and the answer is the plan, not the list. A
+  // control whose first step is an `ask` the operator has said no to sends its SECOND step first;
+  // greying it against the step they declined would make the button unpressable over a choice
+  // they made deliberately.
+  const now = bothLive();
+  now.graphics.get('Totals board').live = false;
+  const control = {
+    id: 'c7',
+    name: 'Point, then reveal',
+    steps: [
+      { kind: 'event', graphic: 'Totals board', control: 'plus1', ask: { default: false } },
+      { kind: 'event', graphic: 'Votes board', control: 'reveal' },
+    ],
+  };
+  assert.equal(combineBlocked(control, now, new Set()), null);
+  // Tick it and the same board's state decides again, which is the honest other half.
+  assert.equal(combineBlocked(control, now, new Set([0])), '“Totals board” is not on air');
+  // Every step unticked is a press that would send nothing, and the button says that rather than
+  // offering a press with no effect.
+  const allAsk = { id: 'c8', name: 'All optional', steps: [control.steps[0]] };
+  assert.equal(
+    combineBlocked(allAsk, now, new Set()),
+    'every step of this control is unticked, so a press would send nothing',
+  );
 });
 
 // ── The scheduler ────────────────────────────────────────────────────────────────────────────
@@ -255,7 +297,7 @@ test('the press sends the first group at once and the tail when its wait runs ou
   const scheduler = new CombineScheduler({ clock });
   const fired = [];
 
-  scheduler.press('c1', planCombine(proofCase(), new Set([1, 2])), (g) => fired.push(g.at));
+  scheduler.press('c1', planCombine(proofCase(), new Set([1, 2])), (due) => fired.push(...due.map((g) => g.at)));
   // Synchronous: the reveal is on the wire before `press` returns, exactly as a ⚡ press is.
   assert.deepEqual(fired, [0]);
   assert.deepEqual(scheduler.armed(), ['c1']);
@@ -293,7 +335,7 @@ test('a cancel drops the unsent tail and nothing arrives afterwards', () => {
   const scheduler = new CombineScheduler({ clock });
   const fired = [];
 
-  scheduler.press('c1', planCombine(proofCase(), new Set([1, 2, 3])), (g) => fired.push(g.at));
+  scheduler.press('c1', planCombine(proofCase(), new Set([1, 2, 3])), (due) => fired.push(...due.map((g) => g.at)));
   assert.deepEqual(fired, [0]);
   assert.equal(scheduler.cancel('c1'), 3); // three +1s never went
   assert.equal(armed(), 0); // and the timer itself is off, not merely ignored
@@ -309,8 +351,8 @@ test('Out cancels every armed control at once, and says what each one lost', () 
   const scheduler = new CombineScheduler({ clock });
   const fired = [];
 
-  scheduler.press('c1', planCombine(proofCase(), new Set([1, 2])), (g) => fired.push(`c1@${g.at}`));
-  scheduler.press('c2', [{ at: 5000, steps: [{ index: 0, step: {} }] }], (g) => fired.push(`c2@${g.at}`));
+  scheduler.press('c1', planCombine(proofCase(), new Set([1, 2])), (due) => fired.push(...due.map((g) => `c1@${g.at}`)));
+  scheduler.press('c2', [{ at: 5000, steps: [{ index: 0, step: {} }] }], (due) => fired.push(...due.map((g) => `c2@${g.at}`)));
   assert.deepEqual(scheduler.cancelAll(), [
     { controlId: 'c1', steps: 2 },
     { controlId: 'c2', steps: 1 },
@@ -324,7 +366,7 @@ test('a timer that wakes late still fires every group it slept through, in order
   // A background tab, a garbage collection, a laptop lid. One wake-up is not one group: the run
   // reads the CLOCK and drains everything due, or a list pacing itself every four seconds would
   // silently drop entries whenever the browser throttled the tab.
-  const { clock, advance } = fakeClock();
+  const { clock, advance, jump } = fakeClock();
   const scheduler = new CombineScheduler({ clock });
   const fired = [];
   const control = {
@@ -333,9 +375,17 @@ test('a timer that wakes late still fires every group it slept through, in order
     steps: Array.from({ length: 4 }, () => ({ kind: 'verb', verb: 'next', cue: 'cue-list', after: 1 })),
   };
 
-  scheduler.press('c3', planCombine(control, new Set()), (g) => fired.push(g.at));
-  advance(3_500);
+  // ONE call carries all three, which is what lets the caller resolve them against each other:
+  // handed over one at a time they would each read the same unmoved surface state, and three
+  // delayed `+1`s on one field would send the same figure three times.
+  const calls = [];
+  scheduler.press('c3', planCombine(control, new Set()), (due) => {
+    calls.push(due.length);
+    fired.push(...due.map((g) => g.at));
+  });
+  jump(3_500);
   assert.deepEqual(fired, [1000, 2000, 3000]);
+  assert.deepEqual(calls, [3]);
   advance(1_000);
   assert.deepEqual(fired, [1000, 2000, 3000, 4000]);
   assert.deepEqual(scheduler.armed(), []);
@@ -383,7 +433,7 @@ test('a step reads as a sentence, with its marks at the end', () => {
   };
   const control = proofCase();
   assert.equal(stepWords(control.steps[0], names), 'Reveal performer on Votes board');
-  assert.equal(stepWords(control.steps[1], names), '+1 Totals board on Totals board (after 3 s, if ticked)');
+  assert.equal(stepWords(control.steps[1], names), '+1 Totals board on Totals board (after 3 s, unticked by default)');
   assert.equal(stepWords({ kind: 'verb', verb: 'out', cue: 'cue-votes' }, names), 'Out “Song 3 votes”');
   assert.equal(
     stepWords({ kind: 'patch', graphic: 'Totals board', values: { f1: 'a', f2: 'b' } }, names),

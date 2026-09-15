@@ -1460,6 +1460,9 @@ test('a combined control sends one row per step, waits, and counts the wait down
   // THE ARMED WAIT IS VISIBLE — the half that keeps this on the right side of the no-second-clock
   // ruling (owner 2026-08-09; plan §6d). The button counts down and wears the on-air accent.
   await expect(combined).toHaveClass(/pd-combined-waiting/);
+  // The figure itself, with its unit: a bare number after the control's name reads as part of
+  // the name, which is what this said on the surface before it grew the separator.
+  await expect(combined).toContainText(/· \ds$/);
   await expect(combined).toHaveAttribute('title', /cancel.*2 steps still to send/);
 
   // ── THE TAIL, THREE SECONDS LATER ──

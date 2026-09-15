@@ -83,6 +83,7 @@ import {
 import {
   clearAllCueBatches,
   clearCueItems,
+  COMMAND_BATCH_MAX,
   controlOutputSeenAt,
   controlPageUrl,
   controlShowBySlug,
@@ -353,7 +354,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** How a fired group reaches the wire, REASSIGNED on every render. A group can fire seconds
    *  after the press, and a closure captured at press time would send against the production as
    *  it was — the same staleness `airedRef` and `cuesRef` below exist for. */
-  const fireCombineRef = useRef<(control: CombinedControl, group: StepGroup) => void>(() => {});
+  const fireCombineRef = useRef<(control: CombinedControl, due: StepGroup[]) => void>(() => {});
   // A tab that goes away takes its waits with it. That is §6d's accounting rather than a leak
   // being tidied: the wait lives in the surface that pressed, and nothing is retried elsewhere.
   useEffect(() => () => scheduler.dispose(), [scheduler]);
@@ -1618,8 +1619,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const read = readShowProfile(show.profile);
     const base = read.status === 'ok' ? read.profile : emptyProfile();
     const { shows: next, refused } = setShowProfile(id, { ...base, combine });
-    if (refused) setNote('This production’s control profile was written by a newer build, so it cannot be changed here.');
-    else setShows(next);
+    if (refused) {
+      setNote('This production’s control profile was written by a newer build, so it cannot be changed here.');
+      return;
+    }
+    setShows(next);
+    // EVERY TICK GOES BACK TO ITS DECLARED DEFAULT when the composer is used. A tick is held by
+    // its step's POSITION, so moving or deleting a step would otherwise leave the operator's
+    // answer sitting on whichever step took that place — the checkbox reading as they left it
+    // while the press awarded a different panelist. Authoring is not an operating gesture, so
+    // resetting the ticks costs nothing and makes that impossible.
+    setCombineTicks(new Map());
   };
 
   // Grouped and ordered by the SHARED helper (controlModel `arrangeControls`), so the hosted
@@ -1723,16 +1733,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     ),
   };
 
-  /** How a step's target is SPELLED on this surface: a control wears the production's own word
-   *  for it when ARRANGE renamed it, prefixed by the author's section when there is one, because
-   *  five controls all labelled "+1" are five different ticks. */
+  /**
+   * How a step's target is SPELLED on this surface.
+   *
+   * A control wears the production's own word for it when ARRANGE renamed it, and otherwise its
+   * declared label. The author's SECTION is prefixed only when the label alone would be
+   * AMBIGUOUS — when another control of the same graphic reads the same. That is the case the
+   * prefix exists for: the proof case's totals board labels all five of its controls "+1", so a
+   * press's five ticks would read "+1" five times with nothing to tell the panelists apart. A
+   * label that is already unique keeps its own words, because prefixing unconditionally produced
+   * "Podiums Spotlight podium" on the first graphic it met.
+   */
   const combineNames: StepNames = {
     control: (graphic, control) => {
-      const button = poolMachines.get(graphic)?.buttons.find((b) => b.event === control);
+      const buttons = poolMachines.get(graphic)?.buttons ?? [];
+      const button = buttons.find((b) => b.event === control);
       const arrangement = arrangeFor(show.profile, graphic);
       const renamed = arrangement ? own(arrangement, control)?.name : undefined;
       const label = renamed || button?.label || control;
-      return button?.section ? `${button.section} ${label}` : label;
+      const shared = buttons.filter((b) => b.label === button?.label).length > 1;
+      return shared && button?.section ? `${button.section} ${label}` : label;
     },
     cue: (cueId) => cueLabel(cueId) ?? 'a cue',
   };
@@ -1773,31 +1793,43 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  default. An absence here means "untouched", never "off". */
   const tickOn = (controlId: string, index: number, declared: boolean) =>
     combineTicks.get(tickKey(controlId, index)) ?? declared;
+  /** The step indices a press would actually send, ticks applied. The greying reads this too, so
+   *  a control whose first step the operator has un-ticked is judged by the step that WOULD go. */
+  const tickedSet = (control: CombinedControl) =>
+    new Set(
+      askSteps(control)
+        .filter((a) => tickOn(control.id, a.index, a.on))
+        .map((a) => a.index),
+    );
 
   /**
-   * SEND ONE GROUP OF STEPS — called at the moment the group fires, which is what makes a delayed
+   * SEND THE STEPS THAT ARE DUE — called at the moment they fire, which is what makes a delayed
    * `adjust` count from what the audience is looking at rather than from the press.
    *
    * It is assigned to a ref on every render rather than captured at press time, because a group
    * can fire seconds later and a closure from the press would send against the production as it
    * WAS: the wrong score, a cue that has since been taken, a graphic somebody took off air.
    *
-   * ONE BATCH, so every step of a group is one atomic `control_send_many` insert and lands in the
-   * log in this order. A step the machine would drop is dropped ALONE and the feed says which;
-   * the rest proceed (§6b).
+   * EVERYTHING DUE IS RESOLVED IN ONE PASS. The scheduler hands over every group whose wait has
+   * run out, which on a throttled background tab can be several at once, and they share the
+   * `ahead` overlay below. Resolving them one call at a time would have each read the same
+   * unchanged surface state — React has not re-rendered between two synchronous calls — so five
+   * delayed `+1`s on one field would all send the same figure and the score would move by one.
+   *
+   * A step the machine would drop is dropped ALONE and the feed says which; the rest proceed (§6b).
    */
-  fireCombineRef.current = (control, group) => {
+  fireCombineRef.current = (control, due) => {
     const items: ControlSendItem[] = [];
-    /** Cue id -> the figures this group moved, to mirror back into the cue. */
+    /** Cue id -> the figures this pass moved, to mirror back into the cue. */
     const mirrors = new Map<string, Record<string, string>>();
     /** Graphic -> what a verb step left it playing, applied only if the send lands. */
     const liveAfter = new Map<string, string | null>();
-    /** What THIS group has already moved, by graphic. Two `adjust` steps on one field inside one
-     *  group must count from each other, or "+1 twice" would send the same figure twice and the
-     *  receiver would apply it once. */
+    /** What THIS pass has already moved, by graphic. Two `adjust` steps on one field must count
+     *  from each other, or "+1 twice" would send the same figure twice and the receiver would
+     *  apply it once. */
     const ahead = new Map<string, Record<string, string>>();
 
-    for (const { step } of group.steps) {
+    for (const { step } of due.flatMap((group) => group.steps)) {
       const graphic = step.kind === 'verb' ? combineNow.cues.get(step.cue) ?? step.cue : step.graphic;
       const why = stepBlocked(step, combineNow);
       if (why) {
@@ -1857,16 +1889,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
 
     // The cue keeps the figure air shows, so the next ⟳ Take or ✎ Update cannot regress it —
-    // the same write-back a single ⚡ press does, once per cue rather than once per step.
+    // the same write-back a single ⚡ press does, once per cue rather than once per step. The
+    // PATCH carries only the moved fields: merging a whole `{...cue.values, ...adjusted}` read
+    // from this render would put back every other field as it stood before the pass.
     for (const [cueId, values] of mirrors) {
       if (editingCue?.id === cueId) editDraft({ values });
-      else {
-        const cue = cues.find((c) => c.id === cueId);
-        if (cue) setShows(updateShowCue(id, cueId, { values: { ...cue.values, ...values } }));
-      }
+      else setShows(updateShowCue(id, cueId, { values }));
     }
     if (items.length === 0) return;
-    void runVerb([items], `“${control.name}”`).then((sent) => {
+    // ONE RPC PER EIGHT ITEMS. `control_send_many` refuses a batch outside 1..8 outright
+    // (migration 0029), and a step is not one item: a Take is three and an Out is two. An
+    // unchunked press of three Takes would raise `not a command batch` and lose the WHOLE
+    // press, which is the one failure a combined control must not have.
+    const batches: ControlSendItem[][] = [];
+    for (let i = 0; i < items.length; i += COMMAND_BATCH_MAX) {
+      batches.push(items.slice(i, i + COMMAND_BATCH_MAX));
+    }
+    void runVerb(batches, `“${control.name}”`).then((sent) => {
       if (!sent) return;
       for (const [graphic, cueId] of liveAfter) setLiveCue((m) => withLiveCue(m, graphic, cueId));
     });
@@ -1896,20 +1935,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }
       return;
     }
-    if (combineBlocked(control, combineNow)) return;
+    const ticked = tickedSet(control);
+    if (combineBlocked(control, combineNow, ticked)) return;
     flushDraft();
-    const ticked = new Set(
-      askSteps(control)
-        .filter((a) => tickOn(control.id, a.index, a.on))
-        .map((a) => a.index),
-    );
-    scheduler.press(control.id, planCombine(control, ticked), (group) => fireCombineRef.current(control, group));
+    scheduler.press(control.id, planCombine(control, ticked), (due) => fireCombineRef.current(control, due));
   };
 
   /** One combined button, with its tick list beside it and its countdown on it. */
   const combinedButton = (control: CombinedControl) => {
     const wait = scheduler.waiting(control.id);
-    const blocked = combineBlocked(control, combineNow);
+    const blocked = combineBlocked(control, combineNow, tickedSet(control));
     const asks = askSteps(control);
     const delayed = control.steps.some((s) => s.after);
     const sentence = control.steps.map((s: ProfileStep) => stepWords(s, combineNames)).join('; ');
@@ -1935,7 +1970,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           data-testid={`combined-press-${control.id}`}
         >
           ⚡ {control.name}
-          {wait && <b className="pd-combined-count"> {Math.ceil(wait.left / 1000)}</b>}
+          {/* THE SEPARATOR AND THE UNIT EARN THEIR PLACE. A bare figure after the name read as
+              part of it — "Spotlight, then level 2" looked like a control called that, seen on
+              the surface itself — and the whole job of the countdown is to be unmistakable. */}
+          {wait && <b className="pd-combined-count"> · {Math.ceil(wait.left / 1000)}s</b>}
         </button>
         {asks.length > 0 && (
           <span className="pd-combined-asks" data-testid={`combined-asks-${control.id}`}>

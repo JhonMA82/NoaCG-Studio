@@ -592,12 +592,15 @@ comparison, no variable, no loop and no wall clock — the format refuses those 
   is what the walk is for, and a button greyed by a step three seconds in the future would be
   unpressable all night.
 
-**Where it renders.** The two NoaCG-hosted surfaces — the in-app production page and the hosted
-control page — under a **Combined** heading at the foot of the ⚡ block. The EXPORTED production
-controller does not carry it: a sequencer with delays and ticks, inlined a second time in vanilla
-JS, is the second production runtime the owner ruled against on 2026-09-15 (§6f of the plan), so a
-production with combined controls gets one honest line there instead. ARRANGE still renders on all
-three, because that is presentation of the contract rather than behaviour above it.
+**Where it renders, and where it is still going.** The design gives it to the two NoaCG-hosted
+surfaces — the in-app production page and the hosted control page — under a **Combined** heading at
+the foot of the ⚡ block. **Only the in-app page carries it today**; the hosted page is a row of its
+own and has no combined-control code yet, so a production published to it shows the generated panel
+and its arrangement and nothing else. The EXPORTED production controller never gets it: a sequencer
+with delays and ticks, inlined a second time in vanilla JS, is the second production runtime the
+owner ruled against on 2026-09-15 (§6f of the plan), so a production with combined controls is to
+get one honest line there instead — **that line is not written yet either.** ARRANGE does render on
+all three already, because it is presentation of the contract rather than behaviour above it.
 
 **Against the no-second-clock ruling (§8a, ruling 2, owner 2026-08-09).** That ruling forbids a
 per-play timer FIELD that could disagree with an arrow's authored `after` INSIDE a graphic. A
