@@ -79,8 +79,11 @@ OGraf is the canonical interchange and playout contract (`docs/OGRAF_FIRST_REVIE
 - **No sign-in for its own sake.** An account is asked for only where it *buys* something.
 
 ### Who we are replacing
-Five products; their proven capabilities are our requirements list. The full read, per capability
+Six products; their proven capabilities are our requirements list. The full read, per capability
 and per gap, is [`COMPETITORS.md`](COMPETITORS.md):
+- **Zero Density** - first on the list (owner, 2026-09-15). OGraf Studio is an open-source visual
+  OGraf editor, and the interaction reference for the editor rebuild. Its custom actions run no
+  behaviour, so operator logic stays ours to take.
 - **Rive** - designer-first state-machine logic; sets the bar for our machine + logic surface.
 - **Singular.live** - cloud graphics + browser control room; our gap to open is breadth.
 - **Loopic** - closest positioning; its timeline/canvas are what Advanced mode has to beat.
