@@ -440,6 +440,12 @@ operator; the default path as the dumb-playout contract.
   (Yle, 2026-10-20). Answered in `docs/CONTROL_PANEL_ANY_GRAPHIC.md`: the control contract IS the
   approach, and the §9 agent road is taught to write it under the three gates. Nothing here
   changes; §3 stays deferred until a show asks for "one press".
+- **2026-09-15, owner, later the same day: BUILD §3 for 2026-10-20.** The "Reveal plus a delayed
+  action" case is evidence for a general capability, never the workflow designed around; a small
+  set of composable primitives, no automation or programming system. The design is
+  `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6: two primitives, ARRANGE and COMBINE, a step carrying
+  `after` and `ask`. §3's fences stand unchanged; this entry is the activation §3 said would come
+  back to him.
 
 ## Sources (control-axis research, read 2026-08-28)
 

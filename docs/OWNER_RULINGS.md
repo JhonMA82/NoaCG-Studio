@@ -803,3 +803,34 @@ as the brief carried them; the plan it produced is `docs/CONTROL_PANEL_ANY_GRAPH
 
 What it settles: the "agent-authored machines" gate in `docs/GOALS.md` NEXT. An agent-authored
 machine is the proof case, so the skill blesses it under the three gates of 2026-08-27.
+
+---
+
+## ALIGN-2026-09-15-2
+
+**Asked after the first landing of `docs/CONTROL_PANEL_ANY_GRAPHIC.md`.** Should the production
+control profile be built for 2026-10-20 on the strength of the "one press: Reveal plus the +1s"
+case, rather than waiting for the producer to ask? The plan said wait.
+
+> Yes - build the production control profile for 2026-10-20 based on the "one press: Reveal +
+> delayed action" case.
+
+> But please treat that example as evidence for a general capability, not as the workflow we are
+> specifically designing around.
+
+> The goal is that NoaCG should be able to control essentially any sensible graphic sequence:
+> reveal elements in different orders, trigger several related actions from one control, delay a
+> later action when needed, and support graphic-specific controls without us having to hard-code
+> each use case.
+
+> At the same time, don't turn this into a general-purpose automation/programming system. The
+> operator experience should remain simple. Prefer a small set of composable primitives that
+> graphics can combine into their own appropriate controls.
+
+> So use my example to prove the architecture, but check that the underlying design is not
+> accidentally specific to that example. We should be ready for graphics we have not designed yet
+> without building speculative complexity for hypothetical requirements.
+
+What it settles: `docs/CONTROL_PANEL_ROAD.md` §3 is activated, on its own fences. The design that
+answers the framing is `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6 - two primitives, a general check
+against eight sequences, and the refusals named.

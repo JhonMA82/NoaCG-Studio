@@ -31,8 +31,10 @@ tells a coding agent that authoring its own machine "is a later capability", whi
 the validator, the bench and all five renderers already accept one, and the owner blessed it on
 2026-08-27 under three gates. So the recommendation is to teach and gate the contract on the
 agent road before 2026-10-20, walk the proof case through it once ourselves, and hold everything
-else - phones, the production control profile, self-sorting rows on the SVG road, OGraf legality -
-until a real show asks for it. The reasons follow.
+else - phones, self-sorting rows on the SVG road, OGraf legality - until a real show asks for it.
+One thing did ask, the same day: the production control profile the road reserved is built for
+2026-10-20 as two primitives, ARRANGE and COMBINE (§6), with the proof case as its evidence and
+not its shape. The reasons follow.
 
 ---
 
@@ -214,8 +216,9 @@ at:
    faked.** A graphic never reacts to another graphic, an `adjust` delta is static, and a total
    the graphic bumped internally would drift from the log and vanish on recovery - the drift the
    `adjust` mechanism exists to prevent. The honest answers are the operator's presses (today),
-   then a combined control in the production control profile (Reveal plus the chosen +1s as one
-   ordered batch of already-declared events, road §3), and only then the open design question
+   then a combined control in the production control profile - Reveal, then after a beat the
+   five +1s each offered as a tick, one ordered batch of already-declared events (§6, built for
+   2026-10-20 by the owner's ruling of 2026-09-15) - and only then the open design question
    `docs/SVG_BEHAVIOUR_PLAN.md` §13 already names - whether a DERIVED value can be a field. That
    question is not bent around here.
 
@@ -263,13 +266,15 @@ and quiz boards that already exist.
 | 2 | **Close the open gate in GOALS.** "Agent-authored machines - the owner gate is armed" is answered by the brief; record it in `docs/OWNER_RULINGS.md` and move the GOALS line. | A doc that says the question is open will stop the next session | minutes | the same row |
 | 3 | **Walk the proof case ourselves, once, end to end and timed.** Prompt Claude Code with the shipped skill, build both graphics, `save`, one production, publish, drive §3c from the dashboard, and file the owner-queue item with the route and the stopwatch. Fix what it finds; §3d says where to look first. | "Within minutes in front of the producer" is a number, and the only number we have is 24.8 s of tool time for the seven verbs plus an untimed last hop (`docs/DEMO_2026-09-25.md` §7 row 15) | a day, plus whatever it finds | one row, first week of October |
 | 4 | **The bench's event cap** (§3d.1): raise `MAX_BENCH_EVENTS` for a machine that declares more, or have `validate` say which buttons it did not press. | Gate 3 has to mean what §2c says it means on the first real graphic that needs it | an hour, plus one bench run | one row, with row 3 |
+| 5 | **The profile's model and storage** (§6e): `Show.profile` v1 with ARRANGE and COMBINE, its parse/serialize/validate beside `shows.ts`, pinned at publish, baked at export, deletable in one action. Unit-tested offline. | Everything after it reads this shape; a wrong shape here is a migration later | a day | one row, week of the 28th |
+| 6 | **ARRANGE on all three dashboard deployments** (§6e): order, section, rename, hide, pin applied to the generated ⚡ block and the cue editor's fields; the "Controls" panel on the production page. Pinned by a spec on each deployment. | The football principle, on the surface the operator holds | two days | one row, after row 5 |
+| 7 | **COMBINE, with `after` and `ask`** (§6b, §6d): the composer, the batch send through `control_send_many` one row per step, the visible countdown and its cancel, the per-step drop reported in the activity feed, the exported controller's copy. Pinned by a spec that reads the rows off the wire, the way ± live numbers is. | The proof case's "one press", and the general capability the owner named | three days | one row, after row 6 |
+| 8 | **The proof walk, again, with the profile** - row 3 repeated once rows 6 and 7 land: the Reveal-then-+1s combined control composed in the room's minute, driven from the hosted page, timed. Owner-queue item. | The demo is the profile in use, not the profile built | half a day | one row, second week of October |
 
-Everything else waits, each with the thing that would pull it up:
+Rows 5 to 8 are the owner's 2026-09-15 ruling (§6). Everything else waits, each with the thing
+that would pull it up:
 
 - **Named-seat voting on `/join`** (§4, question 2) - when Yle asks for phones. Not the demo.
-- **The production control profile** (road §3: arrange, hide, pin, combine) - when the producer
-  says "one press". The proof case is the first plausible demand signal; treat it as one only if
-  it is actually said.
 - **`sectionField` on a control** (§3d.2) - cheap, additive, after row 3 says whether it matters.
 - **`arrange` for the SVG road** - the ranking recipe's spike, unchanged in priority.
 - **Derived-value-as-field** - the bracket's and the auto-+1's shared question; a design of its
@@ -280,7 +285,136 @@ Everything else waits, each with the thing that would pull it up:
 
 ---
 
-## 6. The constraints, checked
+## 6. The production control profile - two primitives, and the proof that they are general
+
+**Ruled 2026-09-15, after this plan's first landing: build the profile for 2026-10-20.** The
+owner's framing binds the design and is quoted in `docs/OWNER_RULINGS.md` ALIGN-2026-09-15-2: the
+"one press: Reveal plus a delayed action" case is EVIDENCE for a general capability, never the
+workflow being designed around. NoaCG should control essentially any sensible graphic sequence -
+reveal elements in different orders, trigger several related actions from one control, delay a
+later action, and support graphic-specific controls without hard-coding each use case - while
+the operator experience stays simple and nothing here becomes a general-purpose automation or
+programming system. Prefer a small set of composable primitives.
+
+### 6a. Where the line already is
+
+`docs/CONTROL_PANEL_ROAD.md` §3 reserved the shape on 2026-08-28 and the owner confirmed it on
+2026-09-03: additive presentation state on the Show, referencing capabilities the graphics already
+declare; it may arrange, hide, rename, emphasize, group, pin and COMBINE controls, where a combined
+control is an ordered batch of already-declared events, verbs and data patches; it may never
+invent an event, carry logic or conditions, override structural legality or define behaviour;
+deleting it always leaves the complete generated panel. Nothing below moves that line. What §3
+left open - "the first real demand signal should shape the profile's vocabulary" - is what this
+section closes, and the vocabulary it arrives at is two words.
+
+The division of labour that keeps it small: **inside one graphic, sequence and timing belong to
+the machine** (arrows, timer arrows, the default path - the graphic's own contract, §2a);
+**across graphics and per production, they belong to the profile.** A profile never reaches into
+a machine, and a machine never knows a profile exists.
+
+### 6b. The two primitives
+
+**ARRANGE** - per pool graphic, per control id: order, section, a shown name, hidden or not,
+pinned or not. Presentation over declared capability. A hidden control is still guarded by the
+machine, a renamed one still greys by the same table, and the generated panel is what remains
+when the profile is deleted.
+
+**COMBINE** - one named control the production makes out of STEPS. A step is exactly one thing a
+surface can already send: an operator EVENT of a named pool graphic, with the payload rule its
+control declares (a `payload` reads the cue's field, an `adjust` moves it, a `set` writes it - the
+same `eventPayload` every surface computes today); a lifecycle VERB on a cue (Take, Update, Next,
+Out); or a data PATCH of stated field values. A step carries two optional marks and no others:
+
+- **after N s** - the surface waits that long before sending the step, shows the wait counting
+  down on the button, and any Out or a press on the countdown cancels what has not been sent.
+- **ask** - the step is offered as a tick beside the button and sends only when ticked, with a
+  declared default. This is the whole of what a press may vary by, and it is a tick, never a
+  value.
+
+A step is resolved when it FIRES, not when the button was pressed: an `adjust` reads the figure on
+the wire at that moment, so a delayed `+1` counts from what the audience is looking at. Every step
+is one ordinary row in the one command log, attributed to the operator who pressed, guarded by the
+machine of the graphic it targets. A step the machine drops is dropped alone; the rest proceed,
+and the activity feed says which one did not apply. A combined control greys when its first step
+is illegal, and its hover names each step.
+
+That is the vocabulary. There is no third primitive, and there is no slot in either for a
+condition, a comparison, a variable, a loop, a wait on something the graphic reports, or a wall
+clock.
+
+### 6c. Why these two are the right two - the general check
+
+The owner asked for the design to be checked against graphics not yet designed rather than
+against his example. Read against the standing challenge set (`docs/BEHAVIOUR_AUTHORING_RESEARCH.md`
+§4), the game-show and late-night walk (`docs/SVG_BEHAVIOUR_SHOWS.md`) and the proof case:
+
+| Sequence a show wants | Which half answers it | Steps |
+|---|---|---|
+| Elämäni biisi: reveal the performer, then three seconds later the +1s for whoever was right | COMBINE across two graphics: `reveal` on the votes board; after 3 s, five `+1` steps on the totals board, each marked **ask** | 6 |
+| Awards: reveal nominees in the producer's order, a beat apart, then the envelope | COMBINE on one graphic: five per-row reveals (the survey's `set` per row) with after 2 s on each, then `envelope` | 6 |
+| Late-night top ten: run the list by itself, one entry every four seconds | COMBINE: » Next on the cue, nine times, after 4 s each. The countdown is visible; Out cancels the rest | 9 |
+| Football: the operator understands football, not the software | ARRANGE: pin Goal A, Goal B, Clock start, Clock stop; hide Clear flag and the ± corrections into a "More" section | 0 |
+| Breaking-news wrap (C8): strap up and ticker resume together | COMBINE: two events on one graphic's two parallel groups | 2 |
+| Election (C3): 25 / 50 / 75 / final, declare, retract | ARRANGE only - the machine already has every verb; the production orders the Counted section first | 0 |
+| A rundown that advances itself (MXMZ's auto-advance, road §4) | COMBINE: Take cue 2 after 10 s, Take cue 3 after 10 s - the deferred feature falls out of the primitive rather than being built | n |
+| Bingo (C5): call a number, undo, new game | Nothing - all three are the graphic's own controls, and `add`/`remove` already exist | 0 |
+
+Six of eight need nothing but the two primitives, two need neither, and none needs a third. The
+same table read the other way says what the profile refuses, and each refusal is the graphic's
+job or the operator's: "declare when the share passes 50" is a comparison (the operator declares,
+C3's own lesson); "+1 to whoever was right" is a derivation across two graphics (the operator
+ticks, §3d.3, until derived-value-as-field is designed on its own); "repeat until the operator
+stops" is a loop (a fixed count with a visible countdown is honest, and Out is the stop).
+
+**The two places the example could have bent the design, and did not.** A cross-graphic step
+was tempting to special-case for "Reveal here, +1 there"; instead every step names its graphic,
+which is what the awards and the auto-advance rows need too. And **ask** could have been a
+per-person parameter of one macro; instead it is a mark any step may carry, which is what makes
+"reveal the nominees, but skip the one who did not turn up" the same gesture.
+
+**What would make this a programming system, refused by name:** conditions on steps, steps that
+read a graphic's state or a field's value, named variables, loops, a step that waits for a report,
+scheduling by wall clock, a profile that calls another profile. A show that needs one of those has
+found a behaviour, and behaviours belong in the graphic's contract.
+
+### 6d. The delay, against the two timing rulings
+
+"No second clock" (owner, 2026-08-09, `docs/PLAYOUT_DASHBOARD.md` §8a ruling 2) forbids a per-play
+timer FIELD that could disagree with an arrow's authored `after` inside a graphic. A combined
+control's `after` is the controller pacing its own sends and never touches a graphic's timer;
+the graphic still sees ordinary rows arriving in order. "An armed timer must be visible" (the same
+ruling) is met on the surface itself: the button counts down and can be cancelled. What a delayed
+step costs, stated so nobody discovers it live: the wait lives in the surface that pressed, so a
+surface that reloads mid-countdown loses the unsent tail, the state chip shows what did not
+happen, and the operator presses it by hand. Nothing is retried behind anyone's back.
+
+### 6e. Storage, publish, surfaces
+
+- `Show.profile`, additive-optional beside `Show.bindings` and on the same precedent: keyed by
+  pool-graphic name then control id for ARRANGE, plus a list of combined controls; carries its own
+  `v: 1`; older builds read past it (root `AGENTS.md` rule 6). Pinned onto `control_shows` at
+  publish exactly as `bindings` is (`hostedControl.ts` `publishControlShow`), baked into the
+  exported production controller at export. Deleting the profile is one action and restores the
+  generated panel everywhere.
+- **All three dashboard deployments render it** - the in-app production page, the hosted control
+  page and the exported controller - because `docs/PLAYOUT_DASHBOARD.md` says they must not
+  diverge and the exported one is built from the same `emitGraphic`. The combined controls sit in
+  the ⚡ actions block under a section of their own, pinned controls above the fold; ARRANGE is
+  applied to the existing block, not a new one.
+- **Authoring is on the production page**, a "Controls" panel beside the cue editor: the generated
+  controls per graphic with drag order, hide and rename; "+ Combined control" names it and adds
+  steps by picking a graphic, then one of its controls or verbs, then the two marks. No text field
+  takes anything but a name or a number of seconds. Not the CLI: a profile is a production's
+  taste, and a library graphic stays clean of it.
+
+### 6f. What this changes above
+
+§3d.3 now reads as the road to "one press": the operator's presses first, then a combined control
+with `ask` on the +1s, which is the proof case in §6c's first row. §5 gains the rows that build
+this. §8's decision 5 is amended. The reserved shape in the road is unchanged, so no other document
+moves.
+
+## 7. The constraints, checked
 
 - **No expression language, ever.** The contract stays structural; the one comparison in the
   proof case lives in the graphic's own function, called by name from a state. No slot anywhere
@@ -292,7 +426,9 @@ Everything else waits, each with the thing that would pull it up:
 - **A generic OGraf host displays the graphic from standard data updates alone.** Both graphics
   are fields plus a default path; the reveal mirrors into a reported field.
 - **P2 is at DESIGN.** This file builds nothing. Rows 1 to 4 of §5 are P5 (the agent door) work,
-  which is unparked; none of them touches an authoring surface.
+  which is unparked; rows 5 to 8 are control-layer work under road §3, activated by the owner on
+  2026-09-15. None of them touches an authoring surface: a profile arranges and combines what a
+  graphic declares, and authoring what a graphic declares stays P2's question.
 
 On Zero Density, held as the brief asked: the pattern worth learning is that a declared action
 set with typed payloads is enough for a wire (their `customActions`, our `machine.controls` and
@@ -301,7 +437,7 @@ nothing. No code is read from it; it is AGPL and its runtime rides in every expo
 
 ---
 
-## 7. Decisions made here, and what is his
+## 8. Decisions made here, and what is his
 
 Made here, recorded so they can be reverted rather than adjudicated:
 
@@ -309,9 +445,15 @@ Made here, recorded so they can be reverted rather than adjudicated:
 2. Authoring a machine on the agent road is taught and gated; today it is only accepted.
 3. The five picks are operator-entered by default; named-seat phones are a later round kind.
 4. Reordering is paint; the agent road sorts in its own JS; the SVG road waits for `arrange`.
-5. "+1 to whoever was right" is presses now, a profile macro later, and never an internal bump.
+5. "+1 to whoever was right" is presses first, then a combined control whose +1 steps are
+   ticks, and never an internal bump.
 6. Nothing here starts before 2026-09-25.
+7. The profile is two primitives, ARRANGE and COMBINE, and a step carries `after` and `ask` and
+   nothing else (§6b). A third primitive or a third mark needs a graphic that cannot be served
+   without it, walked and recorded.
+8. Timing in a combined control is the surface's own wait, visible and cancellable, never a row
+   the renderer holds back (§6d).
 
-**Needs him (needs: alignment), and only if he disagrees:** whether the production control
-profile should be built for 2026-10-20 on the strength of the "one press" case in §3d.3 rather
-than waiting for the producer to ask. The plan says wait.
+**Needs him: nothing.** The one question the first landing put to him - whether to build the
+profile for 2026-10-20 - he answered the same day (ALIGN-2026-09-15-2), and §6 is the design his
+answer asked for.

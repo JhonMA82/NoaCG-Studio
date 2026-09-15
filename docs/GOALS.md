@@ -157,6 +157,8 @@ pages, deliberately kept in the exported controller (archive, 2026-08-30).
 - [ ] **OPEN, the owner's to answer: does SPACE go to preview first?** It would replace
       selection-is-preview and re-open what TAKE means. Either way it is the same button - no
       separate Preview control returns.
+- [ ] **The production control profile, for 2026-10-20** (owner, 2026-09-15): two primitives,
+      ARRANGE and COMBINE, after the 25th. Design and rows: `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6.
 
 ---
 
