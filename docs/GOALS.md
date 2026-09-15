@@ -7,13 +7,13 @@ file; the archive keeps the history. **Keep it under ~200 lines** (owner-confirm
 this is the one place the budget is stated - other docs point here): a roadmap nobody can read in
 one sitting steers nothing. Rationale lives in plan docs; this file carries the item and the link.
 
-**`## NOW` IS THE PUSH; EVERYTHING UNDER `## NEXT`, `## THEN` AND `## Parking lot` IS PARKED** -
-committed to, described well, and deliberately not started. Parked work begins when the owner
-moves it up, never because a section here reads like a plan. **A parked section may carve out an
-exception in its own text** - the OGraf one does - and that carve-out binds where it is written.
-**A section governed by an ACTIVE programme in [`PROGRAMMES.md`](PROGRAMMES.md) is unparked to
-exactly the extent its register row states** - only the owner activates a programme, so the
-anti-raid purpose survives. The root `AGENTS.md` states the same rule; this file is where it binds.
+**`## NOW` IS WHAT THE DATED EVENTS NEED; NOTHING ELSE IS PARKED** (owner, 2026-09-15, in
+`docs/OWNER_RULINGS.md`: *"we don't have to park everything else behind those deadlines. We can
+work on anything if it makes sense."*). `## NEXT`, `## THEN` and the parking lot are described work
+in a rough order, and any of it may start when there is a clear vision of how to do it. A date is
+owed a clear list of what it needs, never the whole machine, and NoaCG stays built for everyone
+rather than for one production. Every programme in [`PROGRAMMES.md`](PROGRAMMES.md) is
+AUTHORIZED; its scope edges still return to the owner mid-flight.
 
 ---
 
@@ -45,8 +45,9 @@ ever seeing code; organizations, channels, streamers and universities follow. A 
 keeps full control through **Advanced mode** - the editor, one toggle away, never required. The
 generated HTML/CSS/JS is the single source of truth and stays clean and readable.
 
-**The binding date is 2026-09-25: students and YLE people try NoaCG hands on, and their own
-graphics play on their systems.** Work that does not serve that date is not current work.
+**The dates: 2026-09-25, students and Yle people try NoaCG hands on and their own graphics
+play; an early-October production on the scoreboards and quiz boards; 2026-10-20, Elämäni biisi on
+Yle.** NOW lists what they need. Work that serves none of them is still current when it makes sense.
 
 **The year beyond this file**: [`NORTH_STAR_2027.md`](NORTH_STAR_2027.md) (ratified 2026-09-01)
 is the one-year north star and evidence model; [`PROGRAMMES.md`](PROGRAMMES.md) is the live
@@ -105,9 +106,10 @@ and per gap, is [`COMPETITORS.md`](COMPETITORS.md):
 **The date is 2026-09-25** (ruling: `docs/OWNER_RULINGS.md`, 2026-09-09). Students and YLE people
 try NoaCG hands on, and we owe one presentation and one step-by-step guide over SVG import ending
 on their systems and the CLI from Codex or Claude Code to the NoaCG player. Beats, routes and the
-gap list are **`docs/DEMO_2026-09-25.md`**. **2026-09-12 still happens, as the rehearsal**, a real
-student production with a **QUIZ** (lock / reveal) and a **SCOREBOARD** (score + / -). The student
-draws the graphic; we supply the behaviour. The student release before this is CLOSED (archive).
+gap list are **`docs/DEMO_2026-09-25.md`**. **The 2026-09-12 production did not happen**
+(owner, 2026-09-15); the next is early October, on the **QUIZ** (lock / reveal) and the
+**SCOREBOARD** (score + / -) as they exist. The student draws the graphic; we supply the behaviour.
+The student release before this is CLOSED (archive).
 
 **A WALK THAT IS OWED NEVER BLOCKS WORK** (owner, 2026-08-30, unprompted and twice): *"It's up to
 me to test what I need to test. You don't have to block any work just because I haven't tested
@@ -123,7 +125,7 @@ expires. Keep building; he catches up when he catches up.
       shipped detail in the archive. **What is left is the OWNER WALK.**
 - [ ] **3. The two graphics, walked as a student would.** Draw, import, bind, attach behaviour,
       one production, run from the dashboard - lock, reveal, +1, -1 - operator never sees code.
-      The acceptance test for the whole goal, and the rehearsal for 2026-09-12.
+      The acceptance test for the whole goal, and the dress rehearsal for early October.
 - [ ] **TEXT HAS TO KNOW ITS BOX** (owner walk, 2026-09-02, on his own quiz board) - *"the system
       has no idea how the text should behave in relation to the graphics behind it... we need to
       establish a system where the text appears as if it is designed on the graphic, regardless of
@@ -140,9 +142,9 @@ expires. Keep building; he catches up when he catches up.
       footer checkbox copies a look nobody chose, and a logo has no road into a brand). Plan and
       the two wave rows: **`docs/BRAND_PLAN.md`**; level 2 (the PDF brand bible) stays parked there.
 
-**Deliberately NOT before the 25th: CUSTOMIZING that behaviour** (owner, 2026-08-22 - *"what if
-I don't want to be able to lock it?"*). That is the P2 question one level up; for the class, our
-behaviour used as-is is enough.
+**CUSTOMIZING that behaviour is not needed for the 25th** (owner, 2026-08-22 - *"what if I don't
+want to be able to lock it?"*), and it is no longer held for it (owner, 2026-09-15). It is the P2
+question one level up; the rows in `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5 are its first step.
 
 ### The playout dashboard
 
@@ -151,14 +153,11 @@ it stands, owner 2026-08-22**; one amendment since: the verb block stays **two c
 TAKE spanning them at every window size**. The Preview VERB is gone from the in-app and hosted
 pages, deliberately kept in the exported controller (archive, 2026-08-30).
 
-- [ ] **Re-take has to justify its place.** Owner: *"why can't you just press take again?"*
-      Because TAKE is a TOGGLE (owner, 2026-08-06): re-take is how the NEXT row goes onto a layer
-      already up - which is exactly how the quiz bank walks. Only the owner can close this box.
-- [ ] **OPEN, the owner's to answer: does SPACE go to preview first?** It would replace
-      selection-is-preview and re-open what TAKE means. Either way it is the same button - no
-      separate Preview control returns.
+- [ ] **Two Space-key modes, as an operator setting** (owner, ALIGN-2026-09-10-3; build before
+      the 25th, 2026-09-15). Space previews and Space again airs, like a mixer's cut; or selection
+      is preview and Space airs, as today. `docs/backlog/space-sends-to-preview-then-to-program.md`.
 - [ ] **The production control profile, for 2026-10-20** (owner, 2026-09-15): two primitives,
-      ARRANGE and COMBINE, after the 25th. Design and rows: `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6.
+      ARRANGE and COMBINE, started 2026-09-15 (ALIGN-2026-09-15-4). Design and rows: `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6.
 
 ---
 
@@ -212,8 +211,8 @@ becoming their own push.
       to start, so a person can see how the graphic is built for the format they care about. Owner
       2026-09-10, explicitly unhurried: *"a little bit of a vanity thing"*. Blocked by no rung
       above it. `docs/backlog/monaco-shows-ograf-not-only-spx.md`
-- then: the controller speaking the Server API outward; the desktop client; the native SDI
-  renderer - in that order, the last still parked on the 2026-08-16 ruling.
+- then: the controller speaking the Server API outward; the desktop client, which waits a little
+  behind the editor and the control panel (ALIGN-2026-09-14-3); the native SDI renderer.
 - [ ] **GSAP licence**: obtain written clarification from Webflow/GSAP on the prohibited-uses
       clause (owner); until then preserve replaceability - no new GSAP-only surface area.
       **Owner, 2026-09-05: not yet - remind me in six months.** The ask is off the walk queue and
