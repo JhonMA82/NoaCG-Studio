@@ -19,6 +19,7 @@
  * Usage:
  *   npm run release:cli              preflight, tag, push, watch, verify from the registry
  *   npm run release:cli -- --check   preflight only: say what would be released, touch nothing
+ *   npm run release:cli -- --verify-only  verify a version that is ALREADY published, tag nothing
  *   npm run release:cli -- --no-smoke  skip the post-publish `npx` install of the real package
  *   npm run release:cli -- --publisher-ok  release anyway when npm's trusted publisher looks stale
  *
@@ -36,6 +37,8 @@ const args = process.argv.slice(2);
 const checkOnly = args.includes('--check') || args.includes('--dry-run');
 const smoke = !args.includes('--no-smoke');
 const publisherOk = args.includes('--publisher-ok');
+// The recovery door for the race below: verify a version that is already out, without tagging.
+const verifyOnly = args.includes('--verify-only');
 
 const run = (cmd, cmdArgs, opts = {}) =>
   execFileSync(cmd, cmdArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts }).trim();
@@ -214,23 +217,29 @@ if (!here) {
 
 console.log(`\n${publisherLine}`);
 
-if (known.includes(version)) {
-  fail(
-    `${PKG}@${version} is already on the registry, and a version is never republished`,
-    'Bump cli/package.json, run `npm --prefix cli run build`, and land that before releasing.',
-  );
-}
-
 const tag = `cli-v${version}`;
-if (git('tag', '-l', tag)) fail(`the tag ${tag} already exists locally`, `Delete it with \`git tag -d ${tag}\` if it is a leftover.`);
-if (git('ls-remote', '--tags', 'origin', tag)) {
-  fail(`the tag ${tag} already exists on origin`, 'Re-drive the existing run from the Actions tab instead of re-tagging.');
+
+// --verify-only exists FOR an already-published version, so these three refusals are the wrong
+// answer there: it re-runs the proof below against a version that is out, and tags nothing.
+if (!verifyOnly) {
+  if (known.includes(version)) {
+    fail(
+      `${PKG}@${version} is already on the registry, and a version is never republished`,
+      'Bump cli/package.json, run `npm --prefix cli run build`, and land that before releasing.',
+    );
+  }
+
+  if (git('tag', '-l', tag)) fail(`the tag ${tag} already exists locally`, `Delete it with \`git tag -d ${tag}\` if it is a leftover.`);
+  if (git('ls-remote', '--tags', 'origin', tag)) {
+    fail(`the tag ${tag} already exists on origin`, 'Re-drive the existing run from the Actions tab instead of re-tagging.');
+  }
 }
 
 console.log(`\n${PKG}@${version}`);
 console.log(`  commit   ${sha.slice(0, 10)} — ${git('log', '-1', '--format=%s', 'origin/main')}`);
 console.log(`  stamps   all 6 agree`);
-console.log(`  registry ${known.length ? `has ${known.join(', ')} — ${version} is free` : 'has no published version yet'}`);
+const freedom = verifyOnly ? `${version} is the one being verified` : `${version} is free`;
+console.log(`  registry ${known.length ? `has ${known.join(', ')} — ${freedom}` : 'has no published version yet'}`);
 
 if (checkOnly) {
   console.log('\n--check: nothing was tagged or pushed.');
@@ -239,33 +248,36 @@ if (checkOnly) {
 
 // ---------------------------------------------------------------- the publish
 
-console.log(`\nTagging ${tag} at origin/main and pushing — this IS the publish.`);
-git('tag', tag, sha);
-try {
-  git('push', 'origin', tag);
-} catch (error) {
-  // A tag left behind locally makes the next attempt refuse for the wrong reason.
-  git('tag', '-d', tag);
-  throw error;
-}
+if (!verifyOnly) {
+  console.log(`\nTagging ${tag} at origin/main and pushing — this IS the publish.`);
+  git('tag', tag, sha);
+  try {
+    git('push', 'origin', tag);
+  } catch (error) {
+    // A tag left behind locally makes the next attempt refuse for the wrong reason.
+    git('tag', '-d', tag);
+    throw error;
+  }
 
-console.log('Watching the release run…');
-// `gh run watch` needs a run id, and the run does not exist the instant the tag lands. Ask for the
-// tag's own run rather than the newest one: another workflow's run could otherwise be watched.
-let runId = '';
-for (let attempt = 0; attempt < 20 && !runId; attempt++) {
-  runId = run('gh', [
-    'run', 'list', '--workflow=release-cli.yml', '--limit', '5',
-    '--json', 'databaseId,headBranch', '--jq', `[.[] | select(.headBranch == "${tag}")][0].databaseId // ""`,
-  ]);
-  if (!runId) await new Promise((resolve) => setTimeout(resolve, 3000));
-}
-if (!runId) fail('the tag was pushed but no run appeared for it', 'Check the Actions tab; the publish may still be running.');
+  console.log('Watching the release run…');
+  // `gh run watch` needs a run id, and the run does not exist the instant the tag lands. Ask for
+  // the tag's own run rather than the newest one: another workflow's run could otherwise be
+  // watched.
+  let runId = '';
+  for (let attempt = 0; attempt < 20 && !runId; attempt++) {
+    runId = run('gh', [
+      'run', 'list', '--workflow=release-cli.yml', '--limit', '5',
+      '--json', 'databaseId,headBranch', '--jq', `[.[] | select(.headBranch == "${tag}")][0].databaseId // ""`,
+    ]);
+    if (!runId) await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+  if (!runId) fail('the tag was pushed but no run appeared for it', 'Check the Actions tab; the publish may still be running.');
 
-try {
-  execFileSync('gh', ['run', 'watch', runId, '--exit-status'], { stdio: 'inherit' });
-} catch {
-  fail(`the release run failed — gh run view ${runId} --log-failed`, 'The version was NOT published; fix and re-tag.');
+  try {
+    execFileSync('gh', ['run', 'watch', runId, '--exit-status'], { stdio: 'inherit' });
+  } catch {
+    fail(`the release run failed — gh run view ${runId} --log-failed`, 'The version was NOT published; fix and re-tag.');
+  }
 }
 
 // ---------------------------------------------------------------- the proof, from outside
@@ -273,10 +285,32 @@ try {
 /**
  * A green run is not a published package. The registry is the only authority on that, and it is
  * the check the owner did not have when he published 0.3.0 by hand.
+ *
+ * THE READ HAS TO WAIT FOR THE WRITE. npm answers the publish PUT with **202 Accepted** and
+ * "Your package is being processed and may take a few minutes to become available", so the
+ * version is not readable the instant the run goes green. Measured on 0.3.2 (2026-09-15): the
+ * PUT returned 202 at 12:33:34 UTC, the single immediate read a few seconds later answered 404,
+ * and the version appeared between 12:34:57 and 12:35:41 — about two minutes. The refusal that
+ * produced said "the run was green but @noacg/cli@0.3.2 is not on the registry" about a package
+ * that had published perfectly, which is the worst sentence this script can print: it reads as a
+ * lost release. So poll, and only call it a refusal once the whole window has passed.
  */
 console.log('\nVerifying from the registry…');
-const after = await registry(`${encodeURIComponent(PKG)}/${version}`);
-if (!after || after.version !== version) fail(`the run was green but ${PKG}@${version} is not on the registry`);
+const REGISTRY_WAIT_MS = 6 * 60 * 1000;
+const POLL_MS = 5000;
+const deadline = Date.now() + REGISTRY_WAIT_MS;
+let after = await registry(`${encodeURIComponent(PKG)}/${version}`);
+if (!after) console.log(`  npm is still processing the publish — waiting up to ${REGISTRY_WAIT_MS / 60000} minutes for it to appear…`);
+while (!after && Date.now() < deadline) {
+  await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+  after = await registry(`${encodeURIComponent(PKG)}/${version}`);
+}
+if (!after || after.version !== version) {
+  fail(
+    `the run was green but ${PKG}@${version} did not appear on the registry within ${REGISTRY_WAIT_MS / 60000} minutes`,
+    `npm accepts a publish asynchronously, so it may still land. Check with \`npm view ${PKG} versions\`, and re-run the proof with \`npm run release:cli -- --verify-only\` rather than re-tagging.`,
+  );
+}
 
 const tags = await registry(`-/package/${encodeURIComponent(PKG)}/dist-tags`);
 const provenance = Boolean(after.dist?.attestations?.provenance);
@@ -294,4 +328,5 @@ if (smoke) {
   console.log(`  npx ${PKG}@${version} --version -> ${reported}`);
 }
 
-console.log(`\nReleased ${PKG}@${version}. https://www.npmjs.com/package/${PKG}/v/${version}`);
+const verb = verifyOnly ? 'Verified' : 'Released';
+console.log(`\n${verb} ${PKG}@${version}. https://www.npmjs.com/package/${PKG}/v/${version}`);

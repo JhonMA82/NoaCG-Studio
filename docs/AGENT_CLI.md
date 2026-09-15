@@ -621,6 +621,18 @@ no `--provenance` flag).
    ask its own version. `npm run release:cli -- --check` does the preflight and stops without
    touching anything.
 
+   **npm accepts a publish asynchronously, and the proof has to wait for it.** The publish PUT
+   comes back **202 Accepted** with "Your package is being processed and may take a few minutes to
+   become available", so the version is not readable the moment the run goes green. Measured
+   releasing 0.3.2 on 2026-09-15: the PUT returned 202 at 12:33:34 UTC, the script's single
+   immediate read answered 404, and the version appeared about two minutes later - so the release
+   printed `REFUSED - the run was green but @noacg/cli@0.3.2 is not on the registry` about a
+   publish that had worked perfectly. That sentence reads as a lost release and it was the
+   opposite, which is why the read now polls for six minutes before it refuses. The other half of
+   the fix is `npm run release:cli -- --verify-only`: it runs the post-publish proof against a
+   version that is ALREADY out and tags nothing, so a race, a dropped connection or a killed
+   terminal is answered by re-running the proof rather than by guessing from `npm view`.
+
    The publisher check is the one the 2026-09-09 failure needed. npm's stored organisation,
    repository and workflow filename cannot be read without an account credential, but the **last
    published version's provenance is public and names the repository and the workflow it accepted**,
