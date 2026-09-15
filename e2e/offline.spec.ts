@@ -9,7 +9,7 @@ import { chooseType, pickDesign } from './_browse';
 test('the editor loads and works with all CDNs blocked', async ({ page }) => {
   const cdnHits: string[] = [];
   // Kill anything that isn't the dev server — a CDN dependency would surface as a hang.
-  await page.route(/^https?:\/\/(?!localhost)/, (route) => {
+  await page.route(/^https?:\/\/(?!127\.0\.0\.1(?::|\/))/, (route) => {
     cdnHits.push(route.request().url());
     return route.abort();
   });
