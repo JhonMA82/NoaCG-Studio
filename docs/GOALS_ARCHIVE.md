@@ -1975,3 +1975,26 @@ get all of them in **one unified look**, landing together in one production.
   Cloud OAuth client and its credentials on the hosted project. The button is HIDDEN
   (`GOOGLE_SIGN_IN_ENABLED`) until then, so provisioning ends with flipping that flag. Owner
   asked for both 2026-08-24; step-by-step for each is written down, waiting to be executed.
+
+## Agent-authored machines: the skill teaches the contract (shipped 2026-09-15)
+
+The live-file item as it stood, verbatim:
+
+> - [ ] **Agent-authored machines - answered 2026-09-15, the skill not yet taught.** The rows
+>       that close it after the 25th: `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5.
+
+Closed by the CLI's 0.3.2 skill. The owner retired the 2026-08-08 "AI never authors machines"
+rule on 2026-08-27 and named three gates instead (`docs/CONTROL_PANEL_ROAD.md` §9); the gates
+were built, and the skill was the only thing left saying no - in one sentence, *"Authoring your
+own machine is a later capability."* `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §2c measured that
+sentence as the third road's actual gap.
+
+`cli/skill/noacg-graphic/references/contract.md` §5 now carries the five declarations, a worked
+machine with its `machine.controls` block, `calls` into the template's own JS, the reported-field
+pattern and the default-path contract; the loop in `SKILL.md` names the gates as steps 3 and 4.
+`cli/test/unit.test.mjs` pins all three gate words and the absence of the retired sentence, so a
+later rewrite that quietly drops a gate fails CI instead of failing on air.
+
+What this item did NOT close: an authored machine proven end to end through the agent road, and
+the bench's eight-event cap. Both are rows of
+`docs/work-specs/control-panel-any-graphic/spec.md` (AC-2 and AC-3).

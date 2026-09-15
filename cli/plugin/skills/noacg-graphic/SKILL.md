@@ -23,7 +23,9 @@ check it, and how it reaches the user's library. It does not tell you how it sho
      brings its STATE MACHINE and runtime - the scoreboard's flag/result events, a countdown's
      pause/resume. **A graphic that needs operator ACTIONS beyond Take/Update/Next/Out should
      START from its type**: a from-scratch graphic easily ends up carrying that state as extra
-     fields instead of buttons - valid, but the operator cannot DO what the brief meant.
+     fields instead of buttons - valid, but the operator cannot DO what the brief meant. When no
+     type fits, AUTHOR the machine yourself - `references/contract.md` §5 has the shape, a worked
+     example and the three gates below.
    - `noacg scaffold --type <id> --design neutral --out ./my-graphic` gives the type's fields,
      machine, controls and runtime on a plain spine (design it); `--design <id>` gives a proven
      catalog composition to restyle; `noacg scaffold --fields "Artist:text,Score:number,..."`
@@ -41,13 +43,20 @@ check it, and how it reaches the user's library. It does not tell you how it sho
    (`references/validator.md` says what each rule measures and how authors usually resolve it);
    open `shots/onair.png` and `shots/stress.png` and judge the frame yourself - the stress frame
    doubles every text and widens every number, which is what a real operator will type. Repeat
-   until clean and until you would air it.
-4. **Inspect the operator surface.** `noacg inspect ./my-graphic` prints the control panel NoaCG
-   derives from your graphic - one input per field, one button per action, the step semantics. If
-   the operator cannot change what they will need to change, add the field; if an action is
-   missing, it needs to be in the machine (a type's) or the graphic has no such action. Read the
-   printed BUTTONS against what the brief's operator must do live - a clean validate does not
-   prove the actions exist.
+   until clean and until you would air it. **If you authored a machine, this step carries two of
+   its three gates**: read the MACHINE findings (the dead-control one is a WARNING, and it is the
+   likeliest typo), and let the BENCH walk the arrows - it dispatches authored events and measures
+   each pose, so a state only a button can reach is measured too. It is not a complete walk and a
+   `bench-skipped` NOTE is not a pass; `references/contract.md` §5a says what it misses and what
+   you finish by hand.
+4. **Inspect the operator surface, and show it to the user.** `noacg inspect ./my-graphic` prints
+   the control panel NoaCG derives from your graphic - one input per field, one button per action,
+   the step semantics. If the operator cannot change what they will need to change, add the field;
+   if an action is missing, it belongs in the machine - a type's, or one you author
+   (`references/contract.md` §5). Read the printed BUTTONS against what the brief's operator must
+   do live - a clean validate does not prove the actions exist. **With an authored machine this is
+   the remaining gate, and it is the one with a human in it**: SHOW the user the buttons - "these
+   are your buttons" - so a person confirms the operator surface before it is saved.
 5. **Save.** `noacg save ./my-graphic --name "…"` validates once more and puts it in the user's
    NoaCG library, printing the `#/graphic/<id>` link (it opens at once; it is in Home → Graphics).
    It needs the user's scoped agent key on this machine: if `noacg whoami` says not logged in,
@@ -87,7 +96,8 @@ does not apply to a fixed broadcast frame.
 
 ## References (read the one you need)
 
-- `references/contract.md` - the SPX/NoaCG runtime + editability contract, with a worked example.
+- `references/contract.md` - the SPX/NoaCG runtime + editability contract, with a worked example;
+  §5 is the operator-action contract: authoring a machine, its three gates and a worked machine.
 - `references/package.md` - the package anatomy (sources, generated half, `v_noacg`, OGraf).
 - `references/validator.md` - every finding the validator can raise: what it measures, how
   authors resolve it.
