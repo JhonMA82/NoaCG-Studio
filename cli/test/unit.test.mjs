@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { test } from 'node:test';
 
+import { readDoc, skillDir } from '../dist/commands/docs.js';
 import { flagBool, flagList, flagNumber, flagString, parseArgs, table, UsageError } from '../dist/output.js';
 import { isGeneratedFile, packageEntries, readPackageInput, removeStaleGenerated, unzipTo, zipDirectory } from '../dist/workspace.js';
 import { AGENT_KEY_PREFIX, credentialsPath, displayPrefix, forgetKey, isAgentKey, resolveKey, storeKey } from '../dist/auth.js';
@@ -549,4 +550,51 @@ test('every caspar sub-command except send refuses a stray word', async () => {
   const parsed = JSON.parse(sent.stdout);
   assert.equal(parsed.command, 'INFO 1', 'send keeps every word it was given');
   assert.doesNotMatch(parsed.error ?? '', /outside its flags/);
+});
+
+// ---------------------------------------------------------------- the shipped skill text
+//
+// The skill is the only thing standing between an agent and a graphic that carries its state in
+// FIELDS instead of buttons. It is plain markdown with no compiler behind it, so the two claims
+// below are pinned here or nowhere.
+//
+// WHY THESE THREE and not a spell-check of the whole file: authoring a machine was opened on
+// 2026-08-27 on the condition of three gates (docs/CONTROL_PANEL_ROAD.md §9), and the gates ARE
+// the safety model - there is no other check that an authored machine is one a human wanted.
+// A rewrite that drops a gate from the text drops it from practice, silently, because nothing
+// else names them. Rewording a gate is fine and should update this test deliberately; losing one
+// should fail.
+
+test('the shipped skill names all three gates for an authored machine', async () => {
+  const contract = await readDoc('contract'); // the `noacg docs contract` route an agent reads
+  const skill = await fs.readFile(path.join(skillDir(), 'SKILL.md'), 'utf8');
+
+  const gates = [
+    { name: 'validate, with the machine checks', re: /noacg validate.{0,60}machine error/is },
+    { name: 'inspect, and SHOW the user the buttons', re: /noacg inspect.{0,80}SHOW the user the buttons/is },
+    { name: 'the bench walks every operator arrow', re: /bench walks every operator arrow/i },
+  ];
+  for (const gate of gates) {
+    assert.match(contract, gate.re, `references/contract.md no longer names the gate: ${gate.name}`);
+  }
+
+  // The loop is where an agent actually works, so the gates have to be STEPS, not a reference
+  // it may never open. Gate 2 is the one with a human in it and the one a loop can silently
+  // skip, so it is pinned by its own words.
+  assert.match(skill, /machine checks/i, 'the loop does not say validate runs the machine checks');
+  assert.match(skill, /SHOW the user the buttons/, 'the loop does not tell the agent to show the user the buttons');
+  assert.match(skill, /bench/i, 'the loop does not mention the bench');
+  assert.match(skill, /Read the printed BUTTONS against/i, 'step 4 lost its read-against-the-brief instruction');
+});
+
+test('the skill no longer calls an authored machine a later capability', async () => {
+  // The sentence this replaces - "Authoring your own machine is a later capability." - was the
+  // measured gap (docs/CONTROL_PANEL_ANY_GRAPHIC.md §2c): everything under it already worked, and
+  // the skill was the only thing still saying no. If it comes back, the capability is closed
+  // again no matter what the rest of the file says.
+  for (const topic of ['contract', 'control']) {
+    assert.doesNotMatch(await readDoc(topic), /later capability/i, `references/${topic}.md still defers authoring a machine`);
+  }
+  const skill = await fs.readFile(path.join(skillDir(), 'SKILL.md'), 'utf8');
+  assert.doesNotMatch(skill, /later capability/i, 'SKILL.md still defers authoring a machine');
 });

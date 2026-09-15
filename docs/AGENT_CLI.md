@@ -385,6 +385,19 @@ arm. With a design skill active, NoaCG's rules bind only for correctness, editab
 compatibility and playout; the look is the agent's; page/responsive/mobile guidance does not
 apply to a fixed 1920x1080 frame.
 
+**Since 0.3.2 the skill also teaches an AUTHORED machine** (`references/contract.md` §5), which
+closes the gap `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §2c measured: the gates had been armed since
+2026-08-27 and the skill was the only thing still calling it a later capability. A type's machine
+stays the default and the first thing §5 says. When none fits, §5 gives the five declarations
+(fields with kinds, the machine, `machine.controls`, `calls` into the template's own JS outside
+the marked region, reported fields a data-only host writes), a worked machine with its controls
+block, and the three gates as steps 3 and 4 of the loop - validate with the machine checks and the
+bench, then `inspect` with the buttons SHOWN to the user. The gate words are pinned by
+`cli/test/unit.test.mjs`, which CI runs, so a rewrite that drops one fails there rather than on
+air.
+The SPX definition's `steps` is the author's to keep at `defaultPath.length - 1`: nothing
+recomputes it for a package edited on disk, and the OGraf `stepCount` is generated from it.
+
 The canonical source is the one under `cli/skill/`; the in-repo dogfooding adapters
 (`.agent-workflows/noacg-graphic.md`, `.claude/skills/noacg-graphic/`, `.agents/skills/noacg-graphic/`)
 and every shipped copy (npm, the Claude Code plugin, the Codex skill) are generated from it by
