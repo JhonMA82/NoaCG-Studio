@@ -10,6 +10,12 @@ artefacts and are no longer in the repository), and the four INTERACTIVE bluepri
 | Hosted control page | `src/components/HostedControlPage.tsx` | hosted log |
 | Exported controller | `src/control/productionControllerHtml.ts` | the bundled local relay |
 
+**One deliberate difference, ruled 2026-09-15** (`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6f): the
+production control profile's ARRANGE renders on all three, and its COMBINE renders on the two
+hosted pages only. The exported controller says in one line that a production's combined
+controls run from its hosted page, rather than carrying a second sequencer in vanilla JS. Shared
+production data likewise stays on the hosted pages; the exported controller carries no tree.
+
 Before this contract they were three different products: the exported one had PREVIEW/PROGRAM
 monitors and a blue accent, the hosted one had no monitors at all and stacked one tall card per
 graphic, the in-app one had a single preview and reordered layers with arrows. A student who

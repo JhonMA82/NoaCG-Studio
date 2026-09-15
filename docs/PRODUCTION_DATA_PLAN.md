@@ -208,6 +208,11 @@ verified surface across **three** renderers (two React, one vanilla in
 **Phase 1:** data-scoped steppers live in the Data panel. The field-scoped stepper stays for
 unbound fields, unchanged. **Converge in Phase 3**, once bindings have run a real show.
 
+> **Phase 3 is scheduled, owner 2026-09-15**: `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5 rows 9 and 10
+> - a stepper or `adjust` on a bound field patches the tree on the in-app and hosted pages (the
+> exported controller carries no tree and keeps the field stepper), and a bind-all-by-title button
+> accepts every unambiguous suggestion the bindings table already computes.
+
 ---
 
 ## 3. Phase 1 scope - the Manual Data Playground
