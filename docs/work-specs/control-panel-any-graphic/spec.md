@@ -76,7 +76,8 @@ Scenario: unit tests on the model beside `src/model/shows.ts`; a publish round t
 
 ### AC-5: ARRANGE renders on all three dashboard deployments and the generated panel returns on delete
 
-Order, section, shown name, hidden and pinned apply to the ⚡ actions block and the cue editor on
+Order, section, shown name, hidden and pinned apply to the ⚡ actions block (never to the cue
+editor's field bands, which stay derived from titles under docs/PLAYOUT_DASHBOARD.md §2e) on
 the in-app production page, the hosted control page and the exported production controller. A
 hidden control is still guarded by the machine and a renamed one still greys by the same table.
 The "Controls" panel on the production page authors it with drag order, hide, rename and pin.

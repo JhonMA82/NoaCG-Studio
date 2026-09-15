@@ -5,6 +5,7 @@ import { useTemplateStore } from '../../store/templateStore';
 import {
   addGraphicToShow,
   addShowCue,
+  deleteShowProfile,
   duplicateLayers,
   graphicLayer,
   loadShows,
@@ -19,6 +20,7 @@ import {
   setShowAudienceSlugs,
   setShowHostedSlug,
   setShowOutputSlug,
+  setShowProfile,
   updateShowCue,
   type Show,
   type ShowCue,
@@ -38,12 +40,15 @@ import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
 import { revealCue, stepSelection, usePlayoutVerbKeys, type PlayoutVerb } from '../playoutKeys';
 import { cueDataRows, hasSideFields, nextRow, rowsForSide } from '../../control/cueData';
 import { groupCueFields, groupHeading } from '../../control/cueFieldGroups';
+import { readPublishedProfile, readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
+import ProductionControlsPanel from './ProductionControlsPanel';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
 import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import {
   adjustWords,
-  controlSections,
+  arrangeControls,
+  arrangeFor,
   eventButtons,
   eventLegality,
   eventPayload,
@@ -53,6 +58,7 @@ import {
   machineStateGroups,
   machineStateNames,
   movedKeys,
+  type ArrangedControl,
   type ControlButton,
 } from '../../control/controlModel';
 import {
@@ -1506,9 +1512,35 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // only while the selected cue's graphic is up on its layer. ──
   const machineState = selectedGraphic ? machineStates[selectedGraphic] ?? null : null;
   const stateLabel = formatMachineState(stateNames, machineState);
-  // Grouped by the SHARED helper (controlModel `controlSections`), so the hosted page's ⚡ block
-  // and this one can never sort the author's sections differently.
-  const eventSections = controlSections(events);
+  /** What the stored profile turned out to be. READ-ONLY is a profile a newer build wrote: every
+   *  write door refuses it, so the authoring panel has to say so rather than offer controls that
+   *  would quietly do nothing. */
+  const profileRead = readShowProfile(show.profile);
+  /** The profile this build may RENDER from — null both for "none" and for one it cannot read,
+   *  because a panel arranged by rules this build does not understand is worse than the generated
+   *  one. The ⚡ block does not need this: `arrangeFor` applies the same gate itself. The Controls
+   *  panel does, because whether there is a profile to DELETE is a different question from what
+   *  it says. */
+  const renderProfile = readPublishedProfile(show.profile);
+  /** Write ONE graphic's arrangement. `withGraphicArrange` owns the key guard and the canonical
+   *  form; `setShowProfile` owns the read-only refusal, and reports it rather than swallowing it
+   *  (the surface that showed "Saved" over a write that never happened is the worse bug). */
+  const writeArrange = (graphic: string, entries: Record<string, ArrangeEntry>) => {
+    const { shows: next, refused } = setShowProfile(id, withGraphicArrange(show.profile, graphic, entries));
+    if (refused) setNote('This production’s control profile was written by a newer build, so it cannot be changed here.');
+    else setShows(next);
+  };
+  const deleteProfile = () => {
+    const { shows: next, refused } = deleteShowProfile(id);
+    if (refused) setNote('This production’s control profile was written by a newer build, so it cannot be deleted here.');
+    else setShows(next);
+  };
+
+  // Grouped and ordered by the SHARED helper (controlModel `arrangeControls`), so the hosted
+  // page's ⚡ block, the exported controller's and this one can never sort the author's sections
+  // or this production's arrangement differently. With no profile it is the generated panel,
+  // byte for byte as it was before ARRANGE existed.
+  const arranged = arrangeControls(events, arrangeFor(show.profile, selectedGraphic));
 
   /** The data that belongs to AIR: the cue live on the selected layer, draft included when it
    *  is also the one being edited. Events and snaps act on the live graphic, so their values
@@ -1564,6 +1596,48 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         ],
       ],
       'Snap',
+    );
+  };
+
+  /** One ⚡ button. Written once because the block draws the same button in three places now —
+   *  pinned above the fold, inside its section, and under the collapsed "More" — and three copies
+   *  of a tooltip this careful would drift apart by the second edit. The DECLARATION decides
+   *  everything the press does; the arrangement decides only the word and where it sits. */
+  const actionButton = ({ button: b, label }: ArrangedControl) => {
+    const legal = isEventLegal(legality, b.event, machineState);
+    // Empty when everything the press moves is a hidden holder, which is the reported-field
+    // pattern: the hint then falls through to the payload.
+    const moved = adjustWords(b, (key) => descriptors.find((d) => d.key === key)?.label);
+    return (
+      <button
+        key={b.event}
+        className={`pd-action${b.destructive ? ' destructive' : ''}`}
+        disabled={!selectedLayerLive || !legal}
+        title={
+          !selectedLayerLive
+            ? 'The graphic is not on air — Take the cue first'
+            : !legal
+              ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
+              : moved
+                ? // An adjust press moves a figure WITH the event (a goal's +1), counted from
+                  // what air shows; a `set` press puts one back to a declared figure (a reset);
+                  // an `add` press puts a line on a list - the hint says which, and to what.
+                  `Fires "${b.event}" on air and moves ${moved} with it`
+                : b.payload?.length
+                  ? // The payload in the OPERATOR'S words, not as `f7`. This is what makes an
+                    // action self-explanatory: the acceptance pass could not tell what "Show
+                    // audience result" would do, and the answer is "it shows the Audience results
+                    // field, which you type above" — a field id says none of that.
+                    `Fires "${b.event}" on air, carrying this cue's ${b.payload
+                      .map((key) => descriptors.find((d) => d.key === key)?.label ?? key)
+                      .join(', ')}`
+                  : `Fires "${b.event}" on air`
+        }
+        onClick={() => void fireEvent(b)}
+        data-testid={`cue-action-${b.event}`}
+      >
+        ⚡ {label}
+      </button>
     );
   };
 
@@ -2123,52 +2197,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               they carry values from this cue, so type them above first.
               {stateGroups.length > 0 && ' “Snap to state…” is for RECOVERY: it jumps straight to a state with no animation.'}
             </p>
-            {eventSections.map(([section, btns]) => (
+            {/* PINNED, above the fold and above the section headings: the handful this show
+                actually presses. Unsectioned on purpose — a pinned row that carried headings
+                would be the sections again, one fold higher. */}
+            {arranged.pinned.length > 0 && (
+              <div className="pd-actions-row pd-actions-pinned" data-testid="cue-actions-pinned">
+                {arranged.pinned.map(actionButton)}
+              </div>
+            )}
+            {arranged.sections.map(([section, controls]) => (
               <div key={section} className="pd-actions-section">
-                {(eventSections.length > 1 || section !== 'Actions') && <h4>{section}</h4>}
-                <div className="pd-actions-row">
-                  {btns.map((b) => {
-                    const legal = isEventLegal(legality, b.event, machineState);
-                    // Empty when everything the press moves is a hidden holder, which is the
-                    // reported-field pattern: the hint then falls through to the payload.
-                    const moved = adjustWords(b, (key) => descriptors.find((d) => d.key === key)?.label);
-                    return (
-                      <button
-                        key={b.event}
-                        className={`pd-action${b.destructive ? ' destructive' : ''}`}
-                        disabled={!selectedLayerLive || !legal}
-                        title={
-                          !selectedLayerLive
-                            ? 'The graphic is not on air — Take the cue first'
-                            : !legal
-                              ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
-                              : moved
-                                ? // An adjust press moves a figure WITH the event (a goal's +1),
-                                  // counted from what air shows; a `set` press puts one back to a
-                                  // declared figure (a reset); an `add` press puts a line on a
-                                  // list - the hint says which, and to what.
-                                  `Fires "${b.event}" on air and moves ${moved} with it`
-                              : b.payload?.length
-                                ? // The payload in the OPERATOR'S words, not as `f7`. This is
-                                  // what makes an action self-explanatory: the acceptance pass
-                                  // could not tell what "Show audience result" would do, and
-                                  // the answer is "it shows the Audience results field, which
-                                  // you type above" — a field id says none of that.
-                                  `Fires "${b.event}" on air, carrying this cue's ${b.payload
-                                    .map((key) => descriptors.find((d) => d.key === key)?.label ?? key)
-                                    .join(', ')}`
-                                : `Fires "${b.event}" on air`
-                        }
-                        onClick={() => void fireEvent(b)}
-                        data-testid={`cue-action-${b.event}`}
-                      >
-                        ⚡ {b.label}
-                      </button>
-                    );
-                  })}
-                </div>
+                {(arranged.sections.length > 1 || section !== 'Actions') && <h4>{section}</h4>}
+                <div className="pd-actions-row">{controls.map(actionButton)}</div>
               </div>
             ))}
+            {/* HIDDEN, behind one disclosure. A production hiding a control is saying "not in my
+                way", which is not the same as "gone": the machine still accepts it, and an
+                operator who needs it mid-show must not have to open the authoring panel. */}
+            {arranged.more.length > 0 && (
+              <details className="pd-actions-more" data-testid="cue-actions-more">
+                <summary>More ({arranged.more.length})</summary>
+                <div className="pd-actions-row">{arranged.more.map(actionButton)}</div>
+              </details>
+            )}
           </div>
         )}
 
@@ -2221,6 +2272,24 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               })}
             </div>
           </div>
+        )}
+
+        {/* THE CONTROLS PANEL — where this production arranges what the ⚡ block above shows
+            (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e). It sits directly under the block it
+            authors, collapsed, so a change lands in front of the eye that made it. */}
+        {events.length > 0 && selectedGraphic && (
+          <ProductionControlsPanel
+            // Keyed on the graphic: the panel holds a half-typed rename and a drag in its own
+            // state, and stepping to another graphic's cue must not carry either across - two
+            // graphics can declare a control with the same id, so the draft would land on it.
+            key={selectedGraphic}
+            graphic={selectedGraphic}
+            buttons={events}
+            profile={renderProfile}
+            readOnly={profileRead.status === 'read-only'}
+            onArrange={(entries) => writeArrange(selectedGraphic, entries)}
+            onDeleteProfile={deleteProfile}
+          />
         )}
 
         <ActionLog entries={wireLog} />

@@ -10,6 +10,7 @@
 
 import { getSupabase } from '../backend/supabase';
 import { graphicLayer, type Show } from '../model/shows';
+import { readPublishedProfile, type ShowProfile } from '../model/profile';
 import { loadGraphics, entriesForSavedGraphic, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { Resolution, SpxField, SpxTemplate } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
@@ -156,6 +157,17 @@ export interface ResolvedControlShow {
   /** The renderer's last heartbeat — staleness is the "renderer connected" indicator. */
   outputSeenAt: string | null;
   liveCue: LiveCueMap;
+  /**
+   * The production's control profile, or null for "render the generated panel" — which covers
+   * both no profile and a profile written by a newer build (`readPublishedProfile` in
+   * `model/profile.ts` says why both degrade the same way).
+   *
+   * `control_show_by_slug` returns the column from migration 0059 on. An instance that has not
+   * applied 0059 returns no such key, `readPublishedProfile` reads that as no profile, and the
+   * hosted page renders the generated panel — the same degradation deleting a profile gives, so
+   * nothing here has to know which migrations an instance is on.
+   */
+  profile: ShowProfile | null;
 }
 
 /** What the output renderer resolves — payload + live snapshot, never panel/staged/slug. */
@@ -318,22 +330,42 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // open/mode/prompt/round/rev, all of it live operator state — from being reset by a
   // re-publish mid-show. A whole-row write here would close the audience door every time
   // somebody fixed a typo in a cue.
-  const { error } = await sb.from('control_shows').upsert(
-    {
-      id: show.id,
-      title: show.name,
-      panel: buildPanelSpec(show, library),
-      output,
-      // The production-data BINDINGS travel with the publish because they are authored state,
-      // like the panel and the payload (docs/PRODUCTION_DATA_PLAN.md §5). The server-side patch
-      // RPC resolves against this column, so a production published without it accepts data
-      // and moves no graphic. The live TREE is deliberately not sent: it is runtime state and
-      // the server's own column is its authority once published.
-      bindings: show.bindings ?? {},
-    },
-    { onConflict: 'id' },
-  );
-  if (error) throw new Error(error.message);
+  const published = {
+    id: show.id,
+    title: show.name,
+    panel: buildPanelSpec(show, library),
+    output,
+    // The production-data BINDINGS travel with the publish because they are authored state,
+    // like the panel and the payload (docs/PRODUCTION_DATA_PLAN.md §5). The server-side patch
+    // RPC resolves against this column, so a production published without it accepts data
+    // and moves no graphic. The live TREE is deliberately not sent: it is runtime state and
+    // the server's own column is its authority once published.
+    bindings: show.bindings ?? {},
+    // The control PROFILE travels at publish for the same reason the bindings do: how this
+    // production arranges and combines its controls is AUTHORED state, like the panel and the
+    // payload, and the hosted surfaces must not have to guess it (migration 0058,
+    // docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e). An empty object rather than null, on the 0048
+    // precedent, so a production published without one reads as "no profile" instead of being
+    // null-checked at every use. The profile carries its own `v` inside the jsonb, so the
+    // column never needs a version of its own.
+    profile: show.profile ?? {},
+  };
+  const { error } = await sb.from('control_shows').upsert(published, { onConflict: 'id' });
+  // AN INSTANCE THAT HAS NOT RUN 0058 MUST STILL BE ABLE TO PUBLISH. PostgREST refuses the WHOLE
+  // upsert when one named column is not in its schema cache, so naming `profile` unconditionally
+  // would take the panel, the payload and the bindings down with it — every publish failing for
+  // the window between this bundle going out and `db:push` applying the migration, and forever on
+  // a self-hosted instance that is behind. This is the same policy the audience read-back below
+  // already follows, stated there as "publishing a production must not start failing because an
+  // instance has not run the latest migration", and the retry is the cheapest way to hold it: one
+  // extra round trip, only on the instances that need it, and only until they are migrated.
+  if (error) {
+    const { profile: _dropped, ...withoutProfile } = published;
+    const retry = await sb.from('control_shows').upsert(withoutProfile, { onConflict: 'id' });
+    // The retry failing means the error was never about this column — report the ORIGINAL, which
+    // is the one that describes what is actually wrong.
+    if (retry.error) throw new Error(error.message);
+  }
   // The prune result is deliberately unread (best-effort retention; the 0029 owner DELETE
   // policy may not exist on an older instance) — run it beside the slug read-back.
   const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
@@ -495,8 +527,10 @@ export async function controlShowBySlug(slug: string): Promise<ResolvedControlSh
     output: readOutputPayload(row.output),
     outputSeenAt: (row.output_seen_at as string | null) ?? null,
     liveCue: readLiveCue(row.live_cue),
+    profile: readPublishedProfile(row.profile),
   };
 }
+
 
 /**
  * Normalize the row-persisted cue snapshot into the per-layer map (docs/CLOUD_PLAYOUT.md §4).

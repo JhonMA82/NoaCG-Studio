@@ -190,6 +190,20 @@ panel is built by the same `renderPanelPage`. `export/showExport.ts buildShowZip
 Starter folder per graphic + one `show_controlpanel.html`; a PUBLISHED show also bakes the
 hosted receiver into each graphic at export (the saved snapshot stays clean).
 
+`Show.profile` (`model/profile.ts`, docs/CONTROL_PANEL_ANY_GRAPHIC.md §6) is the production's
+CONTROL PROFILE - how this production presents the controls its graphics already declare, additive
+optional beside `bindings`. Two primitives and no third: ARRANGE is order, section, shown name,
+hidden and pinned, per pool graphic per control id; COMBINE is a named control made of ordered
+steps, where a step is exactly one operator event on a graphic, one lifecycle verb on a cue, or one
+data patch of stated field values, carrying at most an `after` in seconds and an `ask` with a
+default. A profile may never invent an event or carry a condition, a variable, a loop, a wait or a
+clock, and that fence is a mechanism rather than a paragraph: `validateShowProfile` refuses any
+step key it does not know by name. It is pinned at publish on `control_shows.profile` (migration
+0058, jsonb, default `'{}'`), so a production published by an older build reads as no profile. The
+profile carries its own `v` inside itself, so adding it never bumped `Show.version`, and
+`readShowProfile` degrades a version this build does not know to READ-ONLY rather than erasing it.
+Deleting it is one action (`deleteShowProfile`) and restores the generated panel everywhere.
+
 ## Hosted control (migration 0008)
 
 - **The INSERT is the send.** `control_events` is the append-only command log (DB-ordered);
@@ -293,3 +307,19 @@ stub). All local-first; cloud mirrors for signed-in users.
    nothing crashes, the graphic stays consistent.
 7. Sync: save a show + a video signed-in on device A; device B pulls both; delete on B;
    A converges (tombstones propagate; video tombstone body is a stub).
+8. Profile (migration 0058): publish a production carrying a `Show.profile` → the `control_shows`
+   row's `profile` column holds the canonical JSON; publish one without → the column reads `{}`.
+   The offline suite pins the READ side of that column and the record round trip
+   (`e2e/hosted-control.spec.ts`); only a real backend can show the write, because
+   `publishControlShow` returns before its upsert when there is no Supabase.
+9. ARRANGE on the hosted page (migration 0059): on the production page's Controls panel pin one
+   control, hide and rename another, publish, then open `?control=<slug>` signed out. The pinned
+   one is above the fold, the renamed one is under "More" wearing the production's word, and it
+   still greys and un-greys with the machine exactly as the visible ones do. Delete the profile,
+   publish again → the generated panel is back. This is the ONE part of AC-5 no offline spec can
+   see: mounting the hosted page needs a configured backend, so the in-app and exported
+   deployments are pinned in the suite and this one is pinned here.
+   Also check 0059 itself applied: an instance still on 0058 returns no `profile` key from
+   `control_show_by_slug`, which reads as "no profile" and renders the generated panel — correct,
+   but indistinguishable from a production that has none, so confirm the migration before
+   concluding the arrangement did not travel.

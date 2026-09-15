@@ -5,6 +5,8 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { orphanProcesses } from './e2e-runs.mjs';
 
 import { RECLAIMABLE, RECLAIM_AFTER_MS, classifyForReclaim, describeReclaim, planReclaim } from './ram-reclaim.mjs';
 
@@ -88,4 +90,23 @@ test('live browser work anywhere on the machine stops the reclaim dead', () => {
   // Closing a session is a judgement about work in flight. The reclaimer says who, never does it.
   assert.match(text, /overflow-sweep/);
   assert.match(text, /nobody's to close but its own session/);
+});
+
+test('idle suspicion never confers reclaim authority', () => {
+  const suspect = { pid: 42, kind: 'run', status: 'suspected-idle', cpuDeltaSeconds: 0 };
+  assert.equal(classifyForReclaim(suspect).action, 'keep');
+  const plan = planReclaim({ starvedSince: 1, now: RECLAIM_AFTER_MS + 1,
+    candidates: [suspect, { pid: 43, kind: 'headless-browser-shell' }], holders: [suspect] });
+  assert.deepEqual(plan.kill, []);
+  assert.equal(plan.keep.length, 2);
+});
+
+test('the actual runner candidate adapter never promotes advisory holder evidence', () => {
+  // Invoke the production adapter without starting jobs.mjs's live runner/CLI side effects.
+  const source = readFileSync(new URL('./jobs.mjs', import.meta.url), 'utf8');
+  const body = source.match(/function reclaimCandidates\(\) \{[\s\S]*?\n\}/)[0];
+  const candidateAdapter = new Function('orphanProcesses', 'codexDelegations', `${body}; return reclaimCandidates();`);
+  const nodes = [{ pid: 42, command: 'node scripts/l3-sweep.mjs', status: 'suspected-idle', cpuSeconds: 0 }];
+  const result = candidateAdapter(() => orphanProcesses({ nodes, shells: [{ pid: 43, mb: 10 }], table: [] }), () => []);
+  assert.deepEqual(result, []);
 });

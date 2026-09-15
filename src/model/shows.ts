@@ -9,6 +9,8 @@ import type { SpxTemplate } from './types';
 import type { SavedGraphic } from './packets';
 import type { ProjectBrand } from './brand';
 import type { JsonObject, ProductionBindings } from './productionData';
+import type { ShowProfile } from './profile';
+import { readShowProfile, serializeShowProfile } from './profile';
 import { durable } from './durableStore';
 import { uuid } from './id';
 
@@ -111,6 +113,22 @@ export interface Show {
    *  value from the live tree at Take and on every change, never from a stored cue value
    *  (docs/PRODUCTION_DATA_PLAN.md §2.7). ADDITIVE OPTIONAL. */
   bindings?: ProductionBindings;
+  /**
+   * The production's CONTROL PROFILE (model/profile.ts; docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e) —
+   * how THIS production arranges and combines the controls its graphics already declare. Two
+   * primitives and no third: ARRANGE (order, section, shown name, hidden, pinned, per pool
+   * graphic per control id) and COMBINE (named controls made of ordered steps).
+   *
+   * ADDITIVE OPTIONAL on the same precedent as `bindings` — an older build reads and rewrites the
+   * record untouched, and ABSENT means no profile, which is the generated panel exactly as the
+   * machines declare it. It carries its OWN `v` inside itself, so adding it never bumps
+   * `Show.version`.
+   *
+   * ALWAYS read it through `readShowProfile`, never straight off the record: that is what turns a
+   * profile written by a newer build into READ-ONLY rather than into a crash or, worse, into
+   * silent data loss the first time an older build saves the show.
+   */
+  profile?: ShowProfile;
   /**
    * Run a vote board's percentage FIGURES live while the vote is open, instead of holding them
    * for Show result (the owner's ruling, 2026-08-30 — see setShowPollLiveFigures below). It
@@ -732,6 +750,63 @@ export function setShowPollLiveFigures(showId: string, on: boolean): Show[] {
     else delete show.pollLiveFigures;
     return true;
   });
+}
+
+/**
+ * Write the production's control profile, in its CANONICAL form (model/profile.ts).
+ *
+ * It canonicalizes on the way in rather than trusting the caller, so two authoring gestures that
+ * mean the same thing leave the same bytes on the record — which is what keeps a sync layer from
+ * seeing a change where an operator made none.
+ *
+ * IT REFUSES TO OVERWRITE A PROFILE THIS BUILD CANNOT READ, and that refusal is the whole reason
+ * the setter lives here rather than in whichever surface authors profiles. "An unknown version
+ * degrades to read-only" is only a guarantee if there is ONE write path that enforces it; left to
+ * a UI it would be a comment, and the first build to open a newer production would quietly erase
+ * a profile it did not understand. Returns the shows unchanged in that case.
+ */
+export function setShowProfile(showId: string, profile: ShowProfile): { shows: Show[]; refused: boolean } {
+  let refused = false;
+  const shows = patchShow(showId, (show) => {
+    if (readShowProfile(show.profile).status === 'read-only') {
+      refused = true;
+      return false;
+    }
+    show.profile = serializeShowProfile(profile);
+    return true;
+  });
+  // The refusal is REPORTED rather than swallowed, on the `createShowNamedChecked` precedent: a
+  // surface that showed "Saved" over a write that never happened is the worse half of this bug.
+  return { shows, refused };
+}
+
+/**
+ * Delete the production's control profile — ONE action, which is the contract the road reserved
+ * (docs/CONTROL_PANEL_ROAD.md §3): removing the profile must always leave the COMPLETE generated
+ * panel, which stays the recovery surface and the default on every surface that renders one.
+ *
+ * The key goes entirely rather than becoming an empty profile, so "no profile" is one state: a
+ * production that never had one and a production whose profile was deleted are byte-identical.
+ *
+ * IT REFUSES A PROFILE THIS BUILD CANNOT READ, exactly as `setShowProfile` does, and for a reason
+ * that is easy to miss: on an older build a newer profile is INVISIBLE - every surface reads it as
+ * null and renders the generated panel - so "delete the profile" would be an operator removing
+ * something they were never shown, and the newer build's bytes would be gone for good. Read-only
+ * has to hold at both doors or it holds at neither. Removing such a profile is done on a build
+ * that can read it.
+ */
+export function deleteShowProfile(showId: string): { shows: Show[]; refused: boolean } {
+  let refused = false;
+  const shows = patchShow(showId, (show) => {
+    if (!show.profile) return false;
+    if (readShowProfile(show.profile).status === 'read-only') {
+      refused = true;
+      return false;
+    }
+    delete show.profile;
+    return true;
+  });
+  return { shows, refused };
 }
 
 /** Set (or clear, with undefined) the production's unified look. */
