@@ -700,7 +700,10 @@ export default function GraphicControlPage({ id }: { id: string }) {
                           title={
                             !legal
                               ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
-                              : movedKeys(b).length > 0
+                              : // Empty when everything the press moves is a hidden holder (the
+                                // reported-field pattern), and the payload wording below is then
+                                // what the operator needed anyway.
+                                adjustWords(b)
                                 ? `Fires "${b.event}" and moves ${adjustWords(b)} with it`
                                 : b.payload?.length
                                   ? active

@@ -223,7 +223,25 @@
 @media (min-width: 1366px) {
   .pd-stagehead {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    /* THE VERB COLUMN HAS A FLOOR, AND THE MONITORS GIVE WAY TO IT. `auto minmax(0, 1fr)` let
+       the monitors take their whole max-content width first and left the verbs whatever was
+       over, which on a TALL window is nothing: `--pd-monitor-h` grows with the viewport height
+       while the column it sits in does not get any wider, so at 1440×900 the verb column
+       measured 27px and at 1600×1000 it measured 0. The five buttons then overflowed their own
+       track and OVERLAPPED IN PAIRS - Update painted on top of Re-take, Out on top of Next -
+       so a click on » Next landed on ■ Out and took the graphic off air instead of advancing
+       it. Measured on the production page, 2026-09-15: broken at 1440×900 (18px overlap) and
+       1600×1000 (28px), fine at 1366×768, 1600×900 and 1920×1080, which is why the ratified
+       frames never showed it.
+
+       The floor is 186px, two buttons wide, and the monitors shrink into it - which is the
+       owner's own tie-breaker where the two compete: "I would rather have the controls big
+       than the monitors too big" (2026-08-21). `.pd-frame` takes its height from its width, so
+       a narrower monitor is a smaller picture and nothing about its shape changes. 1366×768
+       and 1600×900 are untouched, because the verbs were already wider than the floor there;
+       1920×1080 gives the monitors' pair up 25px (161px of verbs became 186px), which is the
+       whole cost of the fix on a frame that was not broken. */
+    grid-template-columns: minmax(0, auto) minmax(186px, 1fr);
     /* STRETCH, not `end`: the monitors set the row's height and the verb column takes exactly
        that. Left to its own height the stack ran TALLER than the monitors (six 44px buttons
        plus the chip is 310px against 245px of monitor at 1536×814), which made the sticky head

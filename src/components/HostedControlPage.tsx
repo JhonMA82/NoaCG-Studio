@@ -1090,7 +1090,10 @@ function HostedCueEditor({
                       ]);
                     }}
                     title={
-                      movedKeys(e).length > 0
+                      // Empty when everything the press moves is a hidden holder (the
+                      // reported-field pattern) - a holder has no operator word, so it gets no
+                      // sentence rather than its field id.
+                      adjustWords(e, (key) => descriptorByKey.get(key)?.label)
                         ? `Fires "${e.event}" and moves ${adjustWords(e, (key) => descriptorByKey.get(key)?.label)} with it — only where the graph allows it`
                         : `Fires "${e.event}" — only where the graph allows it`
                     }

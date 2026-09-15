@@ -200,7 +200,11 @@ const MAP = [
   // The OUTPUT EMBED is an export file about the cloud output, so it belongs to the production
   // suite rather than to the package specs the rule above lists (rules union, never shadow).
   [/^src\/export\/outputEmbed/, ['productions.spec.ts']],
-  [/^src\/control\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'exports.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'snap-recovery.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'production-gate.spec.ts']],
+  // `agent-made-graphics.spec.ts` rides along because it is the only spec whose ⚡ block comes
+  // from a machine NOBODY here wrote: the derived panel is `controlModel.ts`'s answer to code an
+  // agent authored, and a change that narrowed it to the studio's own machines would leave every
+  // other spec in this row green.
+  [/^src\/control\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'exports.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'snap-recovery.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'production-gate.spec.ts', 'agent-made-graphics.spec.ts']],
   // The library->air gate (docs/AGENT_SAVE.md): publishControlShow and the production builders
   // refuse an invalid graphic. src/validation is CORE, so a change to the gate itself runs the
   // full suite; this line is for the two call sites and the dialog that shows the verdict.
@@ -397,7 +401,7 @@ const MAP = [
   // download): one spec drives export -> re-import through the real UI, plus the shipped
   // Fight Night pack's install (rundown order included) - so the format owner and both UI
   // ends select it, unioning with the pack-import rules below.
-  [/^src\/(packs\/|components\/home\/(ProductionExportDialog|sections\/ProductionsSection))/, ['production-pack.spec.ts']],
+  [/^src\/(packs\/|components\/home\/(ProductionExportDialog|sections\/ProductionsSection))/, ['production-pack.spec.ts', 'agent-made-graphics.spec.ts']],
   // The pack CONTENT and its builder: the sample-import test drives the built file end to
   // end (import gate included), so editing a pack graphic or the assembler selects it.
   [/^(packs\/|public\/packs\/|scripts\/build-production-pack)/, ['production-pack.spec.ts', 'pack-import.spec.ts']],
@@ -409,7 +413,7 @@ const MAP = [
   // reports one, so that spec is the only thing that would catch it going quiet. It is also the
   // only one, which is why it is worth saying twice: a FOCUS run drops it, so a change to that
   // warning is not verified by `test:e2e:focus` - use the full affected plan for it.
-  [/^src\/components\/(home|save)\//, ['motion-presets.spec.ts', 'library.spec.ts', 'library-bulk.spec.ts', 'library-productions.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts', 'wizard-kit.spec.ts', 'control-panel-types.spec.ts', 'pack-import.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts']],
+  [/^src\/components\/(home|save)\//, ['motion-presets.spec.ts', 'library.spec.ts', 'library-bulk.spec.ts', 'library-productions.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts', 'wizard-kit.spec.ts', 'control-panel-types.spec.ts', 'pack-import.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'agent-made-graphics.spec.ts']],
   // The graphics-pack door: the format/importer, the shipped pack + its sources and build
   // script, and the shared multi-template save path (also the wizard kit's, hence
   // wizard-kit rides along on templateSet changes).
@@ -509,6 +513,10 @@ const MAP = [
   // The SHOW corpus (e2e/fixtures/svg-shows/README.md): the game-show and late-night graphics the
   // behaviour spec walks through the wizard and the operator's controls.
   [/^e2e\/fixtures\/svg-shows\//, ['import-svg-behaviour.spec.ts']],
+  // The AGENT-MADE proof case (e2e/fixtures/agent-made/README.md): one packed production whose
+  // two graphics carry machines an agent wrote by hand. Only one spec reads it, and a change to
+  // the pack is a change to what that spec asserts.
+  [/^e2e\/fixtures\/agent-made\//, ['agent-made-graphics.spec.ts']],
   // THE PRACTICE LIBRARY (docs/svg-samples/) is documentation by location and a FIXTURE SET by
   // use: `e2e/_svg-import.ts` loads scorebug.svg and quiz-board.svg out of it, and
   // import-svg.spec.ts loads illustrator-export.svg. The blanket `^docs/` ignore below has a
