@@ -323,3 +323,20 @@ stub). All local-first; cloud mirrors for signed-in users.
    `control_show_by_slug`, which reads as "no profile" and renders the generated panel — correct,
    but indistinguishable from a production that has none, so confirm the migration before
    concluding the arrangement did not travel.
+10. COMBINE on the hosted page (`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6b). Compose a two-step
+   control on the production page's Controls panel - one step now, one marked `after 5 s` -
+   publish, then open `?control=<slug>` signed out. Under the ⚡ block, below the graphic's own
+   sections, a **Combined** heading carries the button; the first press sends the first step at
+   once and the button counts the rest down; pressing it again stands the tail down and the
+   activity feed says how many steps were not sent; ■ Out does the same. Then the two things only
+   a real backend can show:
+   - **Two operators.** Open the page twice. A press on one counts down on that page ALONE - the
+     wait lives in the tab that pressed - but every row it sends lands in both feeds, attributed,
+     and both PROGRAM monitors move. Bump the score on page B while page A's tail is counting
+     down: when A's step fires it must carry B's figure plus one, because the baseline is the
+     WIRE and not the cue.
+   - **The batch cap.** A control whose steps expand past eight wire items (a Take is three, an
+     Out is two) must send in several batches rather than raise `not a command batch` and lose
+     the whole press. The offline suite cannot reach this: `runVerb`'s offline path has no cap.
+   Reloading the tab mid-countdown loses the unsent tail by design (§6d) - confirm it says so on
+   the button's hover rather than retrying behind anybody's back.
