@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createProject } from './_create';
+import { importProofCase, PROOF_TOTALS, PROOF_VOTES } from './_proofCase';
 import { appliedIn, receiverHost } from './_receiverHost';
 
 // Hosted control ENTRIES (docs/CONTROL_LAYER.md + docs/SAVED_CONTENT_MODEL.md §4): a show's
@@ -608,4 +609,163 @@ test('the hosted page arranges from the PUBLISHED bytes, by the one rule the in-
   // than the generated one it falls back to.
   expect(arranged.newerExtras, 'a v99 profile must not hide a control').toBe(0);
   expect(arranged.newerSections).toEqual(arranged.generatedSections);
+});
+
+// ── COMBINED CONTROLS ON THE HOSTED PAGE (AC-6 of docs/work-specs/control-panel-any-graphic) ──
+//
+// WHAT THIS PROVES AND WHAT IT DOES NOT, stated plainly because the shape matters more than the
+// assertions. The hosted page CANNOT BE MOUNTED BY AN OFFLINE SPEC: it needs a configured
+// backend, the e2e server pins offline mode, and that is the same ceiling the ARRANGE case above
+// hits. So the DOM of the ⚡ Combined section — the button, its ticks, its countdown — stays step
+// 9 of the live-verify checklist in docs/CONTROL_LAYER.md, with the rest of that surface, and it
+// is drawn by the very component the in-app spec drives (src/components/control/CombinedButton).
+//
+// WHAT IS REACHABLE IS THE PART THAT DECIDES WHAT GOES ON THE WIRE, and this drives exactly the
+// functions the page calls, over the bytes PUBLISHING WRITES — `buildPanelSpec`, the output
+// payload, and the profile through the jsonb round trip the column does. It is the page's own
+// reading of its production (`control/hostedCombine.ts`) handed to the one resolver both
+// dashboards share (`control/combineSend.ts`). Nothing here re-implements a rule to assert it:
+// the page holds no copy of any of this.
+//
+// THE FIXTURE IS THE PROOF CASE, the two boards two agents authored (§6c's first row), not a
+// machine written to make the assertion pass.
+
+test('the hosted page reads a delayed step off the WIRE, and reports the one the machine drops', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await importProofCase(page);
+
+  const measured = await page.evaluate(async ({ VOTES, TOTALS }) => {
+    const shows = await import('/src/model/shows.ts');
+    const { buildPanelSpec, buildOutputPayload } = await import('/src/control/hostedControl.ts');
+    const { eventLegality, isEventLegal, machineStateGroups } = await import('/src/control/controlModel.ts');
+    const { readPublishedProfile } = await import('/src/model/profile.ts');
+    const { hostedPoolMachines, hostedCombineNow, hostedCombineWorld, hostedCombineNames } =
+      await import('/src/control/hostedCombine.ts');
+    const { resolveCombineSend, commandBatches } = await import('/src/control/combineSend.ts');
+    const { combineBlocked, planCombine, stepWords } = await import('/src/control/combine.ts');
+
+    const show = shows.loadShows().find((s) => s.graphics.some((g) => g.name === VOTES))!;
+    // The proof case's own press, two steps of it: the reveal now, one +1 three seconds later.
+    shows.setShowProfile(show.id, {
+      v: 1,
+      arrange: {},
+      combine: [
+        {
+          id: 'c1',
+          name: 'Reveal + points',
+          steps: [
+            { kind: 'event', graphic: VOTES, control: 'reveal' },
+            { kind: 'event', graphic: TOTALS, control: 'plus1', after: 3 },
+          ],
+        },
+      ],
+    });
+    const stored = shows.loadShows().find((s) => s.id === show.id)!;
+
+    // THE PUBLISHED BYTES, built by the same two functions `publishControlShow` writes with, and
+    // the profile taken through the jsonb round trip its column does. This page never sees a show
+    // record, so anything read from one here would be proving the wrong thing.
+    const panel = buildPanelSpec(stored);
+    const payload = await buildOutputPayload(stored);
+    const profile = readPublishedProfile(JSON.parse(JSON.stringify(stored.profile)));
+    const control = profile!.combine[0];
+    const machines = hostedPoolMachines(panel);
+
+    // The two states the votes board's own machine has for `reveal` — one with an arrow out and
+    // one without — found from the graphic's declared legality rather than from a state id typed
+    // here, so renaming a state in the pack cannot quietly turn this test green.
+    const votesJs = panel.find((g) => g.name === VOTES)!.js;
+    const legality = eventLegality(votesJs);
+    const flat = machineStateGroups(votesJs).flatMap((g) => g.states.map((s) => ({ group: g.id, id: s.id })));
+    const asState = (s: { group: string; id: string }) => ({ state: { groups: { [s.group]: s.id } } });
+    const ready = flat.find((s) => isEventLegal(legality, 'reveal', asState(s).state))!;
+    const spent = flat.find((s) => !isEventLegal(legality, 'reveal', asState(s).state))!;
+
+    const cueOf = (graphic: string) => payload.cues.find((c) => c.graphic === graphic)!;
+    /** Both boards on air, the votes board at the start of its walk, nothing reported by the
+     *  totals board yet — the production as the operator's minute starts (§3c). */
+    const base = {
+      panel,
+      cues: payload.cues,
+      staged: {},
+      profile,
+      liveCue: { [VOTES]: cueOf(VOTES).id, [TOTALS]: cueOf(TOTALS).id },
+      live: { [VOTES]: asState(ready), [TOTALS]: {} },
+      aired: {} as Record<string, Record<string, string>>,
+    };
+    const [firstGroup, tailGroup] = planCombine(control, new Set<number>());
+    const sendWith = (at: typeof base, groups: typeof firstGroup[]) =>
+      resolveCombineSend(groups, hostedCombineNow(machines, at), hostedCombineWorld(machines, at));
+
+    // (A) NOTHING ON AIR: the button greys on its FIRST step, naming the graphic.
+    const greyed = combineBlocked(control, hostedCombineNow(machines, { ...base, liveCue: {} }), new Set());
+
+    // (B) THE PRESS ITSELF sends the first group and nothing else.
+    const press = sendWith(base, [firstGroup]);
+
+    // (C) THE DELAYED STEP, fired three seconds later against a wire that has MOVED since the
+    //     press: another operator's surface has put 4 on the board. The cue still says what it
+    //     always said, so a step resolved from the cue would send 1.
+    const wired = sendWith({ ...base, aired: { [TOTALS]: { f5: '4' } } }, [tailGroup]);
+    const cold = sendWith(base, [tailGroup]);
+
+    // (D) THE DROP: by the time the pair fires the votes board is already revealed and has no
+    //     arrow left, so the machine would refuse that row — and the +1 beside it must still go.
+    const spentAt = { ...base, live: { ...base.live, [VOTES]: asState(spent) } };
+    const drop = sendWith(spentAt, [firstGroup, tailGroup]);
+    const names = hostedCombineNames(machines, spentAt);
+
+    const payloadOf = (item: { msg: unknown }) => (item.msg as { payload?: Record<string, string> }).payload ?? {};
+    return {
+      greyed,
+      pressEvents: press.items.map((i) => `${i.graphic}:${(i.msg as { event?: string }).event}`),
+      wiredF5: payloadOf(wired.items[0]).f5,
+      coldF5: payloadOf(cold.items[0]).f5,
+      wiredMirror: wired.mirrors.map((m) => `${m.graphic}:${m.cueId === cueOf(TOTALS).id ? 'its cue' : m.cueId}:${m.values.f5}`),
+      cueF5: cueOf(TOTALS).values.f5 ?? '',
+      dropSentences: drop.dropped.map(
+        (d) => `“${control.name}” skipped ${stepWords(d.step, names)}, because ${d.why}`,
+      ),
+      dropGraphics: drop.dropped.map((d) => d.graphic),
+      dropProceeded: drop.items.map((i) => `${i.graphic}:${(i.msg as { event?: string }).event}`),
+      batchSizes: commandBatches(drop.items).map((b) => b.length),
+    };
+  }, { VOTES: PROOF_VOTES, TOTALS: PROOF_TOTALS });
+
+  // (A) GREY WHILE THE FIRST STEP IS ILLEGAL, and it says which graphic and why. The later step
+  // is illegal too and that is deliberately NOT what decides: a walk's later steps are routinely
+  // illegal at the moment the first one is pressed.
+  expect(measured.greyed).toBe('“Votes board” is not on air');
+
+  // (B) The first step goes on the press, alone — one row, on the graphic the step names.
+  expect(measured.pressEvents).toEqual(['Votes board:reveal']);
+
+  // (C) THE WIRE IS THE BASELINE. This is the property that makes the hosted page a MULTI-OPERATOR
+  // surface rather than one operator's copy: the delayed +1 counts from the figure the wire is
+  // carrying at the moment it fires, so a second phone's press is not overwritten. Resolved from
+  // the cue instead — which is what a surface that captured its values at the press would do — the
+  // same step sends 1 and the board goes backwards on air.
+  expect(parseInt(measured.cueF5 || '0', 10), 'the fixture cue starts at zero, so the two readings differ').toBe(0);
+  expect(measured.wiredF5).toBe('5');
+  expect(measured.coldF5).toBe('1');
+  // …and the moved figure is mirrored back at the cue that is on air, which is what the page
+  // stages into the SHARED buffer so every open page counts from it and ⟳ TAKE cannot regress it.
+  expect(measured.wiredMirror).toEqual(['Totals board:its cue:5']);
+
+  // (D) A DROPPED STEP IS DROPPED ALONE (§6b): the +1 beside it lands, and the feed names the step
+  // that did not apply, the control it belongs to and why — rather than leaving an operator to
+  // notice that one of two things quietly did not happen.
+  expect(measured.dropProceeded).toEqual(['Totals board:plus1']);
+  expect(measured.dropSentences).toHaveLength(1);
+  expect(measured.dropSentences[0]).toContain('“Reveal + points” skipped');
+  expect(measured.dropSentences[0]).toContain('no arrow out of “Votes board”');
+  // The note is filed against the graphic it names, so the feed's own column agrees with it.
+  expect(measured.dropGraphics).toEqual(['Votes board']);
+
+  // THE BATCH CAP, which bites only on a PUBLISHED production and so passes over every offline
+  // spec that sends: `control_send_many` refuses a batch outside 1..8 outright, and a step is not
+  // one item (a Take is three, an Out is two). An unchunked press would lose the WHOLE press.
+  expect(measured.batchSizes.every((n) => n >= 1 && n <= 8)).toBe(true);
 });

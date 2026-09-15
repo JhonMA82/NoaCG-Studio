@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   adjustWords,
   arrangeControls,
@@ -19,6 +19,24 @@ import {
   type ArrangeRead,
   type ControlButton,
 } from '../control/controlModel';
+import {
+  CombineScheduler,
+  planCombine,
+  stepWords,
+  askSteps,
+  combineBlocked,
+  type StepGroup,
+} from '../control/combine';
+import { commandBatches, resolveCombineSend } from '../control/combineSend';
+import {
+  hostedCombineNames,
+  hostedCombineNow,
+  hostedCombineWorld,
+  hostedPoolMachines,
+  type HostedCombineInput,
+} from '../control/hostedCombine';
+import CombinedButton from './control/CombinedButton';
+import type { CombinedControl } from '../model/profile';
 import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
 import { createAppliedOnce } from '../control/commandRoads';
@@ -88,9 +106,51 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * clears the warning here too.
    */
   const [airedData, setAiredData] = useState<Record<string, Record<string, string>>>({});
+  /** Ids for the feed lines this SURFACE writes (a dropped step, a cancelled tail). Negative, so
+   *  they can never collide with a log row's own id. */
+  const localLogId = useRef(0);
 
   const previewRef = useRef<PayloadStageHandle>(null);
   const programRef = useRef<PayloadStageHandle>(null);
+
+  // ── COMBINED CONTROLS, the surface's half (src/control/combine.ts, plan §6b) ──
+  //
+  // The same resolver, the same scheduler and the same button as the in-app production page. What
+  // is this page's own is the plane underneath: a step's row goes out through the hosted batch
+  // RPC every verb here uses, so it is attributed to this operator and lands on the one durable
+  // log with everybody else's — and a moved figure is mirrored into the SHARED staging buffer
+  // rather than into a stored cue, because on this surface that is where an operator's values
+  // live (docs/CONTROL_LAYER.md, "Hosted control").
+  /** Which `ask` ticks the operator has moved, by `<control id>\0<step index>`. An absence reads
+   *  the step's DECLARED default, never "off". */
+  const [combineTicks, setCombineTicks] = useState<ReadonlyMap<string, boolean>>(new Map());
+  /** Bumped whenever a run arms, fires or is cancelled, and by the countdown's own interval. The
+   *  scheduler holds no React, so this is how a wait repaints. */
+  const [combineTick, setCombineTick] = useState(0);
+  const schedulerRef = useRef<CombineScheduler | null>(null);
+  if (!schedulerRef.current) {
+    schedulerRef.current = new CombineScheduler({ onChange: () => setCombineTick((t) => t + 1) });
+  }
+  const scheduler = schedulerRef.current;
+  /** How a fired group reaches the wire, REASSIGNED on every render. A group can fire seconds
+   *  after the press, and a closure captured at press time would send against the production as
+   *  it was — the staleness the whole fire-time design exists to avoid. */
+  const fireCombineRef = useRef<(control: CombinedControl, due: StepGroup[]) => void>(() => {});
+  // A tab that goes away takes its waits with it. That is §6d's accounting rather than a leak
+  // being tidied: the wait lives in the surface that pressed, and nothing is retried elsewhere —
+  // which matters most here, because this is the page a show is really operated from.
+  useEffect(() => () => scheduler.dispose(), [scheduler]);
+  // `combineTick` is the dependency that matters: the scheduler is a mutable object, so the only
+  // thing that says "its runs changed" is the counter its own `onChange` bumps.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const anyArmed = useMemo(() => scheduler.armed().length > 0, [scheduler, combineTick]);
+  useEffect(() => {
+    if (!anyArmed) return;
+    // Four times a second, which is what makes a whole-second countdown land on the second it
+    // means rather than up to a second late.
+    const t = setInterval(() => setCombineTick((v) => v + 1), 250);
+    return () => clearInterval(t);
+  }, [anyArmed]);
 
   /**
    * WHAT THIS OPERATOR SEES, from whichever road the command arrived on.
@@ -213,6 +273,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     () => new Map((resolved?.panel ?? []).map((g) => [g.name, g] as const)),
     [resolved],
   );
+  /** Every published graphic's machine, parsed once (`control/hostedCombine.ts`): the ⚡ block
+   *  below reads ONE graphic because that is what an action acts on, but a COMBINED control's
+   *  steps name their own graphics, so the whole pool has to be parsed. */
+  const poolMachines = useMemo(() => hostedPoolMachines(resolved?.panel ?? []), [resolved]);
   const layerOf = useCallback(
     (graphic: string) => payload?.graphics.find((g) => g.key === graphic)?.layer ?? null,
     [payload],
@@ -377,12 +441,127 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     ...(resolved?.staged[cue.graphic] ?? {}),
   });
 
+  // ── COMBINED CONTROLS (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b; the runtime is control/combine.ts
+  // and control/combineSend.ts, both shared with the in-app production page)
+  //
+  // The list comes off the PUBLISHED profile column, which `controlShowBySlug` already ran
+  // through `readPublishedProfile` — so a profile a newer build wrote renders no combined
+  // controls at all here, exactly as it renders none of its arrangement.
+
+  const combineControls = resolved?.profile?.combine ?? [];
+
+  /**
+   * WHAT THIS SURFACE CURRENTLY HOLDS, as `control/hostedCombine.ts` reads it: every published
+   * graphic's liveness and legality, what each cue would send, and — the part that is this
+   * page's own — what the WIRE last put on air.
+   *
+   * Built fresh every render and reached through `fireCombineRef`, never captured at press
+   * time: a group can fire seconds later, and a closure from the press would send against the
+   * production as it WAS. A delayed `+1` therefore counts from the figure another operator's
+   * surface just put up, and two phones driving one show move the score by two.
+   */
+  const combineAt: HostedCombineInput = {
+    panel: resolved?.panel ?? [],
+    cues,
+    liveCue,
+    live: resolved?.live ?? {},
+    staged: resolved?.staged ?? {},
+    aired: airedData,
+    profile: resolved?.profile ?? null,
+  };
+  const combineNow = hostedCombineNow(poolMachines, combineAt);
+  const combineNames = hostedCombineNames(poolMachines, combineAt);
+  const combineWorld = hostedCombineWorld(poolMachines, combineAt);
+
+  /** One line of the activity feed that is NOT a command row — a step the machine dropped, or a
+   *  tail an Out cancelled. Both are things this operator asked for that did not happen, and the
+   *  feed is the only place on this surface that says so. It is local to this page on purpose:
+   *  another operator's screen has its own tails and its own drops. */
+  const feedNote = (text: string, graphic: string) => {
+    setWireLog((l) =>
+      appendLogEntries(l, [
+        { id: (localLogId.current -= 1), at: new Date().toISOString(), graphic, kind: 'note', text },
+      ]),
+    );
+  };
+
+  /**
+   * SEND THE STEPS THAT ARE DUE — called at the moment they fire, so a delayed step reads the
+   * wire as it stands then. Reassigned every render rather than captured at the press.
+   *
+   * The batches go out IN ORDER and stop at the first refusal: the likeliest refusal is the log's
+   * 50-per-5-s cap, and pressing on past it spends the rest of the allowance on batches that will
+   * be refused too — the same rule ■ All out already follows.
+   */
+  fireCombineRef.current = (control, due) => {
+    const { items, mirrors, dropped } = resolveCombineSend(due, combineNow, combineWorld);
+
+    for (const drop of dropped) {
+      feedNote(
+        `“${control.name}” skipped ${stepWords(drop.step, combineNames)}, because ${drop.why}`,
+        drop.graphic,
+      );
+    }
+    // THE MIRROR, on this surface, is the SHARED staging buffer: a moved figure has to become what
+    // every open page counts from and what the next ⟳ TAKE re-sends, and here that is one row
+    // rather than a write to a stored cue this page cannot author.
+    for (const mirror of mirrors) {
+      void stageHostedData(slug, mirror.graphic, mirror.values).catch((e: Error) => setError(e.message));
+    }
+    if (items.length === 0) return;
+    void (async () => {
+      for (const batch of commandBatches(items)) if (!(await sendVerb(batch))) return;
+    })();
+  };
+
+  /** Cancel every armed tail, and say so. What an operator's Out means (§6b: "any Out ... cancels
+   *  what has not been sent"). A step's OWN Out does not come through here — a combined control
+   *  that ends on Out must not cancel its own tail. */
+  const cancelCombines = (why: string) => {
+    for (const { controlId, steps } of scheduler.cancelAll()) {
+      const control = combineControls.find((c) => c.id === controlId);
+      feedNote(
+        `${why} cancelled ${steps} unsent step${steps === 1 ? '' : 's'} of “${control?.name ?? 'a combined control'}”`,
+        '',
+      );
+    }
+  };
+
+  const tickKey = (controlId: string, index: number) => `${controlId}\u0000${index}`;
+  const tickOn = (controlId: string, index: number, declared: boolean) =>
+    combineTicks.get(tickKey(controlId, index)) ?? declared;
+
+  /** Press a combined control — or, while it is counting down, cancel what it has not sent. The
+   *  countdown IS the cancel, which is what makes an armed wait something one operator can stand
+   *  down under pressure with the control already under their thumb. */
+  const pressCombine = (control: CombinedControl) => {
+    if (scheduler.waiting(control.id)) {
+      const dropped = scheduler.cancel(control.id);
+      if (dropped > 0) {
+        feedNote(`“${control.name}” cancelled, ${dropped} step${dropped === 1 ? '' : 's'} not sent`, '');
+      }
+      return;
+    }
+    const ticked = new Set(
+      askSteps(control)
+        .filter((a) => tickOn(control.id, a.index, a.on))
+        .map((a) => a.index),
+    );
+    if (combineBlocked(control, combineNow, ticked)) return;
+    scheduler.press(control.id, planCombine(control, ticked), (due) => fireCombineRef.current(control, due));
+  };
+
   const takeCue = (cue: OutputCue) =>
     sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue) }));
   const nextLayer = () => {
     if (selectedGraphic) void sendVerb([{ graphic: selectedGraphic, msg: { t: 'next' } }]);
   };
   const outLayer = () => {
+    // OUT IS THE STOP. An operator taking a graphic off air has ended whatever was running, so
+    // any combined control still counting down loses its tail rather than firing into a screen
+    // that is now empty (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b). It runs BEFORE the send, so the
+    // tail cannot go out during the round trip.
+    cancelCombines('Out');
     if (selectedGraphic) void sendVerb(clearCueItems(selectedGraphic));
   };
   const updateLive = () => {
@@ -409,6 +588,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     ]);
   };
   const outAll = () => {
+    cancelCombines('All out');
     // `control_send_many` takes at most 8 items, so a clear of more than four layers is more than
     // one verb - and each batch is its own press as far as the two roads are concerned. It STOPS
     // at the first refusal: the likeliest refusal is the command-rate cap, and pressing on past it
@@ -552,6 +732,28 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               onSnap={snapTo}
               onSend={(items) => void sendVerb(items)}
               onError={setError}
+              // THE PRODUCTION'S OWN BUTTONS (§6b), drawn by the block they belong in. They are
+              // passed down rather than built in the editor because a combined control is the
+              // PRODUCTION's, not the selected graphic's: its steps name their own graphics, and
+              // only the page knows the whole pool. For the same reason the block renders them
+              // even when the selected graphic declares no ⚡ actions of its own — hiding them
+              // behind whichever cue happened to be selected would make them vanish at the worst
+              // possible moment.
+              combined={combineControls.map((control) => (
+                <CombinedButton
+                  key={control.id}
+                  control={control}
+                  now={combineNow}
+                  names={combineNames}
+                  wait={scheduler.waiting(control.id)}
+                  tickOn={(index, declared) => tickOn(control.id, index, declared)}
+                  onTick={(index, on) =>
+                    setCombineTicks((m) => new Map(m).set(tickKey(control.id, index), on))
+                  }
+                  onPress={() => pressCombine(control)}
+                  testPrefix="hosted-"
+                />
+              ))}
             />
           )}
           {error && <p className="status-bad" data-testid="hosted-error">{error}</p>}
@@ -752,6 +954,7 @@ function HostedCueEditor({
   onSnap,
   onSend,
   onError,
+  combined,
 }: {
   slug: string;
   cue: OutputCue;
@@ -775,6 +978,9 @@ function HostedCueEditor({
   /** The page's one door for a verb — both roads, its own monitor, and the log. */
   onSend: (items: ControlSendItem[]) => void;
   onError: (message: string) => void;
+  /** This PRODUCTION's combined controls, already built by the page (§6b). Empty for a production
+   *  that has composed none, which is most of them. */
+  combined: ReactNode[];
 }) {
   const descriptors = useMemo(() => fieldDescriptors(spec.fields), [spec.fields]);
   const fieldGroups = useMemo(() => groupCueFields(descriptors), [descriptors]);
@@ -1073,7 +1279,10 @@ function HostedCueEditor({
           and one line of inline help. They were a flat wall of buttons here — the author's own
           sections were published in `machine.controls` and thrown away by the surface with the
           smallest screen and the least room to guess. */}
-      {events.length > 0 && (
+      {/* The block also renders for a graphic with NO declared controls when the production has
+          combined ones (§6e): they sit in a section of their own below, and a combined control
+          belongs to the production rather than to whichever cue happens to be selected. */}
+      {(events.length > 0 || combined.length > 0) && (
         <div className="pd-actions" data-testid="hosted-actions">
           <div className="pd-actions-head">
             <span className="pd-actions-kicker">
@@ -1138,6 +1347,15 @@ function HostedCueEditor({
               <summary>More ({arranged.more.length})</summary>
               <div className="pd-actions-row">{arranged.more.map(actionButton)}</div>
             </details>
+          )}
+          {/* COMBINED, this production's own buttons (§6b) — LAST in the block, same section and
+              same stylesheet as the in-app page, because the two surfaces are one design and a
+              class is taught on both. */}
+          {combined.length > 0 && (
+            <div className="pd-actions-section pd-combined-section" data-testid="hosted-actions-combined">
+              <h4>Combined</h4>
+              <div className="pd-actions-row">{combined}</div>
+            </div>
           )}
         </div>
       )}

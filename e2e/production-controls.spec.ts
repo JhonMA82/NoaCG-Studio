@@ -1,10 +1,10 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { createProject } from './_create';
 import { settleDurableWrites } from './_durable';
 import { relayServe, routeOrigin } from './_relay';
+import { importProofCase } from './_proofCase';
 
 // The production page's GRAPHIC ACTIONS block (docs/PLAYOUT_DASHBOARD.md §8): the machine's
 // ⚡ buttons rendered from the metadata that travels inside the template, greyed by the
@@ -1344,24 +1344,6 @@ test('the EXPORTED controller carries the arrangement, and a deleted profile exp
 // THE ASSERTIONS ARE THE WIRE, the way the ± live-numbers pair above is: the activity feed's own
 // rows (one per step, in order) and the figures the PROGRAM monitors are actually showing. A
 // button that counts down and sends the wrong payload looks identical from the DOM of the button.
-const PROOF_PACK = readFileSync(
-  fileURLToPath(new URL('./fixtures/agent-made/elamani-biisi.noacgpack.json', import.meta.url)),
-  'utf8',
-);
-
-/** Install the proof-case pack — two agent-authored boards, a cue each, ready to operate. */
-async function importProofCase(page: Page): Promise<void> {
-  await page.goto('/app#/home/productions');
-  const card = page.getByTestId('import-pack-card');
-  await expect(card).toBeVisible();
-  await card.getByTestId('import-pack-file').setInputFiles({
-    name: 'elamani-biisi.noacgpack.json',
-    mimeType: 'application/json',
-    buffer: Buffer.from(PROOF_PACK),
-  });
-  await expect(page.getByTestId('production-page')).toBeVisible();
-  await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(2);
-}
 
 /** Pick one step in the composer and add it. `control` is the combined control's id, or `new` for
  *  the one being made — the panel keys its pickers the same way. */
@@ -1578,4 +1560,103 @@ test('a step the machine would drop is dropped alone, and the feed says which', 
   const feed = page.getByTestId('action-log');
   await expect(feed).toContainText('“Double reveal” skipped');
   await expect(feed).toContainText('no arrow out of “Votes board”');
+});
+
+test('the EXPORTED controller says where its combined controls run, and carries none of them', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(180_000);
+  // §6f, THE ONE PLACE THE PORTABILITY LINE NEEDED DRAWING (owner, 2026-09-15, ALIGN-2026-09-15-3).
+  // ARRANGE renders on all three deployments because it is presentation of the graphic's own
+  // contract. COMBINE does not cross into this one: a sequencer with delays and ticks, inlined a
+  // second time in vanilla JS, is exactly the second production runtime the owner refused. So the
+  // package degrades HONESTLY — one line where the Combined section sits on the two hosted
+  // surfaces — rather than silently, which is what it did before: the buttons the production had
+  // composed were simply not there and nothing said why.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+
+  const exported = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const shows = await import('/src/model/shows.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { withGraphicArrange } = await import('/src/model/profile.ts');
+    // sb08 Club Scorebug, the same graphic the arrangement case above exports, so the two halves
+    // of §6f are measured on one package rather than on two that happen to agree.
+    const tpl = variantById('sb08')!.create({});
+    const { doc } = createGraphic(tpl, { name: 'Club Scorebug' });
+    const show = shows.createShowNamed('Club Match');
+    shows.addGraphicToShow(show.id, tpl, { graphicId: doc!.id });
+    const seeded = shows.loadShows().find((s) => s.id === show.id)!;
+    shows.updateShowCue(show.id, seeded.cues![0].id, { label: 'Kick off' });
+    const graphic = seeded.graphics[0].name;
+
+    /** A freshly built package's files, folder prefix stripped (it is named after the show). */
+    const packageFor = async () => {
+      const zip = await buildShowZipFor(shows.loadShows().find((s) => s.id === show.id)!, 'html-overlay');
+      const files: Record<string, string> = {};
+      for (const n of Object.keys(zip.files)) {
+        if (!zip.files[n].dir && /\.(html|json)$/.test(n)) {
+          files[n.replace(/^[^/]+\//, '')] = await zip.file(n)!.async('string');
+        }
+      }
+      return files;
+    };
+
+    // (1) No profile at all.
+    const none = (await packageFor())['controller.html'];
+    // (2) A profile with an ARRANGE and NO combined control. The flag is about COMBINE, not about
+    //     having a profile — a production that only renamed a button must not grow the line.
+    shows.setShowProfile(show.id, withGraphicArrange(undefined, graphic, { clockStart: { pinned: true } }));
+    const arrangeOnly = (await packageFor())['controller.html'];
+    // (3) And one that composed a control: two steps, one of them delayed and offered as a tick.
+    shows.setShowProfile(show.id, {
+      v: 1,
+      arrange: {},
+      combine: [
+        {
+          id: 'c1',
+          name: 'Kick off sequence',
+          steps: [
+            { kind: 'event', graphic, control: 'clockStart' },
+            { kind: 'event', graphic, control: 'clockStop', after: 3, ask: { default: true } },
+          ],
+        },
+      ],
+    });
+    const files = await packageFor();
+    return { none, arrangeOnly, files, withCombine: files['controller.html'] };
+  });
+
+  // WHETHER, NEVER WHAT. The zip carries one boolean: not the control's name, not its steps, not
+  // its timings, and not the profile's `combine` array in any form. A package that carried the
+  // sequence and could not run it would be the worse half of both answers.
+  expect(exported.withCombine).toContain('"combined":true');
+  expect(exported.withCombine).not.toContain('Kick off sequence');
+  expect(exported.withCombine).not.toContain('"combine"');
+  expect(exported.none).toContain('"combined":false');
+  expect(exported.arrangeOnly).toContain('"combined":false');
+
+  // THE PAGE DRAWS IT. A zip carrying the right flag and a page that ignores it look identical
+  // from here, which is why the package is actually loaded and read.
+  const { serve } = relayServe(new Map(Object.entries(exported.files)));
+  const origin = 'http://combine-line-host.local';
+  const ctl = await context.newPage();
+  await routeOrigin(ctl, origin, serve);
+  await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
+  await ctl.locator('.cue', { hasText: 'Kick off' }).click();
+
+  // The line, word for word as §6f writes it, where the Combined section sits on the other two
+  // surfaces — so an operator taught on those looks in the right place and is told.
+  await expect(ctl.locator('#events-combined')).toHaveText(
+    'This production’s combined controls run from its hosted control page',
+  );
+  // …and nothing else of COMBINE: no button, no countdown, no tick.
+  await expect(ctl.locator('#editor-events button', { hasText: 'Kick off sequence' })).toHaveCount(0);
+  await expect(ctl.locator('#editor-events input[type="checkbox"]')).toHaveCount(0);
+  // The generated panel under it is untouched: this is a degradation of the production's own
+  // buttons, never of the graphic's.
+  await expect(ctl.locator('#editor-events button', { hasText: 'Start clock' })).toBeVisible();
 });

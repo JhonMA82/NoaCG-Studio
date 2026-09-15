@@ -592,15 +592,23 @@ comparison, no variable, no loop and no wall clock — the format refuses those 
   is what the walk is for, and a button greyed by a step three seconds in the future would be
   unpressable all night.
 
-**Where it renders, and where it is still going.** The design gives it to the two NoaCG-hosted
-surfaces — the in-app production page and the hosted control page — under a **Combined** heading at
-the foot of the ⚡ block. **Only the in-app page carries it today**; the hosted page is a row of its
-own and has no combined-control code yet, so a production published to it shows the generated panel
-and its arrangement and nothing else. The EXPORTED production controller never gets it: a sequencer
-with delays and ticks, inlined a second time in vanilla JS, is the second production runtime the
-owner ruled against on 2026-09-15 (§6f of the plan), so a production with combined controls is to
-get one honest line there instead — **that line is not written yet either.** ARRANGE does render on
-all three already, because it is presentation of the contract rather than behaviour above it.
+**Where it renders.** The two NoaCG-hosted surfaces — the in-app production page and the hosted
+control page — under a **Combined** heading at the foot of the ⚡ block, drawn by one component
+(`src/components/control/CombinedButton.tsx`) over one resolver (`src/control/combineSend.ts`), so
+neither can grow a second opinion about what a `+1` carries. On the hosted page the rows go out
+through the batch RPC every verb there uses, attributed to whoever pressed, and a moved figure is
+mirrored into the SHARED staging buffer rather than into a stored cue — that is where an
+operator's values live on that surface, and it is what makes every open page count from the same
+figure. Its baseline is the WIRE, so a delayed step fired from one phone counts from what another
+operator's press just put up.
+
+**The EXPORTED production controller does not get it.** A sequencer with delays and ticks, inlined
+a second time in vanilla JS, is the second production runtime the owner ruled against on 2026-09-15
+(§6f of the plan). Where a production has combined controls the package shows one line where the
+Combined section would be — *“This production's combined controls run from its hosted control
+page”* — and carries nothing else of them: the zip holds one boolean, never a control's name, its
+steps or its timings. ARRANGE does render on all three, because it is presentation of the contract
+rather than behaviour above it.
 
 **Against the no-second-clock ruling (§8a, ruling 2, owner 2026-08-09).** That ruling forbids a
 per-play timer FIELD that could disagree with an arrow's authored `after` INSIDE a graphic. A
@@ -615,8 +623,12 @@ the name and the seconds is a SELECT over what the production already declares, 
 values are not composed there and deliberately so — that would be a text box taking a value.
 
 Pinned by `e2e/production-controls.spec.ts`: the proof case composed, pressed with two of five
-ticks on and read off the wire; the countdown cancel and the Out cancel; and a dropped step landing
-beside one that proceeded.
+ticks on and read off the wire; the countdown cancel and the Out cancel; a dropped step landing
+beside one that proceeded; and the exported controller's line, with the package checked for the
+absence of everything else. The hosted half is pinned by `e2e/hosted-control.spec.ts` over the
+PUBLISHED bytes — the wire baseline, the drop report and the greying — as far as an offline spec
+reaches: that page cannot be mounted without a configured backend, so its ⚡ Combined section is
+step 9 of the live-verify checklist in `docs/CONTROL_LAYER.md` with the rest of that surface.
 
 ## 8. Built to grow (interactive graphics)
 

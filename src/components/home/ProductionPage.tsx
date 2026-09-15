@@ -47,19 +47,19 @@ import {
   withGraphicArrange,
   type ArrangeEntry,
   type CombinedControl,
-  type ProfileStep,
 } from '../../model/profile';
 import {
   askSteps,
   combineBlocked,
   CombineScheduler,
   planCombine,
-  stepBlocked,
   stepWords,
   type CombineNow,
   type StepGroup,
   type StepNames,
 } from '../../control/combine';
+import { commandBatches, resolveCombineSend, type CombineWorld } from '../../control/combineSend';
+import CombinedButton from '../control/CombinedButton';
 import ProductionControlsPanel, { type CombineTarget } from './ProductionControlsPanel';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
 import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
@@ -83,7 +83,6 @@ import {
 import {
   clearAllCueBatches,
   clearCueItems,
-  COMMAND_BATCH_MAX,
   controlOutputSeenAt,
   controlPageUrl,
   controlShowBySlug,
@@ -1770,6 +1769,32 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     ...cues.map((c) => ({ kind: 'cue' as const, id: c.id, label: c.label, controls: [] })),
   ];
 
+  /**
+   * HOW THIS SURFACE READS THE PRODUCTION when a group fires (`control/combineSend.ts`).
+   *
+   * Rebuilt every render and reached through `fireCombineRef`, never captured at press time: a
+   * group can fire seconds later, and a closure from the press would send against the production
+   * as it WAS — the wrong score, a cue that has since been taken, a graphic somebody took off.
+   *
+   * A cue's SEND values carry the production's bound values (`withBoundValues`), exactly as this
+   * page's own ⟳ TAKE does; an event step's READ values are the cue as the operator currently
+   * sees it, draft and all.
+   */
+  const combineWorld: CombineWorld = {
+    buttons: (graphic) => poolMachines.get(graphic)?.buttons ?? [],
+    cueSendValues: (cueId) => {
+      const cue = cues.find((c) => c.id === cueId);
+      if (!cue) return null;
+      const graphic = cueGraphicName(cue);
+      return graphic ? withBoundValues(graphic, cueView(cue).values) : null;
+    },
+    onAir: (graphic) => {
+      const cue = airCueOf(graphic);
+      return cue ? { cueId: cue.id, values: cueView(cue).values } : null;
+    },
+    aired: (graphic) => own(airedData, graphic),
+  };
+
   /** One line of the activity feed that is NOT a command row — a step the machine dropped, or a
    *  tail an Out cancelled. Both are things the operator asked for that did not happen, and the
    *  feed is the only place on this surface that says so. */
@@ -1819,93 +1844,24 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * A step the machine would drop is dropped ALONE and the feed says which; the rest proceed (§6b).
    */
   fireCombineRef.current = (control, due) => {
-    const items: ControlSendItem[] = [];
-    /** Cue id -> the figures this pass moved, to mirror back into the cue. */
-    const mirrors = new Map<string, Record<string, string>>();
-    /** Graphic -> what a verb step left it playing, applied only if the send lands. */
-    const liveAfter = new Map<string, string | null>();
-    /** What THIS pass has already moved, by graphic. Two `adjust` steps on one field must count
-     *  from each other, or "+1 twice" would send the same figure twice and the receiver would
-     *  apply it once. */
-    const ahead = new Map<string, Record<string, string>>();
+    const { items, mirrors, liveAfter, dropped } = resolveCombineSend(due, combineNow, combineWorld);
 
-    for (const { step } of due.flatMap((group) => group.steps)) {
-      const graphic = step.kind === 'verb' ? combineNow.cues.get(step.cue) ?? step.cue : step.graphic;
-      const why = stepBlocked(step, combineNow);
-      if (why) {
-        feedNote(`“${control.name}” skipped ${stepWords(step, combineNames)}, because ${why}`, graphic);
-        continue;
-      }
-      if (step.kind === 'patch') {
-        items.push({ graphic: step.graphic, msg: { t: 'update', data: step.values } });
-        continue;
-      }
-      if (step.kind === 'verb') {
-        const cue = cues.find((c) => c.id === step.cue);
-        if (step.verb === 'take' && cue) {
-          items.push(...takeCueItems({ id: cue.id, graphic, values: withBoundValues(graphic, cueView(cue).values) }));
-          liveAfter.set(graphic, cue.id);
-        } else if (step.verb === 'update' && cue) {
-          items.push({ graphic, msg: { t: 'update', data: withBoundValues(graphic, cueView(cue).values) } });
-        } else if (step.verb === 'next') {
-          items.push({ graphic, msg: { t: 'next' } });
-        } else if (step.verb === 'out') {
-          items.push(...clearCueItems(graphic));
-          liveAfter.set(graphic, null);
-        }
-        continue;
-      }
-      const button = poolMachines.get(step.graphic)?.buttons.find((b) => b.event === step.control);
-      if (!button) continue; // `stepBlocked` already refused this; belt and braces for the types
-      const cue = airCueOf(step.graphic);
-      const cueValues = cue ? cueView(cue).values : {};
-      // Exactly the ⚡ block's own rule: a field the press MOVES counts from what AIR shows, a
-      // field it only READS is the cue's own value — with this group's earlier steps on top.
-      const moved = new Set(movedKeys(button));
-      const already = ahead.get(step.graphic) ?? {};
-      const payload = eventPayload(button, (key) =>
-        moved.has(key)
-          ? already[key] ??
-            own(airedData, step.graphic)?.[key] ??
-            cueValues[key] ??
-            (button.adjust && key in button.adjust ? '0' : '')
-          : cueValues[key],
+    for (const drop of dropped) {
+      feedNote(
+        `“${control.name}” skipped ${stepWords(drop.step, combineNames)}, because ${drop.why}`,
+        drop.graphic,
       );
-      const adjusted = Object.fromEntries(
-        movedKeys(button)
-          .filter((key) => payload?.[key] !== undefined)
-          .map((key) => [key, payload![key]]),
-      );
-      if (Object.keys(adjusted).length > 0) {
-        ahead.set(step.graphic, { ...already, ...adjusted });
-        if (cue) mirrors.set(cue.id, { ...(mirrors.get(cue.id) ?? {}), ...adjusted });
-      }
-      items.push({
-        graphic: step.graphic,
-        msg: payload
-          ? { t: 'event', event: button.event, payload }
-          : { t: 'event', event: button.event },
-      });
     }
-
     // The cue keeps the figure air shows, so the next ⟳ Take or ✎ Update cannot regress it —
     // the same write-back a single ⚡ press does, once per cue rather than once per step. The
     // PATCH carries only the moved fields: merging a whole `{...cue.values, ...adjusted}` read
     // from this render would put back every other field as it stood before the pass.
-    for (const [cueId, values] of mirrors) {
+    for (const { cueId, values } of mirrors) {
       if (editingCue?.id === cueId) editDraft({ values });
       else setShows(updateShowCue(id, cueId, { values }));
     }
     if (items.length === 0) return;
-    // ONE RPC PER EIGHT ITEMS. `control_send_many` refuses a batch outside 1..8 outright
-    // (migration 0029), and a step is not one item: a Take is three and an Out is two. An
-    // unchunked press of three Takes would raise `not a command batch` and lose the WHOLE
-    // press, which is the one failure a combined control must not have.
-    const batches: ControlSendItem[][] = [];
-    for (let i = 0; i < items.length; i += COMMAND_BATCH_MAX) {
-      batches.push(items.slice(i, i + COMMAND_BATCH_MAX));
-    }
-    void runVerb(batches, `“${control.name}”`).then((sent) => {
+    void runVerb(commandBatches(items), `“${control.name}”`).then((sent) => {
       if (!sent) return;
       for (const [graphic, cueId] of liveAfter) setLiveCue((m) => withLiveCue(m, graphic, cueId));
     });
@@ -1941,59 +1897,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     scheduler.press(control.id, planCombine(control, ticked), (due) => fireCombineRef.current(control, due));
   };
 
-  /** One combined button, with its tick list beside it and its countdown on it. */
-  const combinedButton = (control: CombinedControl) => {
-    const wait = scheduler.waiting(control.id);
-    const blocked = combineBlocked(control, combineNow, tickedSet(control));
-    const asks = askSteps(control);
-    const delayed = control.steps.some((s) => s.after);
-    const sentence = control.steps.map((s: ProfileStep) => stepWords(s, combineNames)).join('; ');
-    return (
-      <span key={control.id} className="pd-combined" data-testid={`combined-${control.id}`}>
-        <button
-          className={`pd-action${wait ? ' pd-combined-waiting' : ''}`}
-          // While it counts down the button is a CANCEL, so it must stay pressable even when the
-          // first step would now be illegal — that is the whole point of the countdown.
-          disabled={!wait && !!blocked}
-          title={
-            wait
-              ? `Press to cancel, with ${wait.steps} step${wait.steps === 1 ? '' : 's'} still to send`
-              : blocked
-                ? `Greyed because the first step cannot go: ${blocked}`
-                : `Sends ${control.steps.length} step${control.steps.length === 1 ? '' : 's'}: ${sentence}.${
-                    delayed
-                      ? ' The wait runs in this browser tab, so reloading it loses any step that has not been sent yet.'
-                      : ''
-                  }`
-          }
-          onClick={() => pressCombine(control)}
-          data-testid={`combined-press-${control.id}`}
-        >
-          ⚡ {control.name}
-          {/* THE SEPARATOR AND THE UNIT EARN THEIR PLACE. A bare figure after the name read as
-              part of it — "Spotlight, then level 2" looked like a control called that, seen on
-              the surface itself — and the whole job of the countdown is to be unmistakable. */}
-          {wait && <b className="pd-combined-count"> · {Math.ceil(wait.left / 1000)}s</b>}
-        </button>
-        {asks.length > 0 && (
-          <span className="pd-combined-asks" data-testid={`combined-asks-${control.id}`}>
-            {asks.map((ask) => (
-              <label key={ask.index} data-testid={`combined-ask-${control.id}-${ask.index}`}>
-                <input
-                  type="checkbox"
-                  checked={tickOn(control.id, ask.index, ask.on)}
-                  onChange={(e) =>
-                    setCombineTicks((m) => new Map(m).set(tickKey(control.id, ask.index), e.target.checked))
-                  }
-                />
-                {stepWords(ask.step, combineNames, { marks: false })}
-              </label>
-            ))}
-          </span>
-        )}
-      </span>
-    );
-  };
+  /** One combined button, with its tick list beside it and its countdown on it — the component
+   *  the hosted control page draws too, so the two surfaces cannot present one production's
+   *  combined controls two ways. */
+  const combinedButton = (control: CombinedControl) => (
+    <CombinedButton
+      key={control.id}
+      control={control}
+      now={combineNow}
+      names={combineNames}
+      wait={scheduler.waiting(control.id)}
+      tickOn={(index, declared) => tickOn(control.id, index, declared)}
+      onTick={(index, on) => setCombineTicks((m) => new Map(m).set(tickKey(control.id, index), on))}
+      onPress={() => pressCombine(control)}
+    />
+  );
 
   /** One ⚡ button. Written once because the block draws the same button in three places now —
    *  pinned above the fold, inside its section, and under the collapsed "More" — and three copies
