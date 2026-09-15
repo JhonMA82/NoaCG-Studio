@@ -560,6 +560,64 @@ React surfaces, and "± LIVE NUMBERS on the EXPORTED controller" for the package
 the rows off the relay and asserts the PAYLOAD SHAPE, because what an exported surface puts on
 the wire is the contract, and a screen that looks right can still ship the wrong payload.
 
+## 7d. COMBINED controls — one press, several rows, some of them later
+
+The third section of the ⚡ block, and the only one a PRODUCTION makes rather than a graphic
+(`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6b; the format is `src/model/profile.ts`, the runtime
+`src/control/combine.ts`). A combined control is a name and an ordered list of STEPS, each of them
+exactly one thing this surface can already send: an operator event on a named pool graphic, a
+lifecycle verb on a cue, or a data patch. It cannot invent an event, and there is no condition, no
+comparison, no variable, no loop and no wall clock — the format refuses those by name.
+
+- **One row per step, on the one command log**, sent as a single batch and attributed to the
+  operator who pressed. A step the machine would drop is dropped ALONE: the rest proceed, and the
+  activity feed names the step, the control it belongs to, and why it did not apply.
+- **A step is resolved when it FIRES, not when the button was pressed.** A delayed `+1` therefore
+  reads the figure on the wire at that moment and counts from what the audience is looking at. The
+  moved figures are mirrored back into the target graphic's on-air cue, exactly as a single ⚡ press
+  does, so ⟳ Take and ✎ Update cannot regress them.
+- **`after N s` waits, visibly.** The button counts the wait down and wears the on-air accent while
+  it does. A step marked `after 0` (or unmarked) fires WITH the step before it, and the waits
+  ACCUMULATE — "five reveals a beat apart" is five steps each marked `after 2 s`. What it costs,
+  stated so nobody meets it live: **the wait lives in the browser tab that pressed.** Reloading that
+  tab loses whatever has not been sent, nothing is retried behind anyone's back, and the operator
+  presses it again by hand. The button's own hint says so.
+- **The countdown IS the cancel.** Pressing an armed control stands the rest of it down, and so
+  does any Out on this surface — one control shows the wait and stops it, rather than a second
+  control beside it. The feed says what was dropped and by which gesture.
+- **`ask` offers a step as a tick beside the button**, with a declared default. It is a tick and
+  never a value: the whole of what one press may vary by is which of its steps go.
+- **It greys while its FIRST step is illegal**, and the hover says which step and why. Not while
+  any step is: a walk's later steps are routinely illegal at the moment the first is pressed, which
+  is what the walk is for, and a button greyed by a step three seconds in the future would be
+  unpressable all night.
+
+**Where it renders, and where it is still going.** The design gives it to the two NoaCG-hosted
+surfaces — the in-app production page and the hosted control page — under a **Combined** heading at
+the foot of the ⚡ block. **Only the in-app page carries it today**; the hosted page is a row of its
+own and has no combined-control code yet, so a production published to it shows the generated panel
+and its arrangement and nothing else. The EXPORTED production controller never gets it: a sequencer
+with delays and ticks, inlined a second time in vanilla JS, is the second production runtime the
+owner ruled against on 2026-09-15 (§6f of the plan), so a production with combined controls is to
+get one honest line there instead — **that line is not written yet either.** ARRANGE does render on
+all three already, because it is presentation of the contract rather than behaviour above it.
+
+**Against the no-second-clock ruling (§8a, ruling 2, owner 2026-08-09).** That ruling forbids a
+per-play timer FIELD that could disagree with an arrow's authored `after` INSIDE a graphic. A
+combined control's wait is the controller pacing its own sends: it never touches a graphic's timer,
+the graphic still sees ordinary rows arriving in order, and the armed wait is visible and
+cancellable, which is the other half of the same ruling.
+
+**Authored on the production page**, in the Controls panel under this block: name it, then add
+steps by picking what each acts on, what it sends, its wait and whether it is a tick. Every box but
+the name and the seconds is a SELECT over what the production already declares, which is what makes
+"a profile can only combine what a graphic exposes" a mechanism rather than a rule. A patch step's
+values are not composed there and deliberately so — that would be a text box taking a value.
+
+Pinned by `e2e/production-controls.spec.ts`: the proof case composed, pressed with two of five
+ticks on and read off the wire; the countdown cancel and the Out cancel; and a dropped step landing
+beside one that proceeded.
+
 ## 8. Built to grow (interactive graphics)
 
 The area under the monitors is deliberately not full. Interactive graphics — polls, Q&A, chat
