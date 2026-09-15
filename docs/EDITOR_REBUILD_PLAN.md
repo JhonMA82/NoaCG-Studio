@@ -8,6 +8,14 @@ claim that the existing editor is complete or a commitment to rebuild the render
 
 ## 1. Decision and outcome
 
+**Owner clarification, 2026-09-15: Zero Density's OGraf Studio is the editor NoaCG must
+match or beat, not merely an architectural reference.** Match or exceed its basic editing
+quality: selection, canvas manipulation, property editing, keyframes, easing, timeline
+navigation, responsiveness and visual polish. Beat it on NoaCG's core workflow: taking
+imported artwork through editable fields, animation and behaviour into reliable production
+with less friction. Being better than NoaCG's old editor is not sufficient. These are
+completion requirements, not claims that either comparison has already been won.
+
 Rebuild the editing experience around the proven visual conventions in Zero Density OGraf
 Studio: a clear layer hierarchy, a stable canvas, a property inspector and a usable property
 timeline. Keep NoaCG's readable source and runtime contracts underneath. Reuse existing engine
@@ -26,6 +34,23 @@ embedded runtime and dependency caveats. No source code or assets are selected f
 this plan. A future exact-file reuse proposal must separately identify licence, notices,
 dependency closure and emitted-output implications. The reference is Zero Density Studio;
 Eyevinn remains the smaller secondary example.
+
+### Use the open source implementation directly as evidence
+
+[Zero Density OGraf Studio](https://github.com/zerodensity/ograf-studio) is open source.
+Implementers must inspect how the relevant feature actually works before designing its
+NoaCG counterpart. Do not guess from screenshots or recreate solved interaction mechanics
+without reading the implementation. The pinned source inventory in the research report is
+the starting point; record the exact upstream revision used for each implementation phase.
+
+For selection, canvas handles, inspector/key creation, timeline gestures, easing, playback
+and save/reopen, trace the UI event through the source mutation and preview/runtime update.
+Read the associated tests and try the interaction in the reference editor. Each phase's
+receipt must name the source files inspected, the behaviour to reproduce, what NoaCG reuses
+or adapts, and any deliberate difference with its user-facing reason. Source availability
+is a practical implementation resource throughout the rebuild, not just background research.
+Inspecting and learning from it needs no further owner approval. Actual code reuse follows
+the exact-file licence/dependency review above; that review does not block source inspection.
 
 ## 2. What the evidence says, and what it does not
 
@@ -207,6 +232,34 @@ parallelize changes to canonical tracks, source serialization and gesture transa
 their shared contracts are settled.
 
 ## 7. Acceptance: what 'good enough' means
+
+### Competitive completion gate: match the basics, beat the core workflow
+
+NoaCG must meet both the absolute thresholds below and a direct comparison with Studio.
+Phase 0 establishes the reference version and baseline; the adoption phase reruns the same
+tasks in both editors on the same machine, browser and viewport with equivalent artwork
+and output requirements. Record setup/import work as part of the end-to-end workflow rather
+than hiding it outside the timed task. Refresh the reference revision at adoption and
+document any upstream changes that affect the comparison.
+
+Maintain a comparison row for each basic interaction listed in section 1 and for the full
+import-to-production task. Record completion, time, errors, assistance, responsiveness,
+visual defects and observed user preference. Counterbalance which editor participants use
+first to reduce learning effects. The small user walk is practical acceptance evidence,
+not a statistically representative market study.
+
+The basic editor is not accepted while a material disadvantage to Studio remains in those
+interactions. Resolve it and retest; do not offset poor timeline editing with an unrelated
+NoaCG feature. The full workflow must show a concrete advantage in completion, fewer errors
+or less effort without sacrificing output quality or reliability. Where Studio cannot
+complete a workflow, record the missing step and any external/manual work honestly, rather
+than assigning an invented timing. Unmeasured comparisons remain unverified.
+
+Feature counts, a better internal architecture, automated passes and improvement over the
+old NoaCG editor do not satisfy this gate. Incremental phases can land before the overall
+gate passes, but the rebuild cannot be declared complete or adopted as accepted on that basis.
+
+### Absolute task and quality thresholds
 
 The following thresholds are proposed acceptance targets, not measurements of either editor.
 Phase 0 records the machine/browser and dataset so later comparisons are meaningful.

@@ -31,6 +31,11 @@ Existing property tracks are implementation foundations to verify, not a missing
 
 ## Acceptance
 
+Owner clarification, 2026-09-15: match or beat Zero Density OGraf Studio on basic editing
+quality and beat it on the imported-artwork-to-production workflow. The plan now requires
+direct comparison evidence and source inspection for each relevant interaction. Studio's
+open source implementation is an ongoing implementation resource, not only a research citation.
+
 The plan defines the exact lower-third/SVG task, interaction rules, source/runtime parity,
 visual review, performance targets and first-time-user walks. A green build does not satisfy
 the ask. New product flows require mapped browser tests and individual human acceptance routes.
