@@ -92,16 +92,25 @@ export function hostedCombineNow(machines: Map<string, HostedMachine>, at: Hoste
 }
 
 /**
- * HOW THIS SURFACE READS THE PRODUCTION when a group fires.
+ * THE VALUES THE OPERATOR SEES FOR ONE CUE: the published cue with the SHARED staging buffer over
+ * them, so another operator typing is part of what a Take would send.
  *
- * A cue's values are the published cue with the shared staging buffer over them — what this
- * page's own ⟳ TAKE sends, so a combined control's Take and the operator's Take cannot differ.
+ * One function because the page's ⟳ TAKE, ✎ Update, the snap's trailing write, the cue editor and
+ * a combined control's verb step all have to send the same values — two readings of "the cue as it
+ * stands" is how one production's Take comes to mean two things.
+ */
+export function hostedCueValues(
+  cue: OutputCue,
+  staged: Record<string, Record<string, string>>,
+): Record<string, string> {
+  return { ...cue.values, ...(own(staged, cue.graphic) ?? {}) };
+}
+
+/**
+ * HOW THIS SURFACE READS THE PRODUCTION when a group fires.
  */
 export function hostedCombineWorld(machines: Map<string, HostedMachine>, at: HostedCombineInput): CombineWorld {
-  const cueValues = (cue: OutputCue): Record<string, string> => ({
-    ...cue.values,
-    ...(own(at.staged, cue.graphic) ?? {}),
-  });
+  const cueValues = (cue: OutputCue) => hostedCueValues(cue, at.staged);
   return {
     buttons: (graphic) => machines.get(graphic)?.buttons ?? [],
     cueSendValues: (cueId) => {

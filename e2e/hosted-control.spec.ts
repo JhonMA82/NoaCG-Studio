@@ -717,20 +717,57 @@ test('the hosted page reads a delayed step off the WIRE, and reports the one the
     const drop = sendWith(spentAt, [firstGroup, tailGroup]);
     const names = hostedCombineNames(machines, spentAt);
 
+    // (E) A WALK THAT AIRS WHAT IT THEN DRIVES: Take the totals board, then +1 on it, in one
+    //     press, with nothing on air to start with. The take has not come back round the log when
+    //     the +1 is judged, so a resolver reading only the surface's own state refuses its own
+    //     second step - the composition the owner-queue route all but invites.
+    const walk = {
+      id: 'c2',
+      name: 'Board up, first point',
+      steps: [
+        { kind: 'verb' as const, verb: 'take' as const, cue: cueOf(TOTALS).id },
+        { kind: 'event' as const, graphic: TOTALS, control: 'plus1' },
+      ],
+    };
+    const cold2 = { ...base, liveCue: {}, live: {} };
+    const walked = sendWith(cold2, planCombine(walk, new Set<number>()));
+
+    // (F) THREE TAKES, which is nine wire items and so more than one RPC. No batch may hold part
+    //     of a take: its `cue` row alone in a refused second batch is a graphic on air that
+    //     nothing can then take off.
+    const threeTakes = {
+      id: 'c3',
+      name: 'Top of show',
+      steps: [
+        { kind: 'verb' as const, verb: 'take' as const, cue: cueOf(VOTES).id },
+        { kind: 'verb' as const, verb: 'take' as const, cue: cueOf(TOTALS).id },
+        { kind: 'verb' as const, verb: 'take' as const, cue: cueOf(VOTES).id },
+      ],
+    };
+    const top = sendWith(cold2, planCombine(threeTakes, new Set<number>()));
+
+    const kindOf = (item: { msg: unknown }) => (item.msg as { t: string }).t;
+    const eventOf = (item: { graphic: string; msg: unknown }) =>
+      `${item.graphic}:${(item.msg as { event?: string }).event}`;
     const payloadOf = (item: { msg: unknown }) => (item.msg as { payload?: Record<string, string> }).payload ?? {};
     return {
       greyed,
-      pressEvents: press.items.map((i) => `${i.graphic}:${(i.msg as { event?: string }).event}`),
-      wiredF5: payloadOf(wired.items[0]).f5,
-      coldF5: payloadOf(cold.items[0]).f5,
-      wiredMirror: wired.mirrors.map((m) => `${m.graphic}:${m.cueId === cueOf(TOTALS).id ? 'its cue' : m.cueId}:${m.values.f5}`),
+      pressEvents: press.steps.flat().map(eventOf),
+      wiredF5: payloadOf(wired.steps.flat()[0]).f5,
+      coldF5: payloadOf(cold.steps.flat()[0]).f5,
+      wiredMirror: wired.mirrors.map(
+        (m) => `${m.graphic}:${m.cueId === cueOf(TOTALS).id ? 'its cue' : m.cueId}:${m.values.f5}`,
+      ),
       cueF5: cueOf(TOTALS).values.f5 ?? '',
       dropSentences: drop.dropped.map(
         (d) => `“${control.name}” skipped ${stepWords(d.step, names)}, because ${d.why}`,
       ),
       dropGraphics: drop.dropped.map((d) => d.graphic),
-      dropProceeded: drop.items.map((i) => `${i.graphic}:${(i.msg as { event?: string }).event}`),
-      batchSizes: commandBatches(drop.items).map((b) => b.length),
+      dropProceeded: drop.steps.flat().map(eventOf),
+      walkDropped: walked.dropped.length,
+      walkWire: walked.steps.map((step) => step.map(kindOf).join('+')),
+      walkMirror: walked.mirrors.map((m) => `${m.cueId === cueOf(TOTALS).id ? 'its cue' : m.cueId}:${m.values.f5}`),
+      topBatches: commandBatches(top.steps).map((b) => b.map(kindOf).join('+')),
     };
   }, { VOTES: PROOF_VOTES, TOTALS: PROOF_TOTALS });
 
@@ -764,8 +801,20 @@ test('the hosted page reads a delayed step off the WIRE, and reports the one the
   // The note is filed against the graphic it names, so the feed's own column agrees with it.
   expect(measured.dropGraphics).toEqual(['Votes board']);
 
-  // THE BATCH CAP, which bites only on a PUBLISHED production and so passes over every offline
-  // spec that sends: `control_send_many` refuses a batch outside 1..8 outright, and a step is not
-  // one item (a Take is three, an Out is two). An unchunked press would lose the WHOLE press.
-  expect(measured.batchSizes.every((n) => n >= 1 && n <= 8)).toBe(true);
+  // (E) A PRESS SEES ITS OWN EARLIER STEPS. The take airs the board and the +1 that follows it in
+  // the same press goes — nothing is dropped, and the figure is mirrored at the cue the take just
+  // put up rather than at whatever was there before.
+  expect(measured.walkDropped, 'a step must not be refused by a take earlier in its own press').toBe(0);
+  expect(measured.walkWire).toEqual(['update+play+cue', 'event']);
+  expect(measured.walkMirror).toEqual(['its cue:1']);
+
+  // (F) A BATCH NEVER HOLDS PART OF A STEP. Three takes are nine items, over the eight
+  // `control_send_many` accepts, so they go in two calls — and the split falls between takes. Cut
+  // at the raw item count instead, the third take's `cue` row would sit alone in the second batch:
+  // every caller stops at the first refusal, so that graphic would be playing in on air with no
+  // ON AIR marker, no entry in `liveCue` and nothing able to take it off.
+  expect(measured.topBatches).toEqual([
+    'update+play+cue+update+play+cue',
+    'update+play+cue',
+  ]);
 });

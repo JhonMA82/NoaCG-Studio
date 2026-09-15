@@ -64,8 +64,15 @@ export interface CombineMirror {
 
 /** Everything one fired pass produces. */
 export interface CombineSend {
-  /** The wire items, in step order. Chunk with `commandBatches` before sending. */
-  items: ControlSendItem[];
+  /**
+   * The wire items, in step order, ONE ENTRY PER STEP — never flattened here.
+   *
+   * A step's items are indivisible: a Take is `update` + `play` + `cue`, and an Out is `stop` +
+   * `cue`. `commandBatches` packs whole steps so a refused batch can never be the one holding a
+   * take's `cue` row on its own, which would put a graphic on air that no surface's ON AIR marker,
+   * `liveCue` or ■ Out could then see.
+   */
+  steps: ControlSendItem[][];
   /** What to write back so the next ⟳ Take or ✎ Update cannot regress a moved figure. Only the
    *  fields this pass MOVED: merging a whole cue read from the current render would put every
    *  other field back as it stood before the pass. */
@@ -92,7 +99,7 @@ export interface CombineSend {
  * inside a single pass.
  */
 export function resolveCombineSend(due: StepGroup[], now: CombineNow, world: CombineWorld): CombineSend {
-  const items: ControlSendItem[] = [];
+  const steps: ControlSendItem[][] = [];
   const mirrorByCue = new Map<string, CombineMirror>();
   const liveAfter = new Map<string, string | null>();
   const dropped: DroppedStep[] = [];
@@ -101,38 +108,75 @@ export function resolveCombineSend(due: StepGroup[], now: CombineNow, world: Com
    *  apply it once. */
   const ahead = new Map<string, Record<string, string>>();
 
+  /**
+   * THE PASS'S OWN VIEW OF WHAT IS UP, which is not the surface's until the rows land.
+   *
+   * A `take` earlier in this pass has not aired yet — no `cue` row has come back — so `now` still
+   * says that graphic is off. Judged against `now` alone, the obvious composition "Take the board,
+   * then +1 on it" drops its own second step and the feed reports a refusal that never happened.
+   * Everything a verb step DOES decide about liveness is already in `liveAfter`, so this follows
+   * it, rebuilt only when a verb step moves one — most passes never touch it at all.
+   *
+   * It deliberately does not touch the machine STATE: a take plays a graphic in and the state it
+   * lands on is the graphic's to report, so a later step's legality is still judged against the
+   * last report, exactly as §6b accepts.
+   */
+  let view = now;
+  const relive = () => {
+    view = {
+      graphics: new Map(
+        [...now.graphics].map(([name, g]) => [
+          name,
+          liveAfter.has(name) ? { ...g, live: liveAfter.get(name) !== null } : g,
+        ]),
+      ),
+      cues: now.cues,
+    };
+  };
+
   for (const { step } of due.flatMap((group) => group.steps)) {
     // A verb step names a CUE; the graphic is whichever pool graphic that cue belongs to, which
     // only the production knows. Falling back to the cue id keeps the drop sentence printable
     // for a cue that has been deleted.
     const graphic = step.kind === 'verb' ? now.cues.get(step.cue) ?? step.cue : step.graphic;
-    const why = stepBlocked(step, now);
+    const why = stepBlocked(step, view);
     if (why) {
       dropped.push({ step, graphic, why });
       continue;
     }
     if (step.kind === 'patch') {
-      items.push({ graphic: step.graphic, msg: { t: 'update', data: step.values } });
+      steps.push([{ graphic: step.graphic, msg: { t: 'update', data: step.values } }]);
       continue;
     }
     if (step.kind === 'verb') {
       const values = world.cueSendValues(step.cue);
       if (step.verb === 'take' && values) {
-        items.push(...takeCueItems({ id: step.cue, graphic, values }));
+        steps.push(takeCueItems({ id: step.cue, graphic, values }));
         liveAfter.set(graphic, step.cue);
+        relive();
       } else if (step.verb === 'update' && values) {
-        items.push({ graphic, msg: { t: 'update', data: values } });
+        steps.push([{ graphic, msg: { t: 'update', data: values } }]);
       } else if (step.verb === 'next') {
-        items.push({ graphic, msg: { t: 'next' } });
+        steps.push([{ graphic, msg: { t: 'next' } }]);
       } else if (step.verb === 'out') {
-        items.push(...clearCueItems(graphic));
+        steps.push(clearCueItems(graphic));
         liveAfter.set(graphic, null);
+        relive();
       }
       continue;
     }
     const button = world.buttons(step.graphic).find((b) => b.event === step.control);
     if (!button) continue; // `stepBlocked` already refused this; belt and braces for the types
-    const air = world.onAir(step.graphic);
+    // The cue this graphic is on — as THIS PASS left it, for the same reason the liveness is:
+    // a `+1` after a Take in one press reads and mirrors the cue the Take put up, not the one it
+    // replaced, which is where the figures would otherwise have been written back.
+    const taken = liveAfter.get(step.graphic);
+    const air =
+      taken === undefined
+        ? world.onAir(step.graphic)
+        : taken === null
+          ? null
+          : { cueId: taken, values: world.cueSendValues(taken) ?? {} };
     const cueValues = air?.values ?? {};
     // Exactly the ⚡ block's own rule: a field the press MOVES counts from what AIR shows, a
     // field it only READS is the cue's own value — with this pass's earlier steps on top.
@@ -162,24 +206,38 @@ export function resolveCombineSend(due: StepGroup[], now: CombineNow, world: Com
         });
       }
     }
-    items.push({
-      graphic: step.graphic,
-      msg: payload ? { t: 'event', event: button.event, payload } : { t: 'event', event: button.event },
-    });
+    steps.push([
+      {
+        graphic: step.graphic,
+        msg: payload ? { t: 'event', event: button.event, payload } : { t: 'event', event: button.event },
+      },
+    ]);
   }
 
-  return { items, mirrors: [...mirrorByCue.values()], liveAfter, dropped };
+  return { steps, mirrors: [...mirrorByCue.values()], liveAfter, dropped };
 }
 
 /**
- * ONE RPC PER EIGHT ITEMS. `control_send_many` refuses a batch outside 1..8 outright (migration
- * 0029), and A STEP IS NOT ONE ITEM: a Take is three and an Out is two. An unchunked press of
- * three Takes raises `not a command batch` and loses the WHOLE press, which is the one failure a
- * combined control must not have. It bites only on a PUBLISHED production, so every offline spec
- * passes straight over it — which is how it reached review rather than the room.
+ * AT MOST EIGHT ITEMS PER RPC, AND NEVER A STEP SPLIT ACROSS TWO.
+ *
+ * `control_send_many` refuses a batch outside 1..8 outright (migration 0029), and A STEP IS NOT
+ * ONE ITEM: a Take is three and an Out is two. An unchunked press of three Takes raises `not a
+ * command batch` and loses the WHOLE press, which is the one failure a combined control must not
+ * have. It bites only on a PUBLISHED production, so every offline spec passes straight over it.
+ *
+ * Packing by STEP rather than by item is the second half, and it is the half a plain slice gets
+ * wrong: three Takes are nine items, so `[0,8) [8,9)` would put the third take's `cue` row alone
+ * in the second batch. Every caller stops at the first refusal — the likeliest one is the log's
+ * 50-per-5-s cap — so that graphic would be playing in on air with no cue row behind it: no ON AIR
+ * marker anywhere, no entry in `liveCue`, and nothing left on any surface able to take it off.
+ * A step is at most three items, so it always fits.
  */
-export function commandBatches(items: ControlSendItem[]): ControlSendItem[][] {
+export function commandBatches(steps: ControlSendItem[][]): ControlSendItem[][] {
   const batches: ControlSendItem[][] = [];
-  for (let i = 0; i < items.length; i += COMMAND_BATCH_MAX) batches.push(items.slice(i, i + COMMAND_BATCH_MAX));
+  for (const step of steps) {
+    const last = batches[batches.length - 1];
+    if (last && last.length + step.length <= COMMAND_BATCH_MAX) last.push(...step);
+    else batches.push([...step]);
+  }
   return batches;
 }

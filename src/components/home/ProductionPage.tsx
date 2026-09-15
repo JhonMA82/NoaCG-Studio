@@ -1844,7 +1844,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * A step the machine would drop is dropped ALONE and the feed says which; the rest proceed (§6b).
    */
   fireCombineRef.current = (control, due) => {
-    const { items, mirrors, liveAfter, dropped } = resolveCombineSend(due, combineNow, combineWorld);
+    const { steps, mirrors, liveAfter, dropped } = resolveCombineSend(due, combineNow, combineWorld);
 
     for (const drop of dropped) {
       feedNote(
@@ -1860,8 +1860,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (editingCue?.id === cueId) editDraft({ values });
       else setShows(updateShowCue(id, cueId, { values }));
     }
-    if (items.length === 0) return;
-    void runVerb(commandBatches(items), `“${control.name}”`).then((sent) => {
+    if (steps.length === 0) return;
+    void runVerb(commandBatches(steps), `“${control.name}”`).then((sent) => {
       if (!sent) return;
       for (const [graphic, cueId] of liveAfter) setLiveCue((m) => withLiveCue(m, graphic, cueId));
     });

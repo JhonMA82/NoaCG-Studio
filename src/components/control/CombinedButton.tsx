@@ -47,13 +47,11 @@ export default function CombinedButton({
   /** Prefixes every test id, so the two surfaces stay tellable apart in a spec. */
   testPrefix?: string;
 }) {
-  const ticked = new Set(
-    askSteps(control)
-      .filter((a) => tickOn(a.index, a.on))
-      .map((a) => a.index),
-  );
-  const blocked = combineBlocked(control, now, ticked);
   const asks = askSteps(control);
+  /** The step indices this press WOULD send. The greying reads it too, so a control whose first
+   *  step the operator has un-ticked is judged by the step that would actually go. */
+  const ticked = new Set(asks.filter((a) => tickOn(a.index, a.on)).map((a) => a.index));
+  const blocked = combineBlocked(control, now, ticked);
   const delayed = control.steps.some((s) => s.after);
   const sentence = control.steps.map((s: ProfileStep) => stepWords(s, names)).join('; ');
   return (

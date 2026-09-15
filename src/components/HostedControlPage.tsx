@@ -27,11 +27,12 @@ import {
   combineBlocked,
   type StepGroup,
 } from '../control/combine';
-import { commandBatches, resolveCombineSend } from '../control/combineSend';
+import { commandBatches, resolveCombineSend, type CombineMirror } from '../control/combineSend';
 import {
   hostedCombineNames,
   hostedCombineNow,
   hostedCombineWorld,
+  hostedCueValues,
   hostedPoolMachines,
   type HostedCombineInput,
 } from '../control/hostedCombine';
@@ -127,6 +128,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   /** Bumped whenever a run arms, fires or is cancelled, and by the countdown's own interval. The
    *  scheduler holds no React, so this is how a wait repaints. */
   const [combineTick, setCombineTick] = useState(0);
+  /** The fields a combined press just MOVED, handed to the cue editor so its boxes say what the
+   *  board says. A fresh ARRAY per press, because two presses of one control carry the same
+   *  values and the editor has to act on both. */
+  const [combineMoved, setCombineMoved] = useState<CombineMirror[] | null>(null);
   const schedulerRef = useRef<CombineScheduler | null>(null);
   if (!schedulerRef.current) {
     schedulerRef.current = new CombineScheduler({ onChange: () => setCombineTick((t) => t + 1) });
@@ -181,6 +186,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         // …and remember what it put on air, which is what makes "not sent yet" honest.
         if (msg.t === 'update') {
           setAiredData((prev) => ({ ...prev, [item.graphic]: { ...prev[item.graphic], ...msg.data } }));
+        } else if (msg.t === 'event' && msg.payload) {
+          // AN ACCEPTED EVENT'S PAYLOAD IS ALSO WHAT AIR SHOWS. A goal's +1 rides moved through
+          // the same field path an update takes, so leaving it out of this baseline was wrong
+          // twice: the unsent-changes chip announced "1 change not on air yet" about a figure the
+          // press had just aired, and a combined control's delayed step counts from this map —
+          // so two presses of one `+1` both read the figure before the first and the score froze
+          // one short. The in-app page has always merged it here (`rememberAired`); this page's
+          // own ⚡ button quietly worked around the gap by counting from its staged echo instead.
+          setAiredData((prev) => ({ ...prev, [item.graphic]: { ...prev[item.graphic], ...msg.payload } }));
         } else if (msg.t === 'stop') {
           // Off air: forget it, or the next take would compare against a stale baseline.
           setAiredData((prev) => {
@@ -435,11 +449,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const spec: PanelGraphicSpec | null = selectedGraphic ? specByName.get(selectedGraphic) ?? null : null;
 
   /** The values the operator sees for the selected cue: the cue's own, with the SHARED staged
-   *  buffer over them (another operator typing is visible here, by design). */
-  const cueValues = (cue: OutputCue): Record<string, string> => ({
-    ...cue.values,
-    ...(resolved?.staged[cue.graphic] ?? {}),
-  });
+   *  buffer over them (another operator typing is visible here, by design). The one reading,
+   *  shared with a combined control's verb step so the two cannot send different Takes. */
+  const cueValues = (cue: OutputCue) => hostedCueValues(cue, resolved?.staged ?? {});
 
   // ── COMBINED CONTROLS (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b; the runtime is control/combine.ts
   // and control/combineSend.ts, both shared with the in-app production page)
@@ -494,7 +506,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * be refused too — the same rule ■ All out already follows.
    */
   fireCombineRef.current = (control, due) => {
-    const { items, mirrors, dropped } = resolveCombineSend(due, combineNow, combineWorld);
+    const { steps, mirrors, dropped } = resolveCombineSend(due, combineNow, combineWorld);
 
     for (const drop of dropped) {
       feedNote(
@@ -505,12 +517,20 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     // THE MIRROR, on this surface, is the SHARED staging buffer: a moved figure has to become what
     // every open page counts from and what the next ⟳ TAKE re-sends, and here that is one row
     // rather than a write to a stored cue this page cannot author.
+    //
+    // …AND THE EDITOR'S OWN ECHO, which is not the same thing. The cue editor reads
+    // `echo[key] ?? staged[key]`, so a field this operator has ever typed into keeps the typed
+    // figure until the echo is corrected — the box would read 3 while the board reads 5, and the
+    // next plain ⚡ press would count from 3 and send the board backwards. The single ⚡ button
+    // does both writes for exactly this reason; a combined press cannot reach the editor's state
+    // from here, so it hands the moved fields down instead.
     for (const mirror of mirrors) {
       void stageHostedData(slug, mirror.graphic, mirror.values).catch((e: Error) => setError(e.message));
     }
-    if (items.length === 0) return;
+    if (mirrors.length > 0) setCombineMoved(mirrors);
+    if (steps.length === 0) return;
     void (async () => {
-      for (const batch of commandBatches(items)) if (!(await sendVerb(batch))) return;
+      for (const batch of commandBatches(steps)) if (!(await sendVerb(batch))) return;
     })();
   };
 
@@ -732,13 +752,19 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               onSnap={snapTo}
               onSend={(items) => void sendVerb(items)}
               onError={setError}
+              moved={combineMoved}
               // THE PRODUCTION'S OWN BUTTONS (§6b), drawn by the block they belong in. They are
               // passed down rather than built in the editor because a combined control is the
               // PRODUCTION's, not the selected graphic's: its steps name their own graphics, and
               // only the page knows the whole pool. For the same reason the block renders them
-              // even when the selected graphic declares no ⚡ actions of its own — hiding them
-              // behind whichever cue happened to be selected would make them vanish at the worst
-              // possible moment.
+              // even when the SELECTED GRAPHIC DECLARES NO ⚡ ACTIONS of its own.
+              //
+              // What they do still depend on is a cue being selected at all, because the editor
+              // is where the ⚡ block lives on both dashboards — the in-app page gates its block
+              // the same way. That only bites a production with no cues or a cue whose graphic
+              // never published a panel spec, neither of which can have a graphic on air for a
+              // step to act on; if it ever bites something real, the block moves up a level on
+              // both surfaces together rather than on one.
               combined={combineControls.map((control) => (
                 <CombinedButton
                   key={control.id}
@@ -954,6 +980,7 @@ function HostedCueEditor({
   onSnap,
   onSend,
   onError,
+  moved,
   combined,
 }: {
   slug: string;
@@ -978,6 +1005,9 @@ function HostedCueEditor({
   /** The page's one door for a verb — both roads, its own monitor, and the log. */
   onSend: (items: ControlSendItem[]) => void;
   onError: (message: string) => void;
+  /** The fields a combined press just moved on air. The editor's own echo has to follow them, or
+   *  a field the operator typed into would keep an older figure than the board shows. */
+  moved: CombineMirror[] | null;
   /** This PRODUCTION's combined controls, already built by the page (§6b). Empty for a production
    *  that has composed none, which is most of them. */
   combined: ReactNode[];
@@ -1011,6 +1041,26 @@ function HostedCueEditor({
     setEntryId('');
     setLastLoaded(null);
   }, [cue.id]);
+  /**
+   * A COMBINED PRESS MOVED A FIGURE ON THIS GRAPHIC — take it into the echo, so the box says what
+   * the board says.
+   *
+   * The single ⚡ button stages and echoes in one breath because it is inside this component; a
+   * combined control is the PRODUCTION's and is drawn by the page, so its moved fields arrive
+   * here instead. Without this a field the operator had ever typed into would keep the typed
+   * figure (the echo wins over the staged buffer), and the next plain ⚡ press would count from it
+   * and send the board backwards.
+   *
+   * Keyed on the ARRAY's identity, not on its contents: pressing the same control twice is two
+   * events that happen to carry the same figures.
+   */
+  useEffect(() => {
+    const mine = (moved ?? []).filter((m) => m.graphic === cue.graphic);
+    if (mine.length === 0) return;
+    const values = Object.assign({}, ...mine.map((m) => m.values)) as Record<string, string>;
+    setEcho((v) => ({ ...v, ...values }));
+    setEntryId('');
+  }, [moved, cue.graphic]);
 
   const valueOf = (key: string) => echo[key] ?? values[key] ?? '';
   const currentValues = () => {
