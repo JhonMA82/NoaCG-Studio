@@ -139,3 +139,15 @@ it. Re-reading it on 2026-09-09 while judging the six did not change that.
   0 workflows.
 - 2026-09-09: baseline 106 (recorded 2026-09-09), live 106, **0 unaccounted**, gate wired into
   0 workflows.
+- 2026-09-15: baseline 106 (still the 2026-09-09 record), live 106, 0 unaccounted, gate wired into
+  **0 workflows** (`git grep` for `supabase-advisors` or `check:advisors` finds only
+  `package.json`). Production and staging now hold 57 migrations, up from 55. Post-land applied
+  two migrations this week, and no workflow asked the advisors about them; this review was the
+  first reader. The gate is green by good practice, not because anything checks. The accepted
+  classes still hold: none of the 24 deny-all tables has gained a `CREATE POLICY` in the
+  migrations, and the five no code references (`audience_rounds`, `audience_submissions`,
+  `audience_votes`, `chat_blocklist`, `control_show_identity`) are all read by definer function
+  bodies. One accepted function has no caller in `src/`, `api/` or `scripts/`, which is
+  `team_production_save`. It is the only write path to `team_productions`, and no client code
+  writes that table yet, so it is not dead. It is the first entry to re-check if teams
+  productions never ship.

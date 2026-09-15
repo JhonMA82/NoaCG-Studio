@@ -158,3 +158,16 @@ the compaction ships in the same commit.** Waiting for the answer is the failure
   15 KB core. This is now the blocking item, not a background one: `docs/backlog/memory-store-drain.md`
   names it as the reason ten routed memory rules still have nowhere to go, so two backlog items are
   waiting on these two lines.
+- 2026-09-15: the common path has room again at **629 of 640** lines (`routing.md` went from 72
+  lines to 60), but the core is at **199 of 200**, one line from failing the build. The byte chains
+  are still comfortable: `src/components/wizard` 65.8%, `src/ai/pro/harness` 65.3%,
+  `src/templates/importedDesign` 63.0%. What grew is the workflow folder: `.agent-workflows/` went
+  from 250.6 KB to 278.8 KB in the week (+11%). Most of it landed in modules loaded on demand,
+  which is the right place: `orchestrator/hosts.md` (new, 12.2 KB), `orchestrator/specs.md` (new,
+  6.7 KB) and `orchestrator-week.md` (5.3 to 16.0 KB). One is not cheap. `check.md` went from 13.0
+  KB to 17.8 KB (+36%), and `/queue-merge` reads its stamp, so nearly every finishing session pays
+  for it. Root `AGENTS.md` is 16,170 bytes (15,841 on 09-08). The always-loaded
+  `.claude/rules/everywhere.md` is 7,859 bytes and flat. The per-document 32 KB cap the review
+  brief cites is only the fallback in `check-shared-instructions.mjs`. The enforced limits are the
+  110,000-byte chain budget with its 4,096-byte reserve, 25 lines per wrapper, and the two
+  orchestrator line caps.
