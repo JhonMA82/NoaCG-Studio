@@ -27,6 +27,25 @@ re-checked in a demo before it does.
 
 ---
 
+## Zero Density - OGraf Studio, first on the list
+
+**Moved to the top by the owner on 2026-09-15.** His reason: they now have an editor, and a node
+editor for graphics too, so they already do what we want to do with an OGraf editor. **Read
+2026-09-15** from [zerodensity.io](https://www.zerodensity.io/) and the
+[Reality 5.5 Event Graph tutorial](https://docs.zerodensity.io/reality-5.5/tutorials/texture-input-workflow/creating-event-graph).
+The source-level read of the editor is `docs/OGRAF_STUDIO_RESEARCH.md`, pinned to a Studio revision
+on 2026-09-13; it lands with `codex/ograf-studio-architecture-research`. The earlier IBC read of
+the same vendor is the block below, further down this page.
+
+| Capability | They have | Us | Verdict |
+|---|---|---|---|
+| A visual OGraf editor | **OGraf Studio**, announced 2026-09-09: browser authoring that animates, validates and exports OGraf packages. Open source at `github.com/zerodensity/ograf-studio`, AGPL-3.0-only | Timeline v2, the Inspector and the canvas. The owner rejected how animation and keyframe editing feel on 2026-09-14 | **GAP** on editing feel. `docs/EDITOR_REBUILD_PLAN.md` uses Studio as the interaction reference |
+| Per-property animation tracks, curves, vector point editing | Yes, per the source read | Property keys already exist in `src/blocks/animData.ts`; the editing surface around them is the gap | **GAP** on the surface, not on the data model |
+| An agent that edits a graphic | MCP tools with revision-checked atomic edits, dry runs, frame capture and design review, plus an in-app agent | One MCP tool, `noacg`, with seven verbs, and the CLI. It edits a file, not a live scene | **Contested**, in a different shape |
+| Operator logic behind a graphic | Custom actions are declared metadata. The runtime checks the action id and acknowledges it, and runs no authored behaviour | Fourteen behaviour recipes compiled to machines, with generated operator controls (`src/templates/behaviours/registry.ts`) | **We beat**, on the 2026-09-13 source read |
+| A node editor | The **Event Graph** in Reality, their Unreal Engine product: Unreal Blueprint nodes such as *Set Texture Parameter Value* wired to Custom Events and compiled in the blueprint editor. It is not part of OGraf Studio | A node editor exists and did not land as a surface for non-programmers (P2) | **Different product.** A programmer's surface, and useful P2 evidence of what a node graph asks of its user |
+| Reusing their code | AGPL-3.0-only editor and runtime, and the runtime is embedded in every export | NoaCG is AGPL-3.0-only; the CLI is Apache-2.0 | Read for patterns. Copy no file without an exact-file licence review (`docs/OGRAF_STUDIO_RESEARCH.md` §9) |
+
 ## The OGraf convergence - read 2026-09-01
 
 **The most important movement on this page, and it is not one competitor.** Through 2026 OGraf went
@@ -185,7 +204,7 @@ Last read 2026-07-09. HTML broadcast graphics, the **closest positioning to ours
 | LiveOS integration | A legacy `templates.json` export into a LiveOS templates folder | We reach LiveOS through OGraf, which cannot drift | **We beat**, on robustness |
 | Everything else | UNRESEARCHED | | The single biggest hole in this file, given the positioning overlap |
 
-## Zero Density
+## Zero Density - the IBC2026 announcement
 
 **Read 2026-09-01**, from public IBC2026 material only: an
 [ibc.org preview dated 2026-08-21](https://www.ibc.org/production/news/zero-density-unites-graphics-and-newsroom-workflows/22794),
