@@ -1537,3 +1537,15 @@ test('readReviewStamp: reads checks/<branch-with-dashes>.json and treats an unre
   assert.equal(readReviewStamp(dir, 'claude/z'), null, 'a stamp without reviewedSha proves nothing');
   rmSync(dir, { recursive: true, force: true });
 });
+
+test('advisory idle evidence neither releases the browser slot nor reaps a live job', () => {
+  const live = job('j-0001', { state: 'running', pid: 42, startedAt: 1000 });
+  const waiting = job('j-0002');
+  const facts = { hour: DAY, freeMemMb: PLENTY, now: 800000 };
+  const baseline = schedule([live, waiting], facts);
+  const observed = schedule([live, waiting], { ...facts,
+    holderDiagnostics: [{ pid: 42, status: 'suspected-idle', cpuDeltaSeconds: 0 }] });
+  assert.deepEqual(observed, baseline);
+  assert.deepEqual(observed.start, []);
+  assert.deepEqual(reapDead([live], () => true, facts.now), []);
+});
