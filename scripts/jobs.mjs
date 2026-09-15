@@ -25,7 +25,7 @@ import { closeSync, createWriteStream, existsSync, fstatSync, openSync, readFile
 import { freemem } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { activeRuns, nodeProcesses, orphanProcesses } from './e2e-runs.mjs';
+import { activeRuns, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
 import { delegationRecords } from './codex-rescue.mjs';
 import { requiresRunningDevServer } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
@@ -623,9 +623,11 @@ async function cmdRequeue() {
 
 async function cmdList() {
   const { jobs, start, waiting, dead, running, slots } = snapshot();
+  const holderDiagnostics = await sampleHolderDiagnostics();
   if (flag('--json')) {
     process.stdout.write(`${JSON.stringify({
       running,
+      holderDiagnostics,
       waiting: waiting.map((w) => ({ ...w.job, reason: w.reason })),
       // A job whose dependency died is still `waiting` on disk until a runner writes it off, and
       // leaving it out of both lists made it vanish from the listing entirely.
@@ -635,6 +637,7 @@ async function cmdList() {
     })}\n`);
     return;
   }
+  if (holderDiagnostics.length) console.log(`Browser holder diagnostics (advisory):\n${describeHolderDiagnostics(holderDiagnostics)}`);
   // WHAT IS RED ON MAIN, above everything else, because it frames the rest of this report: the
   // queue below is busy landing branches on top of whatever is already broken, and it is
   // supposed to (it gates on ci.yml alone so an infrastructure fault cannot freeze it). Nothing
@@ -910,9 +913,20 @@ async function runner() {
   console.log(`Runner ${process.pid} draining ${dir}`);
   let idleSince = null;
   let starvedSince = null;
+  let diagnosticSample = null;
+  let diagnosticAt = 0;
 
   for (;;) {
     const now = Date.now();
+    // Observation is deliberately outside snapshot(), plan() and reclaimCandidates(). The
+    // runner reuses successive samples without adding a wait or changing scheduling inputs.
+    if (now - diagnosticAt >= 30_000) {
+      const current = holderSample();
+      const diagnostics = diagnoseHolders(activeRuns({}), diagnosticSample, current);
+      if (diagnostics.length) console.log(`Browser holder diagnostics (advisory):\n${describeHolderDiagnostics(diagnostics)}`);
+      diagnosticSample = current;
+      diagnosticAt = now;
+    }
     // One pass, one answer per branch. Held landings ask `aheadOfMain` on every poll and nothing
     // about a branch changes between two jobs read from the same snapshot.
     aheadOfMainCache.clear();

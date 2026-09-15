@@ -16,6 +16,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  diagnoseHolders,
+  describeHolderDiagnostics,
+  orphanProcesses,
   ancestorsOf,
   blockingRuns,
   descendantsOf,
@@ -453,4 +456,96 @@ test('a process that has already exited is neither killed nor reported as kept',
   })]);
   assert.deepEqual(tree.kill, []);
   assert.deepEqual(tree.kept, []);
+});
+
+// Controlled evidence, not a replay of the historical incident. Every fixture has the full
+// process identity and cumulative CPU counters the OS sampler supplies.
+function diagnosticFixture() {
+  const run = { pid: 42, startedAt: 1000, kind: 'run', root: 'fixture' };
+  const row = { pid: 42, ppid: 1, createdMs: 1000, cpuSeconds: 1.7, name: 'node.exe' };
+  return { run, before: { at: 800000, complete: true, processes: [{ ...row }] },
+    after: { at: 805000, complete: true, processes: [{ ...row }] } };
+}
+
+test('idle suspicion carries delta, age and descendants without declaring an orphan', () => {
+  const { run, before, after } = diagnosticFixture();
+  const [answer] = diagnoseHolders([run], before, after);
+  assert.equal(answer.status, 'suspected-idle');
+  assert.equal(answer.cpuDeltaSeconds, 0);
+  assert.equal(answer.ageMs, 804000);
+  assert.equal(answer.descendantCount, 0);
+  assert.match(describeHolderDiagnostics([answer]), /CPU delta 0.000s over 5000ms/);
+  assert.match(answer.reason, /not an orphan/);
+  assert.equal(Object.hasOwn(answer, 'kill'), false);
+});
+
+test('young, CPU-active, browser-active and other-holder waits are preserved', () => {
+  for (const kind of ['young', 'cpu-active', 'browser-active', 'waiting']) {
+    const { run, before, after } = diagnosticFixture();
+    const runs = [run];
+    if (kind === 'young') { before.at = 10000; after.at = 15000; }
+    if (kind === 'cpu-active') after.processes[0].cpuSeconds += 1;
+    if (kind === 'browser-active') {
+      for (const sample of [before, after]) sample.processes.push({ pid: 43, ppid: 42, createdMs: 2000, cpuSeconds: 0, name: 'chrome-headless-shell.exe' });
+    }
+    if (kind === 'waiting') {
+      runs.push({ ...run, pid: 41, startedAt: 500 });
+      for (const sample of [before, after]) sample.processes.push({ ...sample.processes[0], pid: 41, createdMs: 500 });
+    }
+    assert.equal(diagnoseHolders(runs, before, after)[0].status, kind);
+  }
+});
+
+test('active non-browser descendants prevent idle suspicion too', () => {
+  const { run, before, after } = diagnosticFixture();
+  before.processes.push({ pid: 43, ppid: 42, createdMs: 2000, cpuSeconds: 0, name: 'node.exe' });
+  after.processes.push({ ...before.processes[1], cpuSeconds: 1 });
+  assert.equal(diagnoseHolders([run], before, after)[0].status, 'cpu-active');
+});
+
+test('missing, recycled, inaccessible, changed and invalid evidence remains unknown', () => {
+  const cases = [
+    (f) => { f.before = null; },
+    (f) => { f.after.complete = false; },
+    (f) => { f.after.processes = []; },
+    (f) => { f.after.processes[0].cpuSeconds = null; },
+    (f) => { f.after.processes[0].cpuSeconds = -1; },
+    (f) => { f.after.processes[0].cpuSeconds = 1; },
+    (f) => { f.after.processes[0].createdMs += 1; },
+    (f) => { f.before.processes[0].createdMs = null; },
+    (f) => { f.run.startedAt = null; },
+    (f) => { f.after.at = f.before.at; },
+    (f) => { f.after.at += 200000; },
+    (f) => { f.after.processes.push({ pid: 43, ppid: 42, createdMs: 2000, cpuSeconds: 0, name: 'node.exe' }); },
+    (f) => { for (const sample of [f.before, f.after]) sample.processes.push({ pid: 43, ppid: 42, createdMs: 2000, cpuSeconds: null, name: 'node.exe' }); },
+    (f) => { for (const sample of [f.before, f.after]) sample.processes.push({ pid: 43, ppid: 42, createdMs: 500, cpuSeconds: 0, name: 'node.exe' }); },
+  ];
+  for (const alter of cases) {
+    const f = diagnosticFixture(); alter(f);
+    assert.equal(diagnoseHolders([f.run], f.before, f.after)[0].status, 'unknown', String(alter));
+  }
+});
+
+test('self-waits and unconfirmed other-holder identities cannot excuse idle', () => {
+  const { run, before, after } = diagnosticFixture();
+  assert.equal(diagnoseHolders([{ ...run, kind: 'sweep' }], before, after)[0].status, 'suspected-idle');
+  assert.equal(diagnoseHolders([run, { ...run, pid: 41 }], before, after)[0].status, 'suspected-idle');
+  assert.equal(diagnoseHolders([run, run], before, after)[0].status, 'suspected-idle');
+});
+
+test('orphan cleanup preserves both live sweeps and CLIs regardless of idle evidence', () => {
+  for (const command of ['node scripts/l3-sweep.mjs', 'node /repo/node_modules/@playwright/test/cli.js test']) {
+    const { run, before, after } = diagnosticFixture();
+    const [diagnostic] = diagnoseHolders([run], before, after);
+    const answer = orphanProcesses({ nodes: [{ ...run, command, diagnostic }],
+      shells: [{ pid: 43, mb: 10 }], table: [] });
+    assert.deepEqual(answer, { workers: [], shells: [], servers: [], codexTrees: [] });
+  }
+  assert.deepEqual(orphanProcesses({ nodes: [], shells: [{ pid: 43, mb: 10 }], table: [] }).shells, [{ pid: 43, mb: 10 }]);
+});
+
+test('missing samples print unknown descendant/browser observations, never a zero count', () => {
+  const { run, after } = diagnosticFixture();
+  const answers = diagnoseHolders([run], null, after);
+  assert.match(describeHolderDiagnostics(answers), /descendants unknown, browsers unknown/);
 });
