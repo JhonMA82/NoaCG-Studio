@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "e76bc2a2a2620d14f84ea04a9e265286d2493b2e597775b9521db3be11d05b0d",
+  "authority": {
+    "status": "agreed",
+    "source": "docs/OWNER_RULINGS.md ALIGN-2026-09-14-3 and ALIGN-2026-09-15-1 to -4 (2026-09-15)"
+  },
+  "review": null
+}
