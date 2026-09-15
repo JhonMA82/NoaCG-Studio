@@ -243,24 +243,142 @@ export function adjustWords(
   ].join(', ');
 }
 
+// ── ARRANGE: how the controls a graphic declares are GROUPED AND ORDERED for an operator ─────
+//
+// Two things decide this, and one function answers both. The AUTHOR's own `machine.controls`
+// metadata gives every button a section and a declared order; that half is shared because the
+// in-app page grouped and the hosted page rendered one flat wall, so a quiz's eight actions
+// arrived unsorted on the smallest screen of the three. The PRODUCTION's profile then arranges
+// what the author declared (model/profile.ts, docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b).
+//
+// It is PRESENTATION and nothing else: the declaration travels through untouched, so a hidden
+// control is still guarded by the same `isEventLegal` table and a renamed one still greys by it.
+// `arrangeControls(buttons, undefined)` is the generated panel, which is what deleting a profile
+// has to leave behind on all three deployments.
+
+/** One control as a production PRESENTS it. */
+export interface ArrangedControl {
+  /** The DECLARATION, untouched. Legality, payload, adjust and destructive are all read from
+   *  here, which is what makes the profile unable to change what a press does. */
+  button: ControlButton;
+  /** The word the operator reads: the profile's `name`, else the control's declared label. */
+  label: string;
+}
+
+/** The controls of one graphic, split the three ways a surface draws them. */
+export interface ArrangedControls {
+  /** Above the fold, flat and unsectioned — the handful this show actually uses (the football
+   *  principle: the operator should understand football, not the graphics software). A pinned
+   *  control is LIFTED out of its section rather than repeated in it. */
+  pinned: ArrangedControl[];
+  /** The rest, grouped by section in first-seen order, exactly as `controlSections` groups. */
+  sections: [string, ArrangedControl[]][];
+  /** The hidden ones. They are out of the panel's flow, and every surface puts them behind a
+   *  COLLAPSED "More" rather than dropping them: hiding a control is a production saying "not
+   *  in my way", and an operator who needs one mid-show must not have to open the authoring
+   *  panel to reach it. Empty for a production that hid nothing. */
+  more: ArrangedControl[];
+}
+
+/** One control's presentation, as ARRANGE stores it (`model/profile.ts` `ArrangeEntry`). Spelled
+ *  out here rather than imported so this module keeps its own list of what it reads. */
+export interface ArrangeRead {
+  order?: number;
+  section?: string;
+  name?: string;
+  hidden?: boolean;
+  pinned?: boolean;
+}
+
+/** The whole of a profile this module reads: ARRANGE, and nothing about COMBINE. */
+export interface ArrangeSource {
+  arrange?: Record<string, Record<string, ArrangeRead>>;
+}
+
 /**
- * The buttons grouped by their author-declared SECTION, in first-seen order, with everything
- * undeclared under "Actions".
+ * One pool graphic's arrangement out of a production's profile, or undefined when there is none.
  *
- * Shared because it decides what an operator sees: the in-app page grouped and the hosted page
- * rendered one flat wall of buttons, so a quiz's eight actions arrived unsorted on the smallest
- * screen of the three. Grouping is the author's own metadata (`machine.controls`) and belongs to
- * every surface that draws the buttons.
+ * A pool graphic's NAME is somebody's typed text, so a bare `profile.arrange[name]` answers a
+ * function for a graphic called `constructor` — `model/profile.ts` `own()` exists for exactly
+ * this and says what it measured. Every surface asks through here rather than indexing, so the
+ * guard cannot be forgotten by the fourth one.
  */
-export function controlSections(buttons: ControlButton[]): [string, ControlButton[]][] {
-  const sections: [string, ControlButton[]][] = [];
-  for (const b of buttons) {
-    const key = b.section ?? 'Actions';
-    const bucket = sections.find(([s]) => s === key);
-    if (bucket) bucket[1].push(b);
-    else sections.push([key, [b]]);
+export function arrangeFor(
+  profile: ArrangeSource | null | undefined,
+  graphic: string | null | undefined,
+): Record<string, ArrangeRead> | undefined {
+  const arrange = profile?.arrange;
+  if (!arrange || !graphic || !Object.prototype.hasOwnProperty.call(arrange, graphic)) return undefined;
+  const entries = arrange[graphic];
+  return entries && typeof entries === 'object' ? entries : undefined;
+}
+
+/**
+ * THE ONE ARRANGEMENT RULE, which all three dashboard deployments call.
+ *
+ * `arrange` is the profile's entry map for ONE pool graphic (control id -> presentation), or
+ * undefined for "no profile" — and undefined must give the generated panel back unchanged,
+ * because that is what deleting a profile means on every surface.
+ *
+ * ORDER, precisely: a control carrying `order` sorts before one that does not, ties and the
+ * unordered rest keeping their DECLARED order. That is the reading the format states ("lower
+ * first; controls with no `order` follow in declared order") and it is what makes dragging one
+ * control to the top a one-key change rather than a renumbering of the whole list.
+ *
+ * HIDDEN beats PINNED, because the two disagree only through a hand-edited profile and "not in
+ * my way" is the safer of the two to honour. The authoring panel clears the pin when it hides.
+ */
+export function arrangeControls(
+  buttons: ControlButton[],
+  arrange: Record<string, ArrangeRead> | undefined,
+): ArrangedControls {
+  // A control id is somebody's typed event name, so the lookup must not answer a function for a
+  // control called `constructor` — the same guard `model/profile.ts` `own()` exists for.
+  const entryFor = (event: string): ArrangeRead =>
+    arrange && Object.prototype.hasOwnProperty.call(arrange, event) ? arrange[event] ?? {} : {};
+
+  const resolved = buttons.map((button, declaredAt) => {
+    const entry = entryFor(button.event);
+    return {
+      button,
+      label: entry.name || button.label,
+      section: entry.section || button.section || 'Actions',
+      hidden: entry.hidden === true,
+      pinned: entry.hidden !== true && entry.pinned === true,
+      order: entry.order,
+      declaredAt,
+    };
+  });
+
+  // One sort for every bucket below, so pinned, sectioned and hidden controls all read in the
+  // same order the production dragged them into.
+  resolved.sort((a, b) => {
+    if (a.order !== undefined && b.order !== undefined) {
+      return a.order === b.order ? a.declaredAt - b.declaredAt : a.order - b.order;
+    }
+    if (a.order !== undefined) return -1;
+    if (b.order !== undefined) return 1;
+    return a.declaredAt - b.declaredAt;
+  });
+
+  const pinned: ArrangedControl[] = [];
+  const more: ArrangedControl[] = [];
+  const sections: [string, ArrangedControl[]][] = [];
+  for (const r of resolved) {
+    const control: ArrangedControl = { button: r.button, label: r.label };
+    if (r.hidden) {
+      more.push(control);
+      continue;
+    }
+    if (r.pinned) {
+      pinned.push(control);
+      continue;
+    }
+    const bucket = sections.find(([s]) => s === r.section);
+    if (bucket) bucket[1].push(control);
+    else sections.push([r.section, [control]]);
   }
-  return sections;
+  return { pinned, sections, more };
 }
 
 /** One group's states, for the recovery snap picker: every state is enterable by SNAP by

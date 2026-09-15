@@ -1164,3 +1164,166 @@ test.describe('the cue editor groups fields by what they belong to', () => {
     expect(decided.sided).toBe(3);
   });
 });
+
+// ── ARRANGE, the production control profile's presentation half ───────────────────────────────
+// docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b, AC-5 of docs/work-specs/control-panel-any-graphic.
+// The football principle: the operator should understand the show, not the software. A graphic
+// declares twelve controls at equal weight and one production presses four of them.
+//
+// THE LINE THESE CASES GUARD is that ARRANGE is presentation and NOTHING else. A hidden control
+// is still guarded by the machine's own table and a renamed one still greys by it, which is why
+// the hidden button below is asserted DISABLED and then ENABLED rather than merely present — a
+// profile that could change legality would be the behaviour the whole design refuses.
+
+test('the Controls panel arranges the ⚡ block, and deleting the profile puts the generated one back', async ({ page }) => {
+  await createProject(page, { name: 'Club Scorebug' });
+  await productionFor(page, 'Club Match');
+
+  // The generated panel first, so what the profile changes is measured against it: six controls
+  // in the author's two sections, no pinned row and no drawer.
+  const actions = page.getByTestId('cue-actions');
+  await expect(actions.locator('h4', { hasText: 'Clock' })).toBeVisible();
+  await expect(page.getByTestId('cue-actions-pinned')).toHaveCount(0);
+  await expect(page.getByTestId('cue-actions-more')).toHaveCount(0);
+  await expect(page.getByTestId('cue-action-clockStop')).toHaveText('⚡ Stop clock');
+
+  // AUTHOR IT THROUGH THE PANEL, not through the model: the panel and the block it authors are
+  // one feature, and a profile written straight into the record would pass over the half an
+  // operator actually touches.
+  const panel = page.getByTestId('controls-panel');
+  await panel.locator('summary').click();
+  await expect(panel.getByTestId('controls-list')).toBeVisible();
+  await panel.getByTestId('controls-pin-clockStart').click();
+  // Rename AND hide the same control, because the two questions are one: does the word the
+  // production chose follow the control into the drawer, and is it still the same control.
+  // The name commits on BLUR, not per keystroke: trimming every keystroke made the box refuse a
+  // space, so "Stop the clock" could not be typed at all. Pressing Enter is the same commit.
+  await panel.getByTestId('controls-name-clockStop').fill('Stop the clock');
+  await panel.getByTestId('controls-name-clockStop').press('Enter');
+  await panel.getByTestId('controls-hide-clockStop').click();
+
+  // PINNED: above the fold, out of its section, still in the block.
+  const pinned = page.getByTestId('cue-actions-pinned');
+  await expect(pinned.getByTestId('cue-action-clockStart')).toBeVisible();
+  // HIDDEN: behind one collapsed drawer, wearing the production's own word.
+  const more = page.getByTestId('cue-actions-more');
+  await expect(more.getByTestId('cue-action-clockStop')).toHaveText('⚡ Stop the clock');
+  // …and out of the Clock section, rather than drawn twice.
+  await expect(actions.locator('.pd-actions-section', { hasText: 'Clock' }).getByTestId('cue-action-clockStop')).toHaveCount(0);
+
+  // STILL GUARDED BY THE SAME TABLE. Stop clock has no arrow out of "armed", so the hidden,
+  // renamed button is disabled exactly as the visible one was — and starting the clock enables
+  // it. This is the assertion that says ARRANGE moved presentation and not behaviour.
+  await page.getByTestId('verb-take').click();
+  const hiddenStop = more.getByTestId('cue-action-clockStop');
+  await expect(hiddenStop).toBeDisabled();
+  await page.getByTestId('cue-action-clockStart').click();
+  await expect(page.getByTestId('machine-state-chip')).toContainText(/running/i);
+  await expect(hiddenStop).toBeEnabled();
+
+  // DELETE IS ONE ACTION and leaves the COMPLETE generated panel (docs/CONTROL_PANEL_ROAD.md §3).
+  await panel.getByTestId('controls-delete-profile').click();
+  await expect(page.getByTestId('cue-actions-pinned')).toHaveCount(0);
+  await expect(page.getByTestId('cue-actions-more')).toHaveCount(0);
+  await expect(actions.locator('.pd-actions-section', { hasText: 'Clock' }).getByTestId('cue-action-clockStop')).toHaveText(
+    '⚡ Stop clock',
+  );
+  // The record goes back to having no profile at all, rather than to an empty one: a production
+  // that never had a profile and one whose profile was deleted must be byte-identical, or every
+  // surface downstream grows a second "no profile" to recognise.
+  const stored = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows().find((s) => s.name === 'Club Match')!;
+    return { hasKey: 'profile' in show, profile: show.profile ?? null };
+  });
+  expect(stored.hasKey, 'delete must remove the key, not leave an empty profile').toBe(false);
+  expect(stored.profile).toBeNull();
+});
+
+test('the EXPORTED controller carries the arrangement, and a deleted profile exports the generated panel byte for byte', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(180_000);
+  // The third deployment (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e: ARRANGE renders on all three,
+  // because it is presentation and the exported page is built from the same generator). It is
+  // resolved at GENERATION time rather than re-derived in the package's own JS, so what this
+  // asserts is both halves: that the zip carries the arrangement, and that the page draws it.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+
+  const exported = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const shows = await import('/src/model/shows.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { withGraphicArrange } = await import('/src/model/profile.ts');
+    // sb08 Club Scorebug: the same clock machine the in-app case above arranges, so the two
+    // deployments are measured on ONE graphic rather than on two that happen to agree.
+    const tpl = variantById('sb08')!.create({});
+    const { doc } = createGraphic(tpl, { name: 'Club Scorebug' });
+    const show = shows.createShowNamed('Club Match');
+    shows.addGraphicToShow(show.id, tpl, { graphicId: doc!.id });
+    const seeded = shows.loadShows().find((s) => s.id === show.id)!;
+    shows.updateShowCue(show.id, seeded.cues![0].id, { label: 'Kick off' });
+
+    /** A freshly built package's files, folder prefix stripped (it is named after the show). */
+    const packageFor = async (id: string) => {
+      const zip = await buildShowZipFor(shows.loadShows().find((s) => s.id === id)!, 'html-overlay');
+      const files: Record<string, string> = {};
+      for (const n of Object.keys(zip.files)) {
+        if (!zip.files[n].dir && /\.(html|json)$/.test(n)) {
+          files[n.replace(/^[^/]+\//, '')] = await zip.file(n)!.async('string');
+        }
+      }
+      return files;
+    };
+
+    // (1) No profile — the panel every profile-less package has always had.
+    const generated = (await packageFor(show.id))['controller.html'];
+
+    // (2) With one. The pool graphic's NAME is the key, the same one the bindings and the
+    //     published panel use — not the template's, which an import may have renamed.
+    const arrange = () =>
+      withGraphicArrange(undefined, shows.loadShows().find((s) => s.id === show.id)!.graphics[0].name, {
+        clockStart: { pinned: true },
+        clockStop: { name: 'Stop the clock', hidden: true },
+      });
+    shows.setShowProfile(show.id, arrange());
+    const withProfile = await packageFor(show.id);
+
+    // (3) Deleted — which must restore (1) exactly, on the surface furthest from the panel that
+    //     deleted it. Re-applied afterwards so the loaded package below is the arranged one.
+    shows.deleteShowProfile(show.id);
+    const restored = (await packageFor(show.id))['controller.html'];
+    shows.setShowProfile(show.id, arrange());
+
+    return { generated, arranged: withProfile['controller.html'], restored, files: withProfile };
+  });
+
+  // THE ZIP CARRIES IT. The arrangement is baked as data, so a package opened with no network
+  // and no NoaCG anywhere near it still shows the production's own panel.
+  expect(exported.arranged).toContain('Stop the clock');
+  expect(exported.generated).not.toContain('Stop the clock');
+  // AND DELETING RESTORES IT BYTE FOR BYTE. Not "renders the same": the same bytes, because the
+  // whole promise of the profile is that removing it leaves nothing behind.
+  expect(exported.restored).toBe(exported.generated);
+
+  // THE PAGE DRAWS IT. A zip carrying the right data and a page that ignores it look identical
+  // from here, which is why the arranged package is actually loaded and read.
+  const { serve } = relayServe(new Map(Object.entries(exported.files)));
+  const origin = 'http://arranged-host.local';
+  const ctl = await context.newPage();
+  await routeOrigin(ctl, origin, serve);
+  await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
+  await ctl.locator('.cue', { hasText: 'Kick off' }).click();
+
+  // Pinned above the fold, out of its section; hidden behind the one drawer, wearing the
+  // production's word; the rest of the generated panel untouched under them.
+  await expect(ctl.locator('.events-pinned button', { hasText: 'Start clock' })).toBeVisible();
+  const drawer = ctl.locator('.events-more');
+  await expect(drawer.locator('summary')).toHaveText('More (1)');
+  await expect(drawer.locator('button', { hasText: 'Stop the clock' })).toHaveCount(1);
+  await expect(ctl.locator('#editor-events h4', { hasText: 'Match' })).toBeVisible();
+  await expect(ctl.locator('#editor-events button', { hasText: 'Full time' })).toBeVisible();
+});

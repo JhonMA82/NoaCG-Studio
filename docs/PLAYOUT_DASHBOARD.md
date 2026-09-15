@@ -491,8 +491,28 @@ is a control that will not be used.
 - **Both React surfaces carry the whole block** — header, snap, section grouping, help line.
   The hosted page used to render the ⚡ buttons as one flat row with no snap at all, which put
   the recovery control on every surface EXCEPT the one being operated from a phone, away from
-  the machine running the renderer. Sections come from `controlModel.ts controlSections`, the
+  the machine running the renderer. Sections come from `controlModel.ts arrangeControls`, the
   author's own `machine.controls` metadata, grouped identically by all three deployments.
+
+**A PRODUCTION MAY ARRANGE THE BLOCK, and only the block.** The control profile's ARRANGE half
+(`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6b) orders, renames, pins and hides the ⚡ controls per
+pool graphic: a pinned control sits above a hairline at the top, the rest keep their author's
+sections under it, and a hidden one goes behind one collapsed **More** — behind, not gone, because
+the machine still accepts it and an operator who needs it mid-show must not have to go back to the
+authoring panel. One function decides it for all three deployments (`arrangeControls`), and the
+exported controller reads the answer BAKED AT EXPORT rather than re-deriving it, because an
+arrangement is authored state that cannot change while a package is offline. Nothing about a press
+changes: the declaration still carries the payload, and the same table still greys the button, so a
+hidden control is guarded exactly as a shown one is. The production page's **Controls** panel, under
+this block, is where it is authored, and deleting the profile is one action that restores the
+generated panel everywhere.
+
+**The field bands are NOT arrangeable, deliberately.** §2e's grouping stays DERIVED from the field
+titles, on the owner's 2026-08-21 rule and its own next sentence — *"we have no idea what kinds of
+graphics we will have in the future"*. ARRANGE is keyed by control id and has no vocabulary for a
+field at all, which is what keeps that true by construction rather than by agreement. A production
+that wants its fields in a different order has found a request about the GRAPHIC, not about the
+show.
 
 ## 7c. The ± LIVE NUMBERS block — the one data write that airs immediately
 

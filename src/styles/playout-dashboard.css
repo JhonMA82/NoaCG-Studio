@@ -631,7 +631,66 @@
   color: var(--text-dim, #9aa1ad);
 }
 .pd-actions-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+/* PINNED — the controls this production put above the fold (the profile's ARRANGE,
+   docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b). The HAIRLINE IS THE FOLD: everything under it is the
+   full generated panel in its sections, so the operator's handful reads as the top of one list
+   rather than as a separate block with a heading of its own.
+   Deliberately NOT a second accent and NOT a bigger button. Amber is preview and brand, red is
+   air, and a pinned control is neither — it is the same control, nearer the hand. */
+.pd-actions-pinned { padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+/* HIDDEN — one collapsed drawer, worn like the activity feed's summary so it reads as a drawer
+   rather than as a control. Hiding a control is a production saying "not in my way"; it is not
+   the same as deleting it, and the machine still accepts every one of these. */
+.pd-actions-more { margin-top: 10px; }
+.pd-actions-more > summary {
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--text-dim, #9aa1ad);
+  padding: 3px 0;
+}
 .pd-action { font-size: 12.5px; padding: 6px 11px; }
+
+/* THE CONTROLS PANEL — authoring, not operating (components/home/ProductionControlsPanel.tsx).
+   It wears the ⚡ block's chrome because it is about that block, and it is a `<details>` because
+   a drag-to-reorder list open under the buttons that go to air is a hazard mid-programme. */
+.pd-controls-panel > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  list-style: none; /* the kicker IS the affordance; a disclosure triangle beside it reads twice */
+}
+.pd-controls-panel > summary::-webkit-details-marker { display: none; }
+.pd-controls-panel > summary .muted { font-size: 11px; }
+.pd-controls-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+/* One row per control: grip, the name box that grows, then the two marks at a fixed width so the
+   column of buttons reads straight down the list rather than stepping in and out with the
+   longest name. */
+.pd-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-panel, rgba(255, 255, 255, 0.02));
+}
+.pd-controls-row.dragging { opacity: 0.45; }
+/* A hidden control still reads, at a lower weight: it is behind "More", not gone, and a row you
+   cannot read is a row you will not un-hide. */
+.pd-controls-row.hidden .pd-controls-name { color: var(--text-dim, #9aa1ad); }
+.pd-controls-row .pd-grip { cursor: grab; color: var(--text-dim, #9aa1ad); font-size: 11px; }
+.pd-controls-name { flex: 1 1 auto; min-width: 0; font-size: 12.5px; padding: 4px 8px; }
+.pd-controls-mark {
+  flex: 0 0 auto;
+  min-width: 78px;
+  font-size: 11.5px;
+  padding: 4px 8px;
+  color: var(--text-dim, #9aa1ad);
+}
+.pd-controls-mark.on { color: var(--text); border-color: var(--accent); }
+.pd-controls-delete { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; flex-wrap: wrap; }
+.pd-controls-delete .hint { margin: 0; flex: 1 1 220px; }
 .pd-action.destructive { border-color: #7a4a2a; }
 .pd-action.destructive:hover:not(:disabled) { border-color: var(--accent); }
 /* ± LIVE NUMBERS — one label + a −/+ pair per number field, reading as one control. The pair

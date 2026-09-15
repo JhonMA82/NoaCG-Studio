@@ -19,6 +19,7 @@
 import type { SpxField } from '../model/types';
 import type { FieldDescriptor } from '../model/fieldModel';
 import {
+  arrangeControls,
   controlChannelName,
   eventButtons,
   eventLegality,
@@ -28,6 +29,8 @@ import {
   OVERFLOW_FIELD_MARK,
   OVERFLOW_NOTE_MANY,
   OVERFLOW_NOTE_ONE,
+  type ArrangedControl,
+  type ArrangeRead,
   type ControlButton,
 } from './controlModel';
 import type { RemoteControlConfig } from './realtimeControl';
@@ -74,6 +77,35 @@ export interface EmittedGraphic {
    *  is most of them. The page needs it to stamp the clock's time origin itself; see the
    *  clock block in the emitted script. */
   clock: ClockSpec | null;
+  /** How the PRODUCTION presents the events above, resolved at generation time.
+   *
+   *  ARRANGE is authored state that cannot change while the package is offline, so it is
+   *  RESOLVED HERE rather than inlined as a second copy of the rule in vanilla JS. That is the
+   *  opposite choice from `eventPayload`, and deliberately: a payload reads live field values at
+   *  press time and so has to be a rule the page runs, while an arrangement is a fact known when
+   *  the zip is written. One fewer restated rule is one fewer place for the surfaces to drift.
+   *
+   *  A graphic in a production with no profile still gets an arrangement — the generated one,
+   *  which is what `arrangeControls(events, undefined)` returns — so the page has ONE code path
+   *  and a profile-less package renders exactly the panel it always did. */
+  arranged: EmittedArrangement;
+}
+
+/** One control as the operator meets it on the exported page: which declaration to fire, and the
+ *  word to print on it. The declaration itself stays in `events`, where the press rule reads it. */
+export interface EmittedAction {
+  event: string;
+  label: string;
+}
+
+/** `arrangeControls`'s answer, flattened to what a dependency-free page can render directly. */
+export interface EmittedArrangement {
+  /** Above the fold, unsectioned. */
+  pinned: EmittedAction[];
+  /** [section name, its controls] in order, "Actions" for everything undeclared. */
+  sections: [string, EmittedAction[]][];
+  /** Hidden by the production — the page's collapsed "More". */
+  more: EmittedAction[];
 }
 
 /** The template shape the panel needs (SpxTemplate satisfies it). */
@@ -87,6 +119,22 @@ export interface PanelTemplate {
   assets: { path: string; data?: unknown }[];
 }
 
+/** `arrangeControls`, carrying only what a dependency-free page needs: which event to fire and
+ *  the word to print. The declarations stay in `events`, so nothing is duplicated twice over. */
+function emitArrangement(
+  events: ControlButton[],
+  arrange: Record<string, ArrangeRead> | undefined,
+): EmittedArrangement {
+  const flat = (controls: ArrangedControl[]): EmittedAction[] =>
+    controls.map((c) => ({ event: c.button.event, label: c.label }));
+  const arranged = arrangeControls(events, arrange);
+  return {
+    pinned: flat(arranged.pinned),
+    sections: arranged.sections.map(([section, controls]) => [section, flat(controls)]),
+    more: flat(arranged.more),
+  };
+}
+
 /** The descriptors + their current values, serialized into the page's generic renderer. */
 function emitControls(fields: SpxField[]): EmittedControl[] {
   const byId = new Map(fields.map((f) => [f.field, f]));
@@ -96,8 +144,17 @@ function emitControls(fields: SpxField[]): EmittedControl[] {
 export function emitGraphic(
   template: PanelTemplate,
   remote: RemoteControlConfig | null,
-  opts?: { inlineAssets?: boolean; entries?: EmittedEntry[] },
+  opts?: {
+    inlineAssets?: boolean;
+    entries?: EmittedEntry[];
+    /** The PRODUCTION's arrangement for this graphic (`controlModel.arrangeFor`). Omitted by the
+     *  single-graphic panel, which belongs to a library graphic rather than to a show — a
+     *  downloaded graphic carries its contract and nothing of the production that used it
+     *  (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6f). */
+    arrange?: Record<string, ArrangeRead>;
+  },
 ): EmittedGraphic {
+  const events = eventButtons(template.js);
   const images = template.assets
     .filter((a) => isImageAsset(a.path))
     .map((a) => {
@@ -114,8 +171,10 @@ export function emitGraphic(
     name: template.name,
     channel: controlChannelName(template.name),
     controls: emitControls(template.fields),
-    events: eventButtons(template.js),
+    events,
     legal: eventLegality(template.js),
+    // The arrangement, resolved: the page renders from this and never re-derives it.
+    arranged: emitArrangement(events, opts?.arrange),
     // The state NAMES, baked in: this page ships without React and cannot call
     // `formatMachineState`, but it must not print raw ids either — a student operating an
     // exported package has never seen "sealed". Resolved here, at generation time.
@@ -677,23 +736,32 @@ GRAPHICS.forEach(function (g) {
     if (payload) { for (var pk in payload) lastSent[pk] = payload[pk]; paintStaged(); }
   }
   if (g.events.length > 0) {
+    // ORDER, SECTION AND WORD come from the baked arrangement (controlModel arrangeControls, run
+    // at generation time) rather than from a bucketing loop of this page's own - one rule, every
+    // surface. A library graphic belongs to no production and so carries no profile, so here the
+    // arrangement is always the author's own grouping and its pinned and hidden lists are empty.
+    // "Actions" is the undeclared-section name on EVERY other surface; this page said "Events",
+    // so the same graphic's same buttons sat under two different headings depending on which
+    // panel an operator had open.
     var evHost = el('div', { class: 'events' });
-    var sections = {};
-    g.events.forEach(function (e) {
-      // "Actions" is the undeclared-section name on EVERY other surface (controlModel
-      // controlSections); this page said "Events", so the same graphic's same buttons sat under
-      // two different headings depending on which panel an operator had open.
-      var name = e.section || 'Actions';
-      if (!sections[name]) {
-        var wrap = el('div', {}, [el('h3', {}, [name])]);
-        sections[name] = el('div', { class: 'btns' });
-        wrap.appendChild(sections[name]);
-        evHost.appendChild(wrap);
-      }
-      var btn = el('button', e.destructive ? { class: 'destructive' } : {}, ['⚡ ' + e.label]);
-      btn.onclick = function () { sendEvent(e); };
-      sections[name].appendChild(btn);
-      eventBtns.push({ event: e.event, btn: btn });
+    // By SCAN rather than by a map keyed on the name: an event id is the author's own word, and
+    // a graphic with a control called 'constructor' would answer a function from an object map.
+    var declaredFor = function (event) {
+      var found = null;
+      g.events.forEach(function (e) { if (e.event === event) found = e; });
+      return found;
+    };
+    g.arranged.sections.forEach(function (entry) {
+      var row = el('div', { class: 'btns' });
+      evHost.appendChild(el('div', {}, [el('h3', {}, [entry[0]]), row]));
+      entry[1].forEach(function (a) {
+        var e = declaredFor(a.event);
+        if (!e) return;
+        var btn = el('button', e.destructive ? { class: 'destructive' } : {}, ['⚡ ' + a.label]);
+        btn.onclick = function () { sendEvent(e); };
+        row.appendChild(btn);
+        eventBtns.push({ event: e.event, btn: btn });
+      });
     });
     card.appendChild(evHost);
   }

@@ -60,7 +60,16 @@ export interface ArrangeEntry {
   section?: string;
   /** The name the OPERATOR reads. Absent = the control's declared label. */
   name?: string;
-  /** Out of the panel entirely. Still legal, still guarded — just not shown. */
+  /**
+   * Out of the panel's flow. Still legal, still guarded — just not in the way.
+   *
+   * Every surface puts these behind ONE collapsed "More" rather than dropping them, and that is
+   * the deliberate reading of "hidden": a production hiding a control is saying "not in my way",
+   * which is not the same as saying it is gone. The machine still accepts the event, so an
+   * operator who turns out to need it mid-show reaches it in one click instead of going back to
+   * the authoring panel — which on the hosted page means going back to a laptop they may not
+   * have. `hidden` beats `pinned` where a hand-edited profile carries both.
+   */
   hidden?: boolean;
   /** Above the fold, in the handful this show actually uses (the football principle: the
    *  operator should understand football, not the graphics software). */
@@ -386,6 +395,40 @@ function orderStep(step: ProfileStep): ProfileStep {
   const values: Record<string, string> = {};
   for (const key of Object.keys(step.values).sort()) put(values, key, step.values[key]);
   return { kind: 'patch', graphic: step.graphic, values, ...marks };
+}
+
+/**
+ * A profile with ONE graphic's arrangement replaced, canonical.
+ *
+ * The one door an authoring surface needs for ARRANGE, and it lives here rather than in that
+ * surface for the reason `own()` and `put()` below exist: a pool graphic's name is somebody's
+ * typed text, so the obvious `{ ...profile.arrange, [graphic]: entries }` sets the PROTOTYPE for
+ * a production with a graphic called `__proto__` and the entry silently vanishes. One door means
+ * one place that knows.
+ *
+ * An EMPTY map removes the graphic's key entirely rather than storing `{}`. "As the graphic
+ * declared it" is an absence everywhere else in this format, and two shapes meaning one thing is
+ * what makes a diff lie about what an operator did.
+ *
+ * It takes `undefined` for "this production has no profile yet", so a surface authoring the first
+ * arrangement does not have to mint an empty profile of its own.
+ */
+export function withGraphicArrange(
+  profile: ShowProfile | undefined,
+  graphic: string,
+  entries: Record<string, ArrangeEntry>,
+): ShowProfile {
+  const read = readShowProfile(profile);
+  const base = read.status === 'ok' ? read.profile : emptyProfile();
+  const arrange: ProfileArrange = {};
+  for (const [name, existing] of Object.entries(base.arrange)) {
+    if (name !== graphic) put(arrange, name, existing);
+  }
+  if (Object.keys(entries).length > 0) put(arrange, graphic, entries);
+  // Canonical on the way out, so the caller cannot store two spellings of one arrangement — and
+  // so an entry that says nothing, a `hidden: false`, and a graphic whose every entry was
+  // cleared all disappear by the format's own rules rather than by the surface remembering to.
+  return serializeShowProfile({ v: PROFILE_VERSION, arrange, combine: base.combine });
 }
 
 // ── Validating (the refusing half) ───────────────────────────────────────────────────────────

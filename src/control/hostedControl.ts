@@ -162,11 +162,10 @@ export interface ResolvedControlShow {
    * both no profile and a profile written by a newer build (`readPublishedProfile` in
    * `model/profile.ts` says why both degrade the same way).
    *
-   * `control_show_by_slug` does NOT return this column yet, so this reads null today. Widening it
-   * belongs to the row that first RENDERS the profile: a `RETURNS TABLE` function cannot gain a
-   * column with `create or replace`, so it needs a drop-and-create, which `npm run db:push`
-   * refuses without an explicit `--allow` — and 0058 is deliberately additive so that a landing
-   * applies it with no owner action.
+   * `control_show_by_slug` returns the column from migration 0059 on. An instance that has not
+   * applied 0059 returns no such key, `readPublishedProfile` reads that as no profile, and the
+   * hosted page renders the generated panel — the same degradation deleting a profile gives, so
+   * nothing here has to know which migrations an instance is on.
    */
   profile: ShowProfile | null;
 }
