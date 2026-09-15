@@ -4,6 +4,7 @@ source: owner
 kind: ask
 raised: 2026-09-10
 state: unstarted
+note: Owner 2026-09-15 - build it, and nothing stops it landing before the 25th (`docs/OWNER_RULINGS.md`, "2026-09-15 - deadlines are not gospel, and everything is unlocked").
 asked: "I think we need to have a checkbox for this so the operator can choose for themselves. One is that you press Space and it goes to the preview and then you press Space again and it goes to program. That would mean that when you go up and down the queue list, nothing gets automatically put into the preview. If the graphic that you have chosen is selected in the queue list and it's in the program, then when you press space again, it disappears from the program and is just in the preview. It works like a cut button on a mixer."
 ---
 # A checkbox for two Space/queue behaviours: auto-preview-on-scroll, or Space-to-preview-then-Space-to-program

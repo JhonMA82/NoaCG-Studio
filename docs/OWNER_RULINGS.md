@@ -896,3 +896,146 @@ general check in `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6c. What does not exist i
 for any particular election source; the pattern is `scripts/weather-feed.mjs` and
 `scripts/sportsdb-feed.mjs`, and the numbers to know are the ingest budget of 25 updates per 5 s
 per production and the log's 50.
+
+---
+
+## ALIGN-2026-09-14-1
+
+**Asked at the weekly alignment session** (run 2026-09-14, answered by dictation 2026-09-15; the
+dictated "Wiley" is Yle, confirmed). Did the student production on 12 September happen, and did
+anything in the quiz or the scoreboard go wrong on the day? Nothing in the repo records it, and the
+answer decides whether this week starts with fixes.
+
+> We didn't have the production on the 12th so the next production is at the beginning of October.
+> Everything should be done by the 25th, when we have the lecture with the students and the Yle
+> people. Nothing to fix right now.
+
+What it settles: the 2026-09-12 rehearsal named in `docs/GOALS.md` NOW did not happen, so no
+finding from it exists. The next real production is early October, on the scoreboards and quiz
+boards that exist today.
+
+---
+
+## ALIGN-2026-09-14-2
+
+**Asked at the weekly alignment session.** You said changing animations and using the keyframe
+timeline does not feel good enough, and the rebuild plan copies a professional layers, inspector
+and timeline layout. Who is that editor for first: a student who should never need it, or a
+professional in Advanced mode?
+
+> The editing animations, yeah, it hasn't worked, and right now we haven't focused on it but
+> because we have SVG import and playout kind of solved, I think we could start working on the
+> editor. This means that we could fix something in our graphics that we have imported as the SVG
+> in the editor or change something in a template.
+
+> Actually most of all, what I realized now is what I want the editor for: it would have a basic
+> template for all different types of graphics. Then you could just go in and kind of make your
+> own. My point here is that people don't always want to make their own graphics and I understand
+> that. That's why we have the templates but it's difficult to choose.
+
+> For people it might just be easier to go into the editor, unlock, show different types of
+> graphics (like lower thirds and some other graphics), then move it around, choose the color,
+> choose animation, and export it out to production or to an HTML template. I don't know what to
+> call it but the Yle people also were asking for this kind of a default template that you can
+> edit, modify a little bit, and use for anything.
+
+> The Yle people exactly said that there's very seldom that they do new graphics from scratch. At
+> the music center where I worked with the multi-camera, it's the same thing. A random stream comes
+> up and we need to make a lower third quick. No one really cares how much they look. It's good if
+> we get the colors correct but otherwise it's just important that we can add the names and
+> information we want.
+
+> Anyway this type of template editor would be, I think, the first thing we need but if you want
+> to modify your graphics, it could also be possible.
+
+Clarified later the same morning, when a proposal to re-scope the Codex rebuild plan around the
+template editor was put to him:
+
+> About the Codex planning a more complicated editor. Let's not skip that. It's part of our plan to
+> fix the editor. It has been planned around an open-source OGraf editor that you can also check
+> out. Let's not make any hasty decisions about scrapping that. My thought about the template
+> editor is still valid. I think we need to do them both. I'm not really sure in what order, even
+> though I know that a simple template editor would bring us really far with Yle.
+
+What it settles: two editor needs, neither scrapped. `docs/EDITOR_REBUILD_PLAN.md`, benchmarked on
+Zero Density's OGraf Studio, stays; a quick template editor joins it. Whether they are one editor
+and in which order is the planning question in
+`docs/backlog/one-editor-studio-benchmark-and-quick-templates.md` (see the 2026-09-15 ruling below).
+
+---
+
+## ALIGN-2026-09-14-3
+
+**Asked at the weekly alignment session.** After the 25th, three big things you unlocked all want
+to go first: the editor rebuild, graphics that bring their own control panel, and the desktop app.
+Which one leads?
+
+> Yes, I understand that everything wants to go first. I think the editor rebuild is up on the list
+> but so is the control panel for different types of graphics, and the desktop app can wait a
+> little bit longer. I will have a use case for the "bring your own" control panel.
+
+> It's going to be the 20th of October when we are going to do an Elämäni biisi TV show where you
+> have to guess what song is being performed and for whom. That means there are five people going
+> to cast their votes. We need to be able to show how many votes a person got for a song and then
+> there needs to be a total scoreboard so we can see how many songs they get correct as they are
+> moving along.
+
+> This type of graphic we need to be able to play out. I would want to try it out and build it.
+> For an actual use case I would want to show the production producer and director how easily we
+> can make this graphic in our CG. I'm thinking I am just going to prompt it in Claude Code and
+> import it into our playout dashboard in a few minutes, etc.
+
+> A few important dates are: the 25th with the lecture; a few days after that we will have the
+> production, where we're going to need the scoreboards and quiz boards; a few weeks after that I
+> want to demo this, and it's called Elämäni biisi, shown on Yle.
+
+The dictation said "It's Up" and "Elemente BC"; he confirmed both are Elämäni biisi, the only show
+meant. What it settles: the editor and the control panel for any graphic both lead, and the desktop
+app waits a little longer. The Elämäni biisi case and the plan it produced are already recorded as
+ALIGN-2026-09-15-1 to -4 above. The ruling below says how much weight the case carries.
+
+---
+
+## 2026-09-15 - deadlines are not gospel, and everything is unlocked
+
+Given while these answers were being recorded. Dictated, so the intent binds and the wording does
+not.
+
+> Let's keep in mind that my own deadlines and these plans I have shouldn't always be thought of as
+> gospel. In the end, we're making NoaCG as good as possible, and there's a lot of work to be done
+> in many different fields. I do have these deadlines, but we don't have to block everything just
+> because of those. It doesn't have to mean that everything we now do has to do with my project and
+> my deadlines. It's still meant for everyone, this software.
+
+> Let's record the rulings with the Elämäni biisi voting graphics, but we don't have to make such a
+> big deal out of that, because it should be done anyway, because it's in our plan to already be
+> able to do those kinds of graphics. It's just a very concrete example of what we need to be
+> doing, and also record the ruling that everything is unlocked.
+
+> Of course, I want you to help me out with my deadlines and get everything done for the deadlines.
+> You can be very clear with me about what we need to do before those deadlines, but we don't have
+> to park everything else behind those deadlines. We can work on anything if it makes sense.
+
+On the editor, in the same message: *"I wish that we could think of it as one editor, or maybe it
+can't. That's not up to me... Let's have Fable look at it, and it can suggest if we can combine it
+or how we should move forward."* The two inputs he named are Zero Density's open-source OGraf Studio
+as a benchmark, or code to copy, and getting a lower third out quickly from a template whose shapes,
+colours and logos change. On the Space-key modes (ALIGN-2026-09-10-3): build them, and there is no
+reason they cannot land before the 25th.
+
+What it changes:
+
+- **Nothing is parked for being outside NOW or behind a date.** `docs/GOALS.md` NOW becomes what
+  the dated events need, and anything else may start when there is a clear vision of how and it
+  makes sense. This supersedes the 2026-09-07 rule `root/treat-only-section-push-everything-under`
+  and GOALS' "work that does not serve that date is not current work".
+- **Every programme in `docs/PROGRAMMES.md` is AUTHORIZED**, citing this and ALIGN-2026-09-10-4.
+  The scope edges that return an ACTIVE programme to him are unchanged.
+- **A deadline is owed a clear list, never the whole machine.** A session planning around a date
+  says plainly what the date needs, which for the 25th is `docs/DEMO_2026-09-25.md` §7, and plans
+  the rest on merit.
+- **A concrete production case proves a general capability and never becomes the design target.**
+  ALIGN-2026-09-15-2 said this about the control profile; it now holds for every owner production.
+- **Copying OGraf Studio code is allowed as an option**, subject to the exact-file licence review
+  in `docs/OGRAF_STUDIO_RESEARCH.md` §9: the code is AGPL-3.0-only and its runtime ships inside
+  every export.
