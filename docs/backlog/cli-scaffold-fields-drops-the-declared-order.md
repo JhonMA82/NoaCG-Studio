@@ -1,8 +1,33 @@
-# `noacg scaffold --fields` silently reorders what the author declared
+# `noacg scaffold --fields` silently reorders the fields the author declared
 
-Found during the proof-case walk on 2026-09-15 (`docs/acceptance/owner-queue/2026-09-15-agent-made-proof-case.md`).
+**Filed:** 2026-09-15. **Source:** measurement during the proof-case walk (`docs/acceptance/owner-queue/2026-09-15-agent-made-proof-case.md`, CLI 0.3.2, branch `claude/hb-release-and-first-walk`)
 
-## The reproduction
+## Why
+
+The cue editor bands NUMBERED rows (`src/control/cueFieldGroups.ts`), so an interleaved
+declaration gives an operator five "Panelist N" bands each holding that person's name and score -
+the shape `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §3d.1 describes and the thing that makes a
+five-person board readable on the dashboard. The scaffold moves every non-text field to the end,
+so the pairing an author wrote is not the pairing they get, and nothing says a word about it.
+
+The walk's totals board was declared interleaved and shipped grouped. The bands still worked,
+because the pairing survives in the field TITLES - which is exactly why this is worth filing
+rather than urgent: the failure is silent in the good direction today, and will not be the day an
+author depends on the order for something the titles do not carry.
+
+## What it would take
+
+`neutralSpineFor` (`src/templates/types/neutralDesign.ts`) splits the list into `texts` - which
+become the neutral variant's LINES - and `others`, appended after. Keeping the declared order
+means the line block and the extra-field block interleave, which changes the generated HTML for
+every typeless scaffold, and the studio's own typeless road runs the same function. So this is not
+a CLI-only change and wants its own verification.
+
+The cheap half is honesty rather than order: have `scaffold` say in its own output that non-text
+fields were moved to the end, and why. `cli/src/commands/scaffold.ts` `parseFieldList` preserves
+the order faithfully and is not at fault.
+
+## Evidence
 
 ```sh
 noacg scaffold --fields "Name 1:text,Points 1:number,Name 2:text,Points 2:number" \
@@ -10,33 +35,4 @@ noacg scaffold --fields "Name 1:text,Points 1:number,Name 2:text,Points 2:number
 grep '"title"' ./totals-board/totals_board.html
 ```
 
-The declared order is Name 1, Points 1, Name 2, Points 2. What comes out is **Name 1, Name 2,
-Points 1, Points 2** - every `text` field first, everything else after - and nothing says so.
-
-## Why it is the wrong answer
-
-`neutralSpineFor` (`src/templates/types/neutralDesign.ts`) splits the list into `texts` and
-`others` because the text fields become the neutral variant's LINES and the rest are appended as
-extra fields. That is a sound way to build the spine and a silent change to the author's data
-model.
-
-It costs something real. `control/cueFieldGroups.ts` bands NUMBERED rows in the cue editor by a
-mirror test, so an interleaved declaration gives an operator five "Panelist N" bands each holding
-that person's name and score, which is the shape `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §3d.1
-describes. The grouped order gives one run of five names and one run of five numbers instead. The
-walk's totals board was authored interleaved and shipped grouped; the bands still worked because
-the pairing survives in the TITLES, but the author never learned that the order they wrote was
-not the order they got.
-
-## What a fix has to decide
-
-Keeping the declared order means the spine's line block and its extra-field block interleave,
-which changes the generated HTML's shape for every typeless scaffold - the studio's own typeless
-road runs the same function, so this is not a CLI-only change. The cheap half is honesty: say in
-the scaffold's own output that non-text fields were moved to the end, and why.
-
-## Where
-
-- `src/templates/types/neutralDesign.ts` - `neutralSpineFor`, the `texts`/`others` split
-- `cli/src/commands/scaffold.ts` - `parseFieldList` preserves the order faithfully; nothing here
-  is at fault
+Declared: Name 1, Points 1, Name 2, Points 2. Emitted: **Name 1, Name 2, Points 1, Points 2**.
