@@ -146,19 +146,20 @@ An authored machine ships through three gates, and they are steps 3 and 4 of the
 2. **`noacg inspect` prints the panel and you SHOW the user the buttons.** A human confirms the
    operator surface before it is saved. A clean validate never proves the buttons are the ones
    the brief needs; only somebody reading them does.
-3. **Every operator arrow gets walked.** The bench does most of this for you, inside `validate`:
-   it dispatches authored events and measures the pose each produces, so a state only a button
-   can reach is still checked for collisions and overflow. It does not do all of it, and the
-   difference is yours to close:
-   - it takes the first eight DISTINCT EVENT NAMES, so two arrows carrying one event name are
-     one dispatch, and a ninth button is never pressed;
-   - it fires them in sequence WITHOUT snapping back between them, starting from where the
-     default-path walk ended - so an arrow leaving a state the sequence has already left is
-     dropped by the structural guard and its pose is never measured;
+3. **Every operator arrow gets walked.** The bench does this for you, inside `validate`: one
+   press per (from-state, event) pair, each made from the arrow's own from-state, and the pose it
+   produces measured for collisions and overflow. So a state only a button can reach is checked,
+   and a control legal from three states is pressed three times rather than once. Two things still
+   bound it, and both say so out loud rather than staying quiet:
+   - a ceiling of 24 arrows. Past it the bench names every arrow it left unpressed as one
+     `bench-events-skipped` warning - press those by hand, or carry fewer (a panel an operator
+     can read is smaller than 24 buttons anyway);
    - it does not run at all if you passed `--no-bench`, or if the safety screen refused to
      execute the template. Both are reported as a `bench-skipped` NOTE, which is not a pass.
 
-   Read what the bench reports, and walk what it did not reach before calling this gate passed.
+   Read what the bench reports before calling this gate passed. `bench-events-skipped` on a
+   machine you expected walked whole means one of two things: too many arrows, or a from-state the
+   bench could not enter - and the second is a real defect, an arrow nobody can ever press.
 
 ### 5b. What a machine-bearing graphic declares
 
@@ -282,11 +283,12 @@ Both roads reach one result, which is why the graphic obeys a stranger's rendere
 to send an event. The fact is the CONTROLLER's and the graphic renders it - never the other way
 round, because there is no return channel to ask down.
 
-**Expect one warning here, and do not "fix" it.** A reported field's value reaches no pixels by
-design, so the bench raises `bench-field-unpainted` for it ("its value reaches no pixels in ANY of
-the graphic's states"). On a field an operator types that finding is real and worth acting on; on a
-reported field it is the pattern working. Say so when you show the user the panel, and never
-satisfy it by drawing the field on screen.
+**Declare it properly and the bench stays quiet about it.** A reported field's value reaches no
+pixels by design, and `bench-field-unpainted` exempts a `hidden` field whose element carries
+`class="noacg-data-source"` for exactly that reason (R4 of `docs/OGRAF_STATE_IN_FIELDS.md`: a
+reported field is hidden and input-only, never a drawn element). Drop either half - a `textfield`
+instead of `hidden`, or a holder with no class - and the finding is back, correctly: that shape is
+an ordinary field nobody drew. Never satisfy it by drawing the field on screen.
 
 ### 5d. The default path is the compatibility contract
 
