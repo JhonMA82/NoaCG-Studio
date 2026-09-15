@@ -302,6 +302,72 @@ test('something that is not a profile at all is refused once', () => {
   assert.deepEqual(errorsAt(validateShowProfile({ arrange: {}, combine: [] }, POOL)), ['profile.v']);
 });
 
+test('a graphic named after an Object member is a name, not a member', () => {
+  // Every key in this format is somebody's typed name, so a bare `map[name]` lookup answers a
+  // FUNCTION for a graphic called `constructor`. Measured before the fix: the first case THREW out
+  // of the validator instead of reporting, and the second passed clean - a button that validates
+  // green and then sends nothing on air.
+  const pool = { controls: { Bug: ['reveal'] } };
+  for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+    assert.deepEqual(
+      errorsAt(validateShowProfile(withStep({ kind: 'event', graphic: name, control: 'reveal' }), pool)),
+      ['combine[0].steps[0].graphic'],
+      `an event step on "${name}" must be refused, not resolved against Object.prototype`,
+    );
+    assert.deepEqual(
+      errorsAt(validateShowProfile(withStep({ kind: 'patch', graphic: name, values: { f0: '1' } }), pool)),
+      ['combine[0].steps[0].graphic'],
+      `a patch step on "${name}" must be refused`,
+    );
+    // And the same name survives a round trip as an ordinary graphic when it really is one.
+    const arranged = { v: 1, arrange: { [name]: { reveal: { pinned: true } } }, combine: [] };
+    assert.deepEqual(serializeShowProfile(readShowProfile(arranged).profile).arrange, {
+      [name]: { reveal: { pinned: true } },
+    });
+  }
+});
+
+test('serializing keeps exactly what reading keeps, so the canonical form is a fixed point', () => {
+  // A duplicate id and a control with no steps are both dropped on read. Serialize used to keep
+  // them, so a surface that duplicated a combined control without minting a fresh id wrote a
+  // record whose diff looked right and whose panels showed only the first of the two.
+  const step = { kind: 'event', graphic: 'Votes board', control: 'reveal' };
+  const profile = {
+    v: 1,
+    arrange: {},
+    combine: [
+      { id: 'c1', name: 'First', steps: [step] },
+      { id: 'c1', name: 'A repeat of c1', steps: [step] },
+      { id: 'c2', name: 'Sends nothing', steps: [] },
+    ],
+  };
+  const once = serializeShowProfile(profile);
+  assert.deepEqual(
+    once.combine.map((c) => c.name),
+    ['First'],
+  );
+  assert.deepEqual(serializeShowProfile(readShowProfile(once).profile), once);
+});
+
+test('a damaged version is not blamed on a newer build', () => {
+  // The cause is only knowable in one direction, and pointing an operator at a build that does not
+  // exist is worse than saying the record is damaged.
+  assert.match(validateShowProfile({ v: 2, arrange: {}, combine: [] }, POOL)[0].message, /written by a newer build/);
+  for (const v of [0, -1, 1.5]) {
+    const message = validateShowProfile({ v, arrange: {}, combine: [] }, POOL)[0].message;
+    assert.match(message, /the record is damaged/, `version ${v} should read as damage, not as a newer build`);
+    assert.equal(readShowProfile({ v, arrange: {}, combine: [] }).status, 'read-only');
+  }
+});
+
+test('a patch step naming a field the graphic does not have is refused, when the fields are known', () => {
+  const step = { kind: 'patch', graphic: 'Votes board', values: { f0: 'Katri', f99: 'nowhere' } };
+  // Without `fields` the check is skipped, exactly as the cue check is.
+  assert.deepEqual(validateShowProfile(withStep(step), POOL), []);
+  const withFields = { ...POOL, fields: { 'Votes board': ['f0', 'f1'] } };
+  assert.deepEqual(errorsAt(validateShowProfile(withStep(step), withFields)), ['combine[0].steps[0].values.f99']);
+});
+
 // ── Validating: what only WARNS, so a renamed graphic degrades ───────────────────────────────
 
 test('an arrangement pointing at a graphic or control that is gone WARNS, and the profile still reads', () => {

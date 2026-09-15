@@ -227,9 +227,9 @@ function readArrange(value: unknown): ProfileArrange {
       const entry = readArrangeEntry(raw);
       // An entry that says nothing is not stored: "as the graphic declared it" is an ABSENCE,
       // so an empty entry and a missing one must not be two ways to mean one thing.
-      if (Object.keys(entry).length > 0) kept[control] = entry;
+      if (Object.keys(entry).length > 0) put(kept, control, entry);
     }
-    if (Object.keys(kept).length > 0) out[graphic] = kept;
+    if (Object.keys(kept).length > 0) put(out, graphic, kept);
   }
   return out;
 }
@@ -278,7 +278,7 @@ function readStep(raw: unknown): ProfileStep | null {
     if (!isName(r.graphic) || !isObject(r.values)) return null;
     const values: Record<string, string> = {};
     for (const [key, value] of Object.entries(r.values)) {
-      if (key && typeof value === 'string') values[key] = value;
+      if (key && typeof value === 'string') put(values, key, value);
     }
     if (Object.keys(values).length === 0) return null;
     return { kind: 'patch', graphic: r.graphic, values, ...marks };
@@ -323,60 +323,68 @@ export function readPublishedProfile(value: unknown): ShowProfile | null {
  * profiles as text, a sync layer see "unchanged" as unchanged, and a reviewer read a diff that
  * only shows what an operator actually did.
  *
- * Two rules make that true. Keys go in ONE declared order (JavaScript preserves string-key
- * insertion order, so building the object in order is what fixes the bytes), and every DEFAULT is
- * omitted — `hidden: false`, `pinned: false`, an empty name or section, a zero `after`. Steps keep
- * their authored order, because for a combined control the order IS the meaning.
+ * CANONICAL IS ORDERED NORMALIZATION, and saying it that way is what keeps it honest. Dropping is
+ * `readShowProfile`'s job and happens here by CALLING it — an empty entry, a zero `after`, a
+ * `hidden: false`, a control with no steps, the second control to claim an id. This function then
+ * only puts what survived into one fixed key order (JavaScript preserves string-key insertion
+ * order, so building the object in order is what fixes the bytes) with names sorted.
+ *
+ * The two used to drop separately, and disagreed: serialize kept a duplicate id that read then
+ * removed, so serializing and reading back gave a different profile. Two functions in one module
+ * holding their own opinion of what a valid profile is IS that defect, so now there is one.
+ *
+ * Steps keep their AUTHORED order, because for a combined control the order is the meaning.
  *
  * This is what a save path writes and what `publishControlShow` pins.
  */
 export function serializeShowProfile(profile: ShowProfile): ShowProfile {
+  const read = readShowProfile(profile);
+  // A `ShowProfile` is v1 by its type, so anything else is a caller handing over something it
+  // said was a profile and was not. An empty canonical profile is the answer that cannot lie.
+  if (read.status !== 'ok') return emptyProfile();
   return {
     v: PROFILE_VERSION,
-    arrange: serializeArrange(profile.arrange),
-    combine: (profile.combine ?? []).map(serializeControl),
+    arrange: orderArrange(read.profile.arrange),
+    combine: read.profile.combine.map(orderControl),
   };
 }
 
-function serializeArrange(arrange: ProfileArrange): ProfileArrange {
+function orderArrange(arrange: ProfileArrange): ProfileArrange {
   const out: ProfileArrange = {};
-  for (const graphic of Object.keys(arrange ?? {}).sort()) {
+  for (const graphic of Object.keys(arrange).sort()) {
     const controls = arrange[graphic];
-    if (!isObject(controls)) continue;
     const kept: Record<string, ArrangeEntry> = {};
-    for (const control of Object.keys(controls).sort()) {
-      const entry = serializeArrangeEntry(controls[control] ?? {});
-      if (Object.keys(entry).length > 0) kept[control] = entry;
-    }
-    if (Object.keys(kept).length > 0) out[graphic] = kept;
+    for (const control of Object.keys(controls).sort()) put(kept, control, orderEntry(controls[control]));
+    put(out, graphic, kept);
   }
   return out;
 }
 
-function serializeArrangeEntry(entry: ArrangeEntry): ArrangeEntry {
+/** The five presentation keys in one order. Reading has already dropped the absent ones. */
+function orderEntry(entry: ArrangeEntry): ArrangeEntry {
   const out: ArrangeEntry = {};
-  if (typeof entry.order === 'number' && Number.isFinite(entry.order)) out.order = entry.order;
-  if (entry.section) out.section = entry.section;
-  if (entry.name) out.name = entry.name;
-  if (entry.hidden) out.hidden = true;
-  if (entry.pinned) out.pinned = true;
+  if (entry.order !== undefined) out.order = entry.order;
+  if (entry.section !== undefined) out.section = entry.section;
+  if (entry.name !== undefined) out.name = entry.name;
+  if (entry.hidden !== undefined) out.hidden = entry.hidden;
+  if (entry.pinned !== undefined) out.pinned = entry.pinned;
   return out;
 }
 
-function serializeControl(control: CombinedControl): CombinedControl {
-  return { id: control.id, name: control.name, steps: (control.steps ?? []).map(serializeStep) };
+function orderControl(control: CombinedControl): CombinedControl {
+  return { id: control.id, name: control.name, steps: control.steps.map(orderStep) };
 }
 
-function serializeStep(step: ProfileStep): ProfileStep {
+function orderStep(step: ProfileStep): ProfileStep {
   // `kind` first, then the kind's own fields, then the two marks — one order for every step, so a
   // diff of a reordered list reads as a reorder rather than as a rewrite.
   const marks: StepMarks = {};
-  if (typeof step.after === 'number' && Number.isFinite(step.after) && step.after > 0) marks.after = step.after;
+  if (step.after !== undefined) marks.after = step.after;
   if (step.ask) marks.ask = { default: step.ask.default };
   if (step.kind === 'event') return { kind: 'event', graphic: step.graphic, control: step.control, ...marks };
   if (step.kind === 'verb') return { kind: 'verb', verb: step.verb, cue: step.cue, ...marks };
   const values: Record<string, string> = {};
-  for (const key of Object.keys(step.values ?? {}).sort()) values[key] = step.values[key];
+  for (const key of Object.keys(step.values).sort()) put(values, key, step.values[key]);
   return { kind: 'patch', graphic: step.graphic, values, ...marks };
 }
 
@@ -393,6 +401,11 @@ export interface ProfilePool {
   /** The production's cue ids (`ShowCue.id`). OMIT to skip the cue check — a caller that does not
    *  know the cues must not be told that every verb step is broken. */
   cues?: string[];
+  /** Pool graphic name -> the field ids that graphic has, for a patch step's targets. OMIT to skip
+   *  the check, exactly as `cues` does. Without it a patch naming `f99` validates clean and sends
+   *  an update row that moves nothing — the same silent press an event step naming an undeclared
+   *  control is an error for. */
+  fields?: Record<string, string[]>;
 }
 
 export interface ProfileFinding {
@@ -444,10 +457,14 @@ export function validateShowProfile(value: unknown, pool: ProfilePool): ProfileF
     return findings;
   }
   if (row.v !== PROFILE_VERSION) {
-    error(
-      'profile.v',
-      `This profile is version ${row.v} and this build understands version ${PROFILE_VERSION}. It was written by a newer build, so it is read-only here and must not be edited.`,
-    );
+    // The cause is only knowable in one direction. A HIGHER version was written by a newer build;
+    // a lower or fractional one is a corrupted record or a hand edit, and telling that operator to
+    // go and find a newer build would point them at the wrong thing entirely.
+    const why =
+      Number.isInteger(row.v) && row.v > PROFILE_VERSION
+        ? 'It was written by a newer build, so it is read-only here and must not be edited.'
+        : 'No build ever wrote that version, so the record is damaged. It is read-only here rather than repaired, because a guess about what it meant could destroy it.';
+    error('profile.v', `This profile is version ${row.v} and this build understands version ${PROFILE_VERSION}. ${why}`);
     return findings;
   }
 
@@ -466,7 +483,7 @@ function validateArrange(value: unknown, pool: ProfilePool, error: Report, warn:
   }
   for (const [graphic, controls] of Object.entries(value)) {
     const at = `arrange[${JSON.stringify(graphic)}]`;
-    const declared = pool.controls[graphic];
+    const declared = declaredControls(pool, graphic);
     if (!declared) {
       warn(at, `No graphic named "${graphic}" is in this production. Its arrangement is ignored, and the panel falls back to what the machine generates.`);
     }
@@ -587,7 +604,7 @@ function validateStep(value: unknown, at: string, pool: ProfilePool, error: Repo
       error(`${at}.control`, 'An event step must name the control it fires.');
       return;
     }
-    const declared = pool.controls[step.graphic];
+    const declared = declaredControls(pool, step.graphic);
     if (!declared) {
       error(`${at}.graphic`, `No graphic named "${step.graphic}" is in this production, so this step would send nothing.`);
       return;
@@ -621,7 +638,7 @@ function validateStep(value: unknown, at: string, pool: ProfilePool, error: Repo
     error(`${at}.graphic`, 'A patch step must name the graphic it writes to.');
     return;
   }
-  if (!pool.controls[step.graphic]) {
+  if (!declaredControls(pool, step.graphic)) {
     error(`${at}.graphic`, `No graphic named "${step.graphic}" is in this production, so this step would send nothing.`);
   }
   if (!isObject(step.values)) {
@@ -632,9 +649,14 @@ function validateStep(value: unknown, at: string, pool: ProfilePool, error: Repo
   if (values.length === 0) {
     error(`${at}.values`, 'This patch writes nothing.');
   }
+  const has = own(pool.fields, step.graphic);
+  const declared = Array.isArray(has) ? has : null;
   for (const [key, value] of values) {
     if (typeof value !== 'string') {
       error(`${at}.values.${key}`, 'A field value is text — the same currency a cue and an update row carry.');
+    }
+    if (declared && !declared.includes(key)) {
+      error(`${at}.values.${key}`, `"${step.graphic}" has no field called "${key}", so writing it would move nothing.`);
     }
   }
 }
@@ -668,6 +690,33 @@ function validateMarks(step: Record<string, unknown>, at: string, error: Report)
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Read a key a USER named, without inheriting `Object.prototype`'s members.
+ *
+ * Every key in this format is somebody's typed name - a graphic, a control id, a field id - so a
+ * plain `map[name]` answers a FUNCTION for a graphic called `constructor` or `toString`. Measured:
+ * that made `validateShowProfile` throw instead of reporting findings, so an authoring surface
+ * crashed rather than refusing; and the quieter half let a patch step naming `toString` validate
+ * clean, which is the button that greens and then sends nothing on air.
+ */
+function own<T>(map: Record<string, T> | undefined, key: string): T | undefined {
+  if (!map || !Object.prototype.hasOwnProperty.call(map, key)) return undefined;
+  return map[key];
+}
+
+/** Add a key to a map being built, without `__proto__` setting the prototype instead of a key -
+ *  the write-side twin of `own`, and the reason a graphic named `__proto__` cannot vanish. */
+function put<T>(map: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(map, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
+/** The control ids a pool graphic declares, or undefined when the production has no such
+ *  graphic - which is a WARNING for an arrangement and an ERROR for a step. */
+function declaredControls(pool: ProfilePool, graphic: string): string[] | undefined {
+  const declared = own(pool.controls, graphic);
+  return Array.isArray(declared) ? declared : undefined;
 }
 
 function isName(value: unknown): value is string {

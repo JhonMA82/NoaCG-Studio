@@ -442,7 +442,9 @@ test('a production carries its control profile canonically, and deleting it leav
   await createProject(page, 'Hairline');
 
   const stored = await page.evaluate(async () => {
-    const { createShowNamed, setShowProfile, deleteShowProfile, loadShows } = await import('/src/model/shows.ts');
+    const { createShowNamed, setShowProfile, deleteShowProfile, loadShows, upsertShow } = await import(
+      '/src/model/shows.ts'
+    );
     const show = createShowNamed('Elämäni biisi');
     // Authored the way a surface would hand it over: keys in no particular order, a default
     // spelled out, a zero wait. All three must be gone from what lands on the record.
@@ -461,9 +463,30 @@ test('a production carries its control profile canonically, and deleting it leav
       arrange: { 'Totals board': { plus_katri: { pinned: true, hidden: false } } },
     });
     const written = JSON.stringify(loadShows().find((s) => s.id === show.id)?.profile);
-    deleteShowProfile(show.id);
+    const deleted = deleteShowProfile(show.id);
     const after = loadShows().find((s) => s.id === show.id);
-    return { written, hasKey: after ? 'profile' in after : true, stillThere: !!after };
+
+    // A profile written by a NEWER build must survive both doors on this one. It is invisible
+    // here (every surface reads it as null and renders the generated panel), so a write or a
+    // delete would be destroying something the operator was never shown.
+    const future = createShowNamed('From a newer build');
+    const readOnly = { v: 99, arrange: {}, combine: [], conditions: [{ when: 'score > 50' }] };
+    // Straight onto the record, because that is how it would arrive: written by a build whose
+    // format this one does not have.
+    upsertShow({ ...future, profile: readOnly as never });
+    const set = setShowProfile(future.id, { v: 1, arrange: {}, combine: [] });
+    const del = deleteShowProfile(future.id);
+    const survived = JSON.stringify(loadShows().find((s) => s.id === future.id)?.profile);
+
+    return {
+      written,
+      hasKey: after ? 'profile' in after : true,
+      stillThere: !!after,
+      deletedRefused: deleted.refused,
+      setRefused: set.refused,
+      delRefused: del.refused,
+      survived,
+    };
   });
 
   // Canonical: `v`, then `arrange`, then `combine`; keys sorted; every default omitted.
@@ -477,6 +500,13 @@ test('a production carries its control profile canonically, and deleting it leav
   // whose profile was deleted are byte-identical — and the generated panel is what remains.
   expect(stored.stillThere).toBe(true);
   expect(stored.hasKey).toBe(false);
+  expect(stored.deletedRefused).toBe(false);
+
+  // Read-only holds at BOTH doors, and both say so rather than reporting a write that never
+  // happened: the newer build's bytes are still there, verbatim.
+  expect(stored.setRefused).toBe(true);
+  expect(stored.delRefused).toBe(true);
+  expect(stored.survived).toBe('{"v":99,"arrange":{},"combine":[],"conditions":[{"when":"score > 50"}]}');
 });
 
 // The READ side of `control_shows.profile` — every shape that column can hand back — is pinned

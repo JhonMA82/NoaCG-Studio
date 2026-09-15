@@ -765,12 +765,19 @@ export function setShowPollLiveFigures(showId: string, on: boolean): Show[] {
  * a UI it would be a comment, and the first build to open a newer production would quietly erase
  * a profile it did not understand. Returns the shows unchanged in that case.
  */
-export function setShowProfile(showId: string, profile: ShowProfile): Show[] {
-  return patchShow(showId, (show) => {
-    if (readShowProfile(show.profile).status === 'read-only') return false;
+export function setShowProfile(showId: string, profile: ShowProfile): { shows: Show[]; refused: boolean } {
+  let refused = false;
+  const shows = patchShow(showId, (show) => {
+    if (readShowProfile(show.profile).status === 'read-only') {
+      refused = true;
+      return false;
+    }
     show.profile = serializeShowProfile(profile);
     return true;
   });
+  // The refusal is REPORTED rather than swallowed, on the `createShowNamedChecked` precedent: a
+  // surface that showed "Saved" over a write that never happened is the worse half of this bug.
+  return { shows, refused };
 }
 
 /**
@@ -780,13 +787,26 @@ export function setShowProfile(showId: string, profile: ShowProfile): Show[] {
  *
  * The key goes entirely rather than becoming an empty profile, so "no profile" is one state: a
  * production that never had one and a production whose profile was deleted are byte-identical.
+ *
+ * IT REFUSES A PROFILE THIS BUILD CANNOT READ, exactly as `setShowProfile` does, and for a reason
+ * that is easy to miss: on an older build a newer profile is INVISIBLE - every surface reads it as
+ * null and renders the generated panel - so "delete the profile" would be an operator removing
+ * something they were never shown, and the newer build's bytes would be gone for good. Read-only
+ * has to hold at both doors or it holds at neither. Removing such a profile is done on a build
+ * that can read it.
  */
-export function deleteShowProfile(showId: string): Show[] {
-  return patchShow(showId, (show) => {
+export function deleteShowProfile(showId: string): { shows: Show[]; refused: boolean } {
+  let refused = false;
+  const shows = patchShow(showId, (show) => {
     if (!show.profile) return false;
+    if (readShowProfile(show.profile).status === 'read-only') {
+      refused = true;
+      return false;
+    }
     delete show.profile;
     return true;
   });
+  return { shows, refused };
 }
 
 /** Set (or clear, with undefined) the production's unified look. */
