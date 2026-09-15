@@ -268,10 +268,12 @@ and quiz boards that already exist.
 | 4 | **The bench's event cap** (§3d.1): raise `MAX_BENCH_EVENTS` for a machine that declares more, or have `validate` say which buttons it did not press. | Gate 3 has to mean what §2c says it means on the first real graphic that needs it | an hour, plus one bench run | one row, with row 3 |
 | 5 | **The profile's model and storage** (§6e): `Show.profile` v1 with ARRANGE and COMBINE, its parse/serialize/validate beside `shows.ts`, pinned at publish, baked at export, deletable in one action. Unit-tested offline. | Everything after it reads this shape; a wrong shape here is a migration later | a day | one row, week of the 28th |
 | 6 | **ARRANGE on all three dashboard deployments** (§6e): order, section, rename, hide, pin applied to the generated ⚡ block and the cue editor's fields; the "Controls" panel on the production page. Pinned by a spec on each deployment. | The football principle, on the surface the operator holds | two days | one row, after row 5 |
-| 7 | **COMBINE, with `after` and `ask`** (§6b, §6d): the composer, the batch send through `control_send_many` one row per step, the visible countdown and its cancel, the per-step drop reported in the activity feed, the exported controller's copy. Pinned by a spec that reads the rows off the wire, the way ± live numbers is. | The proof case's "one press", and the general capability the owner named | three days | one row, after row 6 |
+| 7 | **COMBINE, with `after` and `ask`** (§6b, §6d): the composer, the batch send through `control_send_many` one row per step, the visible countdown and its cancel, the per-step drop reported in the activity feed, on the in-app and hosted pages; the exported controller shows the line §6f gives it. Pinned by a spec that reads the rows off the wire, the way ± live numbers is. | The proof case's "one press", and the general capability the owner named | three days | one row, after row 6 |
 | 8 | **The proof walk, again, with the profile** - row 3 repeated once rows 6 and 7 land: the Reveal-then-+1s combined control composed in the room's minute, driven from the hosted page, timed. Owner-queue item. | The demo is the profile in use, not the profile built | half a day | one row, second week of October |
+| 9 | **A stepper on a bound field patches the shared value** - `docs/PRODUCTION_DATA_PLAN.md` §2.9's Phase 3: a `+1` (`adjust`) or a ± press on a field bound to production data writes the tree, on the in-app and hosted pages, and the graphic follows its binding like every other bound graphic; an unbound field keeps the field stepper unchanged, and so does the exported controller, which carries no tree (§6f). Pinned by a spec that reads the patch and the resulting `update` rows off the wire. | Without it a `+1` on one graphic is overwritten by the next shared write; with it, a score entered once shows everywhere (owner, 2026-09-15) | a day | one row, week of the 28th |
+| 10 | **Bind all by title** - one button on the Data tab's bindings table that accepts every unambiguous title-to-leaf suggestion the table already computes, per graphic and for the whole production. | Graphics made with matching field titles, by hand or by an agent, bind in one press instead of one per field | half a day | one row, with row 9 |
 
-Rows 5 to 8 are the owner's 2026-09-15 ruling (§6). Everything else waits, each with the thing
+Rows 5 to 10 are the owner's 2026-09-15 rulings (§6). Everything else waits, each with the thing
 that would pull it up:
 
 - **Named-seat voting on `/join`** (§4, question 2) - when Yle asks for phones. Not the demo.
@@ -396,10 +398,12 @@ happen, and the operator presses it by hand. Nothing is retried behind anyone's 
   publish exactly as `bindings` is (`hostedControl.ts` `publishControlShow`), baked into the
   exported production controller at export. Deleting the profile is one action and restores the
   generated panel everywhere.
-- **All three dashboard deployments render it** - the in-app production page, the hosted control
-  page and the exported controller - because `docs/PLAYOUT_DASHBOARD.md` says they must not
-  diverge and the exported one is built from the same `emitGraphic`. The combined controls sit in
-  the ⚡ actions block under a section of their own, pinned controls above the fold; ARRANGE is
+- **ARRANGE renders on all three dashboard deployments** - the in-app production page, the hosted
+  control page and the exported controller - because it is presentation, `docs/PLAYOUT_DASHBOARD.md`
+  says they must not diverge, and the exported one is built from the same `emitGraphic`. **COMBINE
+  renders on the two NoaCG-hosted pages**; the exported controller is the offline fallback and
+  carries the one line §6f gives it rather than a sequencer of its own. The combined controls sit
+  in the ⚡ actions block under a section of their own, pinned controls above the fold; ARRANGE is
   applied to the existing block, not a new one.
 - **Authoring is on the production page**, a "Controls" panel beside the cue editor: the generated
   controls per graphic with drag order, hide and rename; "+ Combined control" names it and adds
@@ -407,7 +411,52 @@ happen, and the operator presses it by hand. Nothing is retried behind anyone's 
   takes anything but a name or a number of seconds. Not the CLI: a profile is a production's
   taste, and a library graphic stays clean of it.
 
-### 6f. What this changes above
+### 6f. The boundary - portable graphics, NoaCG-owned production behaviour
+
+**Owner, 2026-09-15, the third ruling of the day** (`docs/OWNER_RULINGS.md` ALIGN-2026-09-15-3):
+production data and bindings are ONE capability of the control model, never the whole of it; a
+downloaded graphic must stay usable without knowing any NoaCG production path; and NoaCG's
+multi-graphic state, sequencing and automation are not forced into a standalone HTML export where
+that would create a second production runtime. Advanced behaviour lives in NoaCG's playout and
+control layer and integrates with external playout systems from there.
+
+Checked against the plan as it stands, the architecture already holds that line, and one sentence
+in §6e was over the line and is corrected above. The control model has four parts, and each has
+one home:
+
+| Part | What it is | Where it lives | What travels with a downloaded graphic |
+|---|---|---|---|
+| The contract (§2) | what a graphic exposes: fields, machine, controls, reported fields | the template's own code | all of it - it IS the graphic |
+| The profile (§6) | how a production arranges and combines what its graphics expose | `Show.profile`, above the command log | nothing |
+| Shared data (§5 rows 9 and 10) | one value many fields follow | `Show.data` and `Show.bindings`, resolved by the sender into ordinary rows | nothing - a graphic never learns a path name |
+| The renderers | whatever plays the rows: `/output`, CasparCG through it, an OGraf renderer later | below the log | the graphic plays there from data alone |
+
+So a downloaded graphic - an SPX folder, an OGraf package, a standalone `controlpanel.html` -
+carries its contract and nothing of the production. An external playout system is reached the way
+every renderer is: the profile, the bindings and any later automation write rows above the log,
+and the log reaches the renderer through `/output` today and the Server API facade later
+(`docs/GOALS.md` NEXT, OGraf ladder). Nothing about a combined control or a shared value has to
+exist inside a renderer for it to work there.
+
+**The one place the line needed drawing: the exported production controller.** It is NoaCG's own
+control layer packaged for a show with no network, built from the same generator, and
+`docs/PLAYOUT_DASHBOARD.md` holds it to parity with the two hosted pages. Parity on the generated
+panel and on ARRANGE stands, because both are presentation of the contract. COMBINE does not cross
+into it: a sequencer with delays and ticks, inlined a second time in vanilla JS, is exactly the
+second production runtime the owner named. The exported controller therefore shows, where a
+production has combined controls, one line: *"This production's combined controls run from its
+hosted control page"* - the same honest degradation a stranger's OGraf package gets on legality.
+The same holds for shared data: the exported controller carries no tree and no bindings today, so
+row 9's stepper change does not reach it, and its field stepper stays what it is. If an offline
+show ever needs either, that is the demand that reopens this paragraph, recorded then, not
+pre-built now.
+
+**What this check did NOT change.** The two primitives, the step marks, the general table in §6c,
+the refusals, the timing rule in §6d. The score example proves the shared-data row and nothing
+else; the profile proves sequencing; the contract proves graphic-specific controls. None of the
+three defines the others.
+
+### 6g. What this changes above
 
 §3d.3 now reads as the road to "one press": the operator's presses first, then a combined control
 with `ask` on the +1s, which is the proof case in §6c's first row. §5 gains the rows that build
@@ -453,6 +502,11 @@ Made here, recorded so they can be reverted rather than adjudicated:
    without it, walked and recorded.
 8. Timing in a combined control is the surface's own wait, visible and cancellable, never a row
    the renderer holds back (§6d).
+9. A downloaded graphic carries its contract and nothing of the production; combined controls and
+   shared data live above the command log and reach any renderer as rows (§6f). The exported
+   controller renders the panel and ARRANGE, and says in one line what runs from the hosted page.
+10. A stepper on a bound field patches the shared value, and matching titles bind in one press
+    (§5 rows 9 and 10). Both are the shared-data capability, one case of the control model.
 
 **Needs him: nothing.** The one question the first landing put to him - whether to build the
 profile for 2026-10-20 - he answered the same day (ALIGN-2026-09-15-2), and §6 is the design his

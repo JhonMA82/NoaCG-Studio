@@ -834,3 +834,38 @@ case, rather than waiting for the producer to ask? The plan said wait.
 What it settles: `docs/CONTROL_PANEL_ROAD.md` §3 is activated, on its own fences. The design that
 answers the framing is `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6 - two primitives, a general check
 against eight sequences, and the refusals named.
+
+---
+
+## ALIGN-2026-09-15-3
+
+**Asked after the shared-data answer** (a score entered on one graphic updating the total held in
+another): whether to add the Phase 3 stepper change and bind-by-title, and a check of the plan
+against the boundary he drew.
+
+> Yes, add the Phase 3 stepper change and bind-by-title. This sounds like the right architecture
+> for shared production data.
+
+> One big-picture check before we treat this as settled: I think production data/bindings are one
+> capability of the control system, not the whole control model.
+
+> The broader goal is still that an arbitrary graphic can expose whatever simple production
+> controls make sense for it: different reveal orders, grouped actions, a delayed follow-up
+> action, shared-data changes, etc. My score example should prove one case rather than define the
+> architecture.
+
+> I also think we should distinguish portable graphics from portable production behaviour. A
+> downloaded graphic should remain usable without knowing NoaCG-specific production paths, but I
+> don't think we should force every piece of NoaCG's multi-graphic state, sequencing and
+> automation into a standalone HTML export if that creates a second production runtime. It may be
+> cleaner for advanced behaviour to live in NoaCG's playout/control layer and integrate with
+> external playout systems.
+
+> Please sanity-check the current plan against that boundary. Don't expand scope if the
+> architecture already supports it.
+
+What it settles: `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6g - the four parts of the control model
+and the home of each; the exported production controller renders the generated panel and ARRANGE
+and carries neither COMBINE nor the data tree, which is the one carve-out from the three-surface
+parity in `docs/PLAYOUT_DASHBOARD.md`; and rows 9 and 10 in §5 (the bound-field stepper patches
+the tree; bind all by title).
