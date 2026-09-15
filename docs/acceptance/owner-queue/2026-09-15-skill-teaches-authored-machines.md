@@ -24,8 +24,14 @@ graphic for you, in the npm package, the Claude Code plugin and the Codex skill 
   rather than a reference an agent may never open. Gate 2 is the one with you in it: the agent
   must run `noacg inspect` and SHOW you the buttons before saving.
 - §5c is a machine that actually passes. It was authored, validated and inspected while this was
-  written, not sketched: `noacg validate` reported 0 errors and 0 warnings, and `noacg inspect`
-  printed one button, `Reveal winner`, in section `Award`, carrying `f4`.
+  written, not sketched: with the bench on, `noacg validate` reported 0 errors and one warning,
+  and `noacg inspect` printed one button, `Reveal winner`, in section `Award`, carrying `f4`.
+- That one warning is worth your eye, because it is not a defect and every graphic built this way
+  will show it. `bench-field-unpainted` on the reported field says its value reaches no pixels,
+  which is exactly what a reported field is for. §5c now tells agents to expect it and never to
+  satisfy it by drawing the field on screen. If that costs more confusion than it is worth, the
+  alternative is exempting these holders in the field-paint check the way numeric holders already
+  are - `src/validation/fieldPaint.ts` explains why that exemption was kept narrow.
 - The sentence that used to close §5 - "Authoring your own machine is a later capability" - is
   gone, and a unit test fails if it or any of the three gates comes back.
 

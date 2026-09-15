@@ -43,10 +43,12 @@ check it, and how it reaches the user's library. It does not tell you how it sho
    (`references/validator.md` says what each rule measures and how authors usually resolve it);
    open `shots/onair.png` and `shots/stress.png` and judge the frame yourself - the stress frame
    doubles every text and widens every number, which is what a real operator will type. Repeat
-   until clean and until you would air it. **If you authored a machine, this step is two of its
-   three gates**: the MACHINE CHECKS are part of the gate, and the BENCH walks every operator
-   arrow (it runs unless you pass `--no-bench`), so a state only a button can reach is measured
-   too.
+   until clean and until you would air it. **If you authored a machine, this step carries two of
+   its three gates**: read the MACHINE findings (the dead-control one is a WARNING, and it is the
+   likeliest typo), and let the BENCH walk the arrows - it dispatches authored events and measures
+   each pose, so a state only a button can reach is measured too. It is not a complete walk and a
+   `bench-skipped` NOTE is not a pass; `references/contract.md` §5a says what it misses and what
+   you finish by hand.
 4. **Inspect the operator surface, and show it to the user.** `noacg inspect ./my-graphic` prints
    the control panel NoaCG derives from your graphic - one input per field, one button per action,
    the step semantics. If the operator cannot change what they will need to change, add the field;

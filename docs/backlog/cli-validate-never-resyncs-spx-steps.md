@@ -17,9 +17,18 @@ there is no Continue to press - and a state only `next()` reaches never plays th
 looks perfect in NoaCG and is broken on the stranger's renderer, which is the exact failure the
 default-path contract exists to prevent. Nothing reports it: the gate is green.
 
+## Why it was filed rather than fixed on the branch that found it
+
+Because it is not the one-line CLI change it looks like. The CLI does not own the regenerate: it
+calls `bridge.normalize(...)` and then writes back whatever comes out (`regenerateInPlace` in
+`cli/src/commands/validate.ts`), so the fix lands in shared normalization that the studio's own
+import path runs too. Deriving the value there means silently rewriting a number the author wrote
+in their own source file, which is a behaviour change worth its own verification rather than a
+rider on a documentation change.
+
 ## What it would take
 
-Small. Decide between deriving and reporting:
+Small, but its own row. Decide between deriving and reporting:
 
 - **Derive** - recompute `settings.steps` from `spxSteps(data)` during the CLI's regenerate, which
   is what `blocks/layerTimeline.ts`, `blocks/stepAssign.ts`, `blocks/templateInsert.ts`,

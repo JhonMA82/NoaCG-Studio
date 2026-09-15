@@ -38,7 +38,7 @@ window.SPXGCTemplateDefinition = {
   "playserver": "OVERLAY", "playchannel": "1", "playlayer": "7", "webplayout": "7",
   "out": "manual",          /* or "none", or a number of ms to auto-clear */
   "dataformat": "json", "uicolor": "7",
-  "steps": "1",             /* the walk's length; "1" is right until you author a machine (§5d) */
+  "steps": "1",             /* the walk's length: `defaultPath.length - 1`, so "1" with no machine (§5d) */
   "DataFields": [
     { "field": "f0", "ftype": "textfield", "title": "Team A", "value": "HOME" },
     { "field": "f1", "ftype": "number",    "title": "Score A", "value": "0" },
@@ -136,17 +136,29 @@ which validates cleanly and still leaves the operator unable to DO what the brie
 An authored machine ships through three gates, and they are steps 3 and 4 of the loop in
 `SKILL.md` - none of them optional:
 
-1. **`noacg validate` passes with no machine error.** The machine checks run inside the ordinary
-   gate: a default path that is not connected, a lifecycle edge off its seat, an unreachable
-   state, a control naming an event no arrow fires.
+1. **`noacg validate` passes, and you read its MACHINE findings.** Two of them are ERRORS and
+   block the save: a default path that is not connected, and a lifecycle edge off its canonical
+   seat. Two are WARNINGS: an unreachable state, and a `machine.controls` entry naming an event
+   no arrow fires. **That second warning is the likeliest hand-authoring mistake there is** -
+   misspell the event and validate reports no error at all while the ⚡ button is silently never
+   rendered. Zero errors is not this gate; zero errors plus no machine warning you cannot explain
+   is.
 2. **`noacg inspect` prints the panel and you SHOW the user the buttons.** A human confirms the
    operator surface before it is saved. A clean validate never proves the buttons are the ones
    the brief needs; only somebody reading them does.
-3. **The bench walks every operator arrow.** It runs inside `validate` unless you pass
-   `--no-bench`: an authored event is dispatched and the pose it produces is measured, so a state
-   that only a button can reach is still checked for collisions and overflow. Read what the bench
-   reports rather than assuming it reached everything - a machine with many buttons is where this
-   gate is likeliest to leave an arrow unwalked, and an unwalked arrow is work left.
+3. **Every operator arrow gets walked.** The bench does most of this for you, inside `validate`:
+   it dispatches authored events and measures the pose each produces, so a state only a button
+   can reach is still checked for collisions and overflow. It does not do all of it, and the
+   difference is yours to close:
+   - it takes the first eight DISTINCT EVENT NAMES, so two arrows carrying one event name are
+     one dispatch, and a ninth button is never pressed;
+   - it fires them in sequence WITHOUT snapping back between them, starting from where the
+     default-path walk ended - so an arrow leaving a state the sequence has already left is
+     dropped by the structural guard and its pose is never measured;
+   - it does not run at all if you passed `--no-bench`, or if the safety screen refused to
+     execute the template. Both are reported as a `bench-skipped` NOTE, which is not a pass.
+
+   Read what the bench reports, and walk what it did not reach before calling this gate passed.
 
 ### 5b. What a machine-bearing graphic declares
 
@@ -251,13 +263,24 @@ same press. A host that can only send data writes `f5` itself, and `update()` ob
 function update(data) {
   var fields = (typeof data === 'string') ? JSON.parse(data) : data;
   for (var key in fields) { var el = document.getElementById(key); if (el) setFieldValue(el, fields[key]); }
-  if (document.getElementById('f5').textContent === 'winner') markWinner();  // the read-back
+  var shown = document.getElementById('f5');                                  // the read-back
+  if (shown && shown.textContent === 'winner') markWinner();
 }
 ```
+
+Guard the lookup like every other one. An unguarded `getElementById(...).textContent` throws
+before anything repaints if the holder is ever renamed or dropped, and on air that is a graphic
+frozen on stale data rather than one degrading quietly.
 
 Both roads reach one result, which is why the graphic obeys a stranger's renderer that has no way
 to send an event. The fact is the CONTROLLER's and the graphic renders it - never the other way
 round, because there is no return channel to ask down.
+
+**Expect one warning here, and do not "fix" it.** A reported field's value reaches no pixels by
+design, so the bench raises `bench-field-unpainted` for it ("its value reaches no pixels in ANY of
+the graphic's states"). On a field an operator types that finding is real and worth acting on; on a
+reported field it is the pattern working. Say so when you show the user the panel, and never
+satisfy it by drawing the field on screen.
 
 ### 5d. The default path is the compatibility contract
 

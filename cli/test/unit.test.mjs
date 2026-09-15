@@ -555,35 +555,53 @@ test('every caspar sub-command except send refuses a stray word', async () => {
 // ---------------------------------------------------------------- the shipped skill text
 //
 // The skill is the only thing standing between an agent and a graphic that carries its state in
-// FIELDS instead of buttons. It is plain markdown with no compiler behind it, so the two claims
-// below are pinned here or nowhere.
+// FIELDS instead of buttons. It is plain markdown with no compiler behind it, so what it promises
+// is pinned here or nowhere.
 //
-// WHY THESE THREE and not a spell-check of the whole file: authoring a machine was opened on
-// 2026-08-27 on the condition of three gates (docs/CONTROL_PANEL_ROAD.md §9), and the gates ARE
+// WHY THE GATES and not a spell-check of the whole file: authoring a machine was opened on
+// 2026-08-27 on the condition of three gates (docs/CONTROL_PANEL_ROAD.md §9), and those gates ARE
 // the safety model - there is no other check that an authored machine is one a human wanted.
 // A rewrite that drops a gate from the text drops it from practice, silently, because nothing
 // else names them. Rewording a gate is fine and should update this test deliberately; losing one
 // should fail.
 
+/** The shipped SKILL.md, LF-normalised: a Windows checkout hands it back with CRLF, and a match
+ *  that only passes on one platform's checkout teaches people to ignore the test (build-skill.mjs
+ *  compares the generated copies the same way, for the same reason). */
+async function shippedSkill() {
+  return (await fs.readFile(path.join(skillDir(), 'SKILL.md'), 'utf8')).replace(/\r\n/g, '\n');
+}
+
 test('the shipped skill names all three gates for an authored machine', async () => {
-  const contract = await readDoc('contract'); // the `noacg docs contract` route an agent reads
-  const skill = await fs.readFile(path.join(skillDir(), 'SKILL.md'), 'utf8');
+  const contract = (await readDoc('contract')).replace(/\r\n/g, '\n');
+  const skill = await shippedSkill();
+
+  // Pinned by the TOOL and the ACT each gate names, inside the gates section, and never by the
+  // sentences around them. An early cut pinned the prose "the bench walks every operator arrow"
+  // and would have locked that claim into CI - the bench does less than it says (it caps at eight
+  // distinct event names and never snaps back between them), so the accurate rewrite had to be
+  // free to change those words. A pin on wording makes the next author choose between a true
+  // contract and a green build, which is how a gate quietly becomes a slogan.
+  const section = /### 5a\. The three gates\n([\s\S]*?)\n### /.exec(contract)?.[1];
+  assert.ok(section, 'references/contract.md has no "5a. The three gates" section');
 
   const gates = [
-    { name: 'validate, with the machine checks', re: /noacg validate.{0,60}machine error/is },
-    { name: 'inspect, and SHOW the user the buttons', re: /noacg inspect.{0,80}SHOW the user the buttons/is },
-    { name: 'the bench walks every operator arrow', re: /bench walks every operator arrow/i },
+    { name: 'validate, with its machine findings read', tokens: ['noacg validate', 'machine'] },
+    { name: 'inspect, and SHOW the user the buttons', tokens: ['noacg inspect', 'SHOW the user the buttons'] },
+    { name: 'the bench walking the operator arrows', tokens: ['bench', 'operator arrow'] },
   ];
   for (const gate of gates) {
-    assert.match(contract, gate.re, `references/contract.md no longer names the gate: ${gate.name}`);
+    for (const token of gate.tokens) {
+      assert.ok(section.includes(token), `the gate "${gate.name}" no longer names "${token}"`);
+    }
   }
 
   // The loop is where an agent actually works, so the gates have to be STEPS, not a reference
   // it may never open. Gate 2 is the one with a human in it and the one a loop can silently
   // skip, so it is pinned by its own words.
-  assert.match(skill, /machine checks/i, 'the loop does not say validate runs the machine checks');
+  assert.match(skill, /MACHINE findings/i, 'the loop does not tell the agent to read the machine findings');
   assert.match(skill, /SHOW the user the buttons/, 'the loop does not tell the agent to show the user the buttons');
-  assert.match(skill, /bench/i, 'the loop does not mention the bench');
+  assert.match(skill, /BENCH walk/i, 'the loop does not say the bench walks the arrows');
   assert.match(skill, /Read the printed BUTTONS against/i, 'step 4 lost its read-against-the-brief instruction');
 });
 
@@ -595,6 +613,5 @@ test('the skill no longer calls an authored machine a later capability', async (
   for (const topic of ['contract', 'control']) {
     assert.doesNotMatch(await readDoc(topic), /later capability/i, `references/${topic}.md still defers authoring a machine`);
   }
-  const skill = await fs.readFile(path.join(skillDir(), 'SKILL.md'), 'utf8');
-  assert.doesNotMatch(skill, /later capability/i, 'SKILL.md still defers authoring a machine');
+  assert.doesNotMatch(await shippedSkill(), /later capability/i, 'SKILL.md still defers authoring a machine');
 });
