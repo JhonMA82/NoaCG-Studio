@@ -773,3 +773,33 @@ the deck stays. Keep surfacing it until he has opened it.
 **Asked at the weekly alignment session.** Two of the three big things are waiting on a word from you, not on more planning - the desktop app is parked by your own August decision, and the full editor is designed but not switched on. Do they stay locked?
 
 > Everything should be unlocked. There's no reason to lock anything. My deadlines are my problem and I will make sure that we meet those deadlines. I'll also let you know when we need to work on something that I need. One priority right now is to make Codex do some work because we are running out of Claude Code tokens each week so we have to be more economical and get more things done. That's something we should keep an eye on all the time. When we can use Codex efficiently, I will upgrade our Codex subscription and then we can use more of that.
+
+---
+
+## ALIGN-2026-09-15-1
+
+**From the brief handed to the control-panel planning session on 2026-09-15**, the owner's words
+as the brief carried them; the plan it produced is `docs/CONTROL_PANEL_ANY_GRAPHIC.md`.
+
+> The goal is one control-panel approach that fits ANY graphic we have: catalog templates,
+> imported SVGs, and graphics a coding agent makes through the NoaCG CLI. Later, foreign OGraf
+> packages too.
+
+> The proof case is Elämäni biisi on Yle, 2026-10-20. Five people vote on who performs each song.
+> One graphic shows each person's votes for the current song. Another keeps a running total of how
+> many songs each person has guessed right. The owner wants to prompt it in Claude Code, save it
+> with the CLI, and run it from the playout dashboard within minutes, in front of the producer and
+> director. The early October production needs the scoreboards and quiz boards we already have.
+
+> Hold these constraints: No expression language, ever. The code is the truth; there is no hidden
+> scene model. Controls are generated from the graphic's machine, never hand-built per graphic. A
+> generic OGraf host must still display the graphic from standard data updates alone. P2 is still
+> at DESIGN, so the result is a plan, not code.
+
+> What we know about Zero Density: OGraf Studio's custom actions are only declared. The runtime
+> acknowledges the call and runs no behaviour, so executable operator logic is where NoaCG leads.
+> Their Reality Event Graph is Unreal Blueprints, a programmer's surface. Learn from their
+> patterns, but copy no code: it is AGPL, and its runtime is embedded in every export.
+
+What it settles: the "agent-authored machines" gate in `docs/GOALS.md` NEXT. An agent-authored
+machine is the proof case, so the skill blesses it under the three gates of 2026-08-27.
