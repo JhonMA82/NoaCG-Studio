@@ -9,6 +9,7 @@ import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
 import { parseAnimData } from '../blocks/animData';
 import { deriveMachine, machineControls, type ControlButton } from '../blocks/animMachine';
 import { slug } from '../model/slug';
+import { readPublishedProfile } from '../model/profile';
 
 /** Map an SPX ftype to a control kind. The non-data ftypes carry no control at all.
  *  Exported for the OGraf exporter, which records the kind as a per-property vendor hint so
@@ -271,7 +272,8 @@ export interface ArrangedControls {
    *  principle: the operator should understand football, not the graphics software). A pinned
    *  control is LIFTED out of its section rather than repeated in it. */
   pinned: ArrangedControl[];
-  /** The rest, grouped by section in first-seen order, exactly as `controlSections` groups. */
+  /** The rest, grouped by the section each control ends up in, in first-seen order, with
+   *  everything the author left undeclared under "Actions". */
   sections: [string, ArrangedControl[]][];
   /** The hidden ones. They are out of the panel's flow, and every surface puts them behind a
    *  COLLAPSED "More" rather than dropping them: hiding a control is a production saying "not
@@ -290,27 +292,28 @@ export interface ArrangeRead {
   pinned?: boolean;
 }
 
-/** The whole of a profile this module reads: ARRANGE, and nothing about COMBINE. */
-export interface ArrangeSource {
-  arrange?: Record<string, Record<string, ArrangeRead>>;
-}
-
 /**
  * One pool graphic's arrangement out of a production's profile, or undefined when there is none.
  *
- * A pool graphic's NAME is somebody's typed text, so a bare `profile.arrange[name]` answers a
+ * IT TAKES THE PROFILE AS STORED and applies the version gate itself, which is the whole reason
+ * every surface goes through here. `readPublishedProfile` answers null both for "no profile" and
+ * for "a profile a newer build wrote", and a surface that reaches into `show.profile.arrange`
+ * directly skips that: a v2 profile is read-only at both write doors and correctly ignored on the
+ * hosted page, but it would still order, rename and hide buttons wherever it was read raw — and
+ * one show rendering two different panels on two surfaces is exactly what the gate exists to
+ * prevent. Passing an already-read profile costs nothing; reading twice is idempotent.
+ *
+ * A pool graphic's NAME is then somebody's typed text, so a bare `arrange[name]` answers a
  * function for a graphic called `constructor` — `model/profile.ts` `own()` exists for exactly
- * this and says what it measured. Every surface asks through here rather than indexing, so the
- * guard cannot be forgotten by the fourth one.
+ * this and says what it measured.
  */
 export function arrangeFor(
-  profile: ArrangeSource | null | undefined,
+  profile: unknown,
   graphic: string | null | undefined,
 ): Record<string, ArrangeRead> | undefined {
-  const arrange = profile?.arrange;
+  const arrange = readPublishedProfile(profile)?.arrange;
   if (!arrange || !graphic || !Object.prototype.hasOwnProperty.call(arrange, graphic)) return undefined;
-  const entries = arrange[graphic];
-  return entries && typeof entries === 'object' ? entries : undefined;
+  return arrange[graphic];
 }
 
 /**
@@ -351,14 +354,13 @@ export function arrangeControls(
   });
 
   // One sort for every bucket below, so pinned, sectioned and hidden controls all read in the
-  // same order the production dragged them into.
+  // same order the production dragged them into. A control with no `order` sorts as if it had an
+  // infinite one, which puts every numbered control first and leaves the rest — all equal, all
+  // infinite — in declared order on the tie.
   resolved.sort((a, b) => {
-    if (a.order !== undefined && b.order !== undefined) {
-      return a.order === b.order ? a.declaredAt - b.declaredAt : a.order - b.order;
-    }
-    if (a.order !== undefined) return -1;
-    if (b.order !== undefined) return 1;
-    return a.declaredAt - b.declaredAt;
+    const ao = a.order ?? Infinity;
+    const bo = b.order ?? Infinity;
+    return ao === bo ? a.declaredAt - b.declaredAt : ao - bo;
   });
 
   const pinned: ArrangedControl[] = [];

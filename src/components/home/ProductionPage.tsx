@@ -40,7 +40,7 @@ import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
 import { revealCue, stepSelection, usePlayoutVerbKeys, type PlayoutVerb } from '../playoutKeys';
 import { cueDataRows, hasSideFields, nextRow, rowsForSide } from '../../control/cueData';
 import { groupCueFields, groupHeading } from '../../control/cueFieldGroups';
-import { readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
+import { readPublishedProfile, readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
 import ProductionControlsPanel from './ProductionControlsPanel';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
 import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
@@ -1516,6 +1516,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  write door refuses it, so the authoring panel has to say so rather than offer controls that
    *  would quietly do nothing. */
   const profileRead = readShowProfile(show.profile);
+  /** The profile this build may RENDER from — null both for "none" and for one it cannot read,
+   *  because a panel arranged by rules this build does not understand is worse than the generated
+   *  one. The ⚡ block does not need this: `arrangeFor` applies the same gate itself. The Controls
+   *  panel does, because whether there is a profile to DELETE is a different question from what
+   *  it says. */
+  const renderProfile = readPublishedProfile(show.profile);
   /** Write ONE graphic's arrangement. `withGraphicArrange` owns the key guard and the canonical
    *  form; `setShowProfile` owns the read-only refusal, and reports it rather than swallowing it
    *  (the surface that showed "Saved" over a write that never happened is the worse bug). */
@@ -2273,9 +2279,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             authors, collapsed, so a change lands in front of the eye that made it. */}
         {events.length > 0 && selectedGraphic && (
           <ProductionControlsPanel
+            // Keyed on the graphic: the panel holds a half-typed rename and a drag in its own
+            // state, and stepping to another graphic's cue must not carry either across - two
+            // graphics can declare a control with the same id, so the draft would land on it.
+            key={selectedGraphic}
             graphic={selectedGraphic}
             buttons={events}
-            profile={show.profile}
+            profile={renderProfile}
             readOnly={profileRead.status === 'read-only'}
             onArrange={(entries) => writeArrange(selectedGraphic, entries)}
             onDeleteProfile={deleteProfile}

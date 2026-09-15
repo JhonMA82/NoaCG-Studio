@@ -560,6 +560,14 @@ test('the hosted page arranges from the PUBLISHED bytes, by the one rule the in-
     const buttons = eventButtons(panel[0].js);
     const read = arrangeControls(buttons, arrangeFor(published, panel[0].name));
     const generated = arrangeControls(buttons, arrangeFor(null, panel[0].name));
+    // A profile a NEWER build wrote. `arrangeFor` applies the version gate itself, so every
+    // surface degrades to the generated panel together — the in-app page and the exporter both
+    // read the arrangement raw at one point, which rendered a v2 profile's arrangement here and
+    // ignored it there: one show, two different panels.
+    const newer = arrangeControls(
+      buttons,
+      arrangeFor({ v: 99, arrange: { 'Club Scorebug': { clockStart: { hidden: true } } }, combine: [] }, panel[0].name),
+    );
     const names = (controls: { button: { event: string }; label: string }[]) =>
       controls.map((c) => `${c.button.event}:${c.label}`);
     return {
@@ -568,6 +576,8 @@ test('the hosted page arranges from the PUBLISHED bytes, by the one rule the in-
       sections: read.sections.map(([section, controls]) => [section, names(controls)]),
       generatedSections: generated.sections.map(([section, controls]) => [section, names(controls)]),
       generatedExtras: generated.pinned.length + generated.more.length,
+      newerSections: newer.sections.map(([section, controls]) => [section, names(controls)]),
+      newerExtras: newer.pinned.length + newer.more.length,
       // The legality table is read off the graphic's own `js` and knows nothing about the
       // profile, which is what makes "a hidden control is still guarded" true by construction.
       hiddenIsStillDeclared: buttons.some((b) => b.event === 'clockStop'),
@@ -591,4 +601,11 @@ test('the hosted page arranges from the PUBLISHED bytes, by the one rule the in-
     ['Clock', ['clockStart:Start clock', 'clockStop:Stop clock', 'clockReset:Reset to period start']],
     ['Match', ['interval:Interval', 'resumePlay:Resume play', 'final:Full time']],
   ]);
+
+  // A profile a newer build wrote arranges NOTHING, on every surface at once. It is read-only at
+  // both write doors, so a surface that honoured it would show an arrangement nobody on this
+  // build could change — and a panel arranged by rules this build does not understand is worse
+  // than the generated one it falls back to.
+  expect(arranged.newerExtras, 'a v99 profile must not hide a control').toBe(0);
+  expect(arranged.newerSections).toEqual(arranged.generatedSections);
 });

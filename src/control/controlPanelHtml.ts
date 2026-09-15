@@ -751,18 +751,30 @@ GRAPHICS.forEach(function (g) {
       g.events.forEach(function (e) { if (e.event === event) found = e; });
       return found;
     };
-    g.arranged.sections.forEach(function (entry) {
+    var eventRow = function (actions) {
       var row = el('div', { class: 'btns' });
-      evHost.appendChild(el('div', {}, [el('h3', {}, [entry[0]]), row]));
-      entry[1].forEach(function (a) {
+      actions.forEach(function (a) {
         var e = declaredFor(a.event);
         if (!e) return;
         var btn = el('button', e.destructive ? { class: 'destructive' } : {}, ['⚡ ' + a.label]);
         btn.onclick = function () { sendEvent(e); };
         row.appendChild(btn);
+        // Every button goes on the legality list, whichever of the three lists it was drawn
+        // from - a pinned or hidden control that stopped greying would be the profile changing
+        // behaviour, which is the one thing it may never do.
         eventBtns.push({ event: e.event, btn: btn });
       });
+      return row;
+    };
+    if (g.arranged.pinned.length > 0) evHost.appendChild(eventRow(g.arranged.pinned));
+    g.arranged.sections.forEach(function (entry) {
+      evHost.appendChild(el('div', {}, [el('h3', {}, [entry[0]]), eventRow(entry[1])]));
     });
+    if (g.arranged.more.length > 0) {
+      var more = el('details', {}, [el('summary', {}, ['More (' + g.arranged.more.length + ')'])]);
+      more.appendChild(eventRow(g.arranged.more));
+      evHost.appendChild(more);
+    }
     card.appendChild(evHost);
   }
 

@@ -277,6 +277,10 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
           // all three deployments). Keyed by the POOL graphic's name, the same key the bindings
           // and the published panel use — not by the template's, which an imported graphic may
           // have renamed out from under the show.
+          //
+          // `arrangeFor` applies the version gate itself, which matters most here: a profile a
+          // newer build wrote would otherwise be baked into a package that runs offline, with no
+          // way to correct it and no build in it that understands the rules it was arranged by.
           ...emitGraphic(template, null, {
             inlineAssets: true,
             entries,

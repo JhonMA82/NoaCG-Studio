@@ -24,7 +24,10 @@
 import { useState } from 'react';
 import type { ControlButton } from '../../control/controlModel';
 import { arrangeControls, arrangeFor } from '../../control/controlModel';
-import type { ArrangeEntry, ShowProfile } from '../../model/profile';
+// `put` is the format module's own guard for a user-named key, not a second copy of it: a control
+// id is the author's own event name, and a bare `map[control] = entry` loses one called
+// `__proto__` with no error at all — a panel reporting a save that stored nothing.
+import { put, type ArrangeEntry, type ShowProfile } from '../../model/profile';
 
 /** The drag payload's own MIME type, the cue rundown's mechanism exactly: a private type means a
  *  row dragged out of this list cannot be dropped into the rundown, or the other way round. */
@@ -42,8 +45,9 @@ export default function ProductionControlsPanel({
   graphic: string;
   /** The controls the graphic DECLARES, generated (controlModel `eventButtons`). */
   buttons: ControlButton[];
-  /** The production's profile, or undefined for one that has none yet. */
-  profile: ShowProfile | undefined;
+  /** The profile as this build may RENDER it (`readPublishedProfile`), or null for a production
+   *  with none — and also for one this build cannot read, which `readOnly` then explains. */
+  profile: ShowProfile | null;
   /** A profile a NEWER build wrote. Every door refuses it (`model/shows.ts` says why), so the
    *  panel says so rather than offering controls that would silently do nothing. */
   readOnly: boolean;
@@ -81,7 +85,7 @@ export default function ProductionControlsPanel({
   const untouched = (): Record<string, ArrangeEntry> => {
     const declared = new Set(rows.map((r) => r.button.event));
     const kept: Record<string, ArrangeEntry> = {};
-    for (const [event, entry] of Object.entries(entries)) if (!declared.has(event)) kept[event] = entry;
+    for (const [event, entry] of Object.entries(entries)) if (!declared.has(event)) put(kept, event, entry);
     return kept;
   };
 
@@ -97,7 +101,7 @@ export default function ProductionControlsPanel({
       for (const key of Object.keys(entry) as (keyof ArrangeEntry)[]) {
         if (entry[key] === undefined) delete entry[key];
       }
-      if (Object.keys(entry).length > 0) next[row.button.event] = entry;
+      if (Object.keys(entry).length > 0) put(next, row.button.event, entry);
     }
     onArrange(next);
   };
@@ -113,7 +117,7 @@ export default function ProductionControlsPanel({
     moved.splice(toIndex, 0, moved.splice(fromIndex, 1)[0]);
     const next = untouched();
     moved.forEach((row, index) => {
-      next[row.button.event] = { ...storedFor(row.button.event), order: index };
+      put(next, row.button.event, { ...storedFor(row.button.event), order: index });
     });
     onArrange(next);
   };
@@ -141,21 +145,21 @@ export default function ProductionControlsPanel({
         <span className="pd-actions-kicker">CONTROLS</span>
         <span className="muted">
           {hasArrangement
-            ? `arranged for this production — ${rows.length} control${rows.length === 1 ? '' : 's'}`
+            ? `arranged for this production, ${rows.length} control${rows.length === 1 ? '' : 's'}`
             : 'as the graphic declared them'}
         </span>
       </summary>
       <p className="hint pd-actions-help">
-        How THIS production shows {graphic}&rsquo;s controls: drag to order them, pin the handful
-        you press, hide the rest behind “More”, and rename one into the show&rsquo;s own words. It
-        changes nothing about what a press does — the graphic still decides that, and a hidden
-        control is still guarded and still reachable.
+        How THIS production shows {graphic}&rsquo;s controls. Drag to order them, pin the handful
+        you press, hide the rest behind &ldquo;More&rdquo;, and rename one into the show&rsquo;s own
+        words. Nothing about a press changes: the graphic still decides what it does, and a hidden
+        control is still guarded and still one click away.
       </p>
 
       {readOnly ? (
         <p className="status-bad" data-testid="controls-panel-readonly">
           This production&rsquo;s control profile was written by a newer build, so it is read-only
-          here. Open it on that build to change it — editing it from here could destroy settings
+          here. Open it on that build to change it. Editing it from here could destroy settings
           this one cannot even see.
         </p>
       ) : (
@@ -168,12 +172,10 @@ export default function ProductionControlsPanel({
                   key={event}
                   className={`pd-controls-row${row.hidden ? ' hidden' : ''}${dragging === event ? ' dragging' : ''}`}
                   data-testid={`controls-row-${event}`}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData(DRAG_TYPE, event);
-                    setDragging(event);
-                  }}
-                  onDragEnd={() => setDragging(null)}
+                  // The whole row is a DROP target and only the grip is a drag SOURCE. Making the
+                  // row draggable put the rename box inside the source, so dragging across it to
+                  // select text started a row drag instead — and the grip advertises `cursor: grab`
+                  // as if it were the handle, which it now is.
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault();
@@ -182,7 +184,17 @@ export default function ProductionControlsPanel({
                     if (from) reorder(from, event);
                   }}
                 >
-                  <span className="pd-grip" aria-hidden="true">
+                  <span
+                    className="pd-grip"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(DRAG_TYPE, event);
+                      setDragging(event);
+                    }}
+                    onDragEnd={() => setDragging(null)}
+                    aria-hidden="true"
+                    data-testid={`controls-grip-${event}`}
+                  >
                     ⣿
                   </span>
                   {/* THE ONLY TEXT BOX IN THE PANEL, and it takes a NAME — never a value, a
@@ -209,7 +221,7 @@ export default function ProductionControlsPanel({
                     disabled={row.hidden}
                     title={
                       row.hidden
-                        ? 'A hidden control has no fold to sit above — unhide it first'
+                        ? 'A hidden control has no fold to sit above. Unhide it first.'
                         : row.pinned
                           ? 'Pinned above the fold. Press to unpin.'
                           : 'Pin it above the fold, where the hand goes first'
@@ -224,8 +236,8 @@ export default function ProductionControlsPanel({
                     aria-pressed={row.hidden}
                     title={
                       row.hidden
-                        ? 'Behind “More”. Press to bring it back into the panel.'
-                        : 'Put it behind “More” — still legal, still one click away, just not in the way'
+                        ? 'Behind "More". Press to bring it back into the panel.'
+                        : 'Put it behind "More": still legal, still one click away, just not in the way'
                     }
                     // Hiding clears the pin: the two mean opposite things and a profile carrying
                     // both is a hand-edit the surfaces have to resolve rather than a state this
@@ -250,7 +262,7 @@ export default function ProductionControlsPanel({
               <button
                 className="pd-action destructive"
                 onClick={() => onDeleteProfile()}
-                title="Removes this production's whole control profile — every graphic's arrangement and every combined control — and leaves the generated panel on all three deployments"
+                title="Removes this production's whole control profile, every graphic's arrangement and every combined control, and leaves the generated panel on all three deployments"
                 data-testid="controls-delete-profile"
               >
                 Delete profile

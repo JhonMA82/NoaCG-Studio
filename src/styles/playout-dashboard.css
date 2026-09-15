@@ -679,8 +679,34 @@
 /* A hidden control still reads, at a lower weight: it is behind "More", not gone, and a row you
    cannot read is a row you will not un-hide. */
 .pd-controls-row.hidden .pd-controls-name { color: var(--text-dim, #9aa1ad); }
-.pd-controls-row .pd-grip { cursor: grab; color: var(--text-dim, #9aa1ad); font-size: 11px; }
-.pd-controls-name { flex: 1 1 auto; min-width: 0; font-size: 12.5px; padding: 4px 8px; }
+/* The grip is the drag SOURCE now, not the whole row, so it has to read as the handle: a little
+   bigger than the row's text and it takes the padding, so the grab target is the full row height
+   rather than one 11px glyph. */
+.pd-controls-row .pd-grip {
+  cursor: grab;
+  color: var(--text-dim, #9aa1ad);
+  font-size: 13px;
+  line-height: 1;
+  padding: 6px 2px;
+}
+.pd-controls-row .pd-grip:active { cursor: grabbing; }
+/* THE NAME IS AN INLINE EDIT, not a form field. Six full-width boxes stacked under the ⚡ block's
+   compact chips made the authoring panel the heaviest thing in the column, and read as six values
+   waiting to be filled in rather than as a list of controls. The border and ground arrive on
+   hover and focus, which is where the affordance is needed and nowhere else. */
+.pd-controls-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  padding: 4px 8px;
+  background: transparent;
+  border-color: transparent;
+}
+.pd-controls-name:hover { border-color: var(--border); }
+.pd-controls-name:focus {
+  border-color: var(--accent);
+  background: var(--bg-panel, rgba(255, 255, 255, 0.02));
+}
 .pd-controls-mark {
   flex: 0 0 auto;
   min-width: 78px;
