@@ -10,6 +10,7 @@
 
 import { getSupabase } from '../backend/supabase';
 import { graphicLayer, type Show } from '../model/shows';
+import { readPublishedProfile, type ShowProfile } from '../model/profile';
 import { loadGraphics, entriesForSavedGraphic, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { Resolution, SpxField, SpxTemplate } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
@@ -156,6 +157,18 @@ export interface ResolvedControlShow {
   /** The renderer's last heartbeat — staleness is the "renderer connected" indicator. */
   outputSeenAt: string | null;
   liveCue: LiveCueMap;
+  /**
+   * The production's control profile, or null for "render the generated panel" — which covers
+   * both no profile and a profile written by a newer build (`readPublishedProfile` in
+   * `model/profile.ts` says why both degrade the same way).
+   *
+   * `control_show_by_slug` does NOT return this column yet, so this reads null today. Widening it
+   * belongs to the row that first RENDERS the profile: a `RETURNS TABLE` function cannot gain a
+   * column with `create or replace`, so it needs a drop-and-create, which `npm run db:push`
+   * refuses without an explicit `--allow` — and 0058 is deliberately additive so that a landing
+   * applies it with no owner action.
+   */
+  profile: ShowProfile | null;
 }
 
 /** What the output renderer resolves — payload + live snapshot, never panel/staged/slug. */
@@ -330,6 +343,14 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
       // and moves no graphic. The live TREE is deliberately not sent: it is runtime state and
       // the server's own column is its authority once published.
       bindings: show.bindings ?? {},
+      // The control PROFILE travels at publish for the same reason the bindings do: how this
+      // production arranges and combines its controls is AUTHORED state, like the panel and the
+      // payload, and the hosted surfaces must not have to guess it (migration 0058,
+      // docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e). An empty object rather than null, on the 0048
+      // precedent, so a production published without one reads as "no profile" instead of being
+      // null-checked at every use. The profile carries its own `v` inside the jsonb, so the
+      // column never needs a version of its own.
+      profile: show.profile ?? {},
     },
     { onConflict: 'id' },
   );
@@ -495,8 +516,10 @@ export async function controlShowBySlug(slug: string): Promise<ResolvedControlSh
     output: readOutputPayload(row.output),
     outputSeenAt: (row.output_seen_at as string | null) ?? null,
     liveCue: readLiveCue(row.live_cue),
+    profile: readPublishedProfile(row.profile),
   };
 }
+
 
 /**
  * Normalize the row-persisted cue snapshot into the per-layer map (docs/CLOUD_PLAYOUT.md §4).

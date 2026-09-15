@@ -432,3 +432,57 @@ test('the receiver block emits the SAME baseline rule the app renderer applies',
   // never transpiled by Vite, so this is the only thing standing between the rule and that.
   expect(RECEIVER_FOLLOW_FROM_JS).not.toMatch(/\?\.|\?\?|=>|`|\bconst\b|\blet\b/);
 });
+
+test('a production carries its control profile canonically, and deleting it leaves no trace', async ({ page }) => {
+  // AC-4 of docs/work-specs/control-panel-any-graphic: `Show.profile` is a versioned, DELETABLE
+  // part of the production (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e). The format's own refusals are
+  // pinned node-side in `scripts/control-profile.test.mjs`, which transpiles the leaf module; what
+  // only the real app can show is the half below — that the record round trips through the store,
+  // that writing it CANONICALIZES, and that deleting it removes the KEY rather than emptying it.
+  await createProject(page, 'Hairline');
+
+  const stored = await page.evaluate(async () => {
+    const { createShowNamed, setShowProfile, deleteShowProfile, loadShows } = await import('/src/model/shows.ts');
+    const show = createShowNamed('Elämäni biisi');
+    // Authored the way a surface would hand it over: keys in no particular order, a default
+    // spelled out, a zero wait. All three must be gone from what lands on the record.
+    setShowProfile(show.id, {
+      v: 1,
+      combine: [
+        {
+          steps: [
+            { control: 'reveal', graphic: 'Votes board', kind: 'event', after: 0 },
+            { kind: 'event', graphic: 'Totals board', control: 'plus_katri', after: 3, ask: { default: true } },
+          ],
+          name: 'Reveal, then the points',
+          id: 'c1',
+        },
+      ],
+      arrange: { 'Totals board': { plus_katri: { pinned: true, hidden: false } } },
+    });
+    const written = JSON.stringify(loadShows().find((s) => s.id === show.id)?.profile);
+    deleteShowProfile(show.id);
+    const after = loadShows().find((s) => s.id === show.id);
+    return { written, hasKey: after ? 'profile' in after : true, stillThere: !!after };
+  });
+
+  // Canonical: `v`, then `arrange`, then `combine`; keys sorted; every default omitted.
+  expect(stored.written).toBe(
+    '{"v":1,"arrange":{"Totals board":{"plus_katri":{"pinned":true}}},' +
+      '"combine":[{"id":"c1","name":"Reveal, then the points",' +
+      '"steps":[{"kind":"event","graphic":"Votes board","control":"reveal"},' +
+      '{"kind":"event","graphic":"Totals board","control":"plus_katri","after":3,"ask":{"default":true}}]}]}',
+  );
+  // Deleting is ONE action and leaves no key, so a production that never had a profile and one
+  // whose profile was deleted are byte-identical — and the generated panel is what remains.
+  expect(stored.stillThere).toBe(true);
+  expect(stored.hasKey).toBe(false);
+});
+
+// The READ side of `control_shows.profile` — every shape that column can hand back — is pinned
+// node-side in `scripts/control-profile.test.mjs`, which runs in every build. It is not pinned
+// here because reaching the normalizer through `hostedControl.ts` would drag the whole Supabase
+// and asset graph into a Playwright transform, which is how the first cut of this failed. The
+// publish WRITE needs a real backend and is step 8 of the live-verify checklist in
+// docs/CONTROL_LAYER.md: `publishControlShow` returns before its upsert when there is no Supabase,
+// so no offline spec can see the column being written.
