@@ -773,3 +773,27 @@ the deck stays. Keep surfacing it until he has opened it.
 **Asked at the weekly alignment session.** Two of the three big things are waiting on a word from you, not on more planning - the desktop app is parked by your own August decision, and the full editor is designed but not switched on. Do they stay locked?
 
 > Everything should be unlocked. There's no reason to lock anything. My deadlines are my problem and I will make sure that we meet those deadlines. I'll also let you know when we need to work on something that I need. One priority right now is to make Codex do some work because we are running out of Claude Code tokens each week so we have to be more economical and get more things done. That's something we should keep an eye on all the time. When we can use Codex efficiently, I will upgrade our Codex subscription and then we can use more of that.
+
+---
+
+## ALIGN-2026-09-15 - graphics that bring their own control panel
+
+**From the alignment brief handed to the control-panel planning session on 2026-09-15**, not a
+verbatim quotation. The recorded direction: one control-panel approach that fits ANY graphic -
+catalog templates, imported SVGs, graphics a coding agent makes through the NoaCG CLI, later a
+stranger's OGraf package. The proof case is Elämäni biisi on Yle, 2026-10-20: five people vote on
+who performs each song, one graphic shows each person's vote for the current song, another keeps a
+running total of correct guesses; the owner wants to prompt it in Claude Code, save it with the
+CLI, and run it from the playout dashboard within minutes, in front of the producer and director.
+The early-October production needs only the scoreboards and quiz boards that exist.
+
+The constraints he set, held as written: no expression language, ever; the code is the truth and
+there is no hidden scene model; controls are generated from the graphic's machine, never
+hand-built per graphic; a generic OGraf host must still display the graphic from standard data
+updates alone; P2 stays at DESIGN, so the result is a plan, not code. On Zero Density: learn from
+the patterns, copy no code (AGPL, runtime embedded in every export); their custom actions are
+declared only, so executable operator logic is where NoaCG leads.
+
+What it settles: the "agent-authored machines" gate in `docs/GOALS.md` NEXT - an agent-authored
+machine is the proof case, so the skill blesses it under the three 2026-08-27 gates. The plan is
+`docs/CONTROL_PANEL_ANY_GRAPHIC.md`.

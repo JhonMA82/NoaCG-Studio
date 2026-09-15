@@ -436,6 +436,10 @@ operator; the default path as the dumb-playout contract.
   staged-vs-live made explicit (§6); validation re-aimed at deterministic-recoverable-safe (§7);
   the §10 non-invariants called out. This rewrite is the record; no open owner decision remains in
   this document - §3 returns to the owner only when something wants to BUILD the profile.
+- **2026-09-15, the alignment brief:** one approach for ANY graphic, proven on Elämäni biisi
+  (Yle, 2026-10-20). Answered in `docs/CONTROL_PANEL_ANY_GRAPHIC.md`: the control contract IS the
+  approach, and the §9 agent road is taught to write it under the three gates. Nothing here
+  changes; §3 stays deferred until a show asks for "one press".
 
 ## Sources (control-axis research, read 2026-08-28)
 
