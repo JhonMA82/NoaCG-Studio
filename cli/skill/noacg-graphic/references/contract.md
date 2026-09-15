@@ -192,6 +192,12 @@ field - never four near-identical states. State counts stay small; data carries 
 An award reveal: the nominees go up, one press lights the winner. One group, three states on the
 default path plus the `off` rest, one operator arrow.
 
+**Everything between `var NOACG_ANIM = {` and its `};` is STRICT JSON**, so the two comment lines
+below belong ABOVE that line and never inside the braces. One `//` in there costs you the
+timeline and the Inspector: `validate` reports `anim-data` and `bench-editability`, the graphic
+still plays and exports, and the studio shows its motion read-only. Write the explanation above
+the block, where it is also easier to read.
+
 ```jsonc
 // inside var NOACG_ANIM = { … }, beside "steps" - which holds three timelines here,
 // "Nominees", "Winner" and "Out", one per waypoint and in walk order.

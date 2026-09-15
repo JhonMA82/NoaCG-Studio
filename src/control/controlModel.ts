@@ -206,19 +206,40 @@ export function sourceKeys(button: Pick<ControlButton, 'add' | 'remove'>): strin
 /** What a press MOVES, in the OPERATOR'S words ("Score A +1", "Score A to 0", "Guess into
  *  Revealed letters"), for the button hints - `labelOf` resolves a field id to its label, the
  *  way every surface words a payload. Every road is worded here, so a reset's hint says what
- *  it will do rather than nothing. */
+ *  it will do rather than nothing.
+ *
+ *  A FIELD WITH NO OPERATOR WORD IS NOT DESCRIBED, and the empty string is a real answer. A
+ *  `set` onto a HIDDEN holder is the graphic's own bookkeeping - the reported field a foreign
+ *  host writes (`cli/skill/noacg-graphic/references/contract.md` §5c) is exactly this - and the
+ *  operator neither sees it nor types into it, so `labelOf` has nothing for it. Printing the raw
+ *  key instead put `moves f16 to revealed with it` on the proof case's own Reveal button, which
+ *  is the one thing docs/PLAYOUT_DASHBOARD.md §7b says a hint must never do. Every graphic the
+ *  skill teaches an agent to build carries such a holder, so this is the common case rather than
+ *  an edge one. Callers treat '' as "nothing worth saying" and fall through to the payload
+ *  wording, which is what the operator actually needed: *carrying this cue's Correct*. */
 export function adjustWords(
   button: MovingButton,
   labelOf: (key: string) => string | undefined,
 ): string {
-  const name = (key: string) => labelOf(key) ?? key;
+  // `add`/`remove` move a line INTO or OUT OF a list, and the list is the half the operator
+  // recognises - so the destination decides whether there is a sentence at all. An unnameable
+  // SOURCE (a hidden holder, which the contract allows as a word source) becomes "a line":
+  // dropping the whole phrase would take the nameable list down with it.
+  const listPhrase = (key: string, source: string, joiner: string) => {
+    const list = labelOf(key);
+    return list ? [`${labelOf(source) ?? 'a line'} ${joiner} ${list}`] : [];
+  };
   return [
-    ...Object.entries(button.adjust ?? {}).map(
-      ([key, delta]) => `${name(key)} ${delta > 0 ? '+' : ''}${delta}`,
-    ),
-    ...Object.entries(button.set ?? {}).map(([key, value]) => `${name(key)} to ${value || '(empty)'}`),
-    ...Object.entries(button.add ?? {}).map(([key, source]) => `${name(source)} into ${name(key)}`),
-    ...Object.entries(button.remove ?? {}).map(([key, source]) => `${name(source)} out of ${name(key)}`),
+    ...Object.entries(button.adjust ?? {}).flatMap(([key, delta]) => {
+      const label = labelOf(key);
+      return label ? [`${label} ${delta > 0 ? '+' : ''}${delta}`] : [];
+    }),
+    ...Object.entries(button.set ?? {}).flatMap(([key, value]) => {
+      const label = labelOf(key);
+      return label ? [`${label} to ${value || '(empty)'}`] : [];
+    }),
+    ...Object.entries(button.add ?? {}).flatMap(([key, source]) => listPhrase(key, source, 'into')),
+    ...Object.entries(button.remove ?? {}).flatMap(([key, source]) => listPhrase(key, source, 'out of')),
   ].join(', ');
 }
 

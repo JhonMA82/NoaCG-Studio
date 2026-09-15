@@ -365,6 +365,19 @@ One documentation fix came out of it too: `cli/README.md` told the reader to edi
 `football-scoreboard.html`, and the file the scaffold writes is `football_scoreboard.html` - the
 html is named after the GRAPHIC, not the folder.
 
+### The second walk, 2026-09-15: two authored machines, and the last hop timed
+
+The 2026-09-09 walk scaffolded from a TYPE and stopped short of a player. The second one authored
+both machines by hand against the shipped skill and carried them all the way onto the in-app
+production page, so the untimed last hop above now has a number. The verbs came in at the same
+cost - `doctor` 2.1 s, `types` 1.7 s, `scaffold` 1.8-1.9 s, `validate --screenshots` 11.2 s,
+`inspect` 1.8 s, `screenshot` 4.0 s, `pack` 1.9 s, `save` refused in 0.3 s for want of a key - and
+**the operator's minute measured 56 seconds**, agent-driven, which is an upper bound on the
+product rather than a producer's pace. The whole account, the route to see it, and the defects
+it found - two fixed on the spot, three filed under `docs/backlog/` - are in
+`docs/acceptance/owner-queue/2026-09-15-agent-made-proof-case.md`; the fixture both graphics ship
+as is `e2e/fixtures/agent-made/`.
+
 ## The skill (`cli/skill/noacg-graphic/`)
 
 The contract TEXT, carried by all three entrances - not a fourth thing to install and not an
@@ -620,6 +633,18 @@ no `--provenance` flag).
    from the registry - version, `latest`, the provenance attestation - and installs it with `npx` to
    ask its own version. `npm run release:cli -- --check` does the preflight and stops without
    touching anything.
+
+   **npm accepts a publish asynchronously, and the proof has to wait for it.** The publish PUT
+   comes back **202 Accepted** with "Your package is being processed and may take a few minutes to
+   become available", so the version is not readable the moment the run goes green. Measured
+   releasing 0.3.2 on 2026-09-15: the PUT returned 202 at 12:33:34 UTC, the script's single
+   immediate read answered 404, and the version appeared about two minutes later - so the release
+   printed `REFUSED - the run was green but @noacg/cli@0.3.2 is not on the registry` about a
+   publish that had worked perfectly. That sentence reads as a lost release and it was the
+   opposite, which is why the read now polls for six minutes before it refuses. The other half of
+   the fix is `npm run release:cli -- --verify-only`: it runs the post-publish proof against a
+   version that is ALREADY out and tags nothing, so a race, a dropped connection or a killed
+   terminal is answered by re-running the proof rather than by guessing from `npm view`.
 
    The publisher check is the one the 2026-09-09 failure needed. npm's stored organisation,
    repository and workflow filename cannot be read without an account credential, but the **last

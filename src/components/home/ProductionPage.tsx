@@ -2129,6 +2129,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 <div className="pd-actions-row">
                   {btns.map((b) => {
                     const legal = isEventLegal(legality, b.event, machineState);
+                    // Empty when everything the press moves is a hidden holder, which is the
+                    // reported-field pattern: the hint then falls through to the payload.
+                    const moved = adjustWords(b, (key) => descriptors.find((d) => d.key === key)?.label);
                     return (
                       <button
                         key={b.event}
@@ -2139,12 +2142,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                             ? 'The graphic is not on air — Take the cue first'
                             : !legal
                               ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
-                              : movedKeys(b).length > 0
+                              : moved
                                 ? // An adjust press moves a figure WITH the event (a goal's +1),
                                   // counted from what air shows; a `set` press puts one back to a
                                   // declared figure (a reset); an `add` press puts a line on a
                                   // list - the hint says which, and to what.
-                                  `Fires "${b.event}" on air and moves ${adjustWords(b, (key) => descriptors.find((d) => d.key === key)?.label)} with it`
+                                  `Fires "${b.event}" on air and moves ${moved} with it`
                               : b.payload?.length
                                 ? // The payload in the OPERATOR'S words, not as `f7`. This is
                                   // what makes an action self-explanatory: the acceptance pass

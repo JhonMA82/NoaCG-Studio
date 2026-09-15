@@ -11,6 +11,12 @@
 // sprint ends.
 export const FOCUS = [
   'agent-access.spec.ts',
+  // THE AGENT ROAD'S OWN PANEL. Every other control-panel spec drives a graphic the studio built
+  // from a type; this one drives the proof case an agent AUTHORED against the shipped skill
+  // (e2e/fixtures/agent-made/README.md), so it is the only thing that would catch the derived
+  // panel quietly stopping at the machines the studio writes. It also carries the transport
+  // layout pin, which needs a viewport the suite's default is below.
+  'agent-made-graphics.spec.ts',
   'analytics.spec.ts',
   'advanced-mode.spec.ts',
   'auth.spec.ts',
