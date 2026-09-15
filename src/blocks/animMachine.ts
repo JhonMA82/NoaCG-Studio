@@ -299,15 +299,10 @@ export function allOperatorArrows(machine: AnimMachine): OperatorArrow[] {
   return arrows;
 }
 
-/** Every distinct authored operator event across the machine — the simulator's event strip. */
+/** Every distinct authored operator event across the machine — the simulator's event strip. The
+ *  arrow list folded by name, in first-authored order, because that is exactly what it is. */
 export function allOperatorEvents(machine: AnimMachine): string[] {
-  const events: string[] = [];
-  for (const group of machine.groups) {
-    for (const t of group.transitions) {
-      if (t.trigger === 'operator' && t.event && !events.includes(t.event)) events.push(t.event);
-    }
-  }
-  return events;
+  return [...new Set(allOperatorArrows(machine).map((a) => a.event))];
 }
 
 /** One button of a control surface: the event plus its declared presentation, resolved. */

@@ -459,7 +459,50 @@ test.describe('the bench presses every operator ARROW, not every event NAME', ()
     const out = await benchProofGraphic(page, 'Votes board', { js: ['noacgSnap', 'noacgSnapGone'] });
     expect(out.skipped).toHaveLength(1);
     expect(out.skipped[0]).toContain('"reveal" from main/votes');
-    expect(out.skipped[0]).toContain('rested at "revealed"');
+    expect(out.skipped[0]).toContain('the machine reported "revealed"');
+
+    // The OTHER global, and the reason a null answer is treated as a state the bench could not
+    // reach rather than as permission to press blind: an interpreter that cannot say where it is
+    // gives the walk no way to tell a real press from a guarded-out one, which is the whole
+    // defect. Taking `noacgMachineState` away must therefore skip the arrow, not press it.
+    const blind = await benchProofGraphic(page, 'Votes board', {
+      js: ['noacgMachineState', 'noacgMachineStateGone'],
+    });
+    expect(blind.skipped).toHaveLength(1);
+    expect(blind.skipped[0]).toContain('the machine reported "nowhere"');
+  });
+
+  test('no shipped machine is anywhere near the arrow ceiling', async ({ page }) => {
+    // The twin of "no shipped machine is anywhere near the walk cap" above, and for the same
+    // reason: a ceiling that quietly starts biting would decide the answer instead of measuring
+    // it - every graphic past it would carry a permanent `bench-events-skipped` warning, which is
+    // the shape of a warning people learn to ignore. The margin is thinner here than for states,
+    // because arrows MULTIPLY with parallel groups: the proof case's eleven controls are
+    // twenty-two arrows because each is legal from both of its `flash` states.
+    const out = await page.evaluate(async () => {
+      const { CATALOG } = await import('/src/templates/catalog.ts');
+      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { allOperatorArrows } = await import('/src/blocks/animMachine.ts');
+      const { MAX_BENCH_ARROWS } = await import('/src/validation/runtimeBench.ts');
+      let worst = { id: '', arrows: 0 };
+      for (const variants of Object.values(CATALOG)) {
+        for (const variant of variants) {
+          let machine;
+          try {
+            machine = parseAnimData(variant.create({}).js)?.machine;
+          } catch {
+            continue; // a variant that refuses its own defaults is another spec's finding
+          }
+          if (!machine) continue;
+          const arrows = allOperatorArrows(machine).length;
+          if (arrows > worst.arrows) worst = { id: variant.id, arrows };
+        }
+      }
+      return { worst, cap: MAX_BENCH_ARROWS };
+    });
+    expect(out.worst.arrows).toBeGreaterThan(0); // the measurement itself works
+    expect(out.worst.arrows, `${out.worst.id} declares the most operator arrows in the catalog`)
+      .toBeLessThan(out.cap);
   });
 
   test('both proof-case graphics walk clean - nothing skipped, nothing timed out', async ({ page }) => {

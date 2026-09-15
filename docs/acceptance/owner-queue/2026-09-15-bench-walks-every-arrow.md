@@ -46,7 +46,7 @@ coding agent reads before it builds you a graphic.
 
 A CORRECT graphic's report does not change, so there is nothing new to see on one. What changed
 is that a broken branch pose is now found, and a machine too big to walk says which arrows it
-left. The proof is `e2e/lite-field-paint.spec.ts` - six tests that break a proof-case graphic on
+left. The proof is `e2e/lite-field-paint.spec.ts` - eight tests that break a proof-case graphic on
 purpose and read the walk's own phase words back out of the findings.
 
 ## One thing worth knowing
