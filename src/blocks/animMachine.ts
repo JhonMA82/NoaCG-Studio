@@ -269,6 +269,36 @@ export function walkEntry(group: AnimGroup, i: number): AnimTransition | null {
   return onPair.find((t) => t.trigger !== 'lifecycle') ?? onPair[0] ?? null;
 }
 
+/** One authored operator ARROW: the event, the group it lives in, and the state it is legal
+ *  from. Pressing the event is only defined together with that state - structural guarding
+ *  drops it everywhere else (docs/STATE_MACHINE_SCHEMA.md §3). */
+export interface OperatorArrow {
+  groupId: string;
+  from: string;
+  to: string;
+  event: string;
+}
+
+/**
+ * Every authored operator TRANSITION, in declaration order, group by group.
+ *
+ * The arrow list, not the event list. `allOperatorEvents` below folds two arrows carrying the
+ * same event into one entry, which is right for a CONTROL SURFACE - a button fires an event and
+ * the machine decides what it means right now - and wrong for anything that WALKS the machine: a
+ * scoreboard's `+1` is one button and five arrows, and a walk that dedups by name presses four of
+ * them never. The runtime bench walks this list (docs/CONTROL_PANEL_ANY_GRAPHIC.md §2c, gate 3).
+ */
+export function allOperatorArrows(machine: AnimMachine): OperatorArrow[] {
+  const arrows: OperatorArrow[] = [];
+  for (const group of machine.groups) {
+    for (const t of group.transitions) {
+      if (t.trigger !== 'operator' || !t.event) continue;
+      arrows.push({ groupId: group.id, from: t.from, to: t.to, event: t.event });
+    }
+  }
+  return arrows;
+}
+
 /** Every distinct authored operator event across the machine — the simulator's event strip. */
 export function allOperatorEvents(machine: AnimMachine): string[] {
   const events: string[] = [];

@@ -13,7 +13,7 @@
 
 import { composeDocument } from '../preview/composeDocument';
 import { parseAnimData } from '../blocks/animData';
-import { allOperatorEvents, allTimelines } from '../blocks/animMachine';
+import { allOperatorArrows, allTimelines, type OperatorArrow } from '../blocks/animMachine';
 import { detectPrefix } from '../model/structure';
 import type { SpxTemplate } from '../model/types';
 import type { ValidationIssue, ValidationResult } from './validateTemplate';
@@ -119,10 +119,24 @@ const ON_AIR_BUDGET_MS = 2_000;
  *  stop()". Poll instead, symmetrically with the entrance: leaving promptly costs nothing,
  *  and only a graphic that NEVER leaves inside the budget is a real finding. */
 const OFF_AIR_BUDGET_MS = 2_000;
-/** How many of a machine's operator events the bench renders. Each costs a settle wait, and
- *  a graphic with more distinct events than this is past the point where one more pose check
- *  earns its time. */
-const MAX_BENCH_EVENTS = 8;
+/**
+ * How many of a machine's operator ARROWS the bench presses.
+ *
+ * A ceiling exists for one reason and it is not tidiness: the whole run has a hard cap
+ * (DEFAULT_TIMEOUT_MS, or whatever the caller passes - 20 s from the CLI), and blowing it turns
+ * every precise finding the bench was about to report into one vague `bench-timeout`. Each arrow
+ * costs a snap, a data re-drive and a settle, so the ceiling is the arrow budget that still
+ * leaves room for the phases after it.
+ *
+ * 24 is the largest real machine plus a little air, and the cost is measured: the proof case's
+ * totals board declares 22 arrows (eleven controls, each legal from both of its `flash` states -
+ * docs/CONTROL_PANEL_ANY_GRAPHIC.md §3b) and walking all 22 took the whole bench run from 2.6 s
+ * to 4.5 s, against a 15 s cap that still has to hold a failing entrance, exit and replay poll at
+ * 2 s each. Past the ceiling the skipped arrows are NAMED
+ * (`bench-events-skipped`) rather than silently dropped, because gate 3's promise is that the
+ * bench walks every operator arrow and a promise the instrument cannot keep has to say so.
+ */
+const MAX_BENCH_ARROWS = 24;
 /** Title-safe margin (fraction of the canvas each side) - escaping it is a warning. */
 const TITLE_SAFE = 0.035;
 /** Overlap thresholds: intersection as a fraction of the SMALLER element's rect. */
@@ -177,6 +191,31 @@ async function waitFor(condition: () => boolean, budgetMs: number, stepMs = 50):
     await wait(stepMs);
   }
   return condition();
+}
+
+/** Where one group's pointer is, or null when the interpreter is too old to say (the machine
+ *  globals arrived together, so a template without one has none of them). */
+function readGroupState(
+  win: { noacgMachineState?: () => { groups: Record<string, string> } },
+  groupId: string,
+): string | null {
+  try {
+    return win.noacgMachineState?.().groups[groupId] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The unpressed arrows, as a sentence. Capped: a machine large enough to overrun the ceiling
+ *  by this much has a bigger problem than which arrow came last, and the finding is fed to a
+ *  model that pays for every word of it. */
+function listArrows(unpressed: Array<{ arrow: OperatorArrow; why: string }>): string {
+  const shown = unpressed.slice(0, 12);
+  const named = shown
+    .map(({ arrow, why }) => `"${arrow.event}" from ${arrow.groupId}/${arrow.from} (${why})`)
+    .join(', ');
+  const rest = unpressed.length - shown.length;
+  return rest > 0 ? `${named}, and ${rest} more` : named;
 }
 
 /** '#id', '.first-class', or the tag name - how findings name an element. */
@@ -995,26 +1034,93 @@ export async function benchTemplateRuntime(
     // ── Branch states: the default path is only half a machine ───────────────────────
     // A branching graphic's alert badge or selection highlight only ever appears after an
     // operator EVENT, so walking play/next/stop never renders it and its layout is never
-    // measured. Dispatch each authored event and check the pose it produces, then snap back
-    // so the stress phase still measures the default look.
+    // measured. Press each authored ARROW and check the pose it produces, then put the default
+    // path back so the stress phase still measures the default look.
+    //
+    // ONE PRESS PER (FROM-STATE, EVENT) PAIR, and each press is made FROM THE ARROW'S OWN
+    // FROM-STATE. Both halves were missing until 2026-09-15, and each made gate 3's promise
+    // ("the bench walks every operator arrow", docs/CONTROL_PANEL_ANY_GRAPHIC.md §2c) quietly
+    // false. `allOperatorEvents` folds by event NAME, so a scoreboard's `+1` - one button, five
+    // arrows - was one dispatch and four unmeasured poses. And the dispatches ran in sequence
+    // from wherever the last one left the machine, so an arrow out of a state the walk had
+    // already left was dropped by structural guarding, silently, with the bench reporting the
+    // pose it was standing in as though it had measured the press. Measured on the proof case:
+    // `validate` reported 0 errors and 0 warnings on the totals board having pressed 8 of its 22
+    // arrows (docs/handoffs/2026-09-15-hb-release-and-first-walk.md).
+    //
+    // So each press snaps first. `noacgSnap` enters a state by replaying its canonical route
+    // with callbacks suppressed (docs/STATE_MACHINE_SCHEMA.md §3), which is also why the DATA
+    // goes back in behind it: a state whose look is painted by a call composes empty otherwise.
+    // That is the recovery sequence's own trailing `update()`, not a special case - the same
+    // pairing `fieldPaint.ts` uses for its own walk. Groups the arrow does not name keep the
+    // state they are in, so a parallel graphic is measured as a whole graphic.
     const machine = parsedData?.machine;
     if (machine) {
-      const events = allOperatorEvents(machine).slice(0, MAX_BENCH_EVENTS);
-      for (const event of events) {
-        phase = `event "${event}"`;
-        (win as unknown as { noacgDispatch?: (e: string) => void }).noacgDispatch?.(event);
+      const arrows = allOperatorArrows(machine);
+      const walked = arrows.slice(0, MAX_BENCH_ARROWS);
+      /** Arrows the bench did NOT press, each with the reason - the `bench-events-skipped` list. */
+      const unpressed: Array<{ arrow: OperatorArrow; why: string }> = arrows
+        .slice(MAX_BENCH_ARROWS)
+        .map((arrow) => ({ arrow, why: `past the bench's ceiling of ${MAX_BENCH_ARROWS} arrows` }));
+      const machineWin = win as unknown as {
+        noacgDispatch?: (e: string) => void;
+        noacgSnap?: (a: Record<string, string> | null, o: { timers: boolean }) => void;
+        noacgMachineState?: () => { groups: Record<string, string> };
+      };
+      const defaults = JSON.stringify(fieldValues(template, 'default'));
+      for (const arrow of walked) {
+        const at = `${arrow.groupId}/${arrow.from}`;
+        phase = `event "${arrow.event}" from ${at}`;
+        try {
+          machineWin.noacgSnap?.({ [arrow.groupId]: arrow.from }, { timers: false });
+        } catch {
+          // A throwing snap is the template's own exception; the runtime-error channel has it.
+        }
+        call('update', defaults);
+        await wait(30);
+
+        // IS THE MACHINE WHERE THE PRESS NEEDS IT? Dispatching from anywhere else presses a
+        // DIFFERENT arrow, or none, while this loop goes on to measure the pose and report it
+        // under this arrow's name - which is the defect being fixed, not a smaller version of it.
+        // So the answer is read back, and an arrow the bench could not stand in front of is
+        // NAMED rather than claimed. One check covers every way that happens: an unreachable
+        // from-state, a snap that threw, and an interpreter with no `noacgSnap` at all. Only an
+        // interpreter too old to say where it is answers null, and there the press is made blind.
+        const landed = readGroupState(machineWin, arrow.groupId);
+        if (landed !== null && landed !== arrow.from) {
+          unpressed.push({
+            arrow,
+            why: `the bench could not enter ${arrow.from} (the machine rested at "${landed}")`,
+          });
+          continue;
+        }
+
+        machineWin.noacgDispatch?.(arrow.event);
         await wait(80);
         const branchLeaves = collectLeaves(win);
-        const bLap = overlapIssues(branchLeaves, exempt, `after the "${event}" event`);
+        const where = `after the "${arrow.event}" event from ${at}`;
+        const bLap = overlapIssues(branchLeaves, exempt, where);
         errors.push(...bLap.errors);
         warnings.push(...bLap.warnings);
-        const bFlow = overflowIssues(branchLeaves, exempt, win, { width, height }, `after the "${event}" event`);
+        const bFlow = overflowIssues(branchLeaves, exempt, win, { width, height }, where);
         errors.push(...bFlow.errors);
         warnings.push(...bFlow.warnings);
       }
-      if (events.length > 0) {
+      if (unpressed.length > 0) {
+        warnings.push(
+          issue(
+            'bench-events-skipped',
+            `The bench pressed ${arrows.length - unpressed.length} of this machine's ${arrows.length} ` +
+              `operator arrows and left ${unpressed.length} unwalked: ${listArrows(unpressed)}. Nothing ` +
+              'here measured the pose those presses produce - press them by hand before air, or give ' +
+              'the graphic fewer arrows (a control surface an operator can actually read is smaller ' +
+              'than this one).',
+          ),
+        );
+      }
+      if (arrows.length > 0) {
         phase = 'restore (default path)';
-        (win as unknown as { noacgSnap?: (a: null, o: { timers: boolean }) => void }).noacgSnap?.(null, { timers: false });
+        machineWin.noacgSnap?.(null, { timers: false });
         call('play');
         for (let i = 0; i < presses; i++) call('next');
         await wait(SETTLE_MS);

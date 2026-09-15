@@ -578,10 +578,12 @@ test('the shipped skill names all three gates for an authored machine', async ()
 
   // Pinned by the TOOL and the ACT each gate names, inside the gates section, and never by the
   // sentences around them. An early cut pinned the prose "the bench walks every operator arrow"
-  // and would have locked that claim into CI - the bench does less than it says (it caps at eight
-  // distinct event names and never snaps back between them), so the accurate rewrite had to be
-  // free to change those words. A pin on wording makes the next author choose between a true
-  // contract and a green build, which is how a gate quietly becomes a slogan.
+  // and would have locked that claim into CI while the bench was still doing less than it said -
+  // it capped at eight distinct event names and never snapped back between them, so the accurate
+  // rewrite had to be free to change those words. (It walks every arrow since 2026-09-15, which is
+  // exactly the point: the sentence became true by someone fixing the bench, not by CI insisting
+  // on it.) A pin on wording makes the next author choose between a true contract and a green
+  // build, which is how a gate quietly becomes a slogan.
   const section = /### 5a\. The three gates\n([\s\S]*?)\n### /.exec(contract)?.[1];
   assert.ok(section, 'references/contract.md has no "5a. The three gates" section');
 
