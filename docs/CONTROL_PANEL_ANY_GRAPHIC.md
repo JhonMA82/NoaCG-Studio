@@ -256,9 +256,12 @@ board. A recipe is the wrong tool for a graphic that is prompted rather than dra
 
 ## 5. What has to exist for 2026-10-20, and what waits
 
-Ordered by what would sink the demo. Nothing before 2026-09-25 - the owner said both this and the
-editor rebuild lead AFTER the 25th, and the early-October production needs only the scoreboards
-and quiz boards that already exist.
+Ordered by what would sink the demo. **These rows start now** (owner, 2026-09-15,
+ALIGN-2026-09-15-4: "we don't have to wait until the 25th if we have everything ready for the
+25th"). What the 25th still needs is its own list - `docs/DEMO_2026-09-25.md` §7 and the owner
+walks under `docs/GOALS.md` NOW - and none of the rows below touches a file or a surface that
+list depends on: the skill, the profile and the data tree are not on the day's beats. The
+early-October production needs only the scoreboards and quiz boards that already exist.
 
 | # | What | Why it is on this side of the line | Cost | Who |
 |---|---|---|---|---|
@@ -360,8 +363,9 @@ against his example. Read against the standing challenge set (`docs/BEHAVIOUR_AU
 | Election (C3): 25 / 50 / 75 / final, declare, retract | ARRANGE only - the machine already has every verb; the production orders the Counted section first | 0 |
 | A rundown that advances itself (MXMZ's auto-advance, road §4) | COMBINE: Take cue 2 after 10 s, Take cue 3 after 10 s - the deferred feature falls out of the primitive rather than being built | n |
 | Bingo (C5): call a number, undo, new game | Nothing - all three are the graphic's own controls, and `add`/`remove` already exist | 0 |
+| Election night (owner, 2026-09-15): many graphics showing the same party and candidate figures in different looks, the numbers gathered by a feed or an assistant, nobody typing, and the operator still driving | SHARED DATA plus the contract: every graphic binds its figures to one production tree (`parties.kok.votes`, an array of scalars for a lines field), a connector outside the app writes the tree through the Data API as one more writer of the log, the operator's presses land after it and win, and the checkpoints and the declaration stay operator presses (C3). The profile arranges and combines as for any show. | 0 |
 
-Six of eight need nothing but the two primitives, two need neither, and none needs a third. The
+Seven of nine need nothing but the two primitives, two need neither, and none needs a third. The
 same table read the other way says what the profile refuses, and each refusal is the graphic's
 job or the operator's: "declare when the share passes 50" is a comparison (the operator declares,
 C3's own lesson); "+1 to whoever was right" is a derivation across two graphics (the operator
@@ -496,7 +500,8 @@ Made here, recorded so they can be reverted rather than adjudicated:
 4. Reordering is paint; the agent road sorts in its own JS; the SVG road waits for `arrange`.
 5. "+1 to whoever was right" is presses first, then a combined control whose +1 steps are
    ticks, and never an internal bump.
-6. Nothing here starts before 2026-09-25.
+6. The rows start now and touch nothing the 25th depends on (§5); the wait was lifted by the
+   owner on 2026-09-15.
 7. The profile is two primitives, ARRANGE and COMBINE, and a step carries `after` and `ask` and
    nothing else (§6b). A third primitive or a third mark needs a graphic that cannot be served
    without it, walked and recorded.
