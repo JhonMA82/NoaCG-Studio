@@ -776,24 +776,30 @@ the deck stays. Keep surfacing it until he has opened it.
 
 ---
 
-## ALIGN-2026-09-15 - graphics that bring their own control panel
+## ALIGN-2026-09-15-1
 
-**From the alignment brief handed to the control-panel planning session on 2026-09-15**, not a
-verbatim quotation. The recorded direction: one control-panel approach that fits ANY graphic -
-catalog templates, imported SVGs, graphics a coding agent makes through the NoaCG CLI, later a
-stranger's OGraf package. The proof case is Elämäni biisi on Yle, 2026-10-20: five people vote on
-who performs each song, one graphic shows each person's vote for the current song, another keeps a
-running total of correct guesses; the owner wants to prompt it in Claude Code, save it with the
-CLI, and run it from the playout dashboard within minutes, in front of the producer and director.
-The early-October production needs only the scoreboards and quiz boards that exist.
+**From the brief handed to the control-panel planning session on 2026-09-15**, the owner's words
+as the brief carried them; the plan it produced is `docs/CONTROL_PANEL_ANY_GRAPHIC.md`.
 
-The constraints he set, held as written: no expression language, ever; the code is the truth and
-there is no hidden scene model; controls are generated from the graphic's machine, never
-hand-built per graphic; a generic OGraf host must still display the graphic from standard data
-updates alone; P2 stays at DESIGN, so the result is a plan, not code. On Zero Density: learn from
-the patterns, copy no code (AGPL, runtime embedded in every export); their custom actions are
-declared only, so executable operator logic is where NoaCG leads.
+> The goal is one control-panel approach that fits ANY graphic we have: catalog templates,
+> imported SVGs, and graphics a coding agent makes through the NoaCG CLI. Later, foreign OGraf
+> packages too.
 
-What it settles: the "agent-authored machines" gate in `docs/GOALS.md` NEXT - an agent-authored
-machine is the proof case, so the skill blesses it under the three 2026-08-27 gates. The plan is
-`docs/CONTROL_PANEL_ANY_GRAPHIC.md`.
+> The proof case is Elämäni biisi on Yle, 2026-10-20. Five people vote on who performs each song.
+> One graphic shows each person's votes for the current song. Another keeps a running total of how
+> many songs each person has guessed right. The owner wants to prompt it in Claude Code, save it
+> with the CLI, and run it from the playout dashboard within minutes, in front of the producer and
+> director. The early October production needs the scoreboards and quiz boards we already have.
+
+> Hold these constraints: No expression language, ever. The code is the truth; there is no hidden
+> scene model. Controls are generated from the graphic's machine, never hand-built per graphic. A
+> generic OGraf host must still display the graphic from standard data updates alone. P2 is still
+> at DESIGN, so the result is a plan, not code.
+
+> What we know about Zero Density: OGraf Studio's custom actions are only declared. The runtime
+> acknowledges the call and runs no behaviour, so executable operator logic is where NoaCG leads.
+> Their Reality Event Graph is Unreal Blueprints, a programmer's surface. Learn from their
+> patterns, but copy no code: it is AGPL, and its runtime is embedded in every export.
+
+What it settles: the "agent-authored machines" gate in `docs/GOALS.md` NEXT. An agent-authored
+machine is the proof case, so the skill blesses it under the three gates of 2026-08-27.

@@ -230,9 +230,7 @@ measured 25-cell round: all airable, skill stays contract-only (`benchmarks/agen
       later version and a session may run it (owner, 2026-09-05, `docs/AGENT_CLI.md` "Releasing
       to npm"), but it cannot publish until the owner adds the trusted publisher on npmjs.com -
       **needs: account**. Until then nothing publishes by hand; a failed run waits for him.
-- [ ] **Agent-authored machines - the gate is ANSWERED, the skill is not yet taught.** The
-      2026-09-15 brief makes an agent-authored machine the proof case (Elämäni biisi, 2026-10-20),
-      so the skill blesses it under the three gates already in place. The plan and the four rows
+- [ ] **Agent-authored machines - answered 2026-09-15, the skill not yet taught.** The rows
       that close it after the 25th: `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5.
 - [ ] **What the funded tiers can borrow** - diff the round's winning cells against Lite/Pro.
 

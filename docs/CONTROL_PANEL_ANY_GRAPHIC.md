@@ -25,8 +25,8 @@ foreign host can and cannot learn), `docs/SVG_BEHAVIOUR_PLAN.md` (recipes, the 1
 
 **There is already one approach, and it is the control contract: a graphic declares its fields,
 its machine and its controls inside its own code, and every surface generates the panel from
-that declaration.** Nothing in this plan adds a second one. What the proof case needs is not a new
-mechanism but the agent door being allowed to WRITE the contract it already reads: today the skill
+that declaration.** Nothing in this plan adds a second one. What the proof case needs is the
+agent door being allowed to WRITE the contract it already reads: today the skill
 tells a coding agent that authoring its own machine "is a later capability", while the runtime,
 the validator, the bench and all five renderers already accept one, and the owner blessed it on
 2026-08-27 under three gates. So the recommendation is to teach and gate the contract on the
@@ -47,8 +47,8 @@ contract today, and each fills the same three slots:
 | Road | Who writes the contract | How it gets there | Panel today |
 |---|---|---|---|
 | Catalog type | an expert, in `src/templates/types/<id>.ts` | `attachMachine` at create | complete, proven on five types (`docs/CONTROL_PANEL_PARITY.md`) |
-| Imported SVG | a recipe compiled from the artwork's roles | the same `attachMachine`, through `importedDesign/behaviour.ts` | complete for 14 recipes plus switches and choices |
-| Agent or hand-written | the author, directly in the template's code | the template IS the contract | complete for whatever is declared - the 2026-08-22 round's five novel briefs each authored a working machine from scratch and every renderer drew it |
+| Imported SVG | a recipe compiled from the artwork's roles | the same `attachMachine`, through `importedDesign/behaviour.ts` | complete for the 14 recipes in the registry, switches and choices among them |
+| Agent or hand-written | the author, directly in the template's code | the template IS the contract | complete for whatever is declared - the 2026-08-22 round's five novel briefs each authored a working machine from scratch, and the control layer rendered them |
 | Foreign OGraf package | the package's manifest | `control/ografContract.ts` reads `schema` + `customActions` + `stepCount` | complete minus what OGraf cannot say: every button live, no sections, no adjusts |
 
 Five renderers draw the result and are measured not to diverge: the in-app Control tab, the
@@ -125,8 +125,9 @@ recorded the owner retiring the 2026-08-08 rule on 2026-08-27 and naming three g
 authored machine: (1) `noacg validate` passes with machine checks, (2) the agent runs `noacg
 inspect` and shows the user the derived panel so a human confirms the operator surface, (3) the
 bench walks every operator arrow. Measured today: (1) exists - the `machine` finding is an error
-and a stale interpreter is refused; (3) exists - `runtimeBench.ts` dispatches every authored
-operator event and checks the pose it produces; (2) exists as a verb and as step 4 of the loop,
+and a stale interpreter is refused; (3) exists with a cap - `runtimeBench.ts` dispatches the
+first eight authored operator events (`MAX_BENCH_EVENTS`) and checks the pose each produces, so a
+graphic with more buttons than that has its ninth and later unwalked; (2) exists as a verb and as step 4 of the loop,
 but the skill never tells the agent to author a machine, so the step is only ever reached with a
 type's machine. `docs/GOALS.md` NEXT still carries "Agent-authored machines - the owner gate is
 armed" as an open decision. The 2026-09-15 brief answers it: the proof case is an agent-authored
@@ -149,8 +150,12 @@ layers. Names are the operator's; the machine's ids are the agent's.
   so ⟳ Take shows the votes, » Next reveals, ■ Out clears - and a playout host with nothing but
   `play`/`next`/`stop` drives the whole graphic, which is the dumb-playout contract.
 - **Controls.** `reveal` labelled "Reveal performer", `payload: [correct]`, `set: { shown:
-  'revealed' }`. Optionally one "Show pick 1..5" per row on a `set` per-row field, the survey
-  board's pattern, if the producer wants the picks to land one by one.
+  'revealed' }`. The reveal is reachable two ways and they do not fight, the vote board's own
+  pattern (`docs/OGRAF_STATE_IN_FIELDS.md` §4b): a NoaCG surface fires the arrow (» Next or the
+  ⚡ button, and the button also writes Shown), while a data-only host writes Shown and the
+  runtime reads it back on `update()` and paints the same look. Optionally one "Show pick 1..5"
+  per row on a `set` per-row field, the survey board's pattern, if the producer wants the picks
+  to land one by one.
 - **Calls.** The `revealed` state calls `markGuesses()`, a function in the template's own JS that
   compares each pick to the correct answer and lights the marks. A comparison, in the graphic's
   runtime, invoked by name from a state - the exact shape `docs/SVG_BEHAVIOUR_PLAN.md` §8 reserves
@@ -174,15 +179,16 @@ vocabulary lacks.
 - **Calls.** `update()` re-sorts the rows by points and animates them into place - GSAP moving
   the agent's own DOM on a data change. That is paint, not control, and it is the graphic's to
   do.
-- **Panel, derived.** Ten inputs, the ± live numbers block (every number field gets it, on air,
-  partial updates), the ⚡ block in five sections, New game in red.
+- **Panel, derived.** Ten inputs, the ± live numbers block (every operator-visible number
+  field no ⚡ event carries as payload gets it, on air, partial updates), the ⚡ block in five
+  sections, New game in red.
 
 ### 3c. The operator's minute on 2026-10-20
 
 Before the song: type the song, the performers, the five picks and the correct letter into the
 votes cue; ⟳ Take. After the performance: » Next (or ⚡ Reveal performer). Read the board, then
-on the totals cue press +1 under each person who was right. That is two to four presses per song
-and every one of them is in today's dashboard. The totals graphic stays up on its own layer for
+on the totals cue press +1 under each person who was right. That is two presses plus one per
+correct guess per song, and every one of them is in today's dashboard. The totals graphic stays up on its own layer for
 the whole show; the votes board is taken and cleared per song.
 
 ### 3d. What the walk on paper found
@@ -190,12 +196,16 @@ the whole show; the votes board is taken and cleared per song.
 Three findings, none of them blocking, listed so the proof walk (§5 row 3) knows what to look
 at:
 
-1. **Sixteen fields flow flat.** `control/cueFieldGroups.ts` bands fields only on A/B side
-   tokens, and it refuses lettered lists on purpose. "Panelist 3 / Pick 3" is a numbered row, not a
-   side, so the cue editor shows one long flow. Operable; not pretty in front of a producer. The
-   consistent fix is a NUMBERED-ROW derivation beside the side rule - still derived from titles,
-   never authored, so the 2026-08-21 rule holds. Small, and it serves every score tracker and
-   lineup the SVG road already produces.
+1. **The bench walks eight buttons and the totals board declares eleven.** The cap in §2c
+   meets `+1` and `−1` for five people plus New game, so gate 3 leaves three presses unwalked on
+   this graphic. Either the cap rises for a machine that declares more, or the proof walk presses
+   the rest by hand and says so. Not a doctrine question, a number.
+
+   What the walk on paper did NOT find, recorded because the first draft of this plan claimed
+   it: the cue editor's field bands. `control/cueFieldGroups.ts` already bands NUMBERED rows
+   ("Panelist 3 / Pick 3", "Name 2 / Points 2") by the same mirror test the A/B sides use, the
+   alphabet that arrived with the score tracker. Both proof-case graphics band on their own
+   titles; the lettered performers and the song fall into the shared band, as they should.
 2. **A control's section is a static word.** The totals board's buttons sit under "Panelist 3"
    while the field beside them says "Katri". An additive `sectionField` on a control, naming the
    field whose current value heads the section, would put the person's name on the buttons on
@@ -215,7 +225,8 @@ at:
 
 **How does an agent-made graphic declare its own panel?** In its code, as §2a: fields, machine,
 controls metadata, calls into its own runtime, reported fields. The skill teaches it, `noacg
-validate` gates it, `noacg inspect` prints the panel it will get, the bench presses every button,
+validate` gates it, `noacg inspect` prints the panel it will get, the bench presses its buttons
+(the first eight today, §3d.1),
 and `noacg save` puts it in the library exactly as a typed graphic. The OGraf manifest the
 package carries states the same contract as `schema`, `customActions` and `stepCount`, with the
 sections and adjusts riding `v_noacg`. Nothing is added to any format.
@@ -251,7 +262,7 @@ and quiz boards that already exist.
 | 1 | **The skill teaches the contract.** Retire "a later capability"; add §2a as a section of `references/contract.md` with a worked machine and controls block; make the three gates explicit steps of the loop - validate, inspect and SHOW the user the buttons, bench; teach the default-path contract and reported fields. One generated source, every shipped copy follows (`cli/scripts/build-skill.mjs`). | Without it the agent scaffolds a typeless graphic and ships state as fields - the measured failure mode of the 2026-08-22 round's free cells | one row; a CLI release after it (`npm run release:cli`, which a session may run) | one row, week of the 28th |
 | 2 | **Close the open gate in GOALS.** "Agent-authored machines - the owner gate is armed" is answered by the brief; record it in `docs/OWNER_RULINGS.md` and move the GOALS line. | A doc that says the question is open will stop the next session | minutes | the same row |
 | 3 | **Walk the proof case ourselves, once, end to end and timed.** Prompt Claude Code with the shipped skill, build both graphics, `save`, one production, publish, drive §3c from the dashboard, and file the owner-queue item with the route and the stopwatch. Fix what it finds; §3d says where to look first. | "Within minutes in front of the producer" is a number, and the only number we have is 24.8 s of tool time for the seven verbs plus an untimed last hop (`docs/DEMO_2026-09-25.md` §7 row 15) | a day, plus whatever it finds | one row, first week of October |
-| 4 | **Numbered-row field bands** (§3d.1), if row 3 confirms the flat flow reads badly in the room. Derived from titles, beside the side rule, guarded the same way. | The one visible weakness in the proof case | half a day | one row, after row 3 |
+| 4 | **The bench's event cap** (§3d.1): raise `MAX_BENCH_EVENTS` for a machine that declares more, or have `validate` say which buttons it did not press. | Gate 3 has to mean what §2c says it means on the first real graphic that needs it | an hour, plus one bench run | one row, with row 3 |
 
 Everything else waits, each with the thing that would pull it up:
 
@@ -295,7 +306,7 @@ nothing. No code is read from it; it is AGPL and its runtime rides in every expo
 Made here, recorded so they can be reverted rather than adjudicated:
 
 1. The control contract is the one approach; no second declaration format is reserved.
-2. Authoring a machine on the agent road is taught and gated, not merely tolerated.
+2. Authoring a machine on the agent road is taught and gated; today it is only accepted.
 3. The five picks are operator-entered by default; named-seat phones are a later round kind.
 4. Reordering is paint; the agent road sorts in its own JS; the SVG road waits for `arrange`.
 5. "+1 to whoever was right" is presses now, a profile macro later, and never an internal bump.
