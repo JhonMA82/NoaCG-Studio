@@ -53,3 +53,13 @@ Either way the verdict becomes a value a machine reads, not a judgement a tired 
   `gh workflow run ci.yml --ref <branch>`.
 - Root `AGENTS.md`, "Verifying changes" rule 4, and `docs/VERIFICATION.md` - the prose that already
   says this and did not prevent it.
+
+## Trend
+
+- 2026-09-15: in the week's 434 completed branch runs of `ci.yml`, **28 green runs came straight
+  after a cancelled run on the same branch, and 8 of them ran no E2E shard.** Every shard job was
+  skipped, and the plan chose no specs. That is an upper bound on false greens, because a
+  documentation-only follow-up push is right to plan nothing. But none of the eight says which case
+  it was, and nothing but a person reads it. Separately, 0 runs stopped at a job's
+  `timeout-minutes` all week (88 non-green runs: 19 cancelled before any job started, 45 cancelled
+  mid-flight, 24 failed), so the shard-cap class stayed closed.

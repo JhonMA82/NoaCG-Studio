@@ -55,3 +55,4 @@ Measured 2026-09-01 on `claude/a-coherence-round` after merging `main`: `wc -l d
 
 ## Trend
 - 2026-09-08: **284 lines** against the ~200 cap, up from 212 after the 2026-09-01 condense. The file drifted back by 72 lines in a week, which is precisely what step 3 exists to stop; steps 1 and 2 have now been done twice and held for days each time. Step 3 is no longer optional maintenance - it is the only part that has never been tried
+- 2026-09-15: **308 lines**, up 24 in the week and 96 since the 2026-09-01 condense. No script in `scripts/check-*.mjs` reads the cap. At this rate a third condense holds for about four days, and a gate of about fifteen lines would hold for good

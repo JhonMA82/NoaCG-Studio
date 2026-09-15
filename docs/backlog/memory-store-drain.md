@@ -109,3 +109,8 @@ not arrive expecting to find bad memories.
   unblocked; the orchestrator half is blocked on
   `docs/backlog/instruction-files-need-a-shrinking-mechanism.md`, whose common path has since
   reached its line ceiling exactly.
+- 2026-09-15: **98 KB / 31 entries, index 61 lines** by the audit hook. That is 11 KB lighter than
+  09-08, and the first week the corpus shrank without a cull. It is still 2.45 times the 40 KB
+  ceiling and one line over the index ceiling, and `dont-wield-the-owners-deadline.md` still
+  declares no `exit:`. The orchestrator common path now has 11 lines free (629 of 640), so the
+  half of the routing that was blocked on it has room again.

@@ -60,3 +60,4 @@ at e2e time, so run the affected plan too.
 
 - 2026-08-28: 22 dead of 814 exports (2.7%)
 - 2026-09-08: 20 of the 24 named symbols still dead; `CONTROL_POLL_MS` (13 references), `CONTROL_TAIL_PAGE` (6), `timerTransition` (2) and `stepOffsets` (2) have since acquired callers and should come off the list when the sweep runs
+- 2026-09-15: the same 20 are still dead. Each appears exactly once, at its own definition, under `git grep -w` across `src/ api/ cli/ scripts/ e2e/`. Nothing was deleted and nothing gained a caller in the week. Cheap, but a small payoff, so it stays below the top eight

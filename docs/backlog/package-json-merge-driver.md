@@ -59,3 +59,6 @@ mechanism, so it means a generator and a check, which is more machinery than the
 ## Trend
 
 - 2026-09-08: 16 of 66 resolutions in 45 days (24%), 164 scripts.
+- 2026-09-15: 13 of 60 resolutions in 45 days (22%), 168 scripts. Still the most-resolved file,
+  at three times the next (`AGENTS.md`, 4). `package` is one of the five resolution classes
+  `conflict-trace.mjs` reports, at 13 of 99 file entries. `.gitattributes` has no driver for it.
