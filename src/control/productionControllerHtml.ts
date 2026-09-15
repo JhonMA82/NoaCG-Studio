@@ -235,6 +235,15 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   .events-row { display:flex; flex-wrap:wrap; gap:6px; }
   .events button { font:inherit; font-size:12.5px; color:var(--text); background:var(--panel-2);
     border:1px solid var(--line); border-radius:6px; padding:6px 11px; cursor:pointer; }
+  /* PINNED: the production's own handful, above the fold. The hairline under it IS the fold -
+     everything below is the full generated panel, in its sections. No second accent and no
+     bigger button: amber is preview and brand, red is air, and a pinned control is neither. */
+  .events-pinned { padding-bottom:8px; margin-bottom:2px; border-bottom:1px solid var(--line); }
+  /* HIDDEN: one collapsed line, worn like the activity feed's so it reads as a drawer rather
+     than as a control. */
+  .events-more { margin-top:8px; }
+  .events-more summary { cursor:pointer; font-size:11.5px; color:var(--dim); padding:3px 0; }
+  .events-more .events-row { margin-top:4px; }
 
   /* Activity: one collapsed line. */
   .feed { flex:none; font-size:12.5px; color:var(--dim); padding-bottom:12px; }
@@ -930,36 +939,65 @@ function paintEditor() {
   // The graphic's OPERATOR EVENTS (its state machine's buttons) — the capability module the
   // machine declares; a graphic with none shows none. Interactive graphics (polls, Q&A, chat)
   // add their operator actions in this same region (docs/PLAYOUT_DASHBOARD.md §8).
-  // GROUPED BY THE AUTHOR'S SECTION, as the two React surfaces do (controlModel
-  // controlSections): a quiz declares "Round" and "Judging" and a flat row of eight buttons
-  // throws that away. Same order, same "Actions" default, hand-rolled here only because this
-  // page ships without React or any import. (No backticks in this file's emitted script - it
-  // IS a template literal, and one would end the string mid-page.)
+  //
+  // ORDER, SECTION, WORD, PINNED AND HIDDEN all come from \`g.arranged\`, which the generator
+  // resolved with the one \`arrangeControls\` the two React surfaces call
+  // (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e: ARRANGE renders on all three deployments). It is
+  // read here rather than recomputed because an arrangement is AUTHORED state, fixed when the
+  // zip was written - unlike the payload rule below, which reads live values at press time and
+  // therefore has to be restated in this page's own JS. A production with no profile gets the
+  // author's own grouping and empty pinned/hidden lists, so this is also the panel a
+  // profile-less package always had. (No backticks in this file's emitted script - it IS a
+  // template literal, and one would end the string mid-page.)
   var events = document.getElementById('editor-events');
   events.innerHTML = '';
-  var sections = [];
-  (g ? g.events : []).forEach(function (e) {
-    var key = e.section || 'Actions';
-    var bucket = null;
-    sections.forEach(function (s) { if (s.name === key) bucket = s; });
-    if (bucket) bucket.buttons.push(e);
-    else sections.push({ name: key, buttons: [e] });
-  });
-  sections.forEach(function (section) {
-    if (sections.length > 1 || section.name !== 'Actions') {
-      var head = document.createElement('h4');
-      head.textContent = section.name;
-      events.appendChild(head);
-    }
+  var arranged = g && g.arranged ? g.arranged : { pinned: [], sections: [], more: [] };
+  // By SCAN rather than by a map keyed on the name: an event id is the author's own word, and a
+  // graphic with a control called 'constructor' would answer a function from an object map.
+  var declaredFor = function (event) {
+    var found = null;
+    (g ? g.events : []).forEach(function (e) { if (e.event === event) found = e; });
+    return found;
+  };
+  var eventRow = function (actions) {
     var row = document.createElement('div');
     row.className = 'events-row';
-    events.appendChild(row);
-    section.buttons.forEach(function (e) { row.appendChild(eventButton(e)); });
+    actions.forEach(function (a) {
+      var e = declaredFor(a.event);
+      if (e) row.appendChild(eventButton(e, a.label));
+    });
+    return row;
+  };
+  // PINNED, above the fold and above the section headings - the handful this show presses.
+  if (arranged.pinned.length > 0) {
+    var pinnedRow = eventRow(arranged.pinned);
+    pinnedRow.className = 'events-row events-pinned';
+    events.appendChild(pinnedRow);
+  }
+  arranged.sections.forEach(function (section) {
+    if (arranged.sections.length > 1 || section[0] !== 'Actions') {
+      var head = document.createElement('h4');
+      head.textContent = section[0];
+      events.appendChild(head);
+    }
+    events.appendChild(eventRow(section[1]));
   });
+  // HIDDEN, behind one disclosure: the production said "not in my way", which is not "gone" -
+  // the machine still accepts these, and this page is the fallback a show drops to when the
+  // network dies, so a tucked-away control must still be one click from the operator.
+  if (arranged.more.length > 0) {
+    var more = document.createElement('details');
+    more.className = 'events-more';
+    var summary = document.createElement('summary');
+    summary.textContent = 'More (' + arranged.more.length + ')';
+    more.appendChild(summary);
+    more.appendChild(eventRow(arranged.more));
+    events.appendChild(more);
+  }
 
-  function eventButton(e) {
+  function eventButton(e, label) {
     var btn = document.createElement('button');
-    btn.textContent = '⚡ ' + e.label;
+    btn.textContent = '⚡ ' + label;
     btn.onclick = function () {
       // The SAME rule as controlModel.ts eventPayload (this page ships without it): payload
       // fields ride at the cue's current value; adjust fields (a goal's +1) ride moved by their

@@ -60,7 +60,16 @@ export interface ArrangeEntry {
   section?: string;
   /** The name the OPERATOR reads. Absent = the control's declared label. */
   name?: string;
-  /** Out of the panel entirely. Still legal, still guarded — just not shown. */
+  /**
+   * Out of the panel's flow. Still legal, still guarded — just not in the way.
+   *
+   * Every surface puts these behind ONE collapsed "More" rather than dropping them, and that is
+   * the deliberate reading of "hidden": a production hiding a control is saying "not in my way",
+   * which is not the same as saying it is gone. The machine still accepts the event, so an
+   * operator who turns out to need it mid-show reaches it in one click instead of going back to
+   * the authoring panel — which on the hosted page means going back to a laptop they may not
+   * have. `hidden` beats `pinned` where a hand-edited profile carries both.
+   */
   hidden?: boolean;
   /** Above the fold, in the handful this show actually uses (the football principle: the
    *  operator should understand football, not the graphics software). */
@@ -298,13 +307,22 @@ function readMarks(raw: Record<string, unknown>): StepMarks {
 }
 
 /**
- * What a PUBLISHED profile column reads back as (`control_shows.profile`, migration 0058).
+ * THE PROFILE A SURFACE MAY RENDER FROM, whatever it was handed: the published column
+ * (`control_shows.profile`, migration 0058), a `Show.profile` off the record, or bytes read back
+ * from an export.
  *
  * BOTH "no profile" and "a profile this build cannot read" answer null, and that is the honest
  * degradation rather than a shortcut: a surface may render only a profile it fully understands,
  * and falling back to the generated panel is exactly what deleting a profile does — so an operator
  * meeting a profile from a newer build gets a panel that works rather than one that is wrong.
  * `readLiveCue` in `control/hostedControl.ts` degrades the same way for the same reason.
+ *
+ * EVERY RENDERER ASKS THIS, and none of them reads `show.profile` straight. Two used to: the
+ * in-app production page arranged its ⚡ block from the raw value and the exporter BAKED the raw
+ * value into a package, so a newer build's profile — read-only at both write doors and correctly
+ * ignored on the hosted page — still ordered, renamed and hid buttons on the other two. One show
+ * rendering two different panels on two surfaces is the exact case this function exists to
+ * prevent, and it prevents it only where it is called.
  *
  * It lives HERE rather than beside the publish call because it is a question about the format, and
  * because `hostedControl.ts` is not a leaf module — a test that reached the normalizer through it
@@ -386,6 +404,40 @@ function orderStep(step: ProfileStep): ProfileStep {
   const values: Record<string, string> = {};
   for (const key of Object.keys(step.values).sort()) put(values, key, step.values[key]);
   return { kind: 'patch', graphic: step.graphic, values, ...marks };
+}
+
+/**
+ * A profile with ONE graphic's arrangement replaced, canonical.
+ *
+ * The one door an authoring surface needs for ARRANGE, and it lives here rather than in that
+ * surface for the reason `own()` and `put()` below exist: a pool graphic's name is somebody's
+ * typed text, so the obvious `{ ...profile.arrange, [graphic]: entries }` sets the PROTOTYPE for
+ * a production with a graphic called `__proto__` and the entry silently vanishes. One door means
+ * one place that knows.
+ *
+ * An EMPTY map removes the graphic's key entirely rather than storing `{}`. "As the graphic
+ * declared it" is an absence everywhere else in this format, and two shapes meaning one thing is
+ * what makes a diff lie about what an operator did.
+ *
+ * It takes `undefined` for "this production has no profile yet", so a surface authoring the first
+ * arrangement does not have to mint an empty profile of its own.
+ */
+export function withGraphicArrange(
+  profile: ShowProfile | undefined,
+  graphic: string,
+  entries: Record<string, ArrangeEntry>,
+): ShowProfile {
+  const read = readShowProfile(profile);
+  const base = read.status === 'ok' ? read.profile : emptyProfile();
+  const arrange: ProfileArrange = {};
+  for (const [name, existing] of Object.entries(base.arrange)) {
+    if (name !== graphic) put(arrange, name, existing);
+  }
+  if (Object.keys(entries).length > 0) put(arrange, graphic, entries);
+  // Canonical on the way out, so the caller cannot store two spellings of one arrangement — and
+  // so an entry that says nothing, a `hidden: false`, and a graphic whose every entry was
+  // cleared all disappear by the format's own rules rather than by the surface remembering to.
+  return serializeShowProfile({ v: PROFILE_VERSION, arrange, combine: base.combine });
 }
 
 // ── Validating (the refusing half) ───────────────────────────────────────────────────────────
@@ -706,9 +758,17 @@ function own<T>(map: Record<string, T> | undefined, key: string): T | undefined 
   return map[key];
 }
 
-/** Add a key to a map being built, without `__proto__` setting the prototype instead of a key -
- *  the write-side twin of `own`, and the reason a graphic named `__proto__` cannot vanish. */
-function put<T>(map: Record<string, T>, key: string, value: T): void {
+/**
+ * Add a key to a map being built, without `__proto__` setting the prototype instead of a key -
+ * the write-side twin of `own`, and the reason a graphic named `__proto__` cannot vanish.
+ *
+ * EXPORTED because the surfaces that AUTHOR a profile build these maps before this module ever
+ * sees them: the Controls panel assembles a whole graphic's entries key by key, and a bare
+ * `map[control] = entry` there loses a control called `__proto__` with no error at all, which
+ * reads as a panel reporting a save that stored nothing. One guard, wherever a user-named key is
+ * written.
+ */
+export function put<T>(map: Record<string, T>, key: string, value: T): void {
   Object.defineProperty(map, key, { value, enumerable: true, writable: true, configurable: true });
 }
 

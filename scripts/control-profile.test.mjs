@@ -31,8 +31,15 @@ const js = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const mod = await import(`data:text/javascript,${encodeURIComponent(js)}`);
-const { PROFILE_VERSION, emptyProfile, readShowProfile, readPublishedProfile, serializeShowProfile, validateShowProfile } =
-  mod;
+const {
+  PROFILE_VERSION,
+  emptyProfile,
+  readShowProfile,
+  readPublishedProfile,
+  serializeShowProfile,
+  validateShowProfile,
+  withGraphicArrange,
+} = mod;
 
 /** The proof case's production (docs/CONTROL_PANEL_ANY_GRAPHIC.md §3): two boards, a cue each. */
 const POOL = {
@@ -393,4 +400,66 @@ test('an arrangement carries only the five presentation keys', () => {
     'arrange["Totals board"].plus_katri.disabled',
     'arrange["Totals board"].plus_katri.order',
   ]);
+});
+
+// ── withGraphicArrange: the one write door an authoring surface uses ──────────────────────────
+// It lives in this module rather than in the Controls panel because a pool graphic's name is
+// somebody's typed text, and the obvious spread is a `__proto__` bug waiting for one production.
+
+test('withGraphicArrange writes one graphic and leaves the others alone', () => {
+  const before = serializeShowProfile({
+    v: 1,
+    arrange: { 'Votes board': { reveal: { pinned: true } }, 'Totals board': { new_game: { hidden: true } } },
+    combine: [],
+  });
+  const after = withGraphicArrange(before, 'Totals board', { plus_katri: { order: 0 } });
+  assert.deepEqual(after.arrange, {
+    'Totals board': { plus_katri: { order: 0 } },
+    'Votes board': { reveal: { pinned: true } },
+  });
+  // Canonical on the way out, so an authoring surface cannot store two spellings of one
+  // arrangement - and the keys come out sorted whichever order the caller wrote them in.
+  assert.equal(JSON.stringify(after), JSON.stringify(serializeShowProfile(after)));
+});
+
+test('withGraphicArrange starts a profile for a production that has none', () => {
+  const made = withGraphicArrange(undefined, 'Votes board', { reveal: { order: 0 } });
+  assert.equal(made.v, PROFILE_VERSION);
+  assert.deepEqual(made.arrange, { 'Votes board': { reveal: { order: 0 } } });
+  assert.deepEqual(made.combine, []);
+});
+
+test('withGraphicArrange keeps the COMBINE half untouched', () => {
+  const before = goodProfile();
+  const after = withGraphicArrange(before, 'Votes board', { reveal: { name: 'Show the picks' } });
+  assert.deepEqual(after.combine, serializeShowProfile(before).combine);
+});
+
+test('an emptied arrangement removes the graphic rather than storing an empty map', () => {
+  const before = withGraphicArrange(undefined, 'Votes board', { reveal: { pinned: true } });
+  // Three roads to "nothing", and all of them must leave the same bytes: an empty map, an empty
+  // entry, and a mark that means the default. One state for "as the graphic declared it" is what
+  // keeps a diff honest about what an operator actually did.
+  assert.deepEqual(withGraphicArrange(before, 'Votes board', {}).arrange, {});
+  assert.deepEqual(withGraphicArrange(before, 'Votes board', { reveal: {} }).arrange, {});
+  assert.deepEqual(withGraphicArrange(before, 'Votes board', { reveal: { hidden: false } }).arrange, {});
+});
+
+test('a graphic named __proto__ is stored as a key, not as a prototype', () => {
+  // Measured on the transpiled module: `{ ...arrange, [graphic]: entries }` sets the PROTOTYPE
+  // here and the entry vanishes with no error at all - the panel would say saved and change
+  // nothing. This is the same measurement `own()` and `put()` were added for.
+  const made = withGraphicArrange(undefined, '__proto__', { reveal: { pinned: true } });
+  assert.deepEqual(Object.keys(made.arrange), ['__proto__']);
+  assert.equal(readShowProfile(made).profile.arrange['__proto__'].reveal.pinned, true);
+});
+
+test('withGraphicArrange starts from empty on a profile this build cannot read', () => {
+  // A newer build's bytes must never be MERGED into: rebasing a new arrangement onto them would
+  // hand back something that looks writable while dropping the half this build cannot see. The
+  // refusal itself is `setShowProfile`'s, so the two never disagree about WHICH profile is being
+  // written - only about whether the write lands.
+  const made = withGraphicArrange({ v: 99, arrange: {}, combine: [] }, 'Votes board', { reveal: { order: 0 } });
+  assert.equal(made.v, PROFILE_VERSION);
+  assert.deepEqual(made.arrange, { 'Votes board': { reveal: { order: 0 } } });
 });

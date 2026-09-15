@@ -516,3 +516,96 @@ test('a production carries its control profile canonically, and deleting it leav
 // publish WRITE needs a real backend and is step 8 of the live-verify checklist in
 // docs/CONTROL_LAYER.md: `publishControlShow` returns before its upsert when there is no Supabase,
 // so no offline spec can see the column being written.
+
+test('the hosted page arranges from the PUBLISHED bytes, by the one rule the in-app page uses', async ({ page }) => {
+  // AC-5's hosted deployment, pinned as far as an OFFLINE spec honestly can.
+  //
+  // WHAT THIS PROVES AND WHAT IT DOES NOT. The hosted page renders from two published things
+  // and nothing else: the `panel` spec (which carries each graphic's `js`, and therefore its
+  // declared controls) and the `profile` column. This asserts that those two, run through the
+  // SHARED `arrangeControls`, give the three lists the page draws — which is the whole of what
+  // ARRANGE does there, since the page has no other input. What it cannot reach is the page's
+  // own DOM: mounting it needs a configured backend, so the buttons themselves are step 9 of the
+  // live-verify checklist in docs/CONTROL_LAYER.md, with the rest of that surface.
+  //
+  // ONE RULE IS THE POINT. The in-app case in `production-controls.spec.ts` drives the DOM of
+  // the same function on the same graphic; if these two ever disagree, one of the surfaces has
+  // grown a second opinion, which is exactly the divergence the shared helper exists to prevent.
+  await createProject(page, { name: 'Club Scorebug' });
+
+  const arranged = await page.evaluate(async () => {
+    const { buildPanelSpec } = await import('/src/control/hostedControl.ts');
+    const { arrangeControls, arrangeFor, eventButtons } = await import('/src/control/controlModel.ts');
+    const { withGraphicArrange, readPublishedProfile } = await import('/src/model/profile.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const template = useTemplateStore.getState().template;
+    const show = {
+      id: 'show-arrange-1',
+      name: 'Club Match',
+      updatedAt: new Date().toISOString(),
+      graphics: [
+        { id: 'copy-1', name: 'Club Scorebug', type: template.type, savedAt: new Date().toISOString(), template },
+      ],
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const panel = buildPanelSpec(show as any);
+    const profile = withGraphicArrange(undefined, 'Club Scorebug', {
+      clockStart: { pinned: true },
+      clockStop: { name: 'Stop the clock', hidden: true },
+    });
+    // THROUGH THE PUBLISHED COLUMN, not through the record: `publishControlShow` writes the
+    // profile as jsonb and `controlShowBySlug` hands it back through `readPublishedProfile`, so
+    // the bytes the page arranges from are the ones that survived that round trip.
+    const published = readPublishedProfile(JSON.parse(JSON.stringify(profile)));
+    const buttons = eventButtons(panel[0].js);
+    const read = arrangeControls(buttons, arrangeFor(published, panel[0].name));
+    const generated = arrangeControls(buttons, arrangeFor(null, panel[0].name));
+    // A profile a NEWER build wrote. `arrangeFor` applies the version gate itself, so every
+    // surface degrades to the generated panel together — the in-app page and the exporter both
+    // read the arrangement raw at one point, which rendered a v2 profile's arrangement here and
+    // ignored it there: one show, two different panels.
+    const newer = arrangeControls(
+      buttons,
+      arrangeFor({ v: 99, arrange: { 'Club Scorebug': { clockStart: { hidden: true } } }, combine: [] }, panel[0].name),
+    );
+    const names = (controls: { button: { event: string }; label: string }[]) =>
+      controls.map((c) => `${c.button.event}:${c.label}`);
+    return {
+      pinned: names(read.pinned),
+      more: names(read.more),
+      sections: read.sections.map(([section, controls]) => [section, names(controls)]),
+      generatedSections: generated.sections.map(([section, controls]) => [section, names(controls)]),
+      generatedExtras: generated.pinned.length + generated.more.length,
+      newerSections: newer.sections.map(([section, controls]) => [section, names(controls)]),
+      newerExtras: newer.pinned.length + newer.more.length,
+      // The legality table is read off the graphic's own `js` and knows nothing about the
+      // profile, which is what makes "a hidden control is still guarded" true by construction.
+      hiddenIsStillDeclared: buttons.some((b) => b.event === 'clockStop'),
+    };
+  });
+
+  expect(arranged.pinned).toEqual(['clockStart:Start clock']);
+  expect(arranged.more).toEqual(['clockStop:Stop the clock']);
+  // Pinned and hidden are LIFTED out of their section rather than drawn twice, and the sections
+  // that were not touched arrive exactly as the author declared them.
+  expect(arranged.sections).toEqual([
+    ['Clock', ['clockReset:Reset to period start']],
+    ['Match', ['interval:Interval', 'resumePlay:Resume play', 'final:Full time']],
+  ]);
+  expect(arranged.hiddenIsStillDeclared).toBe(true);
+
+  // …and with no profile the same call is the generated panel, which is what deleting one leaves
+  // on this surface too.
+  expect(arranged.generatedExtras).toBe(0);
+  expect(arranged.generatedSections).toEqual([
+    ['Clock', ['clockStart:Start clock', 'clockStop:Stop clock', 'clockReset:Reset to period start']],
+    ['Match', ['interval:Interval', 'resumePlay:Resume play', 'final:Full time']],
+  ]);
+
+  // A profile a newer build wrote arranges NOTHING, on every surface at once. It is read-only at
+  // both write doors, so a surface that honoured it would show an arrangement nobody on this
+  // build could change — and a panel arranged by rules this build does not understand is worse
+  // than the generated one it falls back to.
+  expect(arranged.newerExtras, 'a v99 profile must not hide a control').toBe(0);
+  expect(arranged.newerSections).toEqual(arranged.generatedSections);
+});

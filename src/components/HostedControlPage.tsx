@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   adjustWords,
-  controlSections,
+  arrangeControls,
+  arrangeFor,
   eventButtons,
   eventLegality,
   eventPayload,
@@ -14,6 +15,8 @@ import {
   overflowNote,
   OVERFLOW_FIELD_HINT,
   OVERFLOW_FIELD_MARK,
+  type ArrangedControl,
+  type ArrangeRead,
   type ControlButton,
 } from '../control/controlModel';
 import { nextRow, rowsForSide } from '../control/cueData';
@@ -532,6 +535,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               slug={slug}
               cue={selectedCue}
               spec={spec}
+              // The production's ARRANGE for this graphic, off the PUBLISHED row. It reaches this
+              // page on the next publish, exactly as the bindings do — a change on the production
+              // page is authored state, and authored state travels at publish.
+              arrange={arrangeFor(resolved?.profile, selectedCue.graphic)}
               values={cueValues(selectedCue)}
               live={selectedIsLive}
               layerLive={!!selectedLayerCueId}
@@ -733,6 +740,7 @@ function HostedCueEditor({
   slug,
   cue,
   spec,
+  arrange,
   values,
   live,
   layerLive,
@@ -748,6 +756,9 @@ function HostedCueEditor({
   slug: string;
   cue: OutputCue;
   spec: PanelGraphicSpec;
+  /** This graphic's entry in the production's control profile, or undefined for no profile —
+   *  which renders the generated panel, exactly as deleting the profile does. */
+  arrange: Record<string, ArrangeRead> | undefined;
   values: Record<string, string>;
   live: boolean;
   /** This cue's LAYER is up (its own cue may be a different one) — the ⚡/snap legality. */
@@ -778,7 +789,10 @@ function HostedCueEditor({
       : `Fires "${e.event}" — only where the graph allows it`;
   };
   const events = useMemo(() => eventButtons(spec.js), [spec.js]);
-  const eventSections = useMemo(() => controlSections(events), [events]);
+  /** Ordered, named, pinned and hidden by the SHARED rule (controlModel `arrangeControls`), so
+   *  this page, the in-app one and the exported controller cannot present one production's
+   *  controls three ways. No profile is the generated panel, unchanged. */
+  const arranged = useMemo(() => arrangeControls(events, arrange), [events, arrange]);
   const legality = useMemo(() => eventLegality(spec.js), [spec.js]);
   const stateGroups = useMemo(() => machineStateGroups(spec.js), [spec.js]);
   /** Local echo for instant typing; the shared buffer reconciles it as its rows arrive. */
@@ -872,6 +886,41 @@ function HostedCueEditor({
   const overflowMessage = overflowNote(
     [...overflowSet],
     Object.fromEntries(descriptors.map((d) => [d.key, d.label])),
+  );
+
+  /** One ⚡ button. The block draws the same button pinned, in its section and under "More", and
+   *  three copies of this press would drift apart. The DECLARATION (`e`) decides what the press
+   *  sends and whether it greys; the arrangement decides only the word and where it sits. */
+  const actionButton = ({ button: e, label }: ArrangedControl) => (
+    <button
+      key={e.event}
+      disabled={!isEventLegal(legality, e.event, liveState)}
+      className={e.destructive ? 'ctl-event-destructive' : undefined}
+      onClick={() => {
+        const payload = eventPayload(e, valueOf);
+        // An `adjust` field (a goal's +1) rode moved by its delta: stage the new figure into the
+        // shared buffer at once (the live-number bump's rule, so every open page follows and the
+        // next press counts from it).
+        const adjusted = movedKeys(e).filter((key) => payload?.[key] !== undefined);
+        if (adjusted.length > 0 && payload) {
+          const staged = Object.fromEntries(adjusted.map((key) => [key, payload[key]]));
+          setEcho((v) => ({ ...v, ...staged }));
+          setEntryId('');
+          if (timer.current) clearTimeout(timer.current);
+          void stageHostedData(slug, cue.graphic, staged).catch((err: Error) => onError(err.message));
+          onPreview({ ...currentValues(), ...staged });
+        }
+        onSend([
+          {
+            graphic: cue.graphic,
+            msg: payload ? { t: 'event', event: e.event, payload } : { t: 'event', event: e.event },
+          },
+        ]);
+      }}
+      title={eventHint(e)}
+    >
+      ⚡ {label}
+    </button>
   );
 
   return (
@@ -1069,44 +1118,27 @@ function HostedCueEditor({
             values from this cue, so type them above first.
             {stateGroups.length > 0 && ' “Snap to state…” is for RECOVERY: it jumps straight to a state with no animation.'}
           </p>
-          {eventSections.map(([section, buttons]) => (
+          {/* PINNED, above the fold and above the section headings — the in-app page's shape. */}
+          {arranged.pinned.length > 0 && (
+            <div className="pd-actions-row pd-actions-pinned" data-testid="hosted-actions-pinned">
+              {arranged.pinned.map(actionButton)}
+            </div>
+          )}
+          {arranged.sections.map(([section, controls]) => (
             <div key={section} className="pd-actions-section">
-              {(eventSections.length > 1 || section !== 'Actions') && <h4>{section}</h4>}
-              <div className="pd-actions-row">
-                {buttons.map((e) => (
-                  <button
-                    key={e.event}
-                    disabled={!isEventLegal(legality, e.event, liveState)}
-                    className={e.destructive ? 'ctl-event-destructive' : undefined}
-                    onClick={() => {
-                      const payload = eventPayload(e, valueOf);
-                      // An `adjust` field (a goal's +1) rode moved by its delta: stage the new
-                      // figure into the shared buffer at once (the live-number bump's rule, so
-                      // every open page follows and the next press counts from it).
-                      const adjusted = movedKeys(e).filter((key) => payload?.[key] !== undefined);
-                      if (adjusted.length > 0 && payload) {
-                        const staged = Object.fromEntries(adjusted.map((key) => [key, payload[key]]));
-                        setEcho((v) => ({ ...v, ...staged }));
-                        setEntryId('');
-                        if (timer.current) clearTimeout(timer.current);
-                        void stageHostedData(slug, cue.graphic, staged).catch((err: Error) => onError(err.message));
-                        onPreview({ ...currentValues(), ...staged });
-                      }
-                      onSend([
-                        {
-                          graphic: cue.graphic,
-                          msg: payload ? { t: 'event', event: e.event, payload } : { t: 'event', event: e.event },
-                        },
-                      ]);
-                    }}
-                    title={eventHint(e)}
-                  >
-                    ⚡ {e.label}
-                  </button>
-                ))}
-              </div>
+              {(arranged.sections.length > 1 || section !== 'Actions') && <h4>{section}</h4>}
+              <div className="pd-actions-row">{controls.map(actionButton)}</div>
             </div>
           ))}
+          {/* HIDDEN, behind one disclosure. It matters most HERE: this is the surface a class
+              drives from a phone, away from the app, so a control the production tucked away is
+              still one tap from the operator who turns out to need it. */}
+          {arranged.more.length > 0 && (
+            <details className="pd-actions-more" data-testid="hosted-actions-more">
+              <summary>More ({arranged.more.length})</summary>
+              <div className="pd-actions-row">{arranged.more.map(actionButton)}</div>
+            </details>
+          )}
         </div>
       )}
 
