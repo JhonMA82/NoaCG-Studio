@@ -869,3 +869,30 @@ and the home of each; the exported production controller renders the generated p
 and carries neither COMBINE nor the data tree, which is the one carve-out from the three-surface
 parity in `docs/PLAYOUT_DASHBOARD.md`; and rows 9 and 10 in §5 (the bound-field stepper patches
 the tree; bind all by title).
+
+---
+
+## ALIGN-2026-09-15-4
+
+**Asked after the boundary check**, when the control-panel rows were all sequenced after the 25th.
+
+> We don't have to wait until the 25th if we have everything ready for the 25th, so I need to
+> just check what we need. You could also tell me what I need to check before the 25th, and then
+> we can start working on other things too.
+
+What it settles: the ten rows in `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5 start now. What the 25th
+needs is its own list - `docs/DEMO_2026-09-25.md` §7, where the rows he owns are 3, 10, 11 and
+13, and the owner walks under `docs/GOALS.md` NOW - and none of the control-panel rows touches a
+file or a surface that list depends on.
+
+In the same message he asked how an election night is thought about: many graphics showing the
+same party and candidate figures in different looks, the numbers gathered by a feed or an
+assistant, nobody typing, and the operator still driving. The answer is the shipped shared-data
+design (`docs/PRODUCTION_DATA_PLAN.md`, `docs/DATA_API.md`, `docs/CLOUD_PLAYOUT.md` §7): every
+graphic binds to one production tree, a connector outside the app writes the tree through the
+Data API as one more writer of the log, later rows win so the operator's presses beat the feed,
+and data never operates - airing, advancing and declaring stay presses. Recorded as a row of the
+general check in `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6c. What does not exist is the connector
+for any particular election source; the pattern is `scripts/weather-feed.mjs` and
+`scripts/sportsdb-feed.mjs`, and the numbers to know are the ingest budget of 25 updates per 5 s
+per production and the log's 50.
