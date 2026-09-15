@@ -55,9 +55,10 @@ criterion IDs, not launch eligibility. Converge refuses unless all criteria have
 evidence. `evidence-complete` is record integrity, not proof that a reviewer judged behaviour well.
 A report saying "button exists" cannot prove "save survives reload", regardless of its hash.
 
-Commit implementation before recording the review revision. Only this ledger and its `evidence/`
-may change afterwards without invalidating freshness; other code, tests, spec or instructions
-require re-review. Partial reviews are also invalidated by changed code. Keep code out of the
+Commit implementation before recording the review revision. Validated version 2 review-only ledger updates and newly added, hash-checked text receipts
+referenced within their own `evidence/` directories may follow that revision, including reviews
+for sibling specs already present in the reviewed tree. Unknown fields, changed ledger authority,
+unreferenced files, existing evidence edits, code, tests, spec or instructions require re-review. Partial reviews are also invalidated by changed code. Keep code out of the
 evidence directory. This is accidental-drift detection, not an adversarial attestation scheme.
 
 Version 1 mixed task lifecycle into the ledger. It migrates ON READ to version 2, preserving old

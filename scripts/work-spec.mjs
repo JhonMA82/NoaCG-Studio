@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 // Specs and evidence receipts are text. Normalize checkout line endings so a Windows
@@ -101,17 +102,57 @@ export function inspectWork(record, specText, { read = () => { throw new Error('
   return { problems, gaps, openCriteria: [...open] };
 }
 
-/** Only review bookkeeping may differ from the reviewed tree. Code, tests, spec and
- * instructions changing all invalidate the verdict. This is deliberately conservative. */
-function freshnessProblems(root, recordPath, revision) {
+/** Recognize acceptance receipts by their content, never by a directory exemption.
+ * Only the review may change in an existing ledger. A new ledger must describe a spec
+ * already in the reviewed tree. Unknown fields remain ordinary changes, conservatively. */
+function receiptBookkeeping(root, files, revision, git) {
+  const allowed = new Set();
+  const keys = (value, names) => value && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).every((key) => names.includes(key));
+  const envelope = (work) => {
+    const result = { ...work };
+    delete result.review;
+    return result;
+  };
+  const atRevision = (file) => git(['show', `${revision}:${file}`]);
+  for (const file of files.filter((name) => /^docs\/work-specs\/[a-z0-9-]+\/work\.json$/.test(name))) {
+    try {
+      const work = JSON.parse(readLocal(root, file));
+      if (work.version !== 2 || !keys(work, ['version', 'specSha256', 'authority', 'review'])
+        || !keys(work.authority, ['status', 'source'])
+        || !keys(work.review, ['revision', 'specSha256', 'evidence', 'criteria'])) continue;
+      const specPath = `${path.posix.dirname(file)}/spec.md`;
+      const originalSpec = atRevision(specPath);
+      if (originalSpec.status !== 0 || digest(originalSpec.stdout) !== work.specSha256) continue;
+      const checked = inspectWork(work, readLocal(root, specPath).toString(), { read: (name) => readLocal(root, name) });
+      // Failed/unverified criteria are honest partial reviews, not malformed receipts.
+      if (checked.problems.length || checked.gaps.some((gap) => !/^AC-\d+: (fail|unverified); continue its task or add a gap task$/.test(gap))) continue;
+      if (git(['merge-base', '--is-ancestor', work.review.revision, 'HEAD']).status !== 0) continue;
+      if (work.review.criteria.some((claim) => !keys(claim, ['id', 'status', 'evidence']))) continue;
+      const receipts = [...work.review.evidence, ...work.review.criteria.flatMap((claim) => claim.evidence)];
+      const evidenceDir = `${path.posix.dirname(file)}/evidence/`;
+      if (receipts.some((item) => !keys(item, ['path', 'sha256'])
+        || !item.path.startsWith(evidenceDir) || path.posix.normalize(item.path) !== item.path)) continue;
+      const original = atRevision(file);
+      if (original.status === 0 && !isDeepStrictEqual(envelope(JSON.parse(original.stdout)), envelope(work))) continue;
+      allowed.add(file);
+      // Existing evidence changes always require re-review, even if its hash was updated.
+      for (const item of receipts) if (atRevision(item.path).status !== 0) allowed.add(item.path);
+    } catch { /* Malformed, missing or unknown bookkeeping remains a freshness change. */ }
+  }
+  return allowed;
+}
+
+/** Code, tests, spec, instructions and existing evidence changes invalidate the verdict. */
+function freshnessProblems(root, revision) {
   const git = (args) => spawnSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true });
   if (git(['merge-base', '--is-ancestor', revision, 'HEAD']).status !== 0) return ['review revision is not an ancestor of HEAD'];
-  const evidenceDir = `${path.posix.dirname(recordPath)}/evidence/`;
   const changed = git(['diff', '--name-only', revision, '--']);
   const untracked = git(['ls-files', '--others', '--exclude-standard']);
   if (changed.status !== 0 || untracked.status !== 0) return ['cannot check review freshness'];
-  const files = `${changed.stdout}\n${untracked.stdout}`.split(/\r?\n/).filter(Boolean);
-  return files.filter((file) => file !== recordPath && !file.startsWith(evidenceDir)).map((file) => `review stale: ${file}`);
+  const files = [...new Set(`${changed.stdout}\n${untracked.stdout}`.split(/\r?\n/).filter(Boolean))];
+  const allowed = receiptBookkeeping(root, files, revision, git);
+  return files.filter((file) => !allowed.has(file)).map((file) => `review stale: ${file}`);
 }
 
 export function checkWorkFile(recordPath, { root = ROOT, criteria } = {}) {
@@ -129,7 +170,7 @@ export function checkWorkFile(recordPath, { root = ROOT, criteria } = {}) {
     }
     // Check freshness even on partial reviews, so old passes do not hide changed behaviour.
     if (work.review && /^[a-f0-9]{40}$/.test(work.review.revision ?? '')) {
-      const stale = freshnessProblems(root, recordPath, work.review.revision);
+      const stale = freshnessProblems(root, work.review.revision);
       if (stale.length) { verdict.gaps.push(...stale); verdict.openCriteria = ids; }
     }
     return { ...verdict, status: verdict.problems.length ? 'invalid' : verdict.gaps.length ? 'open' : 'evidence-complete' };

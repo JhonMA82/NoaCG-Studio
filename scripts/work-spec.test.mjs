@@ -14,8 +14,9 @@ const evidence = [{ path: 'docs/work-specs/save/evidence/run.md', sha256: digest
 const record = () => ({ version: 2, specSha256: digest(spec), authority: { source: 'owner instruction', status: 'agreed' } });
 const inspect = (work) => inspectWork(work, spec, { read: () => proof });
 function complete(work, revision = 'a'.repeat(40)) {
-  work.review = { revision, specSha256: work.specSha256, evidence,
-    criteria: ['AC-1', 'AC-2'].map((id) => ({ id, status: 'pass', evidence })) };
+  const receipts = structuredClone(evidence);
+  work.review = { revision, specSha256: work.specSha256, evidence: receipts,
+    criteria: ['AC-1', 'AC-2'].map((id) => ({ id, status: 'pass', evidence: receipts })) };
   return work;
 }
 
@@ -116,6 +117,7 @@ test('actual tick reports open parent after branch landing, then evidence readin
   const observe = () => planAcceptance(text, { check: (file) => checkWorkFile(file, { root: f.root }) });
   const base = { at: Date.now(), branches: [], jobs: [], blocked: [], features: observe() };
   assert.equal(base.features.length, 1);
+  assert.deepEqual(base.features[0].openCriteria, ['AC-2']);
   const before = nextState({ ...base, branches: [{name: 'codex/a-save', ahead: true, landed: false}] }, {tick: 1});
   const after = { ...base, branches: [{name: 'codex/a-save', ahead: false, landed: true}] };
   assert.ok(deltaBetween(before, after).includes('LANDED codex/a-save'));
@@ -127,4 +129,74 @@ test('actual tick reports open parent after branch landing, then evidence readin
   assert.match(deltaBetween(openState, converged).join(' '), /PARENT EVIDENCE READY/);
   assert.match(summaryLine(converged), /0\/1 parent feature\(s\) open/);
   assert.deepEqual(deltaBetween(nextState(converged, {tick: 3}), converged), []);
+});
+
+function pairedFixture(t) {
+  const f = fixture(t);
+  const sibling = 'docs/work-specs/other';
+  mkdirSync(path.join(f.root, sibling, 'evidence'), { recursive: true });
+  f.write(`${sibling}/spec.md`, spec);
+  f.git('add', '.'); f.git('commit', '-qm', 'Define second acceptance scope');
+  const revision = f.git('rev-parse', 'HEAD');
+  f.work.review.revision = revision; f.save();
+  const other = complete(record(), revision);
+  const receipt = [{ path: `${sibling}/evidence/run.md`, sha256: digest(proof) }];
+  other.review.evidence = receipt;
+  other.review.criteria.forEach((claim) => { claim.evidence = receipt; });
+  f.write(`${sibling}/evidence/run.md`, proof);
+  f.write(`${sibling}/work.json`, JSON.stringify(other));
+  return { ...f, other, sibling, otherFile: `${sibling}/work.json`, revision };
+}
+
+test('two acceptance ledgers can record reviews of the same tree', (t) => {
+  const f = pairedFixture(t);
+  for (const file of [f.file, f.otherFile]) {
+    assert.equal(checkWorkFile(file, { root: f.root }).status, 'evidence-complete');
+  }
+});
+
+
+test('receipt recognition fails closed for unrelated or malformed changes', async (t) => {
+  const cases = {
+    'code change': (f) => f.write('app.js', 'changed'),
+    'spec change': (f) => f.write(`${f.sibling}/spec.md`, spec + 'changed'),
+    'arbitrary evidence JSON': (f) => f.write(`${f.sibling}/evidence/config.json`, '{"execute":"code"}'),
+    'code in evidence': (f) => f.write(`${f.sibling}/evidence/code.js`, 'code'),
+    'unknown version': (f) => { f.other.version = 99; },
+    'unknown envelope field': (f) => { f.other.payload = { code: true }; },
+    'unknown review field': (f) => { f.other.review.payload = 'code'; },
+    'unknown criterion field': (f) => { f.other.review.criteria[0].payload = 'code'; },
+    'unknown receipt field': (f) => { f.other.review.evidence[0].payload = 'code'; },
+    'nonancestor sibling review': (f) => { f.other.review.revision = '0'.repeat(40); },
+    'invalid receipt hash': (f) => { f.other.review.evidence[0].sha256 = '0'.repeat(64); },
+  };
+  for (const [name, mutate] of Object.entries(cases)) await t.test(name, (t) => {
+    const f = pairedFixture(t); mutate(f);
+    f.write(f.otherFile, JSON.stringify(f.other));
+    assert.equal(checkWorkFile(f.file, { root: f.root }).status, 'open');
+  });
+  for (const content of ['{ corrupt', '{}', 'null']) await t.test(`malformed ${content}`, (t) => {
+    const f = pairedFixture(t); f.write(f.otherFile, content);
+    assert.equal(checkWorkFile(f.file, { root: f.root }).status, 'open');
+  });
+});
+
+test('committed ledgers allow review-only updates but preserve authority and existing evidence', (t) => {
+  const f = pairedFixture(t);
+  f.git('add', '.'); f.git('commit', '-qm', 'Record both reviews');
+  const revision = f.git('rev-parse', 'HEAD');
+  f.work.review.revision = revision; f.save();
+  f.other.review.revision = revision; f.write(f.otherFile, JSON.stringify(f.other));
+  assert.equal(checkWorkFile(f.file, { root: f.root }).status, 'evidence-complete');
+  f.other.authority.source = 'different authority'; f.write(f.otherFile, JSON.stringify(f.other));
+  assert.match(checkWorkFile(f.file, { root: f.root }).gaps.join(' '), /review stale:.*other\/work.json/);
+  f.other.authority.source = 'owner instruction';
+  const changedProof = proof + 'changed';
+  f.write(`${f.sibling}/evidence/run.md`, changedProof);
+  f.other.review.evidence[0].sha256 = digest(changedProof);
+  f.write(f.otherFile, JSON.stringify(f.other));
+  assert.match(checkWorkFile(f.file, { root: f.root }).gaps.join(' '), /review stale:.*other\/evidence\/run.md/);
+  f.write(evidence[0].path, changedProof);
+  f.work.review.evidence[0].sha256 = digest(changedProof); f.save();
+  assert.match(checkWorkFile(f.file, { root: f.root }).gaps.join(' '), /review stale:.*save\/evidence\/run.md/);
 });
