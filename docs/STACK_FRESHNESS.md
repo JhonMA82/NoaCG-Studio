@@ -5,13 +5,19 @@ things it cannot. The second group is the dangerous one, because nothing in the 
 development loop ever mentions it. This document is the register of both, and it names the
 check that watches each — a list nobody runs is a list that goes stale itself.
 
-The whole time-driven half runs in **`.github/workflows/weekly-audit.yml`** (Mondays 06:00
+Most of the time-driven half runs in **`.github/workflows/weekly-audit.yml`** (Mondays 06:00
 UTC, `workflow_dispatch` for an on-demand run) and files ONE rolling, self-closing issue.
 Run it locally with:
 
 ```bash
 npm run check:freshness
 ```
+
+The one time-driven job that is not in that file is
+**`.github/workflows/e2e-durations-refresh.yml`** (Mondays 05:30 UTC), because it is the only one
+that PROPOSES a change instead of reporting one — it opens a pull request against the measured
+shard table. It is kept separate so the audit job stays read-only, and its own section is at the
+end of Group 2.
 
 **A third kind of staleness lives outside this document: harness capability observations.**
 `scripts/harness-capabilities.json` records what Claude Code, Codex and Antigravity were each
@@ -323,6 +329,33 @@ shows up as "gone". Neither can silently accept something.
 **Not in CI.** It needs a Management API personal access token and `weekly-audit.yml` is
 secret-free on purpose. Whether it ever joins is a decision about putting a Supabase token in
 Actions, and should be made deliberately rather than drifted into.
+
+### The measured E2E shard table — `.github/workflows/e2e-durations-refresh.yml`
+
+`scripts/e2e-durations.json` says how long each spec file takes and what a shard costs besides its
+tests. CI divides the suite by those numbers (`packShards`) and judges whether a shard fits its
+20-minute cap by them, so they are not documentation — they are an input to a gate.
+
+**They can only be measured on CI's hardware, from a green FULL run on `main`,** and blob artifacts
+expire after 7 days. That is what makes this a freshness problem rather than a test: no laptop can
+produce the number, and no commit makes it wrong on its own. The suite simply grows, specs get
+slower, and the table describes a suite that no longer exists — 15 days of it in August, 12 more in
+September, both while `npm run check:e2e-durations` said so correctly inside the weekly report.
+
+So the refresh is a job now. Weekly, it re-records from the newest green full run and opens a pull
+request when the recording clears a threshold tied to a real cost: a spec file nobody has measured,
+10% on the suite total, a minute on a shard's budget, or 1.5 table-minutes off the slowest shard
+(`REFRESH_THRESHOLDS`). Below those it throws the recording away and stays quiet. The two that could
+fire on noise sit above a measured floor - two green full runs an hour apart, recorded over the same
+151 spec files, disagreed by 4.0% on the total and 0.6 table-minutes on the slowest shard.
+
+**It proposes; it never pushes.** A job that both measures the shard budget and commits the
+measurement is a gate editing its own budget, so the pull request carries no `noacg/reviewed`
+stamp, no `land` label and no auto-merge, and a person takes it through the queue. Read the diff
+the way you would read a re-recorded advisor baseline: recording accepts whatever the run reported.
+
+By hand, the same thing: `npm run record:e2e-durations`, or `node scripts/e2e-durations.mjs
+--refresh` for the recording plus the verdict on whether it was worth having.
 
 ## Standing upgrade debt
 

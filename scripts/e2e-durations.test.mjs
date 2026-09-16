@@ -21,6 +21,11 @@ import {
   minutesByFile,
   overheadFrom,
   predictShardMinutes,
+  refreshBody,
+  refreshVerdict,
+  REFRESH_BRANCH,
+  REFRESH_THRESHOLDS,
+  shardBalance,
   SHARD_CAP_MINUTES,
   SHARD_SAFETY_MINUTES,
 } from './e2e-durations.mjs';
@@ -215,4 +220,126 @@ test('the prediction is the budget read the other way round', () => {
   // A shard carrying exactly the budget lands on the cap minus the variance margin.
   const budget = budgetMinutes(table);
   assert.ok(Math.abs(predictShardMinutes(budget, table) - (SHARD_CAP_MINUTES - SHARD_SAFETY_MINUTES)) < 1e-9);
+});
+
+// THE SCHEDULED REFRESH (`--refresh`, .github/workflows/e2e-durations-refresh.yml). Recording is
+// automatic now, so the only judgement left is whether a recording is worth a person's attention -
+// and that judgement is the whole mechanism. Too eager and it files a pull request every Monday,
+// which is how the weekly report it replaces came to be ignored; too slow and the table drifts on
+// exactly as it did for 15 days in August. So the thresholds are pinned here rather than tuned in
+// a workflow log.
+
+/** A table with the fields every consumer reads, and nothing else. */
+function tableOf(minutes, overhead = { jobMinutes: 0.5, testFactor: 1.01 }, source = {}) {
+  return { source: { run: '1', recordedAt: '2026-09-16', ...source }, minutes, overhead };
+}
+
+/** Balance figures shaped like `shardBalance`'s, with no drift in them unless asked for. */
+function balanceOf(slowestBefore, slowestAfter) {
+  return {
+    before: { shards: 9, slowest: slowestBefore, spread: 1, balanced: slowestAfter },
+    after: { shards: 9, slowest: slowestAfter, spread: 0.05, balanced: slowestAfter },
+  };
+}
+
+test('a recording that agrees with the table on main is thrown away', () => {
+  const same = tableOf({ 'a.spec.ts': 5, 'b.spec.ts': 5 });
+  const verdict = refreshVerdict(same, same, ['a.spec.ts', 'b.spec.ts'], balanceOf(5, 5));
+  assert.equal(verdict.material, false);
+  assert.deepEqual(verdict.reasons, []);
+});
+
+// The leak the whole mechanism exists to stop: a spec file lands, nothing measures it, and the
+// packer guesses it at the median from then on. Four were on disk on 2026-09-16.
+test('a spec file the table has never measured is enough on its own', () => {
+  const before = tableOf({ 'a.spec.ts': 5 });
+  const after = tableOf({ 'a.spec.ts': 5, 'new.spec.ts': 0.2 });
+  const verdict = refreshVerdict(before, after, ['a.spec.ts', 'new.spec.ts'], balanceOf(5, 5));
+  assert.equal(verdict.material, true);
+  assert.match(verdict.reasons[0], /never measured.*new\.spec\.ts/);
+});
+
+// 4.0% of it is RUNNER SPEED: two green full runs an hour apart, recorded over the same 151 spec
+// files on 2026-09-16, disagreed by that much with nothing about the suite changed. A threshold
+// under the noise floor is a pull request every Monday.
+test('the suite total has to move further than a slow runner moves it', () => {
+  const before = tableOf({ 'a.spec.ts': 100 });
+  const suite = ['a.spec.ts'];
+  const quiet = refreshVerdict(before, tableOf({ 'a.spec.ts': 104 }), suite, balanceOf(100, 100));
+  assert.equal(quiet.material, false);
+  const loud = refreshVerdict(before, tableOf({ 'a.spec.ts': 112 }), suite, balanceOf(100, 100));
+  assert.equal(loud.material, true);
+  assert.match(loud.reasons[0], /suite total moved 12\.0%/);
+  // The threshold is the one documented beside it, not whatever this test happens to use.
+  assert.equal(REFRESH_THRESHOLDS.totalFraction, 0.1);
+});
+
+// The overhead terms decide `budgetMinutes`, which is what the plan's "does this fit the 20-minute
+// cap" verdict is made of - so drift there costs a wrong ANSWER, not just a slow run. Thresholding
+// the budget rather than each term covers a changed install cost and a changed test factor at once.
+test('a shard budget that moves by a minute is worth asking about', () => {
+  const minutes = { 'a.spec.ts': 50 };
+  const suite = ['a.spec.ts'];
+  const before = tableOf(minutes, { jobMinutes: 0.5, testFactor: 1.01 });
+  const quiet = refreshVerdict(before, tableOf(minutes, { jobMinutes: 1, testFactor: 1.01 }), suite, balanceOf(50, 50));
+  assert.equal(quiet.material, false);
+  const loud = refreshVerdict(before, tableOf(minutes, { jobMinutes: 6.5, testFactor: 1.01 }), suite, balanceOf(50, 50));
+  assert.equal(loud.material, true);
+  assert.match(loud.reasons[0], /budget moves -5\.9 table-minutes/);
+});
+
+// What a stale table costs since `packShards` started bin-packing: the same suite, divided by
+// weights that are wrong, leaves one runner carrying more than the rest and the E2E stage waits on
+// it. Both figures here are the real ones measured on 2026-09-16 - the quiet pair is two
+// consecutive runs an hour apart, which is the floor a repacking always beats because it is
+// optimised for the numbers it was handed; the loud pair is a table 12 days old.
+test('an unbalanced shard set is worth asking about even when the total has not moved', () => {
+  const minutes = { 'a.spec.ts': 50 };
+  const suite = ['a.spec.ts'];
+  const table = tableOf(minutes);
+  assert.equal(refreshVerdict(table, table, suite, balanceOf(13.3, 12.7)).material, false);
+  const loud = refreshVerdict(table, table, suite, balanceOf(14.95, 12.68));
+  assert.equal(loud.material, true);
+  assert.match(loud.reasons[0], /slowest of 9 shards loses 2\.3 table-minutes/);
+});
+
+// Both packings are scored with the FRESH weights, because the question is what the shard set CI
+// ships today costs in the suite as it really is - not what the stale table believed it cost.
+test('the balance is measured in this recording s minutes, under both tables', async () => {
+  const suite = ['heavy.spec.ts', 'light.spec.ts', 'mid.spec.ts', 'other.spec.ts'];
+  // The table on main thinks every file is the same size; the recording knows one of them grew.
+  const before = tableOf(Object.fromEntries(suite.map((f) => [f, 1])));
+  const after = tableOf({ 'heavy.spec.ts': 6, 'light.spec.ts': 1, 'mid.spec.ts': 1, 'other.spec.ts': 1 });
+  const balance = await shardBalance(before, after, suite);
+  assert.equal(balance.after.slowest, 6, 'the fresh packing gives the heavy file a bin of its own');
+  assert.ok(balance.before.slowest >= 7, `a blind packing pairs it with another file: ${balance.before.slowest}`);
+});
+
+test('the pull request body carries the case, the run, and the review it does not claim', () => {
+  const before = tableOf({ 'a.spec.ts': 100 }, { jobMinutes: 0.5, testFactor: 1.01 }, { run: '111', recordedAt: '2026-09-04' });
+  const after = tableOf({ 'a.spec.ts': 120 }, { jobMinutes: 0.5, testFactor: 1.01 }, { run: '222', recordedAt: '2026-09-16' });
+  const balance = balanceOf(14.7, 12.2);
+  const verdict = refreshVerdict(before, after, ['a.spec.ts'], balance);
+  const body = refreshBody(before, after, verdict, balance);
+  assert.match(body, /run 222/);
+  assert.match(body, /run 111 \(2026-09-04\)/);
+  for (const reason of verdict.reasons) assert.ok(body.includes(reason), `the body is missing: ${reason}`);
+  // The stamp and the auto-merge are the difference between a proposal and a gate editing its own
+  // budget, so the body says out loud that neither is here.
+  assert.match(body, /noacg\/reviewed/);
+  assert.match(body, /queue-merge/);
+  // And the one command a person cannot guess: a token-pushed branch gets no pull request event,
+  // so the `Reviewed` check never runs until somebody asks for it by dispatch.
+  assert.match(body, /gh workflow run ci\.yml --ref bot\/e2e-durations -f require_review=true/);
+});
+
+// THE BRANCH NAME LIVES IN TWO PLACES, because a workflow cannot read a constant out of a module -
+// the workflow pushes it, and the pull request body tells a person to name it in a command. If
+// they ever disagree, the body's instruction names a branch nobody has, which is a dead end
+// discovered by whoever is trying to land the refresh.
+test('the workflow pushes the branch the pull request body tells you to dispatch', () => {
+  const workflow = readFileSync(new URL('../.github/workflows/e2e-durations-refresh.yml', import.meta.url), 'utf8');
+  const branch = /^ {10}BRANCH: (\S+)$/m.exec(workflow);
+  assert.ok(branch, 'e2e-durations-refresh.yml no longer sets BRANCH - this assertion needs updating with it');
+  assert.equal(branch[1], REFRESH_BRANCH);
 });
