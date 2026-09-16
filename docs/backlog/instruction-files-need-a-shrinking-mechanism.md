@@ -68,8 +68,9 @@ failed the test in part - the wave-state file's format (15 lines, now the new ev
 `pushback.md`, which owns sections 4 and 6), the mechanism order behind "every wave improves the
 orchestration system" (already in `coherence.md`, so the core now points there), "where the
 collision pass is UNSURE, chain" with its owner quote (`collisions.md`), the standing-ask owner
-quote and the per-receipt rule (`pushback.md`), and five restatements of mechanics `collisions.md`,
-`routing.md` and `specs.md` already carried word for word. Nothing was ambiguous enough for a
+quote and the per-receipt rule (`pushback.md`), and five restatements of mechanics that
+`collisions.md` already carried word for word or that `routing.md` and `specs.md` now carry after a
+one-sentence addition each. Nothing was ambiguous enough for a
 `walk-p` item. The symbol-survival check the 2026-09-04 entry asked for ran as a scratch script:
 78 backticked tokens in the pre-edit core, 60 still in the core, 18 in a module this branch edited,
 0 lost - and it needed a CRLF normalisation, because `git show` yields LF while the checkout holds
@@ -194,5 +195,5 @@ the compaction ships in the same commit.** Waiting for the answer is the failure
   orchestrator line caps.
 - 2026-09-16: the core is at **168 of 200** lines and the common path at **634 of 640**, with a
   sixth every-plan module (`orchestrator/wave-state.md`). Everything that left the core moved into
-  a module verbatim or was already there word for word; the symbol-survival check found 0 of 78
-  backticked tokens lost. Neither cap moved.
+  a module, most of it verbatim and the rest paraphrased into a sentence the module already had;
+  the symbol-survival check found 0 of 78 backticked tokens lost. Neither cap moved.

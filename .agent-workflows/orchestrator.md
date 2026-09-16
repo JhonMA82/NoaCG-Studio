@@ -145,12 +145,12 @@ These fire while the wave table is being written, before any module is loaded.
 | [`orchestrator/pushback.md`](orchestrator/pushback.md) | section 4, and section 6's questions and pick (*every plan*) |
 | [`orchestrator/prompts.md`](orchestrator/prompts.md) | writing the prompts (*every plan*) - the block, the line rules, the confirmation pass |
 | [`orchestrator/routing.md`](orchestrator/routing.md) | choosing each row's POOL and delegation (*every plan*) |
-| [`orchestrator/wave-state.md`](orchestrator/wave-state.md) | writing the plan into the store (*every plan*) - its headings, and what the plan check refuses |
+| [`orchestrator/wave-state.md`](orchestrator/wave-state.md) | writing the plan into the store (*every plan*) - its headings, and the plan check that gates the launch |
 | [`orchestrator/launch.md`](orchestrator/launch.md) | only after the plan check passes, when the rows are launched: the Agent tool, a classifier refusal, permission prompts |
 | [`orchestrator/night.md`](orchestrator/night.md) | a night wave: follow-ons, continuations, the watch loop |
 | [`orchestrator/report.md`](orchestrator/report.md) | the morning report, after a wave has run |
 | [`orchestrator/recovery.md`](orchestrator/recovery.md) | a launched row came back substantially wrong: repair it, or rewind and redo |
-| [`orchestrator/coherence.md`](orchestrator/coherence.md) | the weekly coherence session, and how a big project is phased |
+| [`orchestrator/coherence.md`](orchestrator/coherence.md) | the weekly coherence session, how a big project is phased, and where a wave's lesson goes |
 | [`orchestrator/specs.md`](orchestrator/specs.md) | substantial work, decomposition, or a SPEC row's dispatch/completion |
 | [`orchestrator/incidents.md`](orchestrator/incidents.md) | the evidence behind a rule, or recording new evidence |
 

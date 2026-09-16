@@ -1,4 +1,4 @@
-# Section 4 - what I would push back on
+# Sections 4 and 6 - what I would push back on, then the questions and one pick
 
 **Mandatory. Never omit it, and never soften it to be agreeable.** The user asked for this section
 because a day was once planned with four of six sessions serving goals the roadmap had explicitly

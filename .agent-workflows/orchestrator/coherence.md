@@ -78,9 +78,10 @@ SESSION builds, or how a WAVE is planned? Only the second belongs here.
    read a contract (`scripts/hooks/`, `docs/AGENT_WORKFLOWS.md`). A hook that can false-positive is
    a warning; a refusal needs an exact test.
 2. **A script or a test**, where the fact can be measured or a script's claim can be pinned - the
-   tick, the drain, the plan check, the receipts. A contract sentence about what a script does, or a number written into prose, is
-   a cache of the instrument; cite the instrument and its test instead. Six such caches went false
-   within a week of the split (`incidents.md`, "the four cached facts of 2026-09-02").
+   tick, the drain, the plan check, the receipts. A contract sentence about what a script does, or
+   a number written into prose, is a cache of the instrument; cite the instrument and its test
+   instead. Six such caches went false within a week of the split (`incidents.md`, "the four
+   cached facts of 2026-09-02").
 3. **Durable state**, where a decision must outlive the session that made it - the wave-state file,
    a receipt, a ledger line.
 4. **Text, last, and by MOVING, never by adding.** Text changes only for a judgement the master
