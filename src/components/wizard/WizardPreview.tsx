@@ -61,6 +61,41 @@ export interface PreviewBoxOverlay {
   align: { h: 'left' | 'centred' | 'right'; v: 'top' | 'middle' | 'bottom' };
 }
 
+/**
+ * HOW FAR ONE BOX MAY GROW, drawn as a line the reader can move (docs/TEXT_BOX_BINDING.md, rung
+ * 4). One per growing box, so a board where the question plate grows and the answers stay shows
+ * exactly one line and says whose it is.
+ *
+ * Everything is a fraction of the ARTWORK's own rect rather than a number of px, because the two
+ * canvases that speak about it are different sizes: the mapping step measures on its hidden
+ * render (`stageMeasure.growCapOf`) and this draws on the running document. A fraction is the
+ * one thing they cannot disagree about, and it is also the unit the emitted rule travels in
+ * (`DesignSvgGrowth.cap`), so what the reader drags IS what the graphic keeps.
+ *
+ * THE LINE IS DRAWN SQUARE TO THE FRAME, which is the one place on this canvas that is right:
+ * the runtime's cap is a distance from the frame's own edge (`svgGrowCap`), so a limit turned
+ * with the plate would describe a boundary the growth does not have.
+ */
+export interface PreviewGrowCap {
+  /** The box this limit belongs to; a drag reports back with it. */
+  id: string;
+  /** The box's own name, so two lines on one canvas say which is which. */
+  label: string;
+  /** Which way out of the box the growth goes: 1 = downward, -1 = upward. */
+  dir: 1 | -1;
+  /** Where the line stands: the margin the growing edge must leave, as a fraction of the
+   *  artwork's height measured from the edge it grows towards. */
+  margin: number;
+  /** The tightest and loosest the drag may reach. A WRONG VALUE IS UNREACHABLE rather than
+   *  warned about: past `min` the growth would cross the frame's safe margin, and past `max` the
+   *  limit would stand inside the box as drawn. */
+  min: number;
+  max: number;
+  /** What the chip beside the line says, in the reader's own terms. Written by the step, which
+   *  is where every other word this canvas shows is written. */
+  note: string;
+}
+
 /** How long the demo holds the settled graphic before taking it off, and how long it stays off
  *  before coming back. Viewing rhythm rather than motion, so these stay fixed: the MOTION is
  *  what the speed knob has to change, and a hold that scaled with it would cancel that out. */
@@ -108,6 +143,18 @@ interface Props {
    * the plain outline is the whole truthful answer there.
    */
   boxOverlay?: PreviewBoxOverlay | null;
+  /**
+   * HOW FAR EACH GROWING BOX MAY REACH (see `PreviewGrowCap`): one draggable line per box that
+   * grows. Empty or absent on a graphic where nothing grows, which is every board and every
+   * scorebug, and the canvas then shows nothing about limits at all.
+   */
+  growCaps?: PreviewGrowCap[];
+  /** The element those fractions are OF - the artwork itself, which is the frame the runtime
+   *  measures its cap against (`.{prefix}-art`). Tracked like any other selector. */
+  capIn?: string | null;
+  /** A line the reader moved, as the new margin. Clamped before it is reported, so this never
+   *  carries a value the growth could not keep. */
+  onCapDrag?: (id: string, margin: number) => void;
   /**
    * ADD A FIELD BY DRAWING ONE (docs/SVG_IMPORT_PLAN.md §6a step 3). A selector inside the
    * running document: the space a drawn box is reported IN, as fractions of that element's own
@@ -175,6 +222,9 @@ export default function WizardPreview({
   demoText = null,
   highlightSelector,
   boxOverlay = null,
+  growCaps,
+  capIn,
+  onCapDrag,
   drawIn,
   drawing = false,
   onDraw,
@@ -189,7 +239,8 @@ export default function WizardPreview({
   // so a surface asking for one is already asking for the other - and a prop that changes on
   // every hover must never decide what the DOCUMENT is composed with, or pointing at a row
   // would rebuild the graphic underneath it.
-  const tracking = highlightSelector !== undefined || drawIn !== undefined || pickable !== undefined;
+  const tracking =
+    highlightSelector !== undefined || drawIn !== undefined || pickable !== undefined || capIn !== undefined;
   // The box overlay's own selector, as a stable value to depend on (the object is fresh each
   // render of the step above, exactly like `pickable`).
   const boxSel = boxOverlay?.selector ?? '';
@@ -377,7 +428,7 @@ export default function WizardPreview({
   // document, so a rebuilt one starts with nothing tracked until it is told again).
   const trackSelector = useCallback(() => {
     if (!tracking) return;
-    const selectors = [...new Set([highlightSelector, drawIn, ...pickKey.split('|')])].filter(
+    const selectors = [...new Set([highlightSelector, drawIn, capIn, ...pickKey.split('|')])].filter(
       (s): s is string => !!s,
     );
     // Only the highlighted LINE wants a frame - the box overlay is stated in that line's units
@@ -398,7 +449,7 @@ export default function WizardPreview({
     if (framed.length === 0) setFrames({});
     // The pickable set is depended on as a KEY, not as the array: a fresh array identity every
     // render would re-post `track` on every render of the step above.
-  }, [tracking, highlightSelector, boxSel, drawIn, pickKey]);
+  }, [tracking, highlightSelector, boxSel, drawIn, capIn, pickKey]);
   useEffect(trackSelector, [trackSelector]);
 
   const playIn = useCallback(() => {
@@ -459,6 +510,31 @@ export default function WizardPreview({
     if (!(r.width > 0) || !(r.height > 0)) return null;
     return { x: ((ev.clientX - r.left) * width) / r.width, y: ((ev.clientY - r.top) * height) / r.height };
   };
+
+  // ── MOVING A GROWTH LIMIT (docs/TEXT_BOX_BINDING.md, rung 4) ──
+  // The line is dragged on the canvas it limits, and EVERY VALUE IT CAN REACH IS A VALUE THE
+  // GROWTH CAN KEEP: the pointer is clamped between the frame's safe margin and the box's own
+  // drawn edge before anything is reported, so there is no wrong answer to warn about. The step
+  // owns those two numbers, because it measured them off the artwork.
+  //
+  // Reported on every MOVE rather than on the drop, so the sentence beside the line and the line
+  // itself stay one thing. The document is rebuilt on a debounce, so a drag costs one rebuild
+  // when it settles rather than one per frame.
+  const capRect = capIn ? rects[capIn] ?? null : null;
+  const [capGrabbed, setCapGrabbed] = useState<string | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  /** A pointer position as this cap's own margin, clamped - null while nothing can be measured. */
+  const capMarginAt = (ev: React.PointerEvent, cap: PreviewGrowCap): number | null => {
+    const el = overlayRef.current;
+    if (!el || !capRect || !(capRect.height > 0)) return null;
+    const r = el.getBoundingClientRect();
+    if (!(r.height > 0)) return null;
+    const y = ((ev.clientY - r.top) * height) / r.height; // canvas px, as the rects are
+    const from = (y - capRect.top) / capRect.height; // down from the artwork's top
+    return capClamp(cap, cap.dir > 0 ? 1 - from : from);
+  };
+  const capClamp = (cap: PreviewGrowCap, margin: number) =>
+    Math.min(cap.max, Math.max(cap.min, margin));
 
   // ── The pick hit-test (plan §6a step 5) ──
   // WHICH LAYER IS UNDER THIS POINT, answered from the pushed rect map. A rect carries no paint
@@ -702,8 +778,9 @@ export default function WizardPreview({
             room around the layer are the two things corrected back OUT of that scale, because
             they are drawn for the reader rather than for the artwork: at the default fit a 2px
             rule would paint half a pixel and a 4px gap would close to one. */}
-        {(hoverRect || outlineFrame || drawing || picking) && (
+        {(hoverRect || outlineFrame || drawing || picking || (growCaps?.length ?? 0) > 0) && (
           <div
+            ref={overlayRef}
             className="wz-stage-overlay"
             style={{ width, height, transform: `translate(-50%, -50%) scale(${z}) translate(${tx}px, ${ty}px)` }}
           >
@@ -846,6 +923,80 @@ export default function WizardPreview({
                 )}
               </div>
             )}
+            {/* HOW FAR EACH GROWING BOX MAY REACH. Last on the stage, so its grab strip takes the
+                pointer back from the pick layer under it - and not drawn at all while a field is
+                being drawn, because that drag owns the whole canvas.
+                The line spans the ARTWORK rather than the stage: it is a limit on the artwork's
+                own frame, which is what the runtime measures its cap against, and a rule running
+                out over the black would claim the stage means something. */}
+            {capRect && !drawing && (growCaps ?? []).map((cap) => {
+              const at = cap.dir > 0 ? 1 - cap.margin : cap.margin;
+              // A step a key press moves the line by: half a percent of the frame, which is a
+              // few px on a 1080 artwork - fine enough to land on a line count and coarse enough
+              // to cross the whole gap in a few seconds of holding the key.
+              const step = 0.005;
+              const nudge = (down: number) => {
+                if (!onCapDrag) return;
+                onCapDrag(cap.id, capClamp(cap, cap.margin + (cap.dir > 0 ? -down : down) * step));
+              };
+              return (
+                <div
+                  key={cap.id}
+                  className={`wz-stage-cap${capGrabbed === cap.id ? ' grabbed' : ''}`}
+                  data-testid={`wz-preview-cap-${cap.id}`}
+                  /* The margin as it stands, for a spec that has to read where the drag landed
+                     rather than where it was aimed. */
+                  data-margin={cap.margin.toFixed(4)}
+                  style={{
+                    left: capRect.left,
+                    top: capRect.top + capRect.height * at,
+                    width: capRect.width,
+                    borderTopWidth: Math.max(1, 2 / z),
+                  }}
+                >
+                  <div
+                    className="wz-stage-cap-grab"
+                    data-testid={`wz-preview-cap-grab-${cap.id}`}
+                    role="slider"
+                    tabIndex={0}
+                    aria-label={`How far ${cap.label} may grow`}
+                    /* Stated as the margin in percent of the frame, which is the number the line
+                       IS: bigger means the growth stops further from the edge. */
+                    aria-valuemin={Math.round(cap.min * 100)}
+                    aria-valuemax={Math.round(cap.max * 100)}
+                    aria-valuenow={Math.round(cap.margin * 100)}
+                    aria-valuetext={cap.note}
+                    style={{ height: Math.max(9, 14 / z), top: -Math.max(9, 14 / z) / 2 }}
+                    onPointerDown={(ev) => {
+                      ev.stopPropagation();
+                      ev.currentTarget.setPointerCapture(ev.pointerId);
+                      setCapGrabbed(cap.id);
+                    }}
+                    onPointerMove={(ev) => {
+                      if (capGrabbed !== cap.id) return;
+                      const m = capMarginAt(ev, cap);
+                      if (m != null) onCapDrag?.(cap.id, m);
+                    }}
+                    onPointerUp={() => setCapGrabbed(null)}
+                    onPointerCancel={() => setCapGrabbed(null)}
+                    /* THE SAME LIMIT FROM THE KEYBOARD. A line that can only be reached with a
+                       pointer is a control half the readers of this step do not have. */
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'ArrowDown') nudge(1);
+                      else if (ev.key === 'ArrowUp') nudge(-1);
+                      else return;
+                      ev.preventDefault();
+                    }}
+                  />
+                  <span
+                    className="wz-stage-cap-note"
+                    style={{ transform: `scale(${1 / z})`, transformOrigin: 'left bottom' }}
+                  >
+                    {cap.note}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

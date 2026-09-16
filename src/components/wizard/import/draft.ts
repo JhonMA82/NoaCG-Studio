@@ -555,6 +555,22 @@ export interface SvgStretchDraft {
    * this feature was written under (owner walk, 2026-09-03, on the answer count).
    */
   perPanel?: Record<string, SvgStretchMode>;
+  /**
+   * HOW FAR A BOX MAY GROW, per box and per axis (docs/TEXT_BOX_BINDING.md, rung 4).
+   *
+   * The value is the margin the growing edge must LEAVE on the side it grows towards, as a
+   * fraction of the frame on that axis - the same number `DesignSvgGrowth.cap` carries, because
+   * the step writes it and the runtime reads it and a second spelling is how the cap line on the
+   * preview and the limit on air drift apart.
+   *
+   * Absent means the design's own margin mirrored, which is what the runtime has always derived
+   * (`svgGrowCap`) - so an import nobody dragged a cap line on emits the bytes it always did.
+   * Keyed by the BOX for the reason `perPanel` is: growth is something a rectangle does for
+   * whatever text sits inside it. Keyed by AXIS under it because a box told to get wider AND
+   * taller is two rules, and a cap belongs to one of them - the reader who pulls the bottom
+   * limit in has said nothing about how wide the box may get.
+   */
+  caps?: Record<string, { x?: number; y?: number }>;
 }
 
 /** Does this marker still name something in the file? A follower the reader declared and then
@@ -642,15 +658,25 @@ function svgGrowthOptions(draft: SvgImportDraft): DesignSvgGrowth[] | undefined 
   for (const shape of shapes) {
     for (const axis of axesOf.get(shape.id) ?? []) {
       const carries = shape.id === graphicWide && axis === carrier;
-      rows.push({ candidateId: shape.id, axis, ...(carries ? followers : {}) });
+      // THE CAP RIDES ITS OWN ROW, and only where the reader moved it: a box whose limit is
+      // still the design's own margin mirrored emits no `cap` at all, and the runtime derives
+      // the same number it always derived.
+      const cap = draft.svgStretch.caps?.[shape.id]?.[axis];
+      rows.push({
+        candidateId: shape.id,
+        axis,
+        ...(cap != null ? { cap } : {}),
+        ...(carries ? followers : {}),
+      });
     }
   }
   return rows;
 }
 
 /** The ladder rung a stored axis means. The draft has always held the axis; the rung is how a
- *  person picks, and a per-plate override is stored as the rung it was picked as. */
-function modeOfAxis(axis: 'x' | 'y' | 'xy' | undefined): SvgStretchMode {
+ *  person picks, and a per-plate override is stored as the rung it was picked as. Exported so
+ *  the step reads one box's answer with the same function the emitter writes it with. */
+export function modeOfAxis(axis: 'x' | 'y' | 'xy' | undefined): SvgStretchMode {
   return axis === 'y' ? 'grow-y' : axis === 'xy' ? 'grow-xy' : 'grow-x';
 }
 

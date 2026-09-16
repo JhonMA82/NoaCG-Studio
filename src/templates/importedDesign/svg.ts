@@ -116,8 +116,10 @@ const LAYOUT_EL_ATTR = 'data-noacg-el';
  *  commit, the doctrine docs/STATE_MACHINE_SCHEMA.md §5 states and `blocks/animData.ts` keeps. */
 const LAYOUT_VERSION = 1;
 /** How close to the frame's edge a growing element may get, as a fraction of the frame. The
- *  hug's original constant: growing off the screen was never a fit (plan §3). */
-const PANEL_SAFE = 0.04;
+ *  hug's original constant: growing off the screen was never a fit (plan §3). Exported because
+ *  it is the floor the wizard's cap line stops at (`stageMeasure.growCapOf`), and a second copy
+ *  of it is how the limit a reader can reach and the limit the runtime keeps drift apart. */
+export const PANEL_SAFE = 0.04;
 
 const growToken = (i: number) => `g${i}`;
 const followToken = (i: number, j: number) => `g${i}f${j}`;
@@ -1722,8 +1724,15 @@ function layoutDataJs(svg: DesignSvg, labelOf: (candidateId: string) => string):
     const note = rule.followers?.length
       ? `${rule.followers.length} layer(s) travel with it`
       : 'whatever is drawn past its moving edge travels with it';
-    return `    // "${labelOf(rule.candidateId)}" grows ${way}; ${note}.
-    { el: '${growToken(i)}', axis: '${axis}', safe: ${PANEL_SAFE}${followers} }`;
+    // THE LIMIT THE AUTHOR SET, where they set one: written as the margin it keeps, so the row
+    // says the same thing the wizard's cap line showed them. A row without it keeps the
+    // design's own margin mirrored, which is every graphic emitted before caps existed.
+    const cap = rule.cap != null ? `, cap: ${Number(rule.cap.toFixed(4))}` : '';
+    const stops = rule.cap != null
+      ? ` It stops ${Math.round(rule.cap * 100)}% of the frame short of the edge it grows towards.`
+      : '';
+    return `    // "${labelOf(rule.candidateId)}" grows ${way}; ${note}.${stops}
+    { el: '${growToken(i)}', axis: '${axis}', safe: ${PANEL_SAFE}${cap}${followers} }`;
   });
   // HOW A LINE SITS IN ITS BOX, for the lines the author SAID it about (docs/TEXT_BOX_BINDING.md,
   // "Alignment"). Every other line is read off the drawing at play time, so the list is left out
@@ -1750,7 +1759,10 @@ ${said.join(',\n')}
 // Nothing here is elastic by default: a graphic with an empty table never moves, which is what
 // every board and every scorebug wants. Each row names one element by the data-noacg-el stamp
 // it carries in the artwork above, the axis it may grow on, and how close to the frame's edge
-// it may get (\`safe\`, a fraction of the frame). A row with its own \`followers\` list moves
+// it may get (\`safe\`, a fraction of the frame). \`cap\` is a tighter limit the author set by
+// hand: the margin the growing edge must leave on the side it grows towards, as a fraction of
+// the frame. Leave it out and the element keeps the margin the design drew on its other side.
+// A row with its own \`followers\` list moves
 // exactly those layers; a row without one falls back to measuring what sits past the growing
 // edge, which is a fair guess sideways and a poor one downwards - so a vertical rule is
 // normally written with its followers spelled out.
@@ -2021,13 +2033,26 @@ function svgGrowDir(rule, el, frame) {
 function svgGrowCap(rule, el, frame, dir) {
   var box = el.getBoundingClientRect();
   if (rule.axis !== 'y') {
-    return dir < 0
-      ? frame.left + Math.max(frame.right - box.right, frame.width * rule.safe)
-      : frame.right - Math.max(box.left - frame.left, frame.width * rule.safe);
+    var mirroredX = dir < 0 ? frame.right - box.right : box.left - frame.left;
+    var marginX = svgCapMargin(rule, frame.width, mirroredX);
+    return dir < 0 ? frame.left + marginX : frame.right - marginX;
   }
-  return dir < 0
-    ? frame.top + Math.max(frame.bottom - box.bottom, frame.height * rule.safe)
-    : frame.bottom - Math.max(box.top - frame.top, frame.height * rule.safe);
+  var mirroredY = dir < 0 ? frame.bottom - box.bottom : box.top - frame.top;
+  var marginY = svgCapMargin(rule, frame.height, mirroredY);
+  return dir < 0 ? frame.top + marginY : frame.bottom - marginY;
+}
+
+/** THE MARGIN THE GROWING EDGE KEEPS, in screen px: the author's own cap where the table carries
+ *  one, else the design's mirrored margin - and never tighter than the rule's safe margin either
+ *  way. So a cap can only ever bring the limit IN, and a declared one can no more reach the
+ *  screen's edge than a derived one can (docs/TEXT_BOX_BINDING.md, rung 4).
+ *
+ *  The span is the frame on this rule's axis, and the mirrored margin is the one the design left
+ *  on the side the element is anchored to. A panel growing from its MIDDLE mirrors nothing -
+ *  both its sides are the same side - and passes zero, which leaves the safe margin standing
+ *  exactly as it did before caps existed. */
+function svgCapMargin(rule, span, mirrored) {
+  return Math.max(rule.cap != null ? span * rule.cap : mirrored, span * rule.safe);
 }
 
 /** EVERYTHING THAT MOVES WHEN THIS PANEL GROWS, as one screen rectangle: the panel and every
@@ -2073,7 +2098,7 @@ function svgGrowRoom(rule, el, frame, dir, rest) {
   var box = svgMovingBox(rest, el.getBoundingClientRect());
   if (dir === 0) {
     var nearer = Math.min(box.left - frame.left, frame.right - box.right);
-    return Math.max(0, 2 * (nearer - frame.width * rule.safe));
+    return Math.max(0, 2 * (nearer - svgCapMargin(rule, frame.width, 0)));
   }
   var cap = svgGrowCap(rule, el, frame, dir);
   var edge = rule.axis === 'y'

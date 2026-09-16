@@ -255,8 +255,16 @@ async function walk(page, fixture, base) {
         .count()
         .catch(() => 0);
 
-      const mode = page.getByTestId('map-svg-stretch-mode');
-      got.ladder = (await mode.isVisible().catch(() => false)) ? await mode.inputValue() : null;
+      // THE ANSWER THE STEP ARRIVED AT, off the heading of the first box that grows: growth is
+      // chosen per box now (docs/TEXT_BOX_BINDING.md, rung 4), and this column is one answer per
+      // FILE, which is what every sidecar states.
+      const boxes = page.locator('[data-testid^="map-svg-box-grow-"]');
+      got.ladder = null;
+      for (let i = 0; i < (await boxes.count().catch(() => 0)); i += 1) {
+        const value = await boxes.nth(i).inputValue();
+        got.ladder = got.ladder === null || value !== 'shrink' ? value : got.ladder;
+        if (value !== 'shrink') break;
+      }
 
       for (const warn of await page.locator('[data-testid^="map-svg-font-warn-"]').all()) {
         got.fontWarnings.push(((await warn.getAttribute('data-testid')) ?? '').replace('map-svg-font-warn-', ''));
@@ -596,7 +604,9 @@ async function walkLadder(page, fixture, base) {
       }
     }
 
-    const modeSelect = page.getByTestId('map-svg-stretch-mode');
+    // The FIRST box, which is the plate the graphic-wide picker used to name: this instrument
+    // asks what each RUNG does to a file, not how many plates can be told to grow at once.
+    const modeSelect = page.locator('[data-testid^="map-svg-box-grow-"]').first();
     const hasModes = await modeSelect.isVisible().catch(() => false);
     const modes = hasModes ? LADDER_MODES : ['(no growth control)'];
 

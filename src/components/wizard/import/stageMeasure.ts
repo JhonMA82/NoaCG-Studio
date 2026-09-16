@@ -24,7 +24,7 @@
 
 import { parseCssColor } from '../../../model/cssVars';
 import { transformedBox } from '../../../assets/svgGeometry';
-import { SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_LINE_HEIGHT } from '../../../templates/importedDesign/svg';
+import { PANEL_SAFE, SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_LINE_HEIGHT } from '../../../templates/importedDesign/svg';
 import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import type { DesignSvgAlign } from '../../../templates/importedDesign/designTypes';
 import type { PreviewBoxOverlay } from '../WizardPreview';
@@ -602,6 +602,122 @@ export function boxFitOf(
     },
     type,
   };
+}
+
+/**
+ * HOW FAR A BOX MAY GET TALLER, AND WHERE THAT LIMIT STANDS (docs/TEXT_BOX_BINDING.md, rung 4).
+ *
+ * The mirror of `svgGrowCap`, measured here so the reader can SEE the limit and move it. Every
+ * margin comes back as a fraction of the frame on the growing axis, which is the unit the rule
+ * travels in (`DesignSvgGrowth.cap`) and the unit the preview draws in - the step measures on
+ * its own hidden render of the artwork and the preview draws on the running document, and a
+ * fraction of the frame is the one thing both canvases agree on whatever either is scaled to.
+ *
+ * ONLY THE TALLER AXIS, which is a departure from the design and is recorded there. Downwards
+ * the runtime has one answer - the side with more room - and downwards is where the owner's
+ * "we shouldn't be able to put one page of text" lives. Sideways it chooses between three
+ * directions at play time from what the lines inside ask for (`svgGrowDir`), and two of them
+ * spend the margin on BOTH sides, so one line drawn on one edge would be a limit the reader can
+ * see on one side of the box and not on the other.
+ */
+export interface GrowCapFit {
+  /** Which way out of the box the growth goes: 1 = downward, -1 = upward. `svgGrowDir`'s own
+   *  rule for this axis - the side with more room between the box and the frame. */
+  dir: 1 | -1;
+  /** Where the limit stands today, as a fraction of the frame's height: the margin the growing
+   *  edge must leave. The design's own margin mirrored, floored at `min` and - where the design
+   *  leaves the box no room at all - clamped at `max`, which is the honest picture of a box that
+   *  cannot grow: its limit is its own edge. */
+  drawn: number;
+  /** The tightest the reader may pull it: the frame's safe margin. */
+  min: number;
+  /** The loosest: the margin that puts the limit exactly on the box's drawn edge. Past it the
+   *  limit would be INSIDE the box as drawn, which is why the drag stops here. */
+  max: number;
+  /** The box as drawn, as fractions of the frame - what the preview draws the line against. */
+  box: { x: number; y: number; w: number; h: number };
+  /** The frame's height, the height the drawn box already gives its text, and one line at the
+   *  size it was drawn - all in the step's own px, so `capLines` divides like with like. `line`
+   *  is null where no line inside the box could be measured, and the count is then not offered. */
+  frame: number;
+  inside: number;
+  line: number | null;
+}
+
+/** HOW MANY LINES THE BOX HOLDS AT A GIVEN LIMIT, at the size the text was drawn - the owner's
+ *  "we shouldn't be able to put one page of text", derived from the cap rather than asked as a
+ *  second question. The room the drawn box already has plus whatever the limit adds, over one
+ *  drawn line. Never less than one: a box holds the line inside it whatever the arithmetic says
+ *  about its margins. */
+export function capLines(fit: GrowCapFit, margin: number): number | null {
+  if (!fit.line || !(fit.line > 0)) return null;
+  // The box's growing edge, as a fraction measured from the frame edge it grows towards - the
+  // one expression that reads both ways round, because a margin is measured from that same edge.
+  const edge = fit.dir > 0 ? fit.box.y + fit.box.h : 1 - fit.box.y;
+  const growth = Math.max(0, 1 - margin - edge) * fit.frame;
+  return Math.max(1, Math.floor((fit.inside + growth) / fit.line));
+}
+
+export function growCapOf(stage: HTMLElement, boxId: string, lineIds: string[]): GrowCapFit | null {
+  const root = stage.querySelector('svg');
+  const boxEl = markerEl(stage, boxId);
+  if (!root || !boxEl) return null;
+  stage.setAttribute('data-reveal', '');
+  try {
+    const frame = root.getBoundingClientRect();
+    const box = boxEl.getBoundingClientRect();
+    if (!(frame.height > 0) || !(box.height > 0)) return null;
+    const above = box.top - frame.top;
+    const below = frame.bottom - box.bottom;
+    // `svgGrowDir`, verbatim for this axis: the panel grows towards whichever side of it has
+    // more room, so a plate drawn near the bottom of the frame grows UP rather than off it.
+    const dir: 1 | -1 = below < above ? -1 : 1;
+    const min = PANEL_SAFE;
+    // The margin that would put the limit on the box's own drawn edge: the whole gap between
+    // that edge and the frame. A box already standing inside the safe margin has no room to
+    // grow at all, and gets no line rather than one that cannot move.
+    const max = (dir > 0 ? below : above) / frame.height;
+    if (!(max > min)) return null;
+    const mirrored = (dir > 0 ? above : below) / frame.height;
+    const lines = lineIds
+      .map((id) => {
+        const fit = boxFitOf(stage, id, boxId);
+        const el = markerEl(stage, id) as SVGGraphicsElement | null;
+        const m = el?.getScreenCTM?.();
+        if (!fit || !m) return null;
+        // The line's own units into this stage's px, so the count is arithmetic on one scale.
+        const k = Math.hypot(m.a, m.b) || 1;
+        return {
+          line: fit.type * SVG_LINE_HEIGHT * k,
+          inside: Math.max(0, (fit.box.height - 2 * fit.insetY) * k),
+        };
+      })
+      .filter((l): l is { line: number; inside: number } => !!l);
+    // THE BIGGEST TYPE IN THE BOX decides the count, because it is what wrapping is bounded by:
+    // a box holding a 56 px name over a 30 px role takes fewer lines than the role alone would
+    // suggest, and a count that promised the smaller number would promise room that is not there.
+    const biggest = lines.reduce<{ line: number; inside: number } | null>(
+      (best, l) => (!best || l.line > best.line ? l : best),
+      null,
+    );
+    return {
+      dir,
+      drawn: Math.min(Math.max(mirrored, min), max),
+      min,
+      max,
+      box: {
+        x: (box.left - frame.left) / frame.width,
+        y: (box.top - frame.top) / frame.height,
+        w: box.width / frame.width,
+        h: box.height / frame.height,
+      },
+      frame: frame.height,
+      inside: biggest?.inside ?? 0,
+      line: biggest?.line ?? null,
+    };
+  } finally {
+    stage.removeAttribute('data-reveal');
+  }
 }
 
 /**

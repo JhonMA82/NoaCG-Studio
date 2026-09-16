@@ -37,6 +37,24 @@ async function dropSvgMarkup(page: Page, markup: string, name = 'design.svg') {
   });
 }
 
+/**
+ * WHAT ONE BOX DOES WITH A LONG VALUE, on the checklist heading that names it
+ * (docs/TEXT_BOX_BINDING.md, rung 4). Growth is chosen per box and the shape is never asked
+ * for, because the row IS the shape - so this is where the graphic-wide picker used to be.
+ *
+ * BY POSITION IN THE CHECKLIST, which is the artwork's own order: the marker ids behind the
+ * headings are the importer's business, and a spec that spelled them out would be testing the
+ * inventory rather than the control.
+ */
+function boxGrow(page: Page, n = 0) {
+  return page.getByTestId('map-svg-fields').locator('[data-testid^="map-svg-box-grow-"]').nth(n);
+}
+
+/** Every box's answer at once, for a file where the claim is about all of them. */
+function boxGrows(page: Page) {
+  return page.getByTestId('map-svg-fields').locator('[data-testid^="map-svg-box-grow-"]');
+}
+
 /** Create from wherever the walk stands and land in the editor. */
 async function createProject(page: Page) {
   await awaitPreviewRebuild(page, async () => {
@@ -1327,7 +1345,7 @@ test('svg import: a value fills the panel it was drawn in before any of it shrin
   await page.locator('.wz-next').click();
   // This test pins the SHRINK ladder, and a banner-shaped file now defaults to growing
   // (GOALS goal 5) - so the shrink path is chosen explicitly, as an author would.
-  await page.getByTestId('map-svg-stretch-mode').selectOption('shrink');
+  await boxGrow(page).selectOption('shrink');
   await createProject(page);
 
   const frame = previewFrame(page);
@@ -1373,7 +1391,7 @@ test('svg import: copy too long for any size floors instead of vanishing, and sa
   // keeps, and reports the field rather than clipping the copy or reshaping the artwork.
   await dropSvgMarkup(page, LADDER_SVG, 'ladder.svg');
   await page.locator('.wz-next').click();
-  await page.getByTestId('map-svg-stretch-mode').selectOption('shrink'); // the shrink ladder is under test
+  await boxGrow(page).selectOption('shrink'); // the shrink ladder is under test
   await createProject(page);
 
   const state = await previewFrame(page).locator('#f0').evaluate((el) => {
@@ -1467,7 +1485,7 @@ test('svg import: a lower third climbs the ladder in order — wider, then onto 
   await page.locator('.wz-next').click();
   // THE MEASURED DEFAULT IS THE WHOLE LADDER, not its first rung: the owner walked this file
   // without touching the dropdown, and 'the panel gets wider' alone skips the wrap rung.
-  await expect(page.getByTestId('map-svg-stretch-mode')).toHaveValue('grow-xy');
+  await expect(boxGrow(page)).toHaveValue('grow-xy');
   await createProject(page);
 
   const drawn = await ladderState(page, 'Alexandra Riva');
@@ -1984,7 +2002,7 @@ const GROW_DOWN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920
 test('svg import: a panel told to grow taller wraps into the new height instead of shrinking', async ({ page }) => {
   await dropSvgMarkup(page, GROW_DOWN_SVG, 'grow-down.svg');
   await page.locator('.wz-next').click();
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-y');
+  await boxGrow(page).selectOption('grow-y');
   await createProject(page);
 
   const frame = previewFrame(page);
@@ -2047,7 +2065,7 @@ test('svg import: growing downwards settles on ONE geometry, whatever order the 
   // the answer does not depend on what was on screen before.
   await dropSvgMarkup(page, GROW_DOWN_SVG, 'grow-down.svg');
   await page.locator('.wz-next').click();
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-y');
+  await boxGrow(page).selectOption('grow-y');
   await createProject(page);
 
   const LONG = 'Which city hosted the first modern Olympic Games of the modern era?';
@@ -2174,25 +2192,25 @@ test('svg import: dragging a rectangle makes it the growing panel, and says whic
   // A banner with its name drawn inside it arrives already growing (GOALS goal 5), read from
   // the artwork - the whole ladder, since the measured default is no longer only its first rung
   // (owner walk 2026-08-29). The gestures below still own the answer.
-  const mode = page.getByTestId('map-svg-stretch-mode');
-  const only = page.getByTestId('map-svg-stretch-only');
+  const mode = boxGrow(page);
+  const head = page.getByTestId('map-svg-fields').locator('.map-svg-box-head').first();
   await expect(mode).toHaveValue('grow-xy');
-  // ONE rectangle holds the name, so there is no question and no picker - the shape is named
-  // instead (owner walk, 2026-09-01).
-  await expect(page.getByTestId('map-svg-stretch-shape')).toHaveCount(0);
-  await expect(only).toContainText('Banner');
+  // THE SHAPE IS NEVER ASKED FOR, because the row IS the shape: one heading, naming the
+  // rectangle the name sits in, with the answer on it.
+  await expect(boxGrows(page)).toHaveCount(1);
+  await expect(head).toContainText('Banner');
   await awaitPickable(page, [0.11, 0.79]);
 
   // A drag ACROSS the banner says "grow this one, sideways" in one gesture - the relationship
   // stops being dropdown-authored, which is the whole of step 5.
   await pickOnCanvas(page, [0.25, 0.85], [0.36, 0.85]);
   await expect(mode).toHaveValue('grow-x');
-  await expect(only).toContainText('Banner');
+  await expect(head).toContainText('Banner');
 
   // A drag DOWN the same rectangle changes the direction without touching the picker.
   await pickOnCanvas(page, [0.25, 0.80], [0.25, 0.93]);
   await expect(mode).toHaveValue('grow-y');
-  await expect(only).toContainText('Banner');
+  await expect(head).toContainText('Banner');
 
   // Clicking the panel that is already growing, with no direction, turns it off again: the
   // gesture is its own undo, so nothing here is a one-way door either.
@@ -2225,10 +2243,10 @@ test('svg import: the followers of a growing panel are proposed, then become the
   // sideways by the measured default, but nothing is drawn past its right edge, so the
   // follower question would be a control with no effect - and it does not render.
   await expect(page.getByTestId('map-svg-followers')).toHaveCount(0);
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-y');
+  await boxGrow(page).selectOption('grow-y');
   // The board is the only rectangle the question is drawn inside, so it is already the grower
   // and there is no picker to press (owner walk, 2026-09-01).
-  await expect(page.getByTestId('map-svg-stretch-only')).toContainText('Board');
+  await expect(page.getByTestId('map-svg-fields').locator('.map-svg-box-head').first()).toContainText('Board');
 
   // THE PROPOSAL, measured off the artwork: everything drawn below the board. It says so - the
   // reader must be able to tell a guess from their own answer.
@@ -2266,49 +2284,140 @@ test('svg import: the followers of a growing panel are proposed, then become the
   expect(table.match(/mode: '/g)).toHaveLength(1);
 });
 
-// TWO rectangles, each with a line of its own drawn inside it - the only shape that raises the
-// "which one grows?" question at all, now that a rectangle holding no bound line is never offered
-// (it is granted zero by the runtime, so choosing it does nothing). Widest first, tied and in
-// document order: s0 Board, s1 Caption. The frame-bottom strap holds no text, so it is neither a
-// candidate nor an option.
-const TWO_PANEL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
-  <rect id="Board" x="300" y="200" width="1200" height="110" rx="8" fill="#0d1017"/>
-  <text id="Question" x="340" y="270" font-size="44" fill="#ffffff">Which city?</text>
-  <rect id="Caption" x="300" y="340" width="1200" height="70" rx="8" fill="#f6a623"/>
-  <text id="Answer" x="340" y="392" font-size="34" fill="#101010">Helsinki</text>
-  <rect id="Strap" x="0" y="1000" width="1000" height="60" fill="#20242c"/>
+// ── GROWTH IS CHOSEN PER BOX (docs/TEXT_BOX_BINDING.md, rung 4) ───────────────────────────
+// The owner, on his own quiz board: "What if you want it to react differently between the
+// question and the answer?" One answer for the whole graphic could not say it, so it is now the
+// BOX that says it, on the checklist heading that already names it - and the shape is never
+// asked for, because the row is the shape.
+//
+// Two plates, each holding its own line, with real room around both: the board may get taller
+// and the pill may get wider, and neither answer is allowed to reach the other's plate.
+const TWO_BOX_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect id="Board" x="300" y="140" width="1000" height="120" rx="8" fill="#0d1017"/>
+  <text id="Question" x="340" y="212" font-size="44" fill="#ffffff">Which city?</text>
+  <rect id="Pill" x="300" y="300" width="1000" height="120" rx="8" fill="#f6a623"/>
+  <text id="Answer" x="340" y="372" font-size="40" fill="#101010">Helsinki</text>
 </svg>`;
 
-test('svg import: picking WHICH shape grows does not quietly change which WAY', async ({ page }) => {
-  // A real defect, found by the test above rather than by reading the code: the panel picker
-  // rebuilt the whole answer as a fresh object, so choosing a panel dropped the direction the
-  // reader had just chosen and sent a "grows taller" graphic back to growing sideways - with
-  // nothing on screen to say it had happened. Two controls, one of them silently resetting the
-  // other, is the kind of thing only a walk catches.
-  await dropSvgMarkup(page, TWO_PANEL_SVG, 'two-panel.svg');
+test('svg import: two boxes in one graphic grow differently', async ({ page }) => {
+  await dropSvgMarkup(page, TWO_BOX_SVG, 'two-box.svg');
   await page.locator('.wz-next').click();
 
-  const mode = page.getByTestId('map-svg-stretch-mode');
-  await mode.selectOption('grow-y');
-  await expect(page.getByTestId('map-svg-stretch')).toContainText('the panel gets taller');
+  // One heading per box, each with its own answer on it, and no picker anywhere asking which
+  // shape is meant.
+  await expect(boxGrows(page)).toHaveCount(2);
+  await boxGrow(page, 0).selectOption('grow-y');
+  await boxGrow(page, 1).selectOption('grow-x');
+  // NEITHER ANSWER DISTURBS THE OTHER. The graphic-wide picker could only hold one shape and one
+  // direction, so the second answer used to overwrite the first.
+  await expect(boxGrow(page, 0)).toHaveValue('grow-y');
+  await expect(boxGrow(page, 1)).toHaveValue('grow-x');
+  await expect(page.getByTestId('map-svg-stretch')).toContainText('2 boxes grow');
 
-  // The picker is here because there really are two answers, and it offers exactly those two -
-  // never the strap, which holds no line and could only ever be a no-op. Its label names what
-  // the reader will watch happen rather than our model of it.
-  const shape = page.getByTestId('map-svg-stretch-shape');
-  await expect(shape.locator('option')).toHaveText(['Board — 1200 × 110', 'Caption — 1200 × 70']);
-  await expect(page.getByTestId('map-svg-stretch')).toContainText('Which shape gets taller');
+  await createProject(page);
+  const table = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)![0];
+  });
+  // Two rules, one per box, on different axes - which is what "per box" means in the format.
+  expect(table.match(/axis: '/g)).toHaveLength(2);
+  expect(table).toContain("axis: 'y'");
+  expect(table).toContain("axis: 'x'");
 
-  // Pick a DIFFERENT panel, then the original one back. Neither may touch the direction.
-  await page.getByTestId('map-svg-stretch-shape').selectOption('s1');
-  await expect(mode).toHaveValue('grow-y');
-  await page.getByTestId('map-svg-stretch-shape').selectOption('s0');
-  await expect(mode).toHaveValue('grow-y');
-  await expect(page.getByTestId('map-svg-stretch')).toContainText('the panel gets taller');
+  // AND THE GRAPHIC DOES IT. A long question makes the board taller and leaves the pill exactly
+  // as drawn; a long answer widens the pill and leaves the board alone. The table saying two
+  // different things is worth nothing if the artwork does one of them to both plates.
+  // TWO KINDS OF LONG VALUE, because the two rungs answer different things: a box gets TALLER by
+  // wrapping, which needs a value with somewhere to break, and it gets WIDER for a value that
+  // cannot break at all.
+  const grown = await previewFrame(page)
+    .locator('#Board')
+    .evaluate((el, long) => {
+      const w = el.ownerDocument.defaultView as unknown as { update: (json: string) => void };
+      const pill = el.ownerDocument.querySelector('#Pill')!;
+      const read = () => ({
+        board: { w: el.getBoundingClientRect().width, h: el.getBoundingClientRect().height },
+        pill: { w: pill.getBoundingClientRect().width, h: pill.getBoundingClientRect().height },
+      });
+      w.update(JSON.stringify({ f0: 'Which city?', f1: 'Helsinki' }));
+      const rest = read();
+      w.update(JSON.stringify({ f0: long.sentence, f1: 'Helsinki' }));
+      const longQuestion = read();
+      w.update(JSON.stringify({ f0: 'Which city?', f1: long.word }));
+      const longAnswer = read();
+      return { rest, longQuestion, longAnswer };
+    }, {
+      sentence:
+        'Which of these northern cities has served as a capital for the longest unbroken run, counting every year since the war?',
+      word: 'W'.repeat(90),
+    });
 
-  // …and the follower set goes back to being a PROPOSAL, because the one that was there was
-  // measured against a different element and would be stale rows about the wrong panel.
-  await expect(page.getByTestId('map-svg-followers')).toContainText('read from your artwork');
+  expect(grown.longQuestion.board.h).toBeGreaterThan(grown.rest.board.h + 8);
+  expect(Math.abs(grown.longQuestion.board.w - grown.rest.board.w)).toBeLessThan(2);
+  expect(Math.abs(grown.longQuestion.pill.h - grown.rest.pill.h)).toBeLessThan(2);
+  expect(grown.longAnswer.pill.w).toBeGreaterThan(grown.rest.pill.w + 8);
+  expect(Math.abs(grown.longAnswer.pill.h - grown.rest.pill.h)).toBeLessThan(2);
+  expect(Math.abs(grown.longAnswer.board.h - grown.rest.board.h)).toBeLessThan(2);
+});
+
+// ── HOW FAR A BOX MAY GET, AND THE VALUES THE LINE CANNOT REACH ───────────────────────────
+// "It can be dragged, but never past the frame's safe margin and never inside the box as drawn,
+// so a wrong value is unreachable rather than warned about" (docs/TEXT_BOX_BINDING.md, rung 4).
+// Both ends are asserted from the line's OWN reading of where it stands, so a clamp that only
+// looked right on screen would fail here.
+test('svg import: a growth limit stops at the frame and at the box, and cannot be dragged past either', async ({
+  page,
+}) => {
+  await dropSvgMarkup(page, TWO_BOX_SVG, 'two-box.svg');
+  await page.locator('.wz-next').click();
+  // Sideways growth carries no line, so this is the box that may get TALLER.
+  await boxGrow(page, 0).selectOption('grow-y');
+
+  const cap = page.locator('[data-testid^="wz-preview-cap-"]').first();
+  const grab = page.locator('[data-testid^="wz-preview-cap-grab-"]').first();
+  await expect(cap).toBeVisible();
+  // The design's own answer: the margin above the box, mirrored below it. 140 of 1080.
+  expect(Number(await cap.getAttribute('data-margin'))).toBeCloseTo(140 / 1080, 2);
+  await expect(page.getByTestId('map-svg-fields')).toContainText('the same margin as the top');
+
+  /** Drag the line by so many stage px, and answer with where it ended up. */
+  const drag = async (dy: number) => {
+    const box = (await grab.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + dy, { steps: 6 });
+    await page.mouse.up();
+    return Number(await cap.getAttribute('data-margin'));
+  };
+
+  // DOWN, far past the frame's own edge: the line stops at the safe margin, which is the one
+  // limit nobody may loosen - "we cannot have templates outgrow the screen".
+  expect(await drag(4000)).toBeCloseTo(0.04, 3);
+  // AND FROM THE KEYBOARD, which is the same clamp: sitting on the safe margin, down does
+  // nothing, and up moves by one step. A line only a pointer can reach is a control half the
+  // readers of this step do not have.
+  await grab.press('ArrowDown');
+  expect(Number(await cap.getAttribute('data-margin'))).toBeCloseTo(0.04, 3);
+  await grab.press('ArrowUp');
+  expect(Number(await cap.getAttribute('data-margin'))).toBeCloseTo(0.045, 3);
+
+  // UP, far past the box's own bottom edge: it stops ON that edge, because past it the limit
+  // would stand inside the box as drawn and the growth would be told to stop where it already is.
+  expect(await drag(-4000)).toBeCloseTo(1 - 260 / 1080, 2);
+  await expect(page.getByTestId('map-svg-fields')).toContainText('820 px above the bottom');
+
+  // WHAT TRAVELS INTO THE GRAPHIC is the margin that drag left, and it is inside both ends -
+  // which is the assertion the clamp itself has to pass, rather than the line's own reading of
+  // where it drew itself.
+  await createProject(page);
+  const table = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)![0];
+  });
+  const cell = /cap: ([0-9.]+)/.exec(table);
+  expect(cell).not.toBeNull();
+  expect(Number(cell![1])).toBeGreaterThanOrEqual(0.04);
+  expect(Number(cell![1])).toBeLessThanOrEqual(1 - 260 / 1080);
 });
 
 test('svg import: an untouched proposal is left to the runtime, not frozen into the graphic', async ({ page }) => {
@@ -2317,7 +2426,7 @@ test('svg import: an untouched proposal is left to the runtime, not frozen into 
   // the proposal down instead would freeze a design-time guess into every future playout.
   await dropSvgMarkup(page, FOLLOWERS_SVG, 'followers.svg');
   await page.locator('.wz-next').click();
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-x');
+  await boxGrow(page).selectOption('grow-x');
   await createProject(page);
 
   const js = await page.evaluate(async () => {
@@ -2351,7 +2460,7 @@ const TEXT_BELOW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192
 test('svg import: only artwork travels — a text layer is never offered as one', async ({ page }) => {
   await dropSvgMarkup(page, TEXT_BELOW_SVG, 'text-below.svg');
   await page.locator('.wz-next').click();
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-y');
+  await boxGrow(page).selectOption('grow-y');
 
   // The caption rectangle is below the board and travels. The footnote is below it too, and is
   // NOT a row: growing the board does move it, but the too-long rule already owns every bound
@@ -2417,7 +2526,7 @@ test('svg import: authoring growth alone does not open an empty travel list', as
   await page.locator('.wz-next').click();
   await expect(page.getByTestId('map-svg-followers')).toHaveCount(0);
 
-  const mode = page.getByTestId('map-svg-stretch-mode');
+  const mode = boxGrow(page);
   await mode.selectOption('grow-x');
   await expect(mode).toHaveValue('grow-x'); // authored, by hand
   await expect(page.getByTestId('map-svg-followers')).toHaveCount(0);
@@ -2439,7 +2548,7 @@ test('svg import: a value wraps inside the height the design drew, and never pas
     'wrap.svg',
   );
   await page.locator('.wz-next').click();
-  await page.getByTestId('map-svg-stretch-mode').selectOption('shrink'); // the wrap-then-shrink ladder is under test
+  await boxGrow(page).selectOption('shrink'); // the wrap-then-shrink ladder is under test
   await createProject(page);
 
   const wrapped = await previewFrame(page).locator('#f0').evaluate((el) => {
@@ -2475,7 +2584,7 @@ test('svg import: a line with another drawn right below it stays on one line', a
   // second line straight through somebody else's layer.
   await dropSvgMarkup(page, LADDER_SVG, 'ladder.svg');
   await page.locator('.wz-next').click();
-  await page.getByTestId('map-svg-stretch-mode').selectOption('shrink'); // the room measurement is under test
+  await boxGrow(page).selectOption('shrink'); // the room measurement is under test
   await createProject(page);
 
   const state = await previewFrame(page).locator('#f0').evaluate((el) => {
@@ -2513,9 +2622,9 @@ test('svg import: an ordinary lower third arrives already growing, read from the
   // The banner holds its one start-anchored name and has most of the frame to grow into, so
   // the measured default is the whole ladder on the widest rectangle - and the summary SAYS it
   // was read from the artwork, so a proposal is never mistaken for something the reader chose.
-  const mode = page.getByTestId('map-svg-stretch-mode');
+  const mode = boxGrow(page);
   await expect(mode).toHaveValue('grow-xy');
-  await expect(page.getByTestId('map-svg-stretch-only')).toContainText('Panel');
+  await expect(page.getByTestId('map-svg-fields').locator('.map-svg-box-head').first()).toContainText('Panel');
   await expect(page.getByTestId('map-svg-stretch')).toContainText('read from your artwork');
 
   // Nothing PAST the growing edge needs a decision here… the Logo is past it, so the follower
@@ -2524,26 +2633,26 @@ test('svg import: an ordinary lower third arrives already growing, read from the
   await expect(page.getByTestId('map-svg-followers')).toContainText('read from your artwork');
 
   // An authored answer replaces the measurement and stops advertising itself as one.
-  await page.getByTestId('map-svg-stretch-mode').selectOption('shrink');
+  await boxGrow(page).selectOption('shrink');
   await expect(mode).toHaveValue('shrink');
   await expect(page.getByTestId('map-svg-stretch')).not.toContainText('read from your artwork');
-  // Nothing to pick while the answer is "shrink" — a shape picker for a graphic that never
-  // resizes is a control with no effect.
-  await expect(page.getByTestId('map-svg-stretch-shape')).toHaveCount(0);
+  // And the section says what it is left with, which on this file is one box that stays put.
+  await expect(page.getByTestId('map-svg-stretch')).toContainText('every box stays the size you drew');
 
   // …and turning growth back on asks nothing either. THE LOGO AND THE ACCENT RAIL ARE NOT
   // OFFERED (owner walk, 2026-09-01: "if an option is not meaningful for a particular imported
   // SVG, ideally do not show it"): neither holds a bound line, so the runtime would grant either
   // of them exactly zero. One candidate, so the plate is named instead of picked.
   await mode.selectOption('grow-x');
-  await expect(page.getByTestId('map-svg-stretch-shape')).toHaveCount(0);
-  const only = page.getByTestId('map-svg-stretch-only');
-  await expect(only).toContainText('Panel');
-  await expect(only).toContainText('the only one your text sits in');
-  // The line is not a note ABOUT the shape - it POINTS at it on the artwork, exactly as hovering
-  // the picker used to.
+  // ONE heading, and it is the plate: the logo and the accent rail hold no bound line, so
+  // neither is a box and neither could ever be given an answer here.
+  await expect(boxGrows(page)).toHaveCount(1);
+  const head = page.getByTestId('map-svg-fields').locator('.map-svg-box-head').first();
+  await expect(head).toContainText('Panel');
+  // The heading is not a note ABOUT the shape - a row under it POINTS at it on the artwork,
+  // exactly as hovering the picker used to.
   await expect(page.getByTestId('wz-preview-highlight')).toHaveCount(0);
-  await only.hover();
+  await page.getByTestId('map-svg-fields').locator('.map-svg-row').first().hover();
   await expect(page.getByTestId('wz-preview-highlight')).toBeVisible();
 });
 
@@ -2582,19 +2691,23 @@ test('svg import: a scorebug and a quiz board still default to shrink - growth i
   // which declares a stage.
   await page.goto('/app');
   await dropSvg2(page, SCOREBUG_SVG);
-  await expect(page.getByTestId('map-svg-stretch-mode')).toHaveValue('shrink');
+  // EVERY box, not one picker: the answer is per box now, so "this graphic must not move" is a
+  // claim about all of them and a default that grew one plate would hide behind the others.
+  const bug = boxGrows(page);
+  for (let i = 0; i < (await bug.count()); i += 1) await expect(bug.nth(i)).toHaveValue('shrink');
   await expect(page.getByTestId('map-svg-followers')).toHaveCount(0);
 
   await page.goto('/app');
   await dropSvg2(page, QUIZ_SVG);
   await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
-  await expect(page.getByTestId('map-svg-stretch-mode')).toHaveValue('shrink');
+  const board = boxGrows(page);
+  for (let i = 0; i < (await board.count()); i += 1) await expect(board.nth(i)).toHaveValue('shrink');
 });
 
 test('svg import: a hugging panel grows with its text, and what is beyond it travels', async ({ page }) => {
   await dropSvgMarkup(page, HUG_SVG, 'hug.svg');
   await page.locator('.wz-next').click();
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-x');
+  await boxGrow(page).selectOption('grow-x');
   await createProject(page);
 
   const frame = previewFrame(page);
@@ -2671,15 +2784,16 @@ test('svg import: the shipped Illustrator lower third arrives growing, not shrin
   // TWO lines and says nothing about the rest.
   await page.goto('/app');
   await dropSvg2(page, ILLUSTRATOR_SVG);
-  await expect(page.getByTestId('map-svg-stretch-mode')).toHaveValue('grow-xy');
+  await expect(boxGrow(page)).toHaveValue('grow-xy');
   await expect(page.getByTestId('map-svg-stretch')).toContainText('read from your artwork');
 
-  // The list is the ladder, in that order, with shrink last - never first.
-  await expect(page.getByTestId('map-svg-stretch-mode').locator('option')).toHaveText([
-    'The panel gets wider',
-    'The panel gets wider, then taller',
-    'The panel gets taller',
-    'The panel stays the size you drew',
+  // The list is the ladder, in that order, with shrink last - never first. Said as the BOX,
+  // because the select sits on the heading that already names it.
+  await expect(boxGrow(page).locator('option')).toHaveText([
+    'gets wider',
+    'gets wider, then taller',
+    'gets taller',
+    'stays as drawn',
   ]);
 });
 
@@ -2689,7 +2803,7 @@ test('svg import: growth is symmetrical and a line stops at whatever is drawn be
   // The WIDTH cap is what this pins, so the width-only rung is chosen as an author would: under
   // the measured default the value below reaches the cap and then WRAPS, and the residual gap
   // asserted at the end would be a wrapped line's slack rather than the mirrored inset.
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-x');
+  await boxGrow(page).selectOption('grow-x');
   await createProject(page);
 
   const frame = previewFrame(page);
@@ -2754,7 +2868,7 @@ test('svg import: past the floor a value is squeezed inside its room, never pain
   // floored block is then squeezed to its budget, and it is still reported.
   await page.goto('/app');
   await dropSvg2(page, ILLUSTRATOR_SVG);
-  await page.getByTestId('map-svg-stretch-mode').selectOption('shrink');
+  await boxGrow(page).selectOption('shrink');
   await createProject(page);
 
   const frame = previewFrame(page);
@@ -2814,7 +2928,7 @@ test('svg import: the squeeze stops at the legibility floor rather than smearing
   // way, and only ever on values no legible rendering could have contained.
   await page.goto('/app');
   await dropSvg2(page, ILLUSTRATOR_SVG);
-  await page.getByTestId('map-svg-stretch-mode').selectOption('shrink');
+  await boxGrow(page).selectOption('shrink');
   await createProject(page);
 
   const ratio = await previewFrame(page)
@@ -2844,7 +2958,7 @@ test('svg import: wider THEN wrap is one choice, and it is two rows on one panel
   // and height after it, so "both" is two ordinary rows naming one element.
   await dropSvgMarkup(page, BOTH_WAYS_SVG, 'both-ways.svg');
   await page.locator('.wz-next').click();
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-xy');
+  await boxGrow(page).selectOption('grow-xy');
   await createProject(page);
 
   const js = await page.evaluate(async () => {
@@ -3012,10 +3126,10 @@ test('svg import: a rounded-rectangle PATH is the panel that grows, and the ladd
   // The measured default reads the path as the banner: the whole ladder, on the Plate. The 10px
   // accent rail holds none of the three lines, so it is not an option and no question is asked -
   // the Plate is named instead.
-  const mode = page.getByTestId('map-svg-stretch-mode');
+  const mode = boxGrow(page);
   await expect(mode).toHaveValue('grow-xy');
-  await expect(page.getByTestId('map-svg-stretch-shape')).toHaveCount(0);
-  await expect(page.getByTestId('map-svg-stretch-only')).toContainText('Plate');
+  await expect(boxGrows(page)).toHaveCount(1);
+  await expect(page.getByTestId('map-svg-fields').locator('.map-svg-box-head').first()).toContainText('Plate');
 
   await createProject(page);
   const frame = previewFrame(page);
@@ -3084,9 +3198,9 @@ test('svg import: text stays off a decorative end-cap, and the cap travels when 
     'end-cap.svg',
   );
   await page.locator('.wz-next').click();
-  await expect(page.getByTestId('map-svg-stretch-mode')).toHaveValue('grow-xy');
+  await expect(boxGrow(page)).toHaveValue('grow-xy');
   // The cap's own behaviour is a WIDTH story, so it is pinned on the width-only rung.
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-x');
+  await boxGrow(page).selectOption('grow-x');
   await createProject(page);
 
   const frame = previewFrame(page);
@@ -3146,8 +3260,8 @@ test('svg import: a rail spanning the panel still stretches after the reader edi
     'rail.svg',
   );
   await page.locator('.wz-next').click();
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-y');
-  await expect(page.getByTestId('map-svg-stretch-only')).toContainText('Board');
+  await boxGrow(page).selectOption('grow-y');
+  await expect(page.getByTestId('map-svg-fields').locator('.map-svg-box-head').first()).toContainText('Board');
 
   // The rail is never a row: it is not drawn past the growing edge, it is drawn ACROSS the panel.
   await expect(page.getByTestId('map-svg-followers')).not.toContainText('Rail');
@@ -3215,34 +3329,25 @@ test('svg import: a rotated panel is measured where it is PAINTED, so the right 
   await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
   await page.locator('.wz-next').click();
 
-  // A BOARD THE AUDIENCE SEES AGAIN KEEPS A FIXED BOX, so nothing grows unasked (the doctrine's
-  // rule 3, owner 2026-09-02: "a quiz page should be the same for each question"). The picker
-  // that names the shape only exists once somebody asks for growth, so the rest of this test -
-  // which is about WHICH shape, a different question - turns it on first.
-  await expect(page.getByTestId('map-svg-stretch-mode')).toHaveValue('shrink');
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-y');
+  // A BOARD THE AUDIENCE SEES AGAIN KEEPS A FIXED BOX, so every box arrives as drawn (the
+  // doctrine's rule 3, owner 2026-09-02: "a quiz page should be the same for each question").
+  await expect(boxGrow(page)).toHaveValue('shrink');
 
-  // The picker prints each shape's size. The question's plate is a WIDE BAND - 1238 x 259 - and
-  // reading its attributes alone said 231 x 1233, the portrait rectangle it was before the
-  // rotation. Every "x" here is the shape list's own separator.
-  const shapes = page.getByTestId('map-svg-stretch-shape');
-  await expect(shapes).toContainText('q bg');
-  const labels = await shapes.locator('option').allTextContents();
-  const question = labels.find((l) => l.startsWith('q bg')) ?? '';
-  expect(question).toContain('1238');
-  expect(question).toContain('259');
-  expect(question).not.toContain('1233');
-
-  // And the consequence: the shape offered to grow is the question's own plate, not one of the
-  // answer plates that only led the list because they were measured un-rotated.
-  await expect(shapes).toHaveValue(
-    await shapes.locator('option', { hasText: 'q bg' }).getAttribute('value') ?? '',
-  );
+  // THE SIZE THE STEP READ, off the heading that names the question's box. The plate is a WIDE
+  // BAND - 1238 x 259 - and reading its attributes alone said 231 x 1233, the portrait rectangle
+  // it was before the rotation. The heading shows the reader's name for it ("Tan plate") and
+  // carries the layer's own name and its drawn size, which is the pair a file can be checked
+  // against.
+  const head = page.getByTestId('map-svg-fields').locator('.map-svg-box-head').first();
+  const drawnSize = (await head.getAttribute('title')) ?? '';
+  expect(drawnSize).toContain('q bg');
+  expect(drawnSize).toContain('1238');
+  expect(drawnSize).toContain('259');
+  expect(drawnSize).not.toContain('1233');
 
   // The question then survives a real value at the size it was drawn at, rather than shrinking -
   // measured under the DEFAULT, which is the board keeping every box exactly as drawn. The plate
   // has the room without growing, which is what makes the fixed box affordable here.
-  await page.getByTestId('map-svg-stretch-mode').selectOption('shrink');
   await createProject(page);
   const drawn = await previewFrame(page)
     .locator('#f0')
@@ -3430,7 +3535,7 @@ test('svg import: the too-long mode answers the same however the reader got ther
 
   const frame = page.frameLocator('.wz-side iframe');
   const stage = page.locator('.wz-side .wz-stage');
-  const mode = page.getByTestId('map-svg-stretch-mode');
+  const mode = boxGrow(page);
   const settle = async () => {
     await expect(stage).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
     await expect(stage).toHaveAttribute('data-doc-rev', /\d/, { timeout: 20_000 });
@@ -3588,10 +3693,13 @@ test('svg import: the too-long mode answers the same however the reader got ther
 test('svg import: a board that draws a repeated row keeps every box as drawn', async ({ page }) => {
   await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
   await page.locator('.wz-next').click();
-  await expect(page.getByTestId('map-svg-stretch-mode')).toHaveValue('shrink');
-  // Stated in the reader's own words on the section head, not only in the control.
-  // The summary names the PANEL since 2026-09-05 - it is the only thing the choice moves.
-  await expect(page.getByTestId('map-svg-stretch')).toContainText('the panel stays the size you drew');
+  // FIVE boxes on this board, and the claim is about all of them: a default that grew one plate
+  // while the others stayed would still breathe between questions, which is the whole defect.
+  const boxes = boxGrows(page);
+  await expect(boxes).toHaveCount(5);
+  for (let i = 0; i < 5; i += 1) await expect(boxes.nth(i)).toHaveValue('shrink');
+  // Stated in the reader's own words on the section head, not only in the controls.
+  await expect(page.getByTestId('map-svg-stretch')).toContainText('every box stays the size you drew');
 
   // And a fixed box still holds a real question: the plate was drawn with the room, which is why
   // it can afford to stay the size it is. The four answers do not move, because nothing grew.
@@ -3725,88 +3833,53 @@ test('svg import: a five-layer quiz board opens with four answers, not two', asy
 // care - the override list is CLOSED on arrival and offered as one line. Measured on his board,
 // which defaults to shrink because it draws a repeated row, so an emitted rule can only have
 // come from the override.
-test('svg import: one plate can answer the too-long question on its own', async ({ page }) => {
+test('svg import: one box can answer the too-long question on its own', async ({ page }) => {
+  // The owner, on his own board (2026-09-03): "What if you want it to react differently between
+  // the question and the answer? What's our solution for that?" The answer is that the box says
+  // it, on its own heading row - so his question plate can grow while the four answer plates
+  // stay exactly as he drew them.
   await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
   await page.locator('.wz-next').click();
-  await expect(page.getByTestId('map-svg-stretch-mode')).toHaveValue('shrink');
 
-  // CLOSED UNTIL ASKED FOR. A row per layer on arrival is a twenty-click step for a reader who
-  // wanted one dropdown.
-  const toggle = page.getByTestId('map-svg-per-panel-toggle');
-  await expect(toggle).toHaveText('Give one part of the graphic its own answer');
-  await expect(page.getByTestId('map-svg-per-panel-rows')).toHaveCount(0);
-  await toggle.click();
-
-  const rows = page.getByTestId('map-svg-per-panel-rows').locator('.save-field');
-  // One row per PLATE: the question's, and one for each of the four answer plates. Never one per
-  // field - a plate holding two lines cannot grow two ways, so they share a row and say so.
-  await expect(rows).toHaveCount(5);
-
-  // The question's plate, named the way the shape picker names it ("q bg"). Read off that
-  // picker rather than guessed, so this test breaks when the marker minting changes rather than
-  // when a label is reworded. The picker only exists while growth is on, so it is turned on to
-  // ask and put straight back - the graphic-wide answer under test here is "the text gets
-  // smaller".
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-y');
-  const plate = await page
-    .getByTestId('map-svg-stretch-shape')
-    .locator('option', { hasText: 'q bg' })
-    .getAttribute('value');
-  await page.getByTestId('map-svg-stretch-mode').selectOption('shrink');
-  await page.getByTestId(`map-svg-per-panel-${plate}`).selectOption('grow-x');
-  // The line now says how many parts differ, so the answer survives closing the list.
-  await expect(toggle).toHaveText('1 part answers differently');
+  // A repeated row, so the whole board arrives fixed (doctrine rule 3) - and this is the reader
+  // overriding that for ONE box.
+  const boxes = boxGrows(page);
+  await expect(boxes).toHaveCount(5);
+  await boxes.first().selectOption('grow-x');
+  await expect(boxes.first()).toHaveValue('grow-x');
+  await expect(boxes.nth(1)).toHaveValue('shrink');
+  await expect(page.getByTestId('map-svg-stretch')).toContainText('gets wider');
 
   await createProject(page);
   const table = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)![0];
   });
-  // EXACTLY ONE RULE, ON THE QUESTION'S PLATE. The graphic-wide answer is still "the text gets
-  // smaller", so every other plate on the board is left alone - which is the half of his
-  // question that is easy to get wrong by growing everything the moment anything grows.
+  // ONE rule, on ONE plate. Four more would be the graphic-wide answer wearing a different hat.
   expect(table.match(/axis: '/g)).toHaveLength(1);
   expect(table).toContain("axis: 'x'");
-  // A row names its element by a positional `data-noacg-el` stamp, so the only place the
-  // generated code says WHICH plate is the comment above it - and it has to name the plate the
-  // step named. Illustrator writes the layer name on the group and leaves the rect inside it
-  // anonymous, which used to emit `// "Layer" grows wider` on this very file.
   expect(table).toContain('"q_bg" grows wider');
 
-  // AND THE GRAPHIC DOES IT. The question's plate widens for a long value; an answer plate,
-  // which nobody overrode, holds the width it was drawn at.
-  const widths = (value?: string) =>
-    previewFrame(page)
-      .locator('#f0')
-      .evaluate((el, v) => {
-        if (v != null) {
-          (window as unknown as { update: (s: string) => void }).update(JSON.stringify({ f0: v }));
-        }
-        const box = (sel: string) => {
-          const n = el.ownerDocument.querySelector(sel) as SVGGraphicsElement | null;
-          return n ? Math.round(n.getBoundingClientRect().width) : 0;
-        };
-        return { question: box('#q_bg'), answer: box('#a1_bg') };
-      }, value);
-
-  const drawn = await widths();
-  expect(drawn.question).toBeGreaterThan(0);
-  const grown = await widths(
-    'Which of these grandmasters has held the undisputed world championship title for the longest unbroken run across the entire modern era of the game?',
-  );
-  expect(grown.question).toBeGreaterThan(drawn.question);
-  expect(grown.answer).toBe(drawn.answer);
+  // And on the artwork: the question's plate widens for a long question and an answer plate is
+  // untouched by it.
+  const grown = await previewFrame(page)
+    .locator('#q_bg')
+    .evaluate((el, long) => {
+      const w = el.ownerDocument.defaultView as unknown as { update: (json: string) => void };
+      const answer = el.ownerDocument.querySelector('#a1_bg')!;
+      const read = () => ({
+        q: el.getBoundingClientRect().width,
+        a: answer.getBoundingClientRect().width,
+      });
+      w.update(JSON.stringify({ f0: 'Who is the best at chess in the world?' }));
+      const rest = read();
+      w.update(JSON.stringify({ f0: long }));
+      return { rest, after: read() };
+    }, 'W'.repeat(140));
+  expect(grown.after.q).toBeGreaterThan(grown.rest.q + 8);
+  expect(Math.abs(grown.after.a - grown.rest.a)).toBeLessThan(2);
 });
 
-// THE STEP READS AT READING LENGTH (owner walk, 2026-09-03: "the whole import page right now is
-// difficult to read ... it should read so a kid could understand what's happening", and "No one
-// wants to read more than a few lines").
-//
-// A LINE COUNT rather than the sentences themselves: the words will keep changing and a test
-// spelling them out would only make every future edit a two-file edit. What must not come back
-// is the LENGTH - the too-long section ran to four paragraphs of banners, boards, margins and
-// last resorts, and the behaviour box named all three behaviours the list under it already
-// names one by one.
 test('svg import: the step says what a control does, in a few lines', async ({ page }) => {
   await dropSvgMarkup(page, readFileSync(OWNER_QUIZ, 'utf8'), 'owner-quiz-board.svg');
   await page.locator('.wz-next').click();
@@ -4116,14 +4189,24 @@ test('svg import: unticking a line leaves it in its own box', async ({ page }) =
   await page.locator('.wz-next').click();
   const heads = page.getByTestId('map-svg-fields').locator('.map-svg-box-head');
   await expect(heads).toHaveCount(5);
-  const before = await heads.allTextContents();
+  // THE NAMES, not the whole heading: the heading also carries that box's growth answer, and
+  // an unticked box holds no line for growth to be about - so its select goes, which is a
+  // different claim from this one and is pinned where it belongs.
+  const names = () => heads.locator('strong').allTextContents();
+  const before = await names();
 
   const firstId = ((await page.getByTestId('map-svg-fields').locator('.map-svg-row').first()
     .getAttribute('data-testid')) ?? '').replace('map-svg-row-', '');
   await untickTextRow(page, firstId);
 
   await expect(heads).toHaveCount(5);
-  expect(await heads.allTextContents()).toEqual(before);
+  expect(await names()).toEqual(before);
+  // AND THE ANSWER IS NOT LOST WITH IT: ticking the row back brings the box's control back, at
+  // the answer it had - losing a ladder choice to an unrelated edit is the complaint the
+  // per-box answers were written under (owner walk, 2026-09-03).
+  await expect(boxGrows(page)).toHaveCount(4);
+  await page.getByTestId(`map-svg-row-${firstId}`).locator('input[type=checkbox]').check();
+  await expect(boxGrows(page)).toHaveCount(5);
   await expect(
     page.getByTestId('map-svg-fields').locator('.map-svg-box-group').first().locator('.map-svg-row'),
   ).toHaveCount(1);

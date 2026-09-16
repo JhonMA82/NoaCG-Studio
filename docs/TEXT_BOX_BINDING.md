@@ -5,8 +5,10 @@ axes, a graphic that comes up again keeps a fixed box, and unticking a text laye
 with the words. STEP 2 IS FINISHED (2026-09-08): the checklist groups by box with a swatch, and
 hovering a row draws that box, its room, the block's bounds and the alignment caret on the
 artwork. STEP 3 IS BUILT (2026-09-08, same day): a nine-dot grid in every row that has a box, and
-the checkbox that hands back the nudge. What is left of the step's own surface - growth per box -
-is still DESIGN.** The owner's brief is the 2026-09-02 walk of his own quiz board;
+the checkbox that hands back the nudge. STEP 4 IS BUILT (2026-09-16): growth is chosen PER BOX on
+the heading row, and how far a box may get taller is a line on the preview the reader drags, which
+cannot reach a value the growth could not keep. What is left of this document is step 5, the fit
+line and the too-long tag.** The owner's brief is the 2026-09-02 walk of his own quiz board;
 the verbatim words are in `docs/acceptance/owner-queue/2026-08-28-student-rehearsal-walk.md` and
 they are the authority here, not this summary of them.
 
@@ -351,8 +353,42 @@ derived from the cap rather than asked as a second question.
 Today's "What else moves" list is kept, unchanged in mechanism, nested under the box that grows -
 and it is a list of WHICH layers, never of how each one behaves. That second half is settled below.
 
-**The RUNTIME half of this rung is done and gated - measured 2026-09-10.** The surface above is
-still design; what a reader picks today already works. "The panel gets wider, then taller" reaches
+**BUILT 2026-09-16, with five departures from the design above, each of them recorded here.** The
+select is on the heading row, one per box, worded as the box ("gets wider, then taller") rather
+than as the panel, because the row already names the shape. The cap is a dashed line across the
+artwork on the preview with the box's name and its own sentence on a chip, draggable with the
+pointer or the arrow keys, and clamped at both ends before anything is stored - the frame's safe
+margin on one side and the box's own drawn edge on the other, so a wrong value is unreachable.
+`e2e/import-svg.spec.ts` pins both ("two boxes in one graphic grow differently", "a growth limit
+stops at the frame and at the box"); without the clamp the same drag emitted a cap of 12.4 frames.
+
+- **The line is offered only where a box may get TALLER.** Downwards the runtime has one answer
+  for which way a box grows (`svgGrowDir`), and downwards is where "we shouldn't be able to put
+  one page of text" lives. Sideways it chooses between three directions at play time from what
+  the lines inside ask for, and two of those spend the margin on BOTH sides - so one line drawn
+  on one edge would be a limit the reader can see on one side of the box and not on the other. A
+  width cap costs no migration when it is wanted: `cap` is per RULE, so per box and per axis, and
+  the draft stores it the same way.
+- **The count is the TOTAL the box holds at that limit**, not the extra the limit buys: "room for
+  3 lines at the size you drew" answers "is this a page of text?" in the form the question was
+  asked. It is arithmetic on the same room the overlay already draws, so the two agree.
+- **"What else moves" stays a section of its own**, naming the box that carries it, rather than
+  nested inside the checklist group. The checklist has a measured rows-on-screen budget (seven
+  scorebug rows at 1280x720, pinned) and a follower list with a canvas-arming button inside the
+  scrolling list of text boxes would push rows past the fold. The section also keeps the ⓘ that
+  explains the ladder, whose length is pinned at three paragraphs.
+- **A box with no ticked line inside it gets no select.** The runtime grants it nothing, so the
+  control could not change the graphic in front of the reader
+  (`wizard/offer-control-can-change-graphic-front`). An answer already set keeps its control, so
+  unticking a row never loses a ladder choice.
+- **No persisted shape moved.** `svgStretch.shapeId` is now simply the box that carries the
+  DECLARED followers, which is the only thing the format attaches to a single rule, and every
+  other box's answer rides `perPanel`, which has existed since 2026-09-03. The emitter is
+  unchanged bar one additive optional field, so an import nobody touched emits the bytes it
+  always did and version 1 survives.
+
+**The RUNTIME half of this rung was done and gated first - measured 2026-09-10.** What a reader
+picks already worked before the surface existed. "The panel gets wider, then taller" reaches
 the emitted document as two ordinary rows on one element (`NOACG_LAYOUT` carries `g0` axis `x` and
 `g1` axis `y`, and the plate carries both stamps in one space-separated `data-noacg-el`), and the
 runtime spends both: on `effects-gradient-shadow-lower-third.svg` - the file the owner walked when
@@ -502,7 +538,10 @@ cap and followers.
    drawn answer, and the nudge checkbox under the row where the file has one. `align.nudge` and
    `align.nudgeY` are read for the first time by that checkbox. The four departures from the mock
    are under "Alignment" above.
-4. Growth per box, with the cap line.
+4. ~~Growth per box, with the cap line~~ - DONE 2026-09-16. The select is on the box's heading
+   row, so one plate grows while its neighbours stay, and the cap is a draggable line on the
+   preview that cannot reach a value the growth could not keep. The five departures are under
+   "Growth, per box" above.
 5. The fit line and the too-long tag.
 
 ## THE FIT DOCTRINE - why a graphic does what it does
