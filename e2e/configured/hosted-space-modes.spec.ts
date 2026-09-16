@@ -12,7 +12,7 @@ import { clearPublishedShows, haveCreds, signIn } from './_helpers';
 // stage (`showOnPreview`) rather than a derived document, so "the cursor previews nothing" is a
 // call that must NOT happen, and its tally comes back off the WIRE rather than from a local map.
 
-test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
+test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 
 test('the hosted page carries both SPACE modes: the cursor previews nothing, SPACE stages, SPACE airs, SPACE cuts back', async ({
   page,

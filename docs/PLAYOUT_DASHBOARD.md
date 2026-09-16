@@ -389,12 +389,14 @@ button on a mixer."* The other mode is today's toggle, unchanged.
 all three surfaces (`components/SpaceModeToggle.tsx`, and the controller's own copy). It sits
 beside the key it changes, not on a settings screen, for the reason the playout layer sits in the
 cue editor: the operator decides this with a hand on the key. Unchecked is the default. It is a
-person's habit, so it lives in `localStorage` under `spx-gfx-space-mode`
-(`model/productionState.ts`), per browser, never synced, and unversioned - one word with a safe
-default, and an unknown value reads as the default. The in-app and hosted pages share one value
-on one machine; the exported controller keeps its own under the same key on the relay's origin.
-The phone hides the checkbox with the on-air chip: the mode names a key a phone does not have,
-and the TAKE button still follows whatever a wider window set.
+person's habit, so it is a device-level preference, `spaceMode` on `model/prefs.ts` beside the
+other workflow defaults - per browser, never synced, unversioned: one word with a safe default,
+and an unknown value reads as the default (`control/spaceMode.ts asSpaceMode`). The in-app and
+hosted pages share it on one machine, read when a page opens and deliberately not followed live
+across tabs (a mode arriving from another tab would move PREVIEW under an operator mid-show);
+the exported controller keeps its own store on the relay's origin. The phone hides the checkbox
+with the on-air chip: the mode names a key a phone does not have, and the TAKE button still
+follows whatever a wider window set.
 
 **The model (binding). SPACE always acts on the SELECTED cue, and reads that cue's state alone:**
 
@@ -404,11 +406,16 @@ and the TAKE button still follows whatever a wider window set.
 | on PREVIEW, off air | airs | airs, and **stays on PREVIEW** |
 | neither | cannot happen: selection is preview | **goes to PREVIEW**; nothing airs |
 
-- **"On PREVIEW" is one cue on the React surfaces**, page state and never stored: a check of what
-  is about to air does not survive a reload, so a reloaded page starts with PREVIEW empty
-  ("nothing in preview") and the button reading **→ PREVIEW**. On the exported controller PREVIEW
-  is the real second stream it has always been, one tally per layer, and "on PREVIEW" is a row
-  on the wire.
+- **"On PREVIEW" is ONE cue on every surface, the last one put there, held synchronously** -
+  page state on the React surfaces, a `stagedId` on the exported controller set the moment the
+  preview rows are sent, never read back off its 400 ms log poll (a decision that waited for the
+  poll previewed twice under the owner's two-press gesture and aired nothing). It is never
+  stored: a check of what is about to air does not survive a reload, so a reloaded page starts
+  with PREVIEW empty ("nothing in preview") and the button reading **→ PREVIEW**. The exported
+  controller's PREVIEW is still the real second stream, one tally per layer; in
+  `preview-then-take` mode staging stops the other graphics on that stream so it shows the one
+  cue the label names, exactly as the React monitors do, and in `take` mode the stream keeps its
+  accumulating behaviour, which SPACE never consults.
 - **Staging REPLACES what was on PREVIEW.** A replaced cue that is on air stays on air: PREVIEW
   is a check, never a tally. So the cut from a cue the cursor had left - Anna on air, Ben staged,
   back to Anna, SPACE - takes Anna off and puts her on PREVIEW in Ben's place.
@@ -424,8 +431,11 @@ and the TAKE button still follows whatever a wider window set.
   **→ PREVIEW** (amber, the preview colour - never red, because the press airs nothing),
   **⟳ TAKE** and **■ TAKE OFF**. Ticking the box stages what was on PREVIEW so the picture stands
   still; unticking makes the selection the preview again.
-- **The checkbox blurs itself on the click.** It is an `INPUT`, and the verb keys stand down while
-  one has focus; without the blur the next SPACE flipped the mode back instead of taking.
+- **A checkbox is not typing.** The verb keys stand down while the operator types, and a checkbox
+  is an `INPUT` that keeps focus after a click, so the SPACE after ticking one (this box, or a
+  toggle field in the cue editor) flipped it back instead of taking. `typingInto` in
+  `components/playoutKeys.ts`, and the controller's copy of the rule, now count only inputs
+  that take text; the verb handler's `preventDefault` is what stops the native toggle.
 
 **Why this reading of "a cut button on a mixer".** A mixer's cut swaps PVW and PGM in one press.
 His first two sentences make airing a separate press from previewing, so the swap's forward half
@@ -433,9 +443,12 @@ is not what he asked for; its return half is exactly his third sentence - what l
 lands on PREVIEW. That is the cut here. A reading where SPACE on a live cue only staged it, and a
 second press took it off, was rejected for the off-air reason above.
 
-**Where it is decided, and pinned.** `components/playoutKeys.ts` (`spaceAction`, `takeFace`,
-`useSpaceMode`) for both React surfaces; `control/productionControllerHtml.ts` carries a copy of
-`spaceAction`, and a change to one is a change to both in the same commit. Both modes are pinned
+**Where it is decided, and pinned.** `control/spaceMode.ts` holds the decision (`spaceAction`),
+the three faces' words (`SPACE_FACES`), the checkbox's tooltip and the empty-PREVIEW label;
+`components/playoutKeys.ts` hands them to the React surfaces (`takeFace`, `useSpaceMode`), and
+`control/productionControllerHtml.ts` interpolates them into the exported controller at
+generation time, the decision as the table of its eight outcomes (`spaceActionTable`) - nothing
+about the mode is written twice. Both modes are pinned
 on the in-app page and the exported controller in `e2e/production-controls.spec.ts`, the storage
 contract in `e2e/hosted-control.spec.ts`, and the hosted page's own walk in
 `e2e/configured/hosted-space-modes.spec.ts`.

@@ -52,8 +52,10 @@ import {
   usePlayoutVerbKeys,
   useSpaceMode,
   type PlayoutVerb,
+  type SpaceMode,
 } from '../playoutKeys';
 import { SpaceModeToggle } from '../SpaceModeToggle';
+import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
 import { cueDataRows, hasSideFields, nextRow, rowsForSide } from '../../control/cueData';
 import { groupCueFields, groupHeading } from '../../control/cueFieldGroups';
 import {
@@ -1006,13 +1008,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   // ── PREVIEW: the previewed cue's graphic, composed ONCE per template, its values pushed as
   // settle commands (rebuilding the document per edit re-parses GSAP and reloads every asset on
-  // the most common gesture a rundown has). Local by construction — it never touches the wire.
+  // the most common gesture a rundown has). Local by construction; it never touches the wire.
   //
-  // TWO TEMPLATES, ONE IN 'take' MODE. The editor, the ⚡ actions and the cue settings are the
-  // SELECTED cue's on every surface (the exported controller has always edited the selection),
-  // while the monitor shows the PREVIEW cue. In 'take' mode those are one cue and the second
-  // resolution is skipped; in 'preview-then-take' mode they differ whenever the operator has
-  // walked on from what is on PREVIEW. ──
+  // TWO TEMPLATES. The editor, the ⚡ actions and the cue settings are the SELECTED cue's on
+  // every surface (the exported controller has always edited the selection), while the monitor
+  // shows the PREVIEW cue. In 'take' mode those are one cue; in 'preview-then-take' mode they
+  // differ whenever the operator has walked on from what is on PREVIEW. ──
   const previewIframe = useRef<HTMLIFrameElement>(null);
   const poolGraphic = selectedCue ? graphicByPoolId.get(selectedCue.sourceId) ?? null : null;
   const editorKey = poolGraphic ? `${poolGraphic.id}:${poolGraphic.savedAt}` : '';
@@ -1023,14 +1024,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     () => (poolGraphic ? templateForSavedGraphic(poolGraphic, library) : null),
     [editorKey, library],
   );
+  // The same shape as the editor's: `templateForSavedGraphic` is a library lookup, not a parse,
+  // so there is nothing to save by sharing the object when the two cues are one graphic.
   const previewTemplate = useMemo(
-    () =>
-      previewKey === editorKey
-        ? editorTemplate
-        : previewGraphic
-          ? templateForSavedGraphic(previewGraphic, library)
-          : null,
-    [previewKey, editorKey, editorTemplate, library],
+    () => (previewGraphic ? templateForSavedGraphic(previewGraphic, library) : null),
+    [previewKey, library],
   );
   const previewDoc = useMemo(
     () => (previewTemplate ? composeDocument(previewTemplate, { liveControl: true }) : ''),
@@ -1193,19 +1191,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [flushDraft],
   );
   /**
-   * Put a cue on PREVIEW in 'preview-then-take' mode - what SPACE does on a cue that is not
-   * there yet, and what a live cue lands on when SPACE takes it off. Replaces whatever was on
-   * PREVIEW; a replaced cue that is on air stays on air, because PREVIEW is a check and never
-   * a tally. Editing already follows the selection, so nothing about the draft moves here.
-   */
-  const stageCue = useCallback((cueId: string) => setStagedCueId(cueId), []);
-  /**
    * Switching modes keeps the picture still. Into 'preview-then-take', what the operator was
    * looking at (the selection) stays on PREVIEW rather than the monitor going blank under
    * them; back into 'take' the selection is the preview again and the staged cue is moot.
    */
   const changeSpaceMode = useCallback(
-    (mode: typeof spaceMode) => {
+    (mode: SpaceMode) => {
       if (mode === 'preview-then-take') setStagedCueId(selectedCue?.id ?? null);
       setSpaceMode(mode);
     },
@@ -1543,6 +1534,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const selectedCueStaged = !!selectedCue && previewCue?.id === selectedCue.id;
   /** What SPACE - and the TAKE button, which IS the key - does next (components/playoutKeys.ts). */
   const spaceNext = spaceAction(spaceMode, { live: selectedCueIsLive, previewed: selectedCueStaged });
+  const face = takeFace(spaceNext);
   /**
    * UNSENT CHANGES on the cue that is on air (acceptance pass, 2026-08-06: "there needs to be
    * an alert when something changes and you need to send that update - I had problems with my
@@ -2174,11 +2166,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * not yet on PREVIEW goes there first, airing nothing.
    */
   const onVerb = (key: PlayoutVerb) => {
+    // Staging REPLACES what was on PREVIEW; a replaced cue that is on air stays on air, because
+    // PREVIEW is a check and never a tally. Editing follows the selection, so no draft moves.
+    // A cue taken off lands on PREVIEW in both modes: in 'take' mode the id is never read.
     if (key === 'take' && canTake && selectedCue) {
       if (spaceNext === 'take-off') {
         void outLive();
-        if (spaceMode === 'preview-then-take') stageCue(selectedCue.id);
-      } else if (spaceNext === 'preview') stageCue(selectedCue.id);
+        setStagedCueId(selectedCue.id);
+      } else if (spaceNext === 'preview') setStagedCueId(selectedCue.id);
       else void takeCue(selectedCue);
     }
     // Re-take: play a live cue's entrance again from the start. Only meaningful on a cue
@@ -2283,7 +2278,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 {previewCue
                   ? cueView(previewCue).label
                   : spaceMode === 'preview-then-take'
-                    ? 'nothing in preview'
+                    ? PREVIEW_EMPTY_LABEL
                     : 'nothing selected'}
               </span>
             </h2>
@@ -2369,13 +2364,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               the only way "the button IS the key" survives a second mode: → PREVIEW (amber,
               airs nothing) exists only in 'preview-then-take' mode, on a cue not yet on PREVIEW. */}
           <button
-            className={takeFace(spaceNext).className}
+            className={face.className}
             disabled={selectedCueIsLive ? !selectedLayerLive : !canTake}
             onClick={() => onVerb('take')}
-            title={takeFace(spaceNext).title}
+            title={face.title}
             data-testid="verb-take"
           >
-            {takeFace(spaceNext).text} <kbd>SPACE</kbd>
+            {face.text} <kbd>SPACE</kbd>
           </button>
           {/* RE-TAKE is secondary: replaying the entrance of a cue that is already on air. It
               never becomes the primary button. It is always PRESENT and greys out when it does

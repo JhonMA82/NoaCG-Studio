@@ -408,7 +408,8 @@
   gap: 8px;
   white-space: nowrap;
 }
-.pd-verb kbd {
+/* One key chip for everything in the bar - the buttons and the SPACE-mode checkbox alike. */
+.pd-verbs kbd {
   font-family: var(--mono, monospace);
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -466,15 +467,6 @@
   user-select: none;
 }
 .pd-space-mode input { margin: 0; accent-color: var(--amber, #f6a623); }
-.pd-space-mode kbd {
-  font-family: var(--mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  padding: 1px 4px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid var(--border);
-}
 .pd-onair { color: #ef4444; font-weight: 600; }
 
 /* ── The cue editor ────────────────────────────────────────────────────────── */

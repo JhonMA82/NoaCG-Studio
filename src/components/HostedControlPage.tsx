@@ -86,6 +86,7 @@ import {
   type SpaceMode,
 } from './playoutKeys';
 import { SpaceModeToggle } from './SpaceModeToggle';
+import { PREVIEW_EMPTY_LABEL } from '../control/spaceMode';
 
 /**
  * The HOSTED control page — the operator surface at `<app-url>?control=<slug>`. No login, no
@@ -406,16 +407,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     },
     [],
   );
-  // The first cue previews as soon as the payload's stage exists, so the surface is never two
-  // empty boxes on arrival - in 'take' mode. In 'preview-then-take' mode an empty PREVIEW on
-  // arrival is the truth: nothing is there until SPACE puts it there.
-  const previewedOnce = useRef(false);
-  useEffect(() => {
-    if (!payload || !selectedCue || previewedOnce.current || spaceMode !== 'take') return;
-    previewedOnce.current = true;
-    const t = setTimeout(() => showOnPreview(selectedCue), 400);
-    return () => clearTimeout(t);
-  }, [payload, selectedCue, showOnPreview, spaceMode]);
 
   // BOOT RECOVERY for the PROGRAM monitor. The log follower only sees rows that arrive AFTER
   // this page opened, so a production that has been on air all afternoon would show an empty
@@ -446,6 +437,36 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       ]);
     }
   }, [payload, resolved]);
+
+  /**
+   * ONE effect drives the PREVIEW stage, from what the page has already derived: the cue on
+   * PREVIEW and the values a Take of it would send RIGHT NOW - the cue's own, the SHARED staged
+   * buffer over them and the bound values over both, the same reading `cueValues` below makes.
+   * The stage used to be pushed from four places (arrival, selection, staging, the mode switch)
+   * and the four did not cover every transition - unticking the box after walking on left the
+   * monitor on the old cue while the label named the new one. Worse, the staged buffer is keyed
+   * by GRAPHIC, so typing into a sibling cue moves what a Take of the previewed cue sends; the
+   * monitor has to follow that too, or PREVIEW shows one name and air gets another. The values
+   * ride as a key so the effect re-runs exactly when they move. A cue of another graphic leaving
+   * PREVIEW is stopped, so the stage shows the one cue the label names rather than a stack.
+   * Above the loading returns because it is a hook; it does nothing until the payload exists.
+   */
+  const previewValuesKey = previewedCue
+    ? JSON.stringify(hostedCueValues(previewedCue, resolved?.staged ?? {}, resolveBindings(dataTree, bindings)))
+    : '';
+  const previewShown = useRef<{ arrived: boolean; graphic: string | null }>({ arrived: false, graphic: null });
+  useEffect(() => {
+    if (!payload) return;
+    const graphic = previewedCue?.graphic ?? null;
+    // The stage needs a moment to exist on arrival; after that every change lands at once.
+    const t = setTimeout(() => {
+      const was = previewShown.current.graphic;
+      if (was && was !== graphic) previewRef.current?.apply([{ graphic: was, msg: { t: 'stop' } }]);
+      previewShown.current = { arrived: true, graphic };
+      if (previewedCue) showOnPreview(previewedCue, JSON.parse(previewValuesKey) as Record<string, string>);
+    }, previewShown.current.arrived ? 0 : 400);
+    return () => clearTimeout(t);
+  }, [payload, previewedCue, previewValuesKey, showOnPreview]);
 
   if (show === 'loading') {
     return (
@@ -740,19 +761,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     })();
   };
 
-  const selectCue = (cue: OutputCue) => {
-    setSelectedCueId(cue.id);
-    // In 'take' mode selecting IS previewing. In 'preview-then-take' mode the cursor moves and
-    // the monitor waits for SPACE.
-    if (spaceMode === 'take') showOnPreview(cue, cueValues(cue));
-  };
-  /** Put a cue on PREVIEW in 'preview-then-take' mode: SPACE's first press on a fresh cue, and
-   *  where a live cue lands when SPACE takes it off. Replaces what was there; a replaced cue
-   *  that is on air stays on air, because PREVIEW is a check and never a tally. */
-  const stageCue = (cue: OutputCue) => {
-    setStagedCueId(cue.id);
-    showOnPreview(cue, cueValues(cue));
-  };
+  // Selecting moves the cursor and nothing else here: `previewedCue` derives what PREVIEW shows
+  // (the selection in 'take' mode, the staged cue otherwise) and the effect above follows it.
+  const selectCue = (cue: OutputCue) => setSelectedCueId(cue.id);
   /** Switching modes keeps the picture still: into 'preview-then-take' the selection stays on
    *  PREVIEW (it already is), back into 'take' the selection is the preview again. */
   const changeSpaceMode = (mode: SpaceMode) => {
@@ -771,19 +782,22 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * PREVIEW (the mixer cut) and a cue not yet on PREVIEW goes there first, airing nothing.
    */
   const runVerb = (verb: PlayoutVerb) => {
+    // Staging REPLACES what was on PREVIEW; a replaced cue that is on air stays on air, because
+    // PREVIEW is a check and never a tally. A cue taken off lands there in both modes: in 'take'
+    // mode the staged id is simply never read.
     if (verb === 'take' && selectedCue) {
       if (spaceNext === 'take-off') {
         outLayer();
-        if (spaceMode === 'preview-then-take') stageCue(selectedCue);
-      } else if (spaceNext === 'preview') stageCue(selectedCue);
+        setStagedCueId(selectedCue.id);
+      } else if (spaceNext === 'preview') setStagedCueId(selectedCue.id);
       else void takeCue(selectedCue);
     }
     if (verb === 'retake' && selectedIsLive && selectedCue) void takeCue(selectedCue);
     if (verb === 'update' && selectedIsLive) updateLive();
     if (verb === 'next' && selectedLayerCueId) nextLayer();
     if (verb === 'out' && selectedLayerCueId) outLayer();
-    // Walk the rundown. Selecting a cue is the same act as clicking it — to PREVIEW in 'take'
-    // mode, a cursor move in the other — and nothing airs either way, so an operator can line
+    // Walk the rundown. Selecting a cue is the same act as clicking it, to PREVIEW in 'take'
+    // mode and a cursor move in the other, and nothing airs either way, so an operator can line
     // the next item up and take it without a mouse.
     if (verb === 'select-prev' || verb === 'select-next') {
       const next = stepSelection(cues, selectedCue?.id ?? null, verb === 'select-next' ? 1 : -1);
@@ -830,7 +844,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                 PREVIEW
                 <span className="pd-what" data-testid="hosted-preview-what">
                   {previewedCue?.label ??
-                    (spaceMode === 'preview-then-take' ? 'nothing in preview' : 'nothing selected')}
+                    (spaceMode === 'preview-then-take' ? PREVIEW_EMPTY_LABEL : 'nothing selected')}
                 </span>
               </h2>
               <div className="pd-screen">
@@ -1066,6 +1080,7 @@ function HostedVerbs({
   onKey: (verb: PlayoutVerb) => void;
 }) {
   usePlayoutVerbKeys(onKey);
+  const face = takeFace(spaceNext);
   return (
     <div className="pd-verbs" data-testid="hosted-verbs">
       {/* No → Preview button here either — parity with the in-app bar, and for the same reason:
@@ -1073,13 +1088,13 @@ function HostedVerbs({
           'preview-then-take' mode the TOGGLE itself wears → PREVIEW on a fresh cue. */}
       {/* THE TOGGLE: the button IS the key, on when the cue is off and off when it is on. */}
       <button
-        className={takeFace(spaceNext).className}
+        className={face.className}
         disabled={!hasSelection}
         onClick={() => onKey('take')}
-        title={takeFace(spaceNext).title}
+        title={face.title}
         data-testid="hosted-take-cue"
       >
-        {takeFace(spaceNext).text} <kbd>SPACE</kbd>
+        {face.text} <kbd>SPACE</kbd>
       </button>
       {/* RE-TAKE is secondary and always present, greying out like every other verb — a control
           that appeared only while a cue was live would move the bar sideways at the moment a

@@ -66,32 +66,3 @@ export function clearLiveData(showId: string): void {
   delete store[showId];
   writeStore(store);
 }
-
-// ── The operator's SPACE mode (docs/PLAYOUT_DASHBOARD.md §2, "Two Space modes"). ──
-//
-// A person's habit, not a property of the production: it lives here beside the live tree for
-// the same reasons - plain localStorage, per machine, never synced - and it needs no version
-// because it is one word with a safe default. An unknown value reads as the default.
-
-export type SpaceMode = 'take' | 'preview-then-take';
-
-/** The localStorage key the mode lives under; another tab listens for a write to it. */
-export const SPACE_MODE_KEY = 'spx-gfx-space-mode';
-
-/** The mode this browser last chose, or the default when it never chose. */
-export function loadSpaceMode(): SpaceMode {
-  try {
-    return localStorage.getItem(SPACE_MODE_KEY) === 'preview-then-take' ? 'preview-then-take' : 'take';
-  } catch {
-    return 'take';
-  }
-}
-
-/** Remember the mode for this browser. A refused write only means the choice lasts one session. */
-export function saveSpaceMode(mode: SpaceMode): void {
-  try {
-    localStorage.setItem(SPACE_MODE_KEY, mode);
-  } catch {
-    // Quota or a private-mode refusal: the page keeps the mode in memory until it closes.
-  }
-}

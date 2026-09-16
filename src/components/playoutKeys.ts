@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { loadSpaceMode, saveSpaceMode, SPACE_MODE_KEY, type SpaceMode } from '../model/productionState';
+import { asSpaceMode, SPACE_FACES, spaceAction, type SpaceAction, type SpaceMode } from '../control/spaceMode';
+import { loadPrefs, savePrefs } from '../model/prefs';
 
 /**
  * THE VERB KEYS of the playout dashboard (docs/PLAYOUT_DASHBOARD.md §2), as one implementation.
@@ -20,16 +21,22 @@ export type PlayoutVerb =
   | 'select-prev'
   | 'select-next';
 
-/** True when the keystroke belongs to whatever the operator is typing into, not to the verbs. */
+/**
+ * True when the keystroke belongs to whatever the operator is typing into, not to the verbs.
+ *
+ * A checkbox, a radio or a button is an INPUT that nobody types into, and it keeps focus after
+ * a click - so without this carve-out the SPACE after ticking any box on the surface (the
+ * SPACE-mode checkbox, a toggle field in the cue editor) flipped the box back instead of
+ * taking. The verb handler calls preventDefault, which is what stops the native toggle.
+ */
 export function typingInto(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el || !el.tagName) return false;
-  return (
-    el.isContentEditable ||
-    el.tagName === 'INPUT' ||
-    el.tagName === 'TEXTAREA' ||
-    el.tagName === 'SELECT'
-  );
+  if (el.tagName === 'INPUT') {
+    const type = (el as HTMLInputElement).type;
+    return type !== 'checkbox' && type !== 'radio' && type !== 'button';
+  }
+  return el.isContentEditable || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT';
 }
 
 /** key -> verb. `arrowup`/`arrowdown` walk the rundown; SPACE is the take TOGGLE. */
@@ -116,69 +123,34 @@ export function revealCue(testId: string): void {
   document.querySelector(`[data-testid="${testId}"]`)?.scrollIntoView({ block: 'nearest' });
 }
 
-// ── THE TWO SPACE MODES (docs/PLAYOUT_DASHBOARD.md §2, "Two Space modes"; owner, 2026-09-10). ──
+// ── THE TWO SPACE MODES (docs/PLAYOUT_DASHBOARD.md §2f; owner, 2026-09-10). ──
 //
-// One decision for all three surfaces. The exported controller carries a copy of this table in
-// its own vanilla JS (`control/productionControllerHtml.ts`, `spaceAction`); a change here is
-// a change there, in the same commit, or the parity contract is broken.
+// The decision and the words live one layer down, in `control/spaceMode.ts`, because the
+// exported controller is generated there and serialises the same faces into its vanilla JS.
+// This module is where the two React surfaces reach them, beside the keymap they belong to.
 
-export type { SpaceMode };
+export { spaceAction, type SpaceAction, type SpaceMode };
 
-/** What one press of SPACE (or the TAKE button - the button IS the key) is about to do. */
-export type SpaceAction = 'preview' | 'take' | 'take-off';
-
-/**
- * Decide the press from the SELECTED cue's state alone.
- *
- * 'take' mode is the toggle the dashboard has had since 2026-08-06: selecting a cue previews
- * it, SPACE airs it, SPACE again takes it off. 'preview-then-take' is the owner's mixer cut:
- * walking the rundown previews nothing, SPACE puts the selected cue on PREVIEW, SPACE again
- * airs it, and SPACE on a cue that is on air takes it off and leaves it on PREVIEW. Off-air
- * is the same gesture in both modes on purpose - a hand that learned "SPACE takes a live cue
- * off" in one mode must not find a second press between it and a clean screen in the other.
- */
-export function spaceAction(mode: SpaceMode, selected: { live: boolean; previewed: boolean }): SpaceAction {
-  if (selected.live) return 'take-off';
-  if (mode === 'preview-then-take' && !selected.previewed) return 'preview';
-  return 'take';
-}
-
-/** The TAKE button's face for an action, so the two React surfaces read the same words. */
+/** The TAKE button's face for an action: the shared words, plus this stylesheet's class. */
 export function takeFace(action: SpaceAction): { text: string; title: string; className: string } {
-  if (action === 'take-off') {
-    return {
-      text: '■ TAKE OFF',
-      title: 'Take this cue OFF air. SPACE does the same',
-      className: 'pd-verb pd-verb-take pd-verb-live',
-    };
-  }
-  if (action === 'preview') {
-    // Amber, never red: red means "this puts something on air", and this press does not.
-    return {
-      text: '→ PREVIEW',
-      title: 'Show the selected cue on PREVIEW, nothing airs. SPACE again takes it to air',
-      className: 'pd-verb pd-verb-take pd-verb-preview',
-    };
-  }
-  return { text: '⟳ TAKE', title: 'Air the previewed cue', className: 'pd-verb pd-verb-take' };
+  const cls =
+    action === 'take-off' ? 'pd-verb pd-verb-take pd-verb-live'
+    : action === 'preview' ? 'pd-verb pd-verb-take pd-verb-preview'
+    : 'pd-verb pd-verb-take';
+  return { ...SPACE_FACES[action], className: cls };
 }
 
 /**
- * The operator's mode, read once from this browser and written back on change. A write in
- * another tab of the same browser is picked up through `storage`, so the in-app page and the
- * hosted page never disagree on one machine.
+ * The operator's mode: a device-level preference (`model/prefs.ts`), read when the page opens
+ * and written back on change. Deliberately NOT followed live across tabs: a mode arriving from
+ * another tab would move the PREVIEW under an operator mid-show without any press of theirs,
+ * and the only safe moment to re-seed what is on PREVIEW is the click on this page's own box.
+ * Another open tab picks the new habit up when it next loads.
  */
 export function useSpaceMode(): [SpaceMode, (mode: SpaceMode) => void] {
-  const [mode, setModeState] = useState<SpaceMode>(loadSpaceMode);
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === SPACE_MODE_KEY) setModeState(loadSpaceMode());
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  const [mode, setModeState] = useState<SpaceMode>(() => asSpaceMode(loadPrefs().spaceMode));
   const setMode = useCallback((next: SpaceMode) => {
-    saveSpaceMode(next);
+    savePrefs({ spaceMode: next });
     setModeState(next);
   }, []);
   return [mode, setMode];

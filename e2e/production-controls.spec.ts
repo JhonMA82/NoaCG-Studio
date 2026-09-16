@@ -1702,8 +1702,8 @@ test('SPACE previews first: the cursor previews nothing, SPACE stages, SPACE air
   await expect(previewWhat).toHaveText('Ben');
 
   // THE CURSOR IS ONLY A CURSOR. Up to Anna: she is selected, Ben is still on PREVIEW, and the
-  // button says what the next press does. (The checkbox blurred itself on the click, so this
-  // arrow reached the rundown rather than the checkbox.)
+  // button says what the next press does. (Focus is still on the checkbox after the click; a
+  // checkbox is not typing, so the keys stay the verbs' - `typingInto` in playoutKeys.ts.)
   await page.keyboard.press('ArrowUp');
   await expect(rows.nth(0)).toHaveClass(/selected/);
   await expect(rows.nth(0)).not.toHaveClass(/on-pvw/);
@@ -1825,6 +1825,12 @@ test('the EXPORTED controller carries both SPACE modes, read off the relay: prev
     const first = shows.loadShows().find((s) => s.id === show.id)!;
     shows.updateShowCue(show.id, first.cues![0].id, { label: 'Anna' });
     shows.addShowCue(show.id, first.graphics[0].id, { label: 'Ben' });
+    // A THIRD cue on a SECOND graphic (its own layer), for the cross-graphic half below.
+    const tpl2 = variantById('lt02')!.create({});
+    const { doc: doc2 } = createGraphic(tpl2, { name: 'Second strap' });
+    shows.addGraphicToShow(show.id, tpl2, { graphicId: doc2!.id });
+    const withSecond = shows.loadShows().find((s) => s.id === show.id)!;
+    shows.updateShowCue(show.id, withSecond.cues![2].id, { label: 'Cara' });
     const fresh = shows.loadShows().find((s) => s.id === show.id)!;
     const zip = await buildShowZipFor(fresh, 'html-overlay');
     return zip.generateAsync({ type: 'base64' });
@@ -1902,4 +1908,28 @@ test('the EXPORTED controller carries both SPACE modes, read off the relay: prev
   await expect(anna).toHaveClass(/on-pvw/);
   await expect(ben).not.toHaveClass(/on-pvw/);
   expect(tallies().slice(-3)).toEqual(['preview:on', 'program:off', 'preview:on']);
+
+  // THE OWNER'S GESTURE AS FAST AS A HAND MAKES IT: two presses inside this page's 400 ms log
+  // poll, on a fresh cue. "On PREVIEW" is held the moment the preview rows are sent, so the
+  // second press AIRS. Read back off the poll instead, both presses previewed and nothing aired.
+  await ctl.keyboard.press('ArrowDown');
+  await expect(ben).toHaveClass(/selected/);
+  await ctl.keyboard.press('Space');
+  await ctl.keyboard.press('Space');
+  await expect(ben).toHaveClass(/on-air/, { timeout: 10_000 });
+  expect(tallies().slice(-2)).toEqual(['preview:on', 'program:on']);
+
+  // CROSS-GRAPHIC: staging Cara (a second graphic on its own layer) REPLACES Ben on PREVIEW -
+  // the strap leaves the preview stream - and coming back to Ben reads as not previewed, the
+  // answer the React pages give from their single staged id.
+  const cara = ctl.locator('.cue', { hasText: 'Cara' });
+  await ctl.keyboard.press('Space');
+  await expect(ben).not.toHaveClass(/on-air/, { timeout: 10_000 });
+  await cara.click();
+  await ctl.keyboard.press('Space');
+  await expect(cara).toHaveClass(/on-pvw/, { timeout: 10_000 });
+  await expect(ben).not.toHaveClass(/on-pvw/);
+  expect(tallies().slice(-2)).toEqual(['preview:off', 'preview:on']);
+  await ben.click();
+  await expect(take).toHaveText(/→ PREVIEW/);
 });

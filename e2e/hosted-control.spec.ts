@@ -958,30 +958,26 @@ test('a bound field on the hosted page reads the tree, and a press moves the val
 test('the hosted page reads the SPACE mode the in-app page stores: one key per browser, the default when unset', async ({
   page,
 }) => {
-  // The two SPACE modes (docs/PLAYOUT_DASHBOARD.md §2 "Two Space modes") are one setting on
-  // one machine: the hosted page and the in-app page share the browser's storage, so an operator
-  // who ticked the box on one finds it ticked on the other. This page cannot be mounted offline,
-  // so what the merge gate holds is the CONTRACT it reads - the key, the two words, and that an
-  // unknown value is the default rather than a crash. The hosted page's own keys in both modes
-  // are walked with a real backend in e2e/configured/hosted-space-modes.spec.ts.
+  // The two SPACE modes (docs/PLAYOUT_DASHBOARD.md §2f) are one setting on one machine: the
+  // hosted page and the in-app page share the browser's prefs, so an operator who ticked the box
+  // on one finds it ticked when the other next opens. This page cannot be mounted offline, so
+  // what the merge gate holds is the CONTRACT it reads - a device-level preference beside the
+  // other workflow defaults, the two words, and that an unknown value is the default rather than
+  // a crash. The hosted page's own keys in both modes are walked with a real backend in
+  // e2e/configured/hosted-space-modes.spec.ts.
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const read = await page.evaluate(async () => {
-    const { loadSpaceMode, saveSpaceMode, SPACE_MODE_KEY } = await import('/src/model/productionState.ts');
-    const unset = loadSpaceMode();
-    saveSpaceMode('preview-then-take');
-    const stored = localStorage.getItem(SPACE_MODE_KEY);
-    const set = loadSpaceMode();
-    localStorage.setItem(SPACE_MODE_KEY, 'something-older-or-newer');
-    const unknown = loadSpaceMode();
-    localStorage.removeItem(SPACE_MODE_KEY);
-    return { key: SPACE_MODE_KEY, unset, stored, set, unknown };
+    const { loadPrefs, savePrefs } = await import('/src/model/prefs.ts');
+    const { asSpaceMode } = await import('/src/control/spaceMode.ts');
+    const unset = asSpaceMode(loadPrefs().spaceMode);
+    savePrefs({ spaceMode: 'preview-then-take' });
+    const set = asSpaceMode(loadPrefs().spaceMode);
+    // A value from an older or newer build than this one: the default, never a crash.
+    savePrefs({ spaceMode: 'something-older-or-newer' as never });
+    const unknown = asSpaceMode(loadPrefs().spaceMode);
+    savePrefs({ spaceMode: 'take' });
+    return { unset, set, unknown };
   });
-  expect(read).toEqual({
-    key: 'spx-gfx-space-mode',
-    unset: 'take',
-    stored: 'preview-then-take',
-    set: 'preview-then-take',
-    unknown: 'take',
-  });
+  expect(read).toEqual({ unset: 'take', set: 'preview-then-take', unknown: 'take' });
 });
