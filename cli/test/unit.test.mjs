@@ -19,9 +19,11 @@
 // Run `npm run build` first - these import the built `dist/`.
 
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
+import http from 'node:http';
 import JSZip from 'jszip';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -550,6 +552,161 @@ test('every caspar sub-command except send refuses a stray word', async () => {
   const parsed = JSON.parse(sent.stdout);
   assert.equal(parsed.command, 'INFO 1', 'send keeps every word it was given');
   assert.doesNotMatch(parsed.error ?? '', /outside its flags/);
+});
+
+// ---------------------------------------------------------------- the login handoff exits
+//
+// `noacg login` is the one step of the agent road with a human in it, and on 2026-09-10 it minted
+// the key, stored it, printed its success line and then sat for 923 s without exiting, until it
+// was killed. Nothing here covered either exit, so both are pinned below.
+//
+// What holds the process is a socket, and it is not the obvious one: `server.close()` closes
+// connections that are IDLE in the HTTP sense, but a browser also opens a speculative connection
+// it never sends a request on, and that one has no finished message, so it survives the close and
+// keeps the event loop alive. These tests hold exactly that socket open across the handoff, which
+// is what makes them fail without `closeAllConnections()` in `login.ts`. The timeout path is
+// pinned separately because the 923 s run says nothing about it: a successful handoff cancels the
+// giving-up timer by design, so that path was never taken.
+
+/** A stand-in NoaCG deployment. The only endpoint `login` calls is the redeem. */
+function stubDeployment(key) {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', (c) => (body += c));
+      req.on('end', () => {
+        if (req.method === 'POST' && req.url === '/api/me/agent-keys') {
+          res.writeHead(201, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ key, id: 'k_test', name: 'unit test', prefix: displayPrefix(key), createdAt: '2026-09-16T00:00:00.000Z' }));
+          return;
+        }
+        res.writeHead(404, { 'content-type': 'text/plain' });
+        res.end('not this deployment');
+      });
+    });
+    server.listen(0, '127.0.0.1', () => resolve({ server, origin: `http://127.0.0.1:${server.address().port}` }));
+  });
+}
+
+/**
+ * Start `login` against a stub deployment, read the consent URL it prints, and behave like the
+ * browser: load the callback page and leave a second, request-less socket connected.
+ *
+ * Returns the child, the loopback port and state, a `complete()` that posts the code back the way
+ * the served page does, and `waitForExit`. The caller must call `release()`.
+ */
+async function drivenLogin({ waitSec }) {
+  const key = `${AGENT_KEY_PREFIX}${'d'.repeat(32)}`;
+  const { server: stub, origin } = await stubDeployment(key);
+  const home = await tmpdir();
+  const env = { ...process.env, NOACG_URL: origin, APPDATA: home, XDG_CONFIG_HOME: home };
+  delete env.NOACG_AGENT_KEY;
+
+  const child = spawn(process.execPath, [cli, 'login', '--no-browser', '--wait', String(waitSec)], { env });
+  let stdout = '';
+  let stderr = '';
+  let exit = null;
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (d) => (stdout += d));
+  child.stderr.on('data', (d) => (stderr += d));
+  const exited = new Promise((resolve) => child.on('exit', (code) => { exit = { code, at: Date.now() }; resolve(exit); }));
+
+  // The consent URL carries the loopback port and the state, and goes to stderr through out.log().
+  let consent = null;
+  for (let i = 0; i < 300 && !consent; i++) {
+    const m = /http:\/\/\S+\/app\?\S+/.exec(stderr);
+    if (m) consent = new URL(m[0]);
+    else await new Promise((r) => setTimeout(r, 50));
+  }
+  assert.ok(consent, `login printed no consent URL in 15 s. stderr:\n${stderr}`);
+  const port = Number(consent.searchParams.get('port'));
+  const state = consent.searchParams.get('agent');
+
+  const browser = new http.Agent({ keepAlive: true });
+  const request = (options, body) =>
+    new Promise((resolve, reject) => {
+      const r = http.request({ host: '127.0.0.1', port, agent: browser, ...options }, (res) => {
+        let text = '';
+        res.setEncoding('utf8');
+        res.on('data', (c) => (text += c));
+        res.on('end', () => resolve({ status: res.statusCode, text }));
+      });
+      r.on('error', reject);
+      if (body !== undefined) r.write(body);
+      r.end();
+    });
+
+  const page = await request({ method: 'GET', path: '/callback' });
+  assert.equal(page.status, 200, 'the listener serves the callback page');
+  const speculative = net.connect(port, '127.0.0.1');
+  await new Promise((resolve, reject) => {
+    speculative.once('connect', resolve);
+    speculative.once('error', reject);
+  });
+
+  return {
+    key,
+    origin,
+    home,
+    state,
+    out: () => ({ stdout, stderr }),
+    complete: (params) => request({ method: 'POST', path: '/complete', headers: { 'content-type': 'text/plain' } }, params),
+    waitForExit: async (withinMs) => {
+      const deadline = new Promise((resolve) => setTimeout(() => resolve('timed out'), withinMs));
+      const which = await Promise.race([exited, deadline]);
+      assert.notEqual(which, 'timed out', `login did not exit within ${withinMs} ms of the handoff - it is hanging with a browser socket still open. stdout:\n${stdout}\nstderr:\n${stderr}`);
+      return exit;
+    },
+    release: () => {
+      browser.destroy();
+      speculative.destroy();
+      stub.close();
+      if (exit === null) child.kill();
+    },
+  };
+}
+
+test('a successful login exits 0 promptly, with the browser tab still open', { skip: noConfigDoor }, async () => {
+  const session = await drivenLogin({ waitSec: 60 });
+  try {
+    const done = await session.complete(`code=test-code&state=${session.state}`);
+    assert.equal(done.status, 200, 'the listener accepts the code the page hands back');
+    const handoffAt = Date.now();
+
+    // Five seconds is not the target - the fixed path exits in about 0.3 s, and the point is that
+    // this never again becomes "as long as the person leaves the tab open". It is the slack a
+    // loaded CI runner gets for one redeem and one credentials write.
+    const exit = await session.waitForExit(5000);
+    assert.equal(exit.code, 0, `a login that minted and stored a key exits 0. stdout:\n${session.out().stdout}`);
+    assert.ok(exit.at - handoffAt < 5000);
+
+    // The line the person reads is on STDOUT (out.say), while every progress line is on stderr
+    // (out.log). Reading the wrong stream is what made this defect look like a different one.
+    const { stdout, stderr } = session.out();
+    assert.match(stdout, /^Logged in to /m, 'the success line reaches stdout, where a person sees it');
+    assert.match(stdout, /revoke it any time/, 'the success line says how to take the key back');
+    assert.doesNotMatch(stderr, /Logged in to /, 'the success line is not on stderr');
+
+    const stored = JSON.parse(await fs.readFile(path.join(session.home, 'noacg', 'credentials.json'), 'utf8'));
+    assert.equal(stored.deployments[session.origin].key, session.key, 'the key it printed about is the key it stored');
+  } finally {
+    session.release();
+  }
+});
+
+test('a login whose code never arrives exits non-zero within its wait, and says it gave up', async () => {
+  const session = await drivenLogin({ waitSec: 2 });
+  try {
+    // Nothing is posted back: this is the person who never presses Allow, or closes the tab.
+    const exit = await session.waitForExit(20_000);
+    assert.equal(exit.code, 1, 'giving up is exit 1, the documented "refused" code');
+    const { stdout } = session.out();
+    assert.match(stdout, /No reply from the browser within 2 s/, 'it says what it waited for');
+    assert.match(stdout, /run `noacg login` again/, 'it says what to do next');
+  } finally {
+    session.release();
+  }
 });
 
 // ---------------------------------------------------------------- the shipped skill text

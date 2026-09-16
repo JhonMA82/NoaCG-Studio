@@ -833,3 +833,16 @@ production shows an input per field + Take/Update/Next/Out. No application code 
   `whoami` is closed in the same pass. The walk's third finding is a studio template fault rather
   than a CLI one and stays open in the backlog. Nothing about the package's shape, its verbs or
   its output contract changed, so 0.3.1 is a drop-in for anyone on 0.3.0.
+- **0.3.3 (2026-09-16): `login` exits.** Against `noacg.studio` on 2026-09-10, `login` minted the
+  key, stored it, printed its success line and then sat for 923 s until it was killed. The person
+  watching cannot tell that from a login that failed, so the likely reaction is to run it again and
+  mint a second key. The cause is a socket, and not the one it looks like: `server.close()` closes
+  connections that are IDLE in the HTTP sense, and a browser also opens a speculative connection it
+  never sends a request on. That one has no finished message, so it is not idle, survives the close
+  and holds the event loop - and nothing times it out, because closing the server also stops the
+  interval that enforces `headersTimeout` and `requestTimeout`. `login` now calls
+  `closeAllConnections()` beside `close()` on both paths. Measured on Node 24 with a browser-like
+  socket held open across the handoff: a successful login exits 0 about 0.3 s after the code
+  arrives, and a wait that runs out exits 1 within it with its giving-up line on stdout. Both are
+  pinned in `cli/test/unit.test.mjs` and were confirmed red against a build without the fix. The
+  300 s timeout was never implicated: a successful handoff cancels that timer by design.
