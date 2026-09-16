@@ -59,7 +59,6 @@ export default function ProductionDataPanel({
    *  so a red line and a green one can never be on screen together - which they were, the moment
    *  any note was set outside `write()`. */
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
-  const say = (text: string) => setNote({ text, ok: true });
   /** The data key is hidden until asked for: it is a credential, and this page is often on a
    *  screen somebody else is looking at. */
   const [keyOpen, setKeyOpen] = useState(false);
@@ -168,7 +167,7 @@ export default function ProductionDataPanel({
           <button
             onClick={() => {
               setShows(setShowSeedData(show.id, liveData));
-              say('✓ Saved as this production’s seed');
+              setNote({ text: '✓ Saved as this production’s seed', ok: true });
             }}
             data-testid="data-save-seed"
           >
