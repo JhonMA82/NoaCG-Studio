@@ -1,66 +1,93 @@
 # AC-6 - COMBINE sends one row per step, shows its wait, and reports a dropped step
 
-**Verdict: unverified.** Everything the criterion names is observed on the in-app production page
-and pinned by specs; the hosted page's rendered buttons have never been seen by anybody, on any
-machine, and that is half of what the criterion asks. Reviewed at
-`dfac5b9cf230532565f57d6988517bb25cdbf94d` on 2026-09-16.
+**Verdict: pass.** The gap that held this at `unverified` is closed: a combined control has now
+been rendered, greyed, ticked, pressed, counted down and cancelled on the HOSTED control page,
+against a real backend, and every claim about what a press sent was read off the durable log with
+the server's own timestamps. Re-reviewed at `66b000808a1547695a6cc07ae5fc2ed1315713df` on 2026-09-16.
 
-## What was observed in-app, by hand
+## What changed since the previous reading
 
-The proof case's own control - "Reveal performer, then after 3 s the five +1s as ticks" - composed
-in the Controls panel of a production made from the two §3a/§3b graphics, then pressed:
+The previous receipt said, correctly, that every clause was observed in-app and pinned by specs
+except the one that matters most on the night - "nobody has ever seen a combined control render on
+the hosted page". That surface needs a published `control_shows` row, a real command log and a
+resolve, so no offline spec can mount it and no linked worktree can publish to it.
 
-- **It greys while its first step is illegal.** Before either cue was taken the button's title read
-  `Greyed because the first step cannot go: "Votes board" is not on air`. After the votes cue went
-  to air the same button read `Sends 6 steps: Reveal performer on Votes board; Panelist 1 +1 on
-  Totals board (after 3 s, ticked by default); …` and was enabled.
-- **A step is offered as a tick.** Five check boxes, labelled `Panelist N +1 on Totals board`, all
-  ticked by default. Panelists 2 and 4 were unticked before the press, which is the operator's real
-  gesture on 2026-10-20: +1 under each person who was right.
-- **The wait counts down on the button.** Sampled from the page's own clock after the press:
-  `⚡ Reveal, then the +1s · 3s` at +0.0 s and +0.9 s, `· 1s` at +2.1 s, and the plain label back at
-  +3.9 s.
-- **The steps landed, and only the ticked ones.** Points for panelists 1 to 5 went from `0,0,0,0,0`
-  to `1,0,1,0,1` by 3.904 s after the press, of which 3.000 s is the declared wait. On air the
-  votes board had already revealed: the correct performer lit and each pick marked right or wrong
-  by the graphic's own `markGuesses()`.
+`e2e/configured/hosted-control-profile.spec.ts` puts the walk where both halves exist: the
+configured suite, whose runner brings up its own Supabase stack and its own throwaway account. The
+proof case is imported, a profile carrying an ARRANGE and this control is published, and the
+capability URL is opened signed out, as an operator would.
 
-## What the specs pin
+## What the run observed, on the hosted page
 
-Through the queue at this revision:
+`configured-suite` run `35059312926` on `claude/hk-hosted-half-configured`: **43 tests, 43 passed, 0
+failed, 0 flaky, 0 skipped**, the walk itself in 19.9 s.
 
-- `e2e/production-controls.spec.ts` (job `j-1137`): **22 passed**, exit 0, including
-  "a step the machine would drop is dropped alone, and the feed says which".
-- `e2e/hosted-control.spec.ts` (job `j-1138`): **12 passed**, exit 0. These drive
-  `src/control/hostedCombine.ts` over the published bytes - the wire baseline against the cue's,
-  the dropped step, the greying, a take feeding its own next step, the batch seam - which is the
-  most a spec can reach for a page the offline server cannot mount.
+The control: `reveal` on the votes board, then `Panelist 2 +1` on the totals board marked
+`after 5 s` and `ask` ticked, then `Panelist 3 +1` marked `ask` ticked.
 
-The batch itself goes through `control_send_many` with whole steps packed per call
-(`COMMAND_BATCH_MAX` in `hostedControl.ts`), after HG found that cutting by raw item count could
-split a Take and leave a graphic playing on air with no ON AIR marker.
+- **It renders here, in its own section.** `hosted-actions-combined` carries the button reading
+  "⚡ Reveal, then the points", below the graphic's own sections.
+- **It greys on its FIRST step, with the reason.** Before either cue was taken the button was
+  disabled and its title read exactly
+  `Greyed because the first step cannot go: “Votes board” is not on air` - the first step's
+  graphic and no other, which matters because a walk's later steps are routinely illegal at the
+  moment its first one is pressed.
+- **The ticks are offered in the operator's words.** Two labels,
+  `Panelist 2 +1 on Totals board` and `Panelist 3 +1 on Totals board`, both checked - the declared
+  label behind its section, because five of that graphic's controls read "+1". Not `plus2`.
+- **The wait counts down on the button**, `· 5s` down, with `pd-combined-waiting` on it.
+- **One command row per step, in order, on the graphic each step names.** With Panelist 3 unticked,
+  the log gained exactly two rows: `Votes board:event:reveal`, then `Totals board:event:plus2`.
+  The unticked step sent nothing.
+- **The wait was really waited.** The two rows' own `created_at` differ by at least 4 s against a
+  declared 5 - measured on the server's clock, not the browser's, so the figure is not the
+  surface's opinion of its own timer.
+- **The cancel stands the tail down.** Pressed again while counting, the feed carries
+  `“Reveal, then the points” cancelled, 2 steps not sent`, and after waiting out the whole 5 s the
+  steps would have run, the log still holds only the reveal. This is the half that has to work
+  under pressure and it had no witness on this surface before.
 
-## Why this is unverified rather than passed
+## What the rig cannot reach, found by trying it
 
-The criterion says the control "renders on the in-app and hosted pages". The hosted page is the
-surface the show is run from on 2026-10-20, and:
+The first draft of the walk asserted that the cancelled press had spent the votes board's arrow, so
+the button greys on its first step again. **It does not, and that is the product working.** This
+page judges an event's LEGALITY against the graphic's last REPORT, and `control_report` is called
+only by the receiver injected into a real renderer (`src/control/hostedReceiver.ts`). The walk
+opens no output URL, so no report ever arrives and every machine stays at whatever state its boot
+resolve gave it.
 
-- its DOM is configured-only, so no spec in the merge gate mounts it;
-- AC-9's hosted leg, which existed to close exactly this, did not run - no checkout this session
-  could reach carries backend configuration;
-- step 10 of the live-verify checklist in `docs/CONTROL_LAYER.md` names two things only a real
-  backend can show at all: two operators counting from the WIRE rather than from a cue, and the
-  batch cap.
+So the greying's two halves split by what this rig can reach, and the spec says so where it stops:
 
-Nothing here suggests the hosted half is broken. It is simply unwitnessed, and rounding that up to
-a pass would make the ledger say something no one can point at.
+- the **liveness** half - "“Votes board” is not on air" - is asserted here, because the page reads
+  that off the wire's own cue rows;
+- the **legality** half stays pinned offline over the published bytes (`e2e/hosted-control.spec.ts`
+  drives `isEventLegal` through `hostedCombineNow` for a spent state) and in-app, where the page's
+  own PROGRAM stage is a renderer and does report.
+
+It is worth knowing outside this receipt: **a hand-walk of the hosted page with no output window
+open sees every machine frozen**, and that reads like a fault rather than like a missing renderer.
+The owner-queue item's route now says to open the output URL for exactly this reason.
+
+## What still pins the rest
+
+- `e2e/production-controls.spec.ts` (22 passed at the previous review) holds the in-app DOM,
+  including "a step the machine would drop is dropped alone, and the feed says which".
+- `e2e/hosted-control.spec.ts` (12 passed, job `j-1147`, re-run on this branch) holds this page's
+  own resolution over the PUBLISHED bytes: the wire baseline against the cue's, the dropped step,
+  the greying, a take feeding its own next step, the batch seam.
+- The exported controller's one line (§6f) is pinned by `e2e/exports.spec.ts`.
 
 ## Limitations worth carrying
 
-- **Nothing persists a wait.** A tab reloaded mid-countdown loses the unsent tail by design (§6d).
-  The button's hover says so. Whether that is acceptable for 2026-10-20 is the one question HF and
-  HG both put on the owner's route, and it is the expensive one to change later.
-- A combined step's legality is judged against the last REPORT, so a step after a Take in one press
-  is judged against the state the graphic had before it played in. §6b accepts that.
+- **The DROP has not been seen on this page's feed**, only its resolution over the published bytes
+  and its rendering in-app. Making the machine refuse a step against a real backend means driving
+  a graphic into a state mid-press, which this walk does not do.
+- **Two operators, and the batch cap**, are still unwitnessed anywhere - steps 10a and 10b of the
+  live-verify checklist in `docs/CONTROL_LAYER.md`. One spec holds one page. The multi-operator
+  claim (a delayed step counting from the WIRE rather than the cue) is pinned as a rule offline
+  and is the strongest remaining candidate for a second hosted case.
+- **Nothing persists a wait.** A tab reloaded mid-countdown loses the unsent tail by design (§6d),
+  and the button's hover says so. Whether that is acceptable for 2026-10-20 is the one question
+  still on the owner's route, and it is the expensive one to change later.
 - A patch step can be stored and sent but not composed: the composer authors no values, which is
   what keeps it from becoming a payload editor.

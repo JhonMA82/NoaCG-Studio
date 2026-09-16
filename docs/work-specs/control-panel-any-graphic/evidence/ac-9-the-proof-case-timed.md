@@ -1,101 +1,77 @@
 # AC-9 - the proof case runs from prompt to dashboard, timed, with the profile in use
 
-**Verdict: fail.** The profile was composed and driven, and every leg of it is timed. It was driven
-on the IN-APP production page, not from the hosted control page, because nothing this session could
-reach can publish. Reviewed at `dfac5b9cf230532565f57d6988517bb25cdbf94d` on 2026-09-16.
+**Verdict: pass, across two walks.** The authoring, the composition and the in-app minute were
+walked by hand on 2026-09-16 and timed; the publish and the operator's minute on the HOSTED control
+page - the half that failed this criterion - ran in CI on the same day, timed on the server's own
+clock. Re-reviewed at `66b000808a1547695a6cc07ae5fc2ed1315713df`.
 
-## Conditions
+## Why this took two walks, and what the second one is
 
-**When:** 2026-09-16, 03:40-04:35 UTC. **Machine:** Windows 10 (10.0.19045), 16 cores, 16 GB, about
-2.1 GB free, Node v24.13.0, Google Chrome as the bench browser. **Entrance:** the terminal one,
-from `C:\claude\noacg-hj-walk`, an empty folder outside the repository. **CLI:**
-`npx -y @noacg/cli@0.3.2`, the published package, no local build. **Deployment for the CLI's
-gates:** `https://noacg.studio`, bridge `v1 (main@dfac5b9cf2)` - this branch's own base, deployed.
-**Deployment for the dashboard:** this worktree's own dev server (`npm run dev:worktree`,
-`http://localhost:5224`), offline.
+The first walk could not publish. A linked worktree carries no backend configuration, the only
+`.env.local` on that machine held a Vercel token, and the alternative was the session signing in as
+the owner - which it would not do. So the profile was composed, driven and timed on the in-app
+production page, and the hosted page, which is the surface the show is run from, was left
+unwitnessed.
 
-## The verbs
+The second walk is `e2e/configured/hosted-control-profile.spec.ts`, in the configured suite: a
+runner that brings up its own Supabase stack and creates its own throwaway account, so it can
+publish and drive the capability URL without touching anything of the owner's. That is a different
+instrument from a person at a keyboard, and the limitations section below says exactly what it
+therefore cannot see.
 
-| Verb | Wall clock | Exit |
-|---|---|---|
-| `doctor` | 2.886 s | 0 |
-| `docs contract` | 1.740 s | 0 |
-| `scaffold` (votes board, cold) | 7.181 s | 0 |
-| `scaffold` (totals board) | 3.027 s | 0 |
-| `validate ./votes-board` | 5.791 s | 0 |
-| `validate ./totals-board` | 7.534 s | 0 |
-| `inspect ./votes-board` | 2.955 s | 0 |
-| `inspect ./totals-board` | 3.076 s | 0 |
-| `pack` (both, one production file) | 3.054 s | 0 |
+## The clauses, and where each is met
 
-**32.6 seconds of tool time** for the seven authoring verbs. The warm `npx` floor, measured on
-`--help`, is **1.739 s**, and every row above pays it before the tool starts - a stranger typing
-`npx @noacg/cli …` pays a registry check that the 2026-09-09 walk's local build did not.
-
-## The room's minute
-
-Timed off the page's own clock, so the numbers are the product's and not this session's tooling.
-
-| Step | Time |
+| What AC-9 asks | Where |
 |---|---|
-| Import the pack through Home › Productions › Import a package, to the production page open | **5.785 s** |
-| Compose the combined control, six steps, as walked | **100.0 s** |
-| …the last two steps alone, once the form is known | 9.9 s and 7.1 s, so about **4 s a step** |
-| Fill the votes cue - song, four performers, five picks, the correct letter (11 edits) | **0.283 s** of product time |
-| ⟳ Take the votes cue → on air, board painted with the picks | one press |
-| ⟳ Take the totals cue → both layers on air | one press |
-| Press the combined control → the reveal, then the three ticked +1s | **3.904 s**, of which 3.000 s is the declared wait |
-| First keystroke to the totals board showing the new figures | **83.8 s** as walked |
+| Both graphics made through the CLI against the shipped skill | walk 1 - 32.6 s of tool time for the seven authoring verbs, 0 errors each |
+| Saved or imported | both - `noacg pack`, then the Import door |
+| One production, combined control composed in the room's minute | walk 1 - about 4 s per step once the form is familiar; six steps in 100 s, most of it finding the way around the form |
+| **Published** | walk 2 |
+| **The operator's minute (§3c) driven from the hosted control page** | walk 2 |
+| Each step timed | walk 1's stopwatch; walk 2's four wall clocks below |
+| The numbers in an owner-queue item with the route | `docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md` and `2026-09-16-a-profile-driven-where-the-show-is-run.md` |
+| What the walk finds is fixed if small or filed if not | walk 1 fixed migration 0060 and filed the scrolling defect; walk 2 filed `docs/backlog/a-renamed-control-still-wears-its-section-in-a-combined-step.md` |
 
-The 100 s and the 83.8 s are honest and not useful on their own: most of both is this session
-finding elements, and a person composing the same control would spend it typing. The numbers that
-describe the PRODUCT are the other rows - 5.8 s to import two graphics and a production, 0.28 s to
-fill sixteen fields, 0.9 s of product time over a 3 s declared wait to send six steps.
+## Walk 2's numbers
 
-## What the minute looked like
+`configured-suite` run `35059312926` on `claude/hk-hosted-half-configured`: **43 tests, 43 passed, 0
+failed, 0 flaky, 0 skipped.** The walk itself took 19.9 s end to end, of which:
 
-- The cue editor banded itself on the graphics' own titles, exactly as §3d.1 says it would:
-  `Panelist 1 / Pick 1` through `Panelist 5 / Pick 5`, then a `Both` band holding the song, the
-  four lettered performers and Correct.
-- The combined control's composer offered `Votes board`, `Totals board`, `Cue: Votes board` and
-  `Cue: Totals board` to act on, and then only what that target declares: `Reveal performer` for
-  the votes board, all eleven of the totals board's controls prefixed with their section
-  (`Panelist 1 +1`). No verb is offered on a graphic and no event on a cue.
-- The button greyed itself with the reason in its title before the votes board was on air.
-- On air, the reveal lit the correct performer and marked each pick right or wrong - the graphic's
-  own `markGuesses()`, fired from the state's `calls`, not from the dashboard.
-- Unticking panelists 2 and 4 sent three of the five +1s, and the board read `1,0,1,0,1`.
+- **publish 0.3 s** - the press to the production reading SHOW;
+- **both cues on air 1.1 s** - two selects and two Takes on the hosted page;
+- **combined press to its last row 6.0 s**, of which **5.0 s is the wait the production
+  asked for**;
+- **bound +1 to its row 0.2 s** - the press to the tree's own update row coming back.
 
-## Why this fails
+Read these as a floor rather than as a prediction. The local stack answers in about a millisecond
+where a hosted project answers in about two hundred from a runner, which is why the publish reads
+at a fifth of a second here and took about five in the owner's own cloud during walk 1. What the
+figures do establish is that nothing in the profile road adds a wait of its own: the only delay in
+the minute is the one the production asked for, and it is measured on the server's clock across two
+log rows rather than on a browser's.
 
-**The hosted control page was not driven, and publishing could not run.** Precisely:
+## The minute, as it was driven
 
-- A linked worktree has no `.env.local`; the file is per checkout and gitignored.
-- The only `.env.local` on this machine, in the checkout that holds `main`, carries a single
-  `VERCEL_OIDC_TOKEN` and no backend configuration at all. Backend configuration lives in that
-  checkout's `.env`, and `root/never-occupy-checkout-holds-feature-branch` puts that checkout out
-  of bounds for this work.
-- The sanctioned route for a configured run is `npm run test:e2e:live`, whose specs sign in as the
-  throwaway test account from that same file. Publishing a production by hand would have meant this
-  session authenticating as the owner, which it must not do.
+Import the pack; write the bindings and the profile; publish; open `?control=<slug>` signed out;
+take the votes board; take the totals board; read the arranged ⚡ block; press the combined control
+and stand its tail down while it counts; untick the panelist who guessed wrong and press again;
+press `+` under the bound points. Every one of those is a gesture in today's dashboard, and the
+profile is in use throughout - ARRANGE on the block, COMBINE on the button, a binding under the
+stepper.
 
-So plan §3c was driven from the in-app production page and not from the hosted page, and the
-profile was never pinned on a published `control_shows` row. That is the second half of AC-9 and it
-is the same wall HB met on 2026-09-15.
+## Limitations worth carrying
 
-## What the walk found
-
-- **Migration 0060 has never applied anywhere**, so AC-7's hosted half is not merely untested, it
-  is absent from the live project. The diagnosis, the reproduction and the one-line correction this
-  branch makes are in `ac-7-bound-field-stepper.md`. That is the walk's one real finding and it was
-  fixed rather than filed, because it is small and certain.
-- **The dashboard leaves an unpainted band when it scrolls.** At 1600×1000 the production page's
-  document is 1269 px tall while `#root` is 1000 px, so scrolling to reach the Controls panel slides
-  the app's own background off and shows the page behind it. Cosmetic, on the surface an operator
-  holds. Filed rather than fixed: it is a layout question about the whole shell, not about this
-  chain.
-- **Four single-spec jobs at `--cost 0.5` run at once**, which is 2.0 of the queue's 2.0
-  suite-equivalents, and on a box with 2 GB free that produced two false failures - a 60 s download
-  timeout in `exports.spec.ts` and a 7 s workspace-open timeout in `production-data.spec.ts`. Both
-  passed alone on re-run in 3.4 s and 3.2 s. The price is right for the budget and wrong for the
-  RAM.
+- **No person has looked at the rendered hosted page with a profile on it.** The spec asserts
+  structure and text - the pinned block precedes the sections, the disclosure reads "More (1)",
+  the countdown carries its figure - and that is a great deal more than nothing, but "above the
+  fold" is a visual claim about a phone screen and this instrument cannot make it. The owner-queue
+  item is the three-minute route for the eye that can.
+- **Two operators and the batch cap** are still unwalked anywhere (`docs/CONTROL_LAYER.md`
+  live-verify step 10). One spec holds one page.
+- **The composer was not used in walk 2.** The profile was written through `setShowProfile`, which
+  is byte-identical to a composed one because it is the same canonical serializer, and the
+  composer's own minute is walk 1's number. What walk 2 proves is what the hosted page does with a
+  PUBLISHED profile, which is the half that had no witness.
+- Walk 1's own limitation stands where it is not superseded: it drove the in-app page against a
+  dev server, and its authoring numbers came from `@noacg/cli@0.3.2` against the deployed studio
+  rather than from the branch.

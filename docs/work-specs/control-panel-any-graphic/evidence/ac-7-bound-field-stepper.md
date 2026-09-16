@@ -1,121 +1,93 @@
 # AC-7 - a stepper on a bound field patches the shared value
 
-**Verdict: fail.** The in-app half works and is pinned. The hosted half cannot work in any
-deployment, because the migration it needs has never applied anywhere and refuses itself when it
-tries. Reviewed at `dfac5b9cf230532565f57d6988517bb25cdbf94d` on 2026-09-16.
+**Verdict: pass.** The two things that failed this criterion are both answered: migration 0060 has
+applied to production and staging, and a ± press on a bound field has now been made on the HOSTED
+control page and the resulting rows read off the wire. Re-reviewed at `66b000808a1547695a6cc07ae5fc2ed1315713df` on 2026-09-16.
 
-## The in-app half, which holds
+## What failed before, and what settled it
 
-Through the queue, `e2e/production-data.spec.ts` (job `j-1139`), both of the criterion's own cases
-green at this revision:
+The previous receipt failed this criterion for one reason: `control_data_by_slug` and
+`control_data_patch_by_slug` did not exist anywhere. `0060_operator_data_patch.sql` had refused
+itself on two consecutive post-land pushes on an ambiguous `value` reference, rolling the whole
+file back each time, so roughly nineteen assertions of its own self-check, both doors, the
+row-count checks over two bound graphics and the four refusals had never executed.
 
-```
-ok  a ± press on a bound field moves the shared value, and every graphic bound to it follows (6.0s)
-ok  an adjust on a bound field patches the tree, and the event still fires (21.8s)
-```
-
-`controlModel.pressSend` is the one rule both ⚡ buttons and the combined-control resolver use to
-decide what a press carries, split by boundness, so the two surfaces cannot disagree on air. An
-unbound field keeps the field stepper unchanged and the exported controller, which carries no tree,
-is untouched - the export comparison in `ac-10-…` confirms the exported package gained no tree and
-no production path.
-
-## Why the criterion fails
-
-The hosted page needs `control_data_by_slug` and `control_data_patch_by_slug`, which migration
-`0060_operator_data_patch.sql` creates. Read off the live project `kprolrchuldgfrzspthy` on
-2026-09-16:
-
-- `list_migrations` ends at **0059**. There is no 0060 row.
-- `pg_proc` in `public` has **none** of `control_data_apply`, `control_data_by_slug`,
-  `control_data_patch_by_slug`, `production_data_patch_paths`. The three functions 0060 depends on
-  and does not create - `control_data_patch`, `jsonb_merge_patch`, `production_data_resolve` - are
-  all present, so nothing was missing on the way in.
-
-The post-land workflow that applies migrations has been **red for two consecutive landings**:
-run `35045162515` (pull request 280) and run `35050545400` (pull request 281). Its log:
+**They have now.** Post-land run `35055657854`, the push after pull request 283:
 
 ```
-ERROR: operator-patch self-check failed: the operator door deleted an unbound branch
-       (column reference "value" is ambiguous) (SQLSTATE P0001)
-At statement: 15
-…
-nothing: no privilege, column, policy or ledger row differs.
-supabase db push exited 1. The diff above is what actually landed.
+Applying migration 0060_operator_data_patch.sql...
+Applied 1 migration(s): 0060.
+  ledger: +1 -0            + 0060 operator_data_patch
+  function_grants: +8 -0   + anon/authenticated/service_role execute on control_data_by_slug,
+                             control_data_patch_by_slug, control_data_apply,
+                             production_data_patch_paths
 ```
 
-The migration applies in one transaction, so its own self-check rolled the whole file back. That is
-the outcome HH's handoff predicted in as many words: 0060 had never been executed, there is no
-Docker on this machine, and "it lands on the post-land push, and that is the first time any of it
-executes."
+on `kprolrchuldgfrzspthy` (production) and again on `garafohbzmsybtysxphb` (staging), the job green.
+That is the first execution of every statement past 15, including the two refusals this chain added
+for the array carve-out and the LIKE-pattern key.
 
-So on 2026-10-20 as things stand, a `+1` on a bound field made from the hosted control page writes
-the field on one graphic and the next shared write puts it back - the exact bug the criterion
-exists to remove.
+The configured suite applies the same 51 migrations to a fresh local Postgres on every run and
+asserts the count matches the repository before any spec runs, so 0060 is now executed on three
+databases rather than none.
 
-## The cause, and what this branch did about it
+## What the run observed, on the hosted page
 
-`production_data_patch_paths` is declared `returns table (path text, value jsonb)`, which puts a
-plpgsql variable called `value` in scope, and its loop read
-`select key, value from jsonb_each(p_patch)` with the column unqualified. Postgres refuses that at
-run time, and nothing plans the query until the loop executes - which is why the file applied all
-the way to its self-check before failing.
+`configured-suite` run `35059312926` on `claude/hk-hosted-half-configured`: **43 passed, 0 skipped.**
 
-Both directions were executed on the real Postgres 17 instance, in `pg_temp`, so nothing in the
-project was touched:
+The production binds three fields across the two proof-case boards: the votes board's
+"Panelist 1" (f5) and the totals board's "Name 1" (f0) to `panel.katri.name`, and the totals
+board's "Points 1" (f5) to `panel.katri.points`, seeded to `Katri` and `0` through the owner's own
+data key.
 
-- the original body: `ERROR: 42702 column reference "value" is ambiguous / DETAIL: It could refer
-  to either a PL/pgSQL variable or a table column / QUERY: select key, value from
-  jsonb_each(p_patch)` - the post-land error, reproduced;
-- the corrected body (`select e.key, e.value from jsonb_each(p_patch) e`): walks
-  `{"match":{"home":{"score":4}},"drivers":[{"gap":"LEADER"}],"gone":null}` to
-  `match.home.score=4`, `drivers=[…]`, `gone=null` - the grammar the migration's own header
-  documents, recursion included.
+- **A bound field has no box to type into.** `hosted-bound-f5` renders as a read-out wearing its
+  path, its input `readOnly`, reading `0` off the tree - not off the cue, which is the §2.7 rule.
+- **The ± press moves the VALUE.** One `+` on the live totals cue, and the log gained exactly one
+  command row: an `update` on `Totals board` carrying `f5: "1"`. Nothing was written to the field
+  and nothing was mirrored into the cue.
+- **The tree moved, and stayed a number.** `control_data_by_slug` read back
+  `panel.katri.points === 1` as a JSON number, so a feed writing the same path does not find a
+  string there.
+- **Every graphic bound to a value follows it.** Moving `panel.katri.name` through the same
+  operator door produced exactly two rows, one per bound graphic: `Votes board` with
+  `f5: "Katri V."` and `Totals board` with `f0: "Katri V."`.
 
-This branch corrects 0060 in place rather than adding 0061, because the file has applied nowhere
-and there is no applied text to disagree with; the reasoning is written into the file's header so a
-reader does not mistake it for editing an applied migration. `control_data_apply` runs the same
-`select key, value` shape and is fine - it returns a scalar and declares no such out parameter -
-and that is the only other site in the file.
+## Why the criterion's own scenario is proved on two leaves rather than one
 
-## Two more defects, found by this branch's own review of the same file
+The spec's scenario is "two graphics bound to `panel.katri.points`, a `+1` on one, both showing the
+new figure". The proof-case fixture cannot offer that honestly: **the votes board declares no
+number field at all** (sixteen inputs, all text, dropdown or hidden), so the only leaf both boards
+can carry is the panelist's NAME and the only leaf a ± stepper can move is the POINTS the totals
+board alone shows.
 
-Reading the migration for the ambiguity turned up two ways for a slug holder - signed out, holding
-nothing but a shared operating link - to destroy a production's authored tree, which is the exact
-thing the door's header argues it prevents. Both were reproduced against the live Postgres 17
-instance in `pg_temp`, using the self-check's own bindings
-(`match.home.score`, `drivers.0.gap`), before and after the change:
+So the walk binds both: the press proves the patch road on the points leaf, and the multi-graphic
+follow is proved on the name leaf, through the same `control_data_patch_by_slug` door on the same
+page. Binding the votes board's "Panelist 1" to a points figure would have satisfied the sentence
+and aired nonsense, which is a worse receipt than this paragraph.
 
-| the press | before | after |
-|---|---|---|
-| `{"match":{"home":{"score":5}}}` | allowed | allowed |
-| `{"drivers":[{"gap":"+1.204"}]}` | allowed | allowed |
-| `{"match":null}` / `{"match":"gone"}` | refused | refused |
-| `{"weather":{"temp":4}}` | refused | refused |
-| **`{"match":[]}`** | **allowed** | refused |
-| **`{"%":[1]}`** | **allowed** | refused |
-| **`{"matc_":[1]}`** | **allowed** | refused |
+The in-app half, where two graphics DO share a number, is unchanged and still pinned:
+`e2e/production-data.spec.ts` holds "a ± press on a bound field moves the shared value, and every
+graphic bound to it follows" and "an adjust on a bound field patches the tree, and the event still
+fires", both against `match.home.score` on two scoreboards.
 
-The array carve-out accepted an array at any path a binding descends into, by NAME as well as by
-index, so `{"panel":[]}` against a binding of `panel.katri.points` replaced the whole branch - and
-silently, because the bound leaves are then gone from the resolve, no `update` row is appended and
-the activity feed says nothing. And the prefix test was a `like` pattern built from the caller's own
-JSON key, so `%` and `_` in a key were wildcards. It is a `starts_with` comparison now and the
-segment after the prefix must be numeric, which is the only shape merge-patch cannot address
-element-wise and so the only one the exception is for.
+## The rest of the criterion
 
-A third, smaller one: a patch resolving to no change still took the row lock and rewrote the row,
-uncapped, on a door granted to `anon` - both rate gates sit behind the pending-row count. It writes
-nothing now when the tree did not move.
+- **An unbound field keeps the field stepper unchanged.** Pinned in-app in the same spec; the
+  hosted walk exercises the unbound road incidentally, since the combined control's `plus2` moves
+  the unbound `f6` and mirrors it into the shared staging buffer rather than the tree.
+- **The exported controller, which carries no tree, is unchanged.** The byte and render comparison
+  is in `ac-10-nothing-a-downloaded-graphic-carries-changed.md`.
+- `controlModel.pressSend` remains the one rule both the ⚡ buttons and the combined-control
+  resolver use to decide what a press carries, split by boundness, so the surfaces cannot disagree
+  on air.
 
-The migration's self-check gains the two refusals and `scripts/production-data-migration.test.mjs`
-pins all three conditions of the carve-out separately (14/14 green). None of this changes the
-verdict above: the door still cannot work anywhere until 0060 applies.
+## Limitations worth carrying
 
-## What is still unexecuted
-
-**The fix does not make this criterion pass, and the ledger should not say it does.** Statements
-past 15 - roughly nineteen further assertions of the self-check, the two doors themselves, the
-row-count checks over two bound graphics, the four refusals - have still never run anywhere. The
-next post-land push is the first execution of them, and it may stop at the next one. Marking AC-7
-anything but fail would hide that behind a one-line fix nobody has watched apply.
+- **The local stack answers in about a millisecond where a hosted project answers in about two
+  hundred from a runner**, which `configured-suite.yml`'s own header states plainly. Nothing here
+  is latency-shaped, but "the press landed" on this rig is not evidence that it lands fast enough
+  from a phone on a venue's network.
+- The three defects this chain fixed inside 0060 - the array carve-out, the LIKE-pattern key and
+  the no-op write - are pinned by the migration's own self-check and by
+  `scripts/production-data-migration.test.mjs` (14/14). The self-check now runs on every fresh
+  database, including this suite's, which is the standing guard that was missing.
