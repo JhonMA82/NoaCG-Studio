@@ -15,9 +15,12 @@ every `TOUCHES` set, then across the collisions a `TOUCHES` diff calls disjoint.
 - **A scarce shared slot.** Two sessions minting migration `0036`; two re-recording
   `scripts/overflow-baseline.json`; two adding an e2e spec and so both editing `e2e-lists.mjs` /
   `e2e-affected.mjs`; two archiving a landed goal out of `docs/GOALS.md`; two touching
-  `package.json`. Different filenames, disjoint sets, clean merge, wrong result. **The plan
-  ALLOCATES these up front** - A takes 0036, B takes 0037, C owns the baseline re-record - and each
-  is named in that session's `MINTS`.
+  `package.json`. **And LIVE MACHINE STATE, which has no filename at all** - the machine's signed-in
+  CLI credential, a global install, a declared presence (`incidents.md` "the credential one row
+  cleared"). Different filenames, disjoint sets, clean merge, wrong result. **The plan ALLOCATES
+  these up front** - A takes 0036, B takes 0037, C owns the baseline re-record - named in that
+  session's `MINTS`, which BINDS: two rows never mint one slot. It does not oblige the named row to
+  use it, nor forbid a row that discovers it needs an unallocated one from taking it and saying so.
 - **A shared CHECK - two rows that change one FLOW, not one file.** Different sources, same TEST,
   because that test drives the flow both changed. **Ask of every pair: do these rows change the
   same user-visible FLOW?** If so they share its tests whatever their file lists say. Measurable,
