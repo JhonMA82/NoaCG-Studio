@@ -137,9 +137,18 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(card.getByTestId('auth-account-for')).toHaveText(NO_ACCOUNT_NEEDED);
     await expect(card.getByTestId('auth-account-for')).not.toContainText(ACCOUNT_IS_FOR);
     await expect(card.locator('.auth-submit')).toHaveText('Sign in');
-    // No door into signup either: this dialog's job is getting the reader back into the account
-    // they already have, not offering them a second one.
-    await expect(card.locator('.auth-toggle', { hasText: 'Create a free account' })).toHaveCount(0);
+
+    // The other direction: the reader is NOT locked out of signup. If they toggle to "Create a
+    // free account" from this same dialog, they are now the someone the free-account sentence is
+    // for - the suppression must track what is ON SCREEN (the form mode), not just why the dialog
+    // first opened, or a person mid-signup from a resume gate would never see what the account
+    // buys them.
+    await card.locator('.auth-toggle', { hasText: 'Create a free account' }).click();
+    await expect(card.locator('.auth-submit')).toHaveText('Create account');
+    await expect(card.getByTestId('auth-account-for')).toContainText(ACCOUNT_IS_FOR);
+    await expect(card.getByTestId('auth-account-for')).toContainText(NO_ACCOUNT_NEEDED);
+    // And the reason line still names the expired session - toggling modes never loses it.
+    await expect(card.getByTestId('auth-reason')).toContainText('Your session expired');
   });
 
   test('the topbar says which account state it is in, not only what it offers', async ({ page }) => {

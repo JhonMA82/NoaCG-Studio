@@ -129,8 +129,11 @@ export default function SignInDialog() {
   const throughDoor = reason !== null;
   // A session that merely needs a refresh belongs to someone who already has an account — the
   // free-account sentence below is written for someone who has never signed in, so 'resume'
-  // skips it and shows only the reason and the no-wall line.
-  const isResume = intent === 'resume';
+  // skips it and shows only the reason and the no-wall line. Keyed on `mode`, not just `intent`:
+  // the reader can still toggle to "Create a free account" from this dialog (the button below is
+  // not hidden for 'resume'), and once they have, they ARE the someone the sentence is for - the
+  // suppression must track what is ON SCREEN, not only why the dialog first opened.
+  const isResumeSignIn = intent === 'resume' && mode !== 'signup';
 
   return (
     <div
@@ -157,7 +160,7 @@ export default function SignInDialog() {
             no door, and the sentence is the whole answer. The no-wall line closes both shapes. */}
         <p className="auth-tag" data-testid="auth-reason">{throughDoor ? reason : ACCOUNT_IS_FOR}</p>
         <p className="muted auth-sub" data-testid="auth-account-for">
-          {throughDoor && !isResume ? `${ACCOUNT_IS_FOR} ${NO_ACCOUNT_NEEDED}` : NO_ACCOUNT_NEEDED}
+          {throughDoor && !isResumeSignIn ? `${ACCOUNT_IS_FOR} ${NO_ACCOUNT_NEEDED}` : NO_ACCOUNT_NEEDED}
         </p>
 
         {mode === 'signup' && (
@@ -220,14 +223,9 @@ export default function SignInDialog() {
             Forgot your password?
           </button>
         )}
-        {/* Resuming a dead session offers no way into signup: the reason this dialog opened is
-            getting the reader BACK into the account they already have, and an open toggle here
-            would let a mid-refresh reader spawn an unrelated second account instead. */}
-        {!isResume && (
-          <button className="auth-toggle" onClick={toggle} disabled={busy}>
-            {mode === 'signin' ? 'New here? Create a free account' : 'Already have an account? Sign in'}
-          </button>
-        )}
+        <button className="auth-toggle" onClick={toggle} disabled={busy}>
+          {mode === 'signin' ? 'New here? Create a free account' : 'Already have an account? Sign in'}
+        </button>
       </div>
     </div>
   );
