@@ -1,60 +1,89 @@
-# The contracts merge driver registers a worktree path, and in this clone it already points at nothing
+# The package.json merge driver's registration is half-repaired, and a doubled key defeats it
 
-**Filed:** 2026-09-16. **Source:** code review of the `package.json` merge driver, which had the
-same defect and fixed it.
+**Filed:** 2026-09-16, as the contracts driver's stale absolute path. **Re-pointed 2026-09-16** at
+`scripts/package-merge-driver.mjs`, which is where what is left of it lives. **The filename is
+historic** and kept on purpose: `docs/handoffs/2026-09-16-qj-contracts-driver-cannot-rot.md` cites
+it, and an address that moves is worse than one that reads a little stale.
 
-## Why
+## The contracts half is fixed
 
-`scripts/contracts-merge-driver.mjs` bakes an ABSOLUTE path into the command it registers:
+`f1b90e55` (pull request 292) closed the original item. `scripts/contracts-merge-driver.mjs` now:
 
-```js
-const command = `node "${path.join(ROOT, 'scripts', 'contracts-merge-driver.mjs')}" %O %A %B %P`;
+- registers a RELATIVE command, `node "scripts/contracts-merge-driver.mjs" %O %A %B %P`, because
+  git runs a merge driver from the top of the working tree being merged, so one command serves
+  every worktree of the clone and cannot go stale when the worktree that wrote it is deleted;
+- calls `install()` unconditionally, with `--replace-all`, so an entry left by an older version is
+  corrected instead of standing forever;
+- compares the registered VALUE rather than asking whether the key exists (`registeredCommand()`
+  feeding `isInstalled()`), because a clone carrying an older absolute path has the key and no
+  working driver, and reading only presence is how that survived for weeks;
+- returns what is registered afterwards rather than whether its own write won the race, since every
+  worktree shares one `.git/config` and several sessions compile at once;
+- no longer writes config mid-merge.
+
+`scripts/contracts-merge-driver.test.mjs` pins it, 11 tests.
+
+## What is still open, on the sibling driver
+
+`scripts/package-merge-driver.mjs` does NOT carry the original defect: its `DRIVER_COMMAND` (line
+98) is already relative, and `check()` calls `install()` unconditionally on every build. Three of
+the five repairs above did not travel to it, and one of them has teeth.
+
+**1. A doubled key defeats the repair, silently.** `install()` writes with a plain
+`git config <key> <value>`. Re-derived in a throwaway repository on 2026-09-16, git 2.55.0:
+
+```
+$ git config --add merge.probe.driver 'node "OLD-ABSOLUTE" %O %A %B %P'
+$ git config --add merge.probe.driver 'node "OLDER-ABSOLUTE" %O %A %B %P'
+$ git config merge.probe.driver 'node "scripts/x.mjs" %O %A %B %P'
+warning: merge.probe.driver has multiple values
+error: cannot overwrite multiple values with a single value
+       Use a regexp, --add or --replace-all to change merge.probe.driver.
+$ git config --get merge.probe.driver
+node "OLDER-ABSOLUTE" %O %A %B %P
 ```
 
-and `scripts/compile-contracts.mjs:227` calls it only when `!isInstalled()`, where `isInstalled()`
-asks whether the config key EXISTS and never whether its path still resolves. Worktrees share one
-`.git/config`, and this repository makes and deletes a worktree per session, so the first checkout
-ever to register owns the entry until somebody notices.
+Exit 5, and the stale command survives the repair that was meant to remove it. `--replace-all`
+collapses the key to one value and exits 0. A doubled key is what two tools writing the same
+config leave behind, and `--get` answers with the last value, so nothing else would notice. All the
+build prints is `note: could not register merge.noacg-package.driver in this clone.`
 
-Nobody noticed. Measured in `C:\claude\NoaCG-Studio` on 2026-09-16:
+**2. `isInstalled()` reads presence, not the value** (line 75). It answers "installed" for a clone
+carrying an older version's command. The unconditional `install()` covers the common case, so this
+is the hole under defect 1 rather than one on its own, but the test that would have caught either
+is the one asserting the registered VALUE.
 
-```
-$ git config --get merge.noacg-contracts.driver
-node "C:\claude\NoaCG-Studio\.claude\worktrees\agent-ae47713a44213dee3\scripts\contracts-merge-driver.mjs" %O %A %B %P
-$ ls C:/claude/NoaCG-Studio/.claude/worktrees/agent-ae47713a44213dee3
-No such file or directory
-```
+**3. `install()` returns whether OUR write succeeded**, not what is registered afterwards (line
+107). Several worktrees of this clone build at once and share one `.git/config`, so a lost race for
+`config.lock` reports a failed registration for a driver that is in fact registered.
 
-So `merge=noacg-contracts` has been dead in this clone for as long as that worktree has been gone.
-Every conflicted `.claude/rules/*.md`, `contracts/index.md` and root `AGENTS.md` has been falling
-back to whatever git does when a driver's command fails, which is to report `CONFLICT (content)`,
-mark the file `UU`, and leave OUR version in the working tree **with no conflict markers in it**.
-A person opens a file git called conflicted, sees clean text, and stages it.
-
-The contracts driver survives that better than most, because `check:contracts` fails the build on a
-stale rendering - the regeneration is the real gate and the driver only removes the stop. That is
-why this is a shelf item and not an emergency. It is still a mechanism that has not run in weeks
-while reporting nothing.
+Why it matters more here than for contracts: what git does with a driver whose command fails is
+report `CONFLICT (content)`, mark the file `UU`, and leave OUR version in the working tree **with
+no conflict markers in it**. For contracts the regeneration is the real gate and `check:contracts`
+fails the build on a stale rendering. For `package.json` there is no such second gate, so a person
+opens a file git called conflicted, sees clean JSON, stages it, and the other side's dependency or
+script is gone.
 
 ## What it would take
 
-Half a session. The fix is already landed on the sibling driver, `scripts/package-merge-driver.mjs`
-(commit "Merge package.json as JSON instead of as text"), and is three changes:
+An hour. Lift the three repairs across, and while both files are open, do what
+`2026-09-16-qj-contracts-driver-cannot-rot.md` reported and did not fix: pull the registration into
+one shared `registerMergeDriver(name, command, description)` used by both drivers, so there is one
+story for "this file is merged by a program" rather than two that drift. Copy the value-comparing
+test from `scripts/contracts-merge-driver.test.mjs`, and add the doubled-key case, which is the one
+neither suite has.
 
-1. **Register a RELATIVE command**, `node "scripts/contracts-merge-driver.mjs" %O %A %B %P`. Git
-   runs a merge driver from the top of the working tree being merged - measured on 2026-09-16,
-   including a `git merge` started from a subdirectory - so one relative command serves every
-   worktree of the clone and cannot go stale. See the `DRIVER_COMMAND` export in the package driver
-   and the comment above it, which carries the measurement.
-2. **Call `install()` unconditionally** rather than only when the key is missing, so an entry left
-   by an older version is corrected instead of standing forever.
-3. **Test both**: that the registered path is relative, and that installing over a stale absolute
-   command rewrites it. `scripts/package-merge-driver.test.mjs` has that test to copy.
+QJ did not do it because that row forbade editing QE's files while QE's branch was queued. Both are
+on `main` now, so that reason is spent.
 
 ## Evidence
 
-- The `git config --get` above, against a worktree directory that does not exist.
-- `scripts/contracts-merge-driver.mjs:44` (the absolute path) and `:35` (`isInstalled` reads
-  presence only); `scripts/compile-contracts.mjs:227` (registers only when missing).
-- The silent-loss shape was reproduced while building the package driver: a merge whose driver
-  command cannot run leaves ours verbatim, marked conflicted, with no markers.
+- The throwaway-repository probe above, re-run 2026-09-16 on git 2.55.0.windows.5.
+- `scripts/package-merge-driver.mjs:75` (`isInstalled` reads presence), `:98` (`DRIVER_COMMAND`,
+  already relative), `:105` (`install` without `--replace-all`, returning its own write's status),
+  `:552` (registration from the build gate).
+- `scripts/contracts-merge-driver.mjs:72`, `:85`, `:104` for the fixed shape, and `f1b90e55` for
+  the landing.
+- The original measurement that filed this item: `git config --get merge.noacg-contracts.driver`
+  in `C:\claude\NoaCG-Studio` on 2026-09-16 named
+  `.claude/worktrees/agent-ae47713a44213dee3`, a directory that no longer existed.
