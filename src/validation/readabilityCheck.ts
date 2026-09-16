@@ -135,7 +135,16 @@ interface Backing {
 /** What an element's (or pseudo-element's) own paint contributes, or null for "see through
  *  me, keep walking". A url() IMAGE makes the backing unknowable (the image wins the paint);
  *  a GRADIENT also stops the walk but is remembered as protection - a scrim behind text is the
- *  treatment the rule asks for. `alphaScale` folds in a pseudo-layer's own opacity. */
+ *  treatment the rule asks for. `alphaScale` folds in a pseudo-layer's own opacity.
+ *
+ *  A backing that clears the threshold is then measured AS IF IT WERE SOLID, and for a panel
+ *  between 0.86 and 0.96 - where nine of the fourteen curated palettes put `--panel-bg` - that
+ *  is optimistic by a percent or two. For the two cinematic palettes at 0.55 it is optimistic
+ *  by a lot. That is a PRE-EXISTING property of this walk, it predates pseudo-elements being
+ *  read at all, and changing it moves 14 shipped designs across the blocking contrast floor -
+ *  so it is written down rather than fixed in passing:
+ *  `docs/backlog/a-translucent-panel-is-measured-as-if-it-were-solid.md` carries the
+ *  measurement and the severity question it turns on. */
 function paintOf(cs: CSSStyleDeclaration, alphaScale = 1): Backing | null {
   if (cs.backgroundImage && cs.backgroundImage !== 'none') {
     return { color: null, gradient: /gradient\(/.test(cs.backgroundImage) };
@@ -166,14 +175,15 @@ function translationOnly(value: string): boolean {
   return !!m && m[0] === 1 && m[1] === 0 && m[2] === 0 && m[3] === 1;
 }
 
-/** `box` after its own 2D transform, applied about `transform-origin`, as four corners. */
+/** `box` after its own 2D transform, as four corners. `origin` is the transform origin in the
+ *  SAME (viewport) coordinates as the box, not an offset inside it - the box handed in here has
+ *  already been inset for corner rounding, and an offset would drag the origin along with it. */
 function paintedQuad(
   box: { left: number; top: number; width: number; height: number },
   m: number[],
   origin: { x: number; y: number },
 ): Quad {
-  const ox = box.left + origin.x;
-  const oy = box.top + origin.y;
+  const { x: ox, y: oy } = origin;
   const map = (x: number, y: number) => {
     const dx = x - ox;
     const dy = y - oy;
@@ -187,13 +197,25 @@ function paintedQuad(
   ];
 }
 
-/** Is every corner of `r` inside the convex quad `q`? (Same sign on every edge cross-product;
- *  a mirrored matrix flips the winding consistently, so the sign is read, not assumed.) */
+/**
+ * Is every corner of `r` inside the convex quad `q`? (Same sign on every edge cross-product;
+ * a mirrored matrix flips the winding consistently, so the sign is read, not assumed.)
+ *
+ * The text rect is shrunk by SLACK first, for the same reason `clippedSides` below allows a
+ * pixel: every length in this catalog comes out of `calc(Npx * var(--scale))`, so a descender,
+ * a last glyph carrying letter-spacing or a sub-pixel layout under a fractional scale routinely
+ * puts a corner a fraction of a pixel past a slab that plainly backs it. Without the slack one
+ * such corner discards the whole backing and reinstates the exact false positive this file was
+ * changed to remove - silently, and differently at 1080p and 720p.
+ */
+const SLACK = 1;
+
 function quadCoversRect(q: Quad, r: DOMRect): boolean {
-  const corners = [
-    { x: r.left, y: r.top }, { x: r.right, y: r.top },
-    { x: r.right, y: r.bottom }, { x: r.left, y: r.bottom },
-  ];
+  const x0 = r.left + SLACK;
+  const y0 = r.top + SLACK;
+  const x1 = Math.max(r.right - SLACK, x0);
+  const y1 = Math.max(r.bottom - SLACK, y0);
+  const corners = [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
   let sign = 0;
   for (const p of corners) {
     for (let i = 0; i < 4; i += 1) {
@@ -234,19 +256,23 @@ function quadCoversRect(q: Quad, r: DOMRect): boolean {
  *  4. Nothing from the host up to the root is transformed beyond a translation, so the host's
  *     viewport rect places the pseudo's local box exactly. (A rotate or scale up the chain
  *     maps both boxes, and we have only measured one of them.)
- *  5. Its painted quad - the border box, carried through its OWN 2D transform - contains the
- *     whole text rect. This is the condition that keeps a 10px accent edge on ::after
- *     (sb01's `.scoreboard-accent::after`) from passing as a panel, and it is why the -8deg
- *     skew is applied rather than ignored: a skewed slab uncovers its own top and bottom
- *     corners by tan(8deg) x half its height, and text parked there is not backed.
+ *  5. Its painted quad - the border box, inset for any corner rounding and carried through its
+ *     OWN 2D transform - contains the whole text rect. This is the condition that keeps a
+ *     decorative sliver, an accent edge down one side of a panel, from passing as the panel,
+ *     and it is why the -8deg skew is applied rather than ignored: a skewed slab uncovers its
+ *     own top and bottom corners by tan(8deg) x half its height, and text parked there is not
+ *     backed.
  *
- * STATED LIMITS. A `border-radius` cuts the painted corners and is NOT modelled: the bite is
- * at most the radius (capped at 64px by the style vocabulary) out of a corner, and a slab's
- * own padding keeps text away from there - shrinking the whole quad by the radius instead
- * would refuse real panels, which is the false positive this function exists to remove. A
- * `position: fixed` pseudo resolves against the viewport rather than the host and is refused
- * rather than special-cased. Both refusals warn where a human would not; that is the safe
- * direction, because a check that goes blind is worse than one that is occasionally fussy.
+ * HOW THE CORNER ROUNDING IS HANDLED, since a pill slab is a real shape here (`border-radius:
+ * 999px` appears across the glass families): the quad is inset HORIZONTALLY by the largest
+ * corner radius. That sub-rectangle is exactly the part of a rounded rect no curve can bite,
+ * so it is sound rather than approximate, and on the square slabs this function was written for
+ * it takes nothing at all.
+ *
+ * STATED LIMIT. A `position: fixed` pseudo resolves against the viewport rather than its host,
+ * and is refused rather than special-cased - as is anything whose box will not resolve to px.
+ * Those refusals warn where a human would not; that is the safe direction, because a check that
+ * goes blind is worse than one that is occasionally fussy.
  */
 function pseudoBacking(
   host: Element,
@@ -294,11 +320,33 @@ function pseudoBacking(
     height: parseFloat(cs.height) + (counted ? 0 : padY + bdY),
   };
   if (!Object.values(box).every((v) => Number.isFinite(v))) return null;  // an `auto` we cannot resolve
+
+  // The transform origin, pinned in viewport coordinates BEFORE the box is inset below.
+  const [originX, originY] = cs.transformOrigin.split(' ').map(parseFloat);
+  if (!Number.isFinite(originX) || !Number.isFinite(originY)) return null;
+  const origin = { x: box.left + originX, y: box.top + originY };
+
+  // Corner rounding: inset horizontally by the largest radius, which leaves the strip no curve
+  // can reach. A percentage radius resolves against the box's own width, near enough for an
+  // inset whose only job is to be conservative.
+  const radius = (v: string) => {
+    const n = parseFloat(v);
+    if (!Number.isFinite(n)) return 0;
+    return v.includes('%') ? (n / 100) * box.width : n;
+  };
+  const round = Math.min(
+    Math.max(
+      radius(cs.borderTopLeftRadius), radius(cs.borderTopRightRadius),
+      radius(cs.borderBottomLeftRadius), radius(cs.borderBottomRightRadius),
+    ),
+    box.width / 2,
+  );
+  box.left += round;
+  box.width -= round * 2;
+
   const m = matrix2d(cs.transform);
   if (!m) return null;
-  const [ox, oy] = cs.transformOrigin.split(' ').map(parseFloat);
-  if (!Number.isFinite(ox) || !Number.isFinite(oy)) return null;
-  return quadCoversRect(paintedQuad(box, m, { x: ox, y: oy }), textRect) ? { z, paint } : null;
+  return quadCoversRect(paintedQuad(box, m, origin), textRect) ? { z, paint } : null;
 }
 
 /** The nearest ancestor (or self) painting a solid-enough background behind `textRect` -

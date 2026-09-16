@@ -158,8 +158,13 @@ const MEASURE_VARIANT = async (id) => {
     const doc = frame.contentDocument;
     if (settles) await new Promise((resolve) => setTimeout(resolve, 1200)); // the bootstrap waits on fonts
     else {
+      // Both waits capped, exactly as checkTemplateLegibility caps them - a throttled page
+      // stops firing requestAnimationFrame, and this file must not carry the bug it guards.
       await Promise.race([doc.fonts.ready, new Promise((resolve) => { setTimeout(resolve, 1200); })]);
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await Promise.race([
+        new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+        new Promise((resolve) => { setTimeout(resolve, 300); }),
+      ]);
     }
     const report = window.NOACG_READ.measureReadability(doc, {
       width: 1920, height: 1080, mode: 'standard', target: { profile: 'tv' }, category: template.type,
@@ -192,6 +197,22 @@ const measured = await withBundledPage(SPECS, async (page) => {
     // merely falls silent.
     darkOnSlab: await page.evaluate(MEASURE_FIXTURE, {
       css: `.panel::before { content: ''; position: absolute; inset: 0; z-index: -1; background: #0a0c10; }`,
+      ink: '#16181c',
+    }),
+    // The two ends of the band every shipped palette lives in: `--panel-bg` is translucent in
+    // all fourteen curated palettes, 0.86 to 0.96 for most and 0.55 for the two cinematic ones.
+    nearSolidSlab: await page.evaluate(MEASURE_FIXTURE, {
+      css: `.panel::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(8, 10, 14, 0.94); }`,
+      ink: '#ffffff',
+    }),
+    scrimSlab: await page.evaluate(MEASURE_FIXTURE, {
+      css: `.panel::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0, 0, 0, 0.55); }`,
+      ink: '#ffffff',
+    }),
+    // A translucent panel still has to be able to FAIL, or the compositing above would just be
+    // a softer way of going quiet: same near-black panel as `darkOnSlab`, same barely-there ink.
+    translucentUnreadable: await page.evaluate(MEASURE_FIXTURE, {
+      css: `.panel::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(10, 12, 16, 0.94); }`,
       ink: '#16181c',
     }),
     chassis: await page.evaluate(MEASURE_VARIANT, CHASSIS),
@@ -253,5 +274,29 @@ test('text on a slab it barely clears now fails the contrast floor', () => {
   assert.ok(
     codes.includes('text-low-contrast'),
     `dark ink on a dark ::before slab should block on contrast, got ${codes.join(', ') || 'no findings'}`,
+  );
+});
+
+test('a translucent panel still counts as a panel', () => {
+  // The band every shipped palette lives in. What is pinned here is the PROTECTION verdict -
+  // a panel at 0.94 and a scrim at 0.55 are both panels, and neither text is over bare picture.
+  // What is deliberately NOT pinned is the RATIO: both are measured as if the panel were solid,
+  // which over-reports the 0.55 case badly. That is a pre-existing property of the backing walk
+  // on the element path, it moves 14 shipped designs across a blocking floor to change, and it
+  // is written up in docs/backlog/a-translucent-panel-is-measured-as-if-it-were-solid.md rather
+  // than altered here - a false-positive fix is no place to smuggle in a severity ruling.
+  for (const [name, m] of [['0.94 panel', measured.nearSolidSlab], ['0.55 scrim', measured.scrimSlab]]) {
+    assert.ok(
+      !m.codes.includes('text-unprotected-over-video'),
+      `${name}: a translucent panel is still a panel, and must not be called bare picture`,
+    );
+    assert.equal(typeof m.contrast, 'number', `${name}: a backing resolved, so a ratio is owed`);
+  }
+  // A translucent panel must still be able to FAIL, or accepting one would be a way of going
+  // quiet: the same near-black panel as `darkOnSlab`, at 0.94, with the same barely-there ink.
+  const hidden = measured.translucentUnreadable;
+  assert.ok(
+    hidden.codes.includes('text-low-contrast'),
+    `near-invisible ink on a 0.94 panel must block (${hidden.contrast}:1), got ${hidden.codes.join(', ') || 'no findings'}`,
   );
 });
