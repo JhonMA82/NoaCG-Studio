@@ -8,7 +8,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DRIVER_COMMAND, DRIVER_NAME, install, isInstalled, registeredCommand } from './contracts-merge-driver.mjs';
+import {
+  DRIVER_COMMAND, DRIVER_NAME, SKIP_INSTALL_ENV, install, isInstalled, registeredCommand,
+} from './contracts-merge-driver.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DRIVER = path.join(ROOT, 'scripts', 'contracts-merge-driver.mjs');
@@ -57,6 +59,9 @@ test('called with nothing useful it refuses rather than writing a file it guesse
   assert.match(bad.out, /expects git's %O %A %B %P/);
 });
 
+// This one runs the real driver, which spawns the real compiler. It leaves the developer's config
+// alone because the driver tells that child not to register - see SKIP_INSTALL_ENV and the test of
+// both its arms further down.
 test('a conflicted generated contract is replaced by what the store currently renders', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'merge-driver-'));
   const ours = path.join(dir, 'ours.md');
@@ -173,6 +178,58 @@ test('a stale command left by an older version is rewritten, not left standing',
     assert.equal(isInstalled(dir), true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a key that has somehow collected two values is replaced, not refused', () => {
+  const dir = scratchRepo('merge-driver-doubled-');
+  try {
+    // `git config <key> <value>` exits 5 on a multi-valued key - "cannot overwrite multiple values
+    // with a single value" - and leaves both in place. `--get` answers with the LAST of them, and
+    // so does git when it runs the driver, so a doubled key is a stale command nothing reports.
+    const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
+    g('config', '--add', `merge.${DRIVER_NAME}.driver`, 'node "gone-one.mjs" %O %A %B %P');
+    g('config', '--add', `merge.${DRIVER_NAME}.driver`, 'node "gone-two.mjs" %O %A %B %P');
+    assert.equal(install(dir), true);
+    assert.equal(
+      g('config', '--get-all', `merge.${DRIVER_NAME}.driver`).trim(),
+      DRIVER_COMMAND,
+      'one value, and it is ours',
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the compiler registers on a normal run, and not when the driver is the one running it', () => {
+  // The compiler registers the driver every time it writes. That is right when a person runs it,
+  // and wrong inside a merge: git is mid-operation and every worktree of the clone shares the one
+  // `.git/config` this would write. Both arms run here, so a flag that stopped working could not
+  // pass as "nothing was written".
+  const compile = (dir, extraEnv) =>
+    spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'compile-contracts.mjs')], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      windowsHide: true,
+      // GIT_DIR sends the registration into a disposable repository. The compile itself is
+      // unaffected: it reads the store off disk, and its one git call only asks which files are
+      // tracked, which stands down when it cannot tell.
+      env: { ...process.env, GIT_DIR: path.join(dir, '.git'), ...extraEnv },
+    });
+
+  const normal = scratchRepo('merge-driver-installs-');
+  const driven = scratchRepo('merge-driver-noinstall-');
+  try {
+    const a = compile(normal, {});
+    assert.equal(a.status, 0, a.stderr);
+    assert.equal(registeredCommand(normal), DRIVER_COMMAND, 'an ordinary compile registers');
+
+    const b = compile(driven, { [SKIP_INSTALL_ENV]: '1' });
+    assert.equal(b.status, 0, b.stderr);
+    assert.equal(registeredCommand(driven), null, "the driver's own child writes nothing");
+  } finally {
+    rmSync(normal, { recursive: true, force: true });
+    rmSync(driven, { recursive: true, force: true });
   }
 });
 

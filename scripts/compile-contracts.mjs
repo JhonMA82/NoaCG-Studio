@@ -26,7 +26,7 @@ import {
   compileOutputs, deepestOwner, findDuplicates, GENERATED_MARKER, kernelBudget, loadRules,
   NESTED_ATTRIBUTES, NESTED_CONTRACT, OUTPUT_DIR, reportOutputs, scopeOwner,
 } from './contracts-lib.mjs';
-import { DRIVER_NAME, install as installMergeDriver, isInstalled } from './contracts-merge-driver.mjs';
+import { DRIVER_NAME, SKIP_INSTALL_ENV, install as installMergeDriver, isInstalled } from './contracts-merge-driver.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -230,7 +230,13 @@ function main() {
   // Unconditionally, and that is the point. The previous version asked `isInstalled()` first,
   // which read presence alone, so the absolute worktree path an early checkout registered stood
   // untouched after that worktree was deleted - dead for weeks with nothing said.
-  if (!installMergeDriver()) console.log(`${LABEL} note: could not register merge.${DRIVER_NAME}.driver in this clone.`);
+  //
+  // The exception is the merge driver's own child process, which sets SKIP_INSTALL_ENV: a merge
+  // is in progress, every worktree of the clone shares the `.git/config` this would write, and a
+  // driver that is running is a driver that is already registered.
+  if (process.env[SKIP_INSTALL_ENV] !== '1' && !installMergeDriver()) {
+    console.log(`${LABEL} note: could not register merge.${DRIVER_NAME}.driver in this clone.`);
+  }
   console.log(`${LABEL} wrote ${outputs.size} file(s) from ${rules.length} rule(s)`);
 }
 

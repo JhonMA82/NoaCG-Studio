@@ -12,18 +12,34 @@ what it does not promise:
 
 > Git merges files in its own order, so the store may not be merged yet when this runs.
 
-That was written as a caveat. It is not a caveat, it is the normal case, and the ordering is
-deterministic against us. Git walks paths in byte order, and for every file this driver owns the
-store sorts LAST:
+That was written as a caveat. It is not a caveat and it is not about ordering: the driver NEVER
+sees a merged store, and no arrangement of paths would change that.
 
-```
-.claude/rules/*.md      0x2E  '.'
-AGENTS.md               0x41  'A'
-contracts/index.md      0x63  'c'   <- and contracts/rules/**, the store itself
-```
+Merge-ort, git's default strategy since 2.34, settles every path in memory and writes the working
+tree once, after the last content merge. The driver runs during that computation, so what it reads
+off disk is the pre-merge working tree, whatever the path sorts as.
+
+Probed 2026-09-16 on git 2.55.0.windows.5, twice, with a stub driver that read a second file's
+bytes while it ran. The second file needed no resolution at all - one side changed it, the other
+did not - so git could take it outright:
+
+| the second file | sorts | what the driver read | what it held after the merge |
+| --- | --- | --- | --- |
+| `aaa-store.md` | before the driver's file | `base-store` | `THEIR-store` |
+| `zzz-store.md` | after the driver's file | `base-store` | `THEIR-store` |
+
+Sorting first bought nothing. (A first pass at this filed it as a path-ordering effect, on the
+strength of the byte order `.claude/…` < `AGENTS.md` < `contracts/…`. The order is real and the
+conclusion was right; the mechanism was wrong, and the table above is what settled it.)
 
 So whenever both sides touched the rule store, every generated file is regenerated from a store
 that still holds only OUR side. The driver then reports success and the merge commits clean.
+
+A second consequence of "pre-merge working tree" is worth naming: it is the WORKING TREE, so an
+uncommitted edit under `contracts/rules/` is compiled into what git stages. That content is on
+neither side of the merge. `contracts:compile --check` catches it only on a clean checkout, which
+means CI and not the laptop that made it, because a local check compiles from the same dirty store
+and agrees with itself.
 
 ## Measured
 
@@ -52,24 +68,26 @@ do with the merge they just did.
 ## What it would take
 
 Half a session, and the shape is not obvious - which is why this is a note rather than a patch.
-Three candidates, in the order I would try them:
+The probe above rules one candidate out before anybody spends time on it:
 
-1. **A `post-merge` hook that compiles.** Cheapest, and it runs after every path is settled. It
-   does not fire on a merge that stopped at a conflict elsewhere, and hooks are per clone, so it
-   needs the same registration care this driver just needed.
-2. **Have the driver read the merged store from the index rather than the working tree.** During a
-   merge the store's merged content is available at stage 0 for every path git has already settled
-   - but by the ordering above it has settled none of them yet, so this means merging the store
-   itself in memory. That is re-implementing the merge.
-3. **Make the staleness loud at merge time instead of at build time.** The driver knows it ran
-   during a merge and knows the store is in the tree; it could leave a note git prints, so the
-   person merging is told to compile rather than finding out from CI.
+1. **A `post-merge` hook that compiles.** The only one of these that can work, because it runs
+   after git has written the tree. It does not fire on a merge that stopped at a conflict
+   elsewhere, and hooks are per clone, so it needs the same registration care this driver just
+   needed - `core.hooksPath` pointing at a committed directory is the version that cannot rot.
+2. ~~**Have the driver read the merged store from the index.**~~ Ruled out. Nothing is at stage 0
+   yet: merge-ort has not written the index either when the driver runs. Getting the merged store
+   this way means merging it in memory first, which is re-implementing the merge.
+3. **Make the staleness loud at merge time instead of at build time.** Worth doing whatever else
+   happens, and it is small. The driver knows it is running during a merge and knows whether the
+   store is among the paths in play; it could say on stderr that the generated tree will need a
+   compile, so the person merging is told by the merge rather than by CI twenty minutes later.
 
 ## Evidence
 
-- The table above. The script that produced it is not committed - it is twenty lines that clone the
-  repo, edit two rule files, compile, and merge three times - but every number in the table came
-  from one run of it and the header of `scripts/contracts-merge-driver.mjs` predicts the result.
-- `scripts/contracts-merge-driver.mjs`, the `WHAT IT DOES NOT PROMISE` paragraph, which states the
-  ordering risk and treats the build as the thing that makes the result true. It is right about
-  that. It is only wrong about how often the risk fires.
+- Both tables above. The scripts that produced them are not committed - one clones the repo, edits
+  two rule files, compiles, and merges three times; the other is a stub driver in a scratch repo
+  that reads a second file mid-merge - but every value came from one run each, on git
+  2.55.0.windows.5.
+- `scripts/contracts-merge-driver.mjs`, the `WHAT IT DOES NOT PROMISE` paragraph, which now carries
+  the same mechanism and the same two consequences. It always treated the build as the thing that
+  makes the result true, and it is right about that.
