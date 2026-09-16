@@ -47,6 +47,15 @@ the instant they are pressed.
 5. Type into a binding path box and watch the same thing: `match.home.name` is one binding saved,
    not fifteen.
 
+## What I saw when I did this myself
+
+Driven in the running app, not only in a test. Twelve characters into a value box: **one** write,
+the box amber while typing, the value saved about half a second after the last letter. The amber is
+distinguishable from focus because this app's focus style is an outline and this is the border, so
+a box that is both focused and unsaved says both things at once. A two-line list typed down to one
+line and then LEFT ALONE stayed a text box with the caret still in it and saved as a list - the one
+place this could have thrown the caret out, and it does not.
+
 ## What I decided, and what is left for your eye
 
 The write count is a number and a test holds it at one, so nothing there needs you. Two things on

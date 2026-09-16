@@ -99,7 +99,21 @@ overrule things that exist. No account, money, identity, harness or alignment qu
   taken in, **557 passed and 1 failed**.
 - `e2e/production-data.spec.ts` alone: 24 tests, all passing, including the three new ones. The
   baseline run against the UNFIXED code is the measurement this row is about - 12 and 5.
-- **`/check`**: review `delegated`, simplify `delegated`, verify `run`. The review's scope was
+- **Observed in the running app**, because a green build is not a person seeing it. This worktree's
+  own server (`npm run dev:worktree`, port 5210 - `preview_start {name}` is refused in a linked
+  worktree and says why), a seeded production, and the panel driven by hand:
+  - twelve characters into a value box: **one** write, counted in the page by wrapping
+    `localStorage.setItem`; the value persisted; the box amber while typing and plain after.
+  - the amber is **distinguishable from focus**: the app's focus style is an `outline`
+    (`rgb(238,238,238) auto 1px`) and this is `border-color: rgb(246,166,35)`, so a box that is
+    both focused and unsaved says both. Worth knowing before anyone restyles either.
+  - **the list case, which is the one that could have gone wrong**: a two-line list typed down to
+    one line and then left alone through the settle stayed a `TEXTAREA`, kept the focus and the
+    caret, kept its `list` type label, and persisted as `["Only story"]` for one write. Without
+    the review fix that is where the element swapped to an `<input>` and focus went to the body.
+- **`/check`**: review `delegated`, simplify `delegated`, verify `run`, taste `not applicable`
+  (nothing here can move what a GRAPHIC looks like - no design file, template machinery, SVG
+  import, fit or alignment code; the panel chrome above was looked at on its own terms). The review's scope was
   checked against `review-request.mjs` before a word of it was believed - branch
   `claude/tm-one-edit-one-write`, base `6ba34fd7`, four files - and matched exactly. Simplify ran
   as four BLOCKING subagents whose results returned into this conversation; nothing fanned out to
