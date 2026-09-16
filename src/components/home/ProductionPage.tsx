@@ -30,7 +30,6 @@ import {
   diffResolved,
   replacementPatch,
   resolveBindings,
-  splitBoundWrites,
   withTreeWrites,
   type JsonObject,
   type ResolvedValues,
@@ -79,14 +78,13 @@ import {
   arrangeFor,
   eventButtons,
   eventLegality,
-  eventPayload,
   fieldDescriptors,
   formatMachineState,
   isEventLegal,
   machineStateGroups,
   machineStateNames,
   movedKeys,
-  pressVerb,
+  pressSend,
   type ArrangedControl,
   type ControlButton,
 } from '../../control/controlModel';
@@ -659,11 +657,32 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     };
   }, [id, hostedSlug, backendConfigured]);
 
+  /**
+   * WHETHER THIS PAGE HOLDS THE PRODUCTION'S SHARED VALUES YET.
+   *
+   * Unpublished it is immediate: the tree comes out of localStorage in the effect above. Published
+   * it takes a key read and then a fetch, and until both have landed `liveData` is an empty object
+   * while `bindings` - which live on the show record - are already here.
+   *
+   * That gap is harmless for READING (a bound box shows nothing for a moment) and not harmless at
+   * all for a PRESS, because a press computes an ABSOLUTE value from what the tree says (plan
+   * §2.5). A `+1` fired in that window reads the score as missing, counts from zero, and writes 1
+   * to every graphic bound to the path - so opening the playout tab mid-show and pressing + would
+   * have put the whole production's score back to 1.
+   */
+  const [treeRead, setTreeRead] = useState(false);
+  useEffect(() => {
+    setTreeRead(false);
+  }, [id, hostedSlug]);
+
   /** Pull the server's tree in - at mount, and whenever a FEED row says it moved. */
   const refreshServerData = useCallback(async () => {
     if (!dataKey) return;
     const current = await fetchProductionData(dataKey);
-    if (current) setLiveDataState(current.data as JsonObject);
+    if (current) {
+      setLiveDataState(current.data as JsonObject);
+      setTreeRead(true);
+    }
   }, [dataKey]);
   refreshRef.current = refreshServerData;
   useEffect(() => {
@@ -708,9 +727,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * operator keeps priority" is the reason that second cap exists; routing a press through it
    * would have let a saturated feed refuse the operator's own score.
    *
-   * Which world we are in is `setLiveData`'s own test, so the two doors can never disagree about
-   * it: a key means the server owns the tree, and a key is only ever read for a production that
-   * has a hosted slug.
+   * WHICH WORLD WE ARE IN IS THE SLUG, not the key. A published production's tree lives on the
+   * server whether or not this page has managed to read its data key, so testing the key would
+   * have a failed key read (`productionDataKey` answers null on any error) quietly write a
+   * published production's shared values into localStorage, where nothing would ever air them.
+   * The unread case cannot reach here at all: `boundPressReady` below refuses the press first.
    */
   const patchBoundValues = useCallback(
     async (writes: TreeWrite[]): Promise<void> => {
@@ -719,23 +740,36 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const next = withTreeWrites(before, writes);
       const patch = replacementPatch(before, next);
       if (Object.keys(patch).length === 0) return;
-      // Optimistic on both roads, so the figure on screen moves with the press.
+      // Optimistic on both roads, so the figure on screen moves with the press - and through the
+      // ref as well as the state, because the NEXT press counts from it and a round trip is long
+      // enough for several.
+      liveDataRef.current = next;
       setLiveDataState(next);
-      if (!dataKey || !hostedSlug) {
+      if (!hostedSlug) {
         saveLiveData(id, next);
         return;
       }
       try {
         // The ANSWER is what we hold: a feed tick that landed in the same moment is already
         // merged into it, so the press cannot silently overwrite the feed's write.
-        setLiveDataState((await patchProductionDataBySlug(hostedSlug, patch)) as JsonObject);
+        const server = (await patchProductionDataBySlug(hostedSlug, patch)) as JsonObject;
+        liveDataRef.current = server;
+        setLiveDataState(server);
       } catch (error) {
         setNote(`The shared value did not move: ${(error as Error).message}`);
         void refreshServerData();
       }
     },
-    [id, dataKey, hostedSlug, refreshServerData],
+    [id, hostedSlug, refreshServerData],
   );
+
+  /** Refuse a press on a shared value this page cannot count from yet, and say why. Bound presses
+   *  are the only thing that has to wait: everything else on this surface reads the cue. */
+  const boundPressReady = (): boolean => {
+    if (!hostedSlug || treeRead) return true;
+    setNote('This production’s shared values are still loading. Try that again in a moment.');
+    return false;
+  };
 
   const bindings = show?.bindings;
   /** What every bound field SHOULD be showing right now. */
@@ -1519,6 +1553,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (!editingCue || !selectedGraphic || !editingIsLive) return;
     const path = boundFields(selectedGraphic)[fieldKey];
     if (path) {
+      if (!boundPressReady()) return;
       const base = resolvedRef.current[selectedGraphic]?.[fieldKey];
       await patchBoundValues([{ path, text: adjustedValue(base, delta), verb: 'adjust' }]);
       return;
@@ -1724,37 +1759,31 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     flushDraft();
     const values = airValues();
     const bound = boundFields(selectedGraphic);
+    // A press that would move a SHARED value waits for the tree, and the EVENT waits with it: a
+    // graphic playing its goal animation while the figure the production follows stayed put is
+    // worse than a press that plainly did not happen.
+    if (movedKeys(button).some((key) => bound[key]) && !boundPressReady()) return;
     // A field the press MOVES counts from what AIR shows (a goal's +1, a Reveal letter's list);
     // a field it only READS (the guess, the number to call) is the cue's own value. A BOUND
     // field is neither: it reads from the production tree, because that is the one figure every
     // graphic bound to the path is showing (plan §2.7).
     const moved = new Set(movedKeys(button));
-    const payload = eventPayload(button, (key) =>
+    const { payload, fields: adjusted, tree } = pressSend(button, bound, (key) =>
       bound[key]
         ? resolvedRef.current[selectedGraphic]?.[key] ?? (moved.has(key) && button.adjust && key in button.adjust ? '0' : undefined)
         : moved.has(key)
           ? (airedData[selectedGraphic]?.[key] ?? values[key] ?? (button.adjust && key in button.adjust ? '0' : ''))
           : values[key],
     );
-    // Only what actually rode: an add whose source box was empty moves nothing, and mirroring
-    // an empty string for it would wipe the list the press left alone.
-    const movedNow = Object.fromEntries(movedKeys(button).filter((key) => payload?.[key] !== undefined).map((key) => [key, payload![key]]));
-    // The split AC-7 turns on: a bound key leaves the field road entirely — off the event's
-    // payload, out of the cue — and becomes one write of the shared value instead.
-    const { fields: adjusted, tree } = splitBoundWrites(movedNow, bound, (key) => pressVerb(button, key));
     if (Object.keys(adjusted).length > 0 && airCue) {
       // Into the draft when the on-air cue is the one being edited (its box repaints at once),
       // straight into the record otherwise - either way the cue holds the figure air shows.
       if (editingIsLive) editDraft({ values: adjusted });
       else setShows(updateShowCue(id, airCue.id, { values: { ...airCue.values, ...adjusted } }));
     }
-    // A payload carrying only bound fields leaves nothing to ride: those figures arrive as the
-    // tree's own update rows, for every graphic bound to them, and the event fires bare.
-    const rides = Object.fromEntries(Object.entries(payload ?? {}).filter(([key]) => !bound[key]));
-    const msg =
-      Object.keys(rides).length > 0
-        ? { t: 'event' as const, event: button.event, payload: rides }
-        : { t: 'event' as const, event: button.event };
+    const msg = payload
+      ? { t: 'event' as const, event: button.event, payload }
+      : { t: 'event' as const, event: button.event };
     // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT. The tree write is a separate row by
     // construction — it reaches graphics this event never touched — so nothing but this order
     // keeps the two in step, and a press that failed on the way to the log must not leave every
@@ -1994,6 +2023,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     const ticked = tickedSet(control);
     if (combineBlocked(control, combineNow, ticked)) return;
+    // A production that binds ANYTHING waits for its tree before a combined press, rather than
+    // this asking which of the steps would move a shared value: a step's figures are resolved when
+    // it FIRES, seconds later, so a question asked here would be about the wrong moment. A
+    // production with no bindings - which is most of them - never waits at all.
+    if (bindings && Object.keys(bindings).length > 0 && !boundPressReady()) return;
     flushDraft();
     scheduler.press(control.id, planCombine(control, ticked), (due) => fireCombineRef.current(control, due));
   };

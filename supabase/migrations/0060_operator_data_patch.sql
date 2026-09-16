@@ -138,18 +138,78 @@ end $$;
 revoke execute on function public.control_data_patch(text, jsonb) from public, anon, authenticated;
 grant execute on function public.control_data_patch(text, jsonb) to service_role;
 
--- ── 3. The OPERATOR's door ──────────────────────────────────────────────────────────────────
+-- ── 3a. What a patch actually NAMES ─────────────────────────────────────────────────────────
+-- Every path a merge patch writes a value at, in the plan's own grammar (dot segments). An OBJECT
+-- is a branch and is walked into; everything else - scalar, array, null, `{}` - is a value, and
+-- the path that reaches it is what the patch writes. `{"match":{"home":{"score":5}}}` names
+-- exactly `match.home.score`, which is precisely what one press of a bound field produces.
+create or replace function public.production_data_patch_paths(p_patch jsonb, p_prefix text default '')
+returns table (path text, value jsonb) language plpgsql immutable set search_path = '' as $$
+declare
+  v_key text;
+  v_val jsonb;
+  v_path text;
+begin
+  for v_key, v_val in select key, value from jsonb_each(p_patch) loop
+    v_path := case when p_prefix = '' then v_key else p_prefix || '.' || v_key end;
+    if jsonb_typeof(v_val) = 'object' and v_val <> '{}'::jsonb then
+      return query select p.path, p.value from public.production_data_patch_paths(v_val, v_path) p;
+    else
+      return query select v_path, v_val;
+    end if;
+  end loop;
+end $$;
+revoke execute on function public.production_data_patch_paths(jsonb, text) from public, anon, authenticated;
+grant execute on function public.production_data_patch_paths(jsonb, text) to service_role;
+
+-- ── 3b. The OPERATOR's door ─────────────────────────────────────────────────────────────────
 -- The control slug is the authorization, exactly as it is for `control_show_by_slug` and
 -- `control_send_many`: operating a production needs no account, and this is one of the things
 -- operating it means. Open to both client roles, because the hosted control page runs signed out
 -- and the in-app production page runs signed in, and they press the same button.
+--
+-- IT MAY ONLY MOVE VALUES THE PRODUCTION HAS BOUND, and that restriction is the difference
+-- between this door and the feed's. The feed holds a data key, which is the owner's and says "you
+-- may write this production's state". The slug is a SHARED OPERATING LINK - passed to a class, to
+-- a second phone, to whoever is running the show - and until this migration it reached only the
+-- append-only command log. Forwarding an arbitrary merge patch would have made it reach
+-- `control_shows.data` wholesale, where `{"match": null}` deletes a production's authored tree
+-- permanently and nothing on any surface would say who did it. That is a new capability, not the
+-- one the header above argues is already there: the rows a patch resolves to are indeed only
+-- `update` rows, but the COLUMN it writes on the way is durable state the log is not.
+--
+-- A press can name nothing else, so nothing else is allowed. The one shape that is not a bound
+-- path is an ARRAY replacing a branch a binding reaches into: merge-patch cannot address an array
+-- ELEMENT at all (`drivers.0.gap` is the plan's own example), so a press on such a binding must
+-- send the whole array. That is allowed for an array and for no other type, which is what keeps
+-- `{"match": "x"}` - replacing a whole branch with a scalar - refused.
 create or replace function public.control_data_patch_by_slug(p_slug text, p_patch jsonb)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   v_show uuid;
+  v_bindings jsonb;
+  v_stray text;
 begin
-  select s.id into v_show from public.control_shows s where s.slug = p_slug and p_slug is not null;
+  select s.id, s.bindings into v_show, v_bindings
+    from public.control_shows s where s.slug = p_slug and p_slug is not null;
   if v_show is null then raise exception 'unknown control slug'; end if;
+  if p_patch is null or jsonb_typeof(p_patch) <> 'object' then raise exception 'not a data patch'; end if;
+
+  select p.path into v_stray
+  from public.production_data_patch_paths(p_patch) p
+  where not exists (
+    select 1
+    from jsonb_each(coalesce(v_bindings, '{}'::jsonb)) g
+    cross join lateral jsonb_each_text(
+      case when jsonb_typeof(g.value) = 'object' then g.value else '{}'::jsonb end) f
+    where f.value = p.path
+       or (jsonb_typeof(p.value) = 'array' and f.value like p.path || '.%')
+  )
+  limit 1;
+  if v_stray is not null then
+    raise exception 'not a bound path: %', v_stray using errcode = '42501';
+  end if;
+
   return public.control_data_apply(v_show, p_patch, 'operator');
 end $$;
 revoke execute on function public.control_data_patch_by_slug(text, jsonb) from public;
@@ -230,9 +290,53 @@ begin
 
   insert into public.control_shows (id, owner_id, title, data, bindings)
     values (v_show, v_owner, 'Operator patch self-check',
-            '{"match":{"home":{"score":4}}}'::jsonb,
-            '{"Board":{"f1":"match.home.score"},"Bug":{"f2":"match.home.score"}}'::jsonb)
+            '{"match":{"home":{"score":4}},"drivers":[{"gap":"LEADER"}]}'::jsonb,
+            '{"Board":{"f1":"match.home.score"},"Bug":{"f2":"match.home.score","f3":"drivers.0.gap"}}'::jsonb)
     returning slug, data_key into v_slug, v_key;
+
+  -- (c1) A PATCH NAMES WHAT IT WRITES, and the operator door accepts nothing else. These four are
+  --      the whole of the restriction, and the first two are what the feed's door may do and this
+  --      one may not: a shared operating link must not be able to delete or replace a production's
+  --      authored state.
+  v_refused := null;
+  begin
+    perform public.control_data_patch_by_slug(v_slug, '{"match":null}'::jsonb);
+  exception when others then v_refused := sqlerrm;
+  end;
+  if v_refused is distinct from 'not a bound path: match' then
+    raise exception 'operator-patch self-check failed: the operator door deleted an unbound branch (%)',
+      coalesce(v_refused, 'it was accepted');
+  end if;
+  v_refused := null;
+  begin
+    perform public.control_data_patch_by_slug(v_slug, '{"match":"gone"}'::jsonb);
+  exception when others then v_refused := sqlerrm;
+  end;
+  if v_refused is distinct from 'not a bound path: match' then
+    raise exception 'operator-patch self-check failed: the operator door replaced a whole branch (%)',
+      coalesce(v_refused, 'it was accepted');
+  end if;
+  v_refused := null;
+  begin
+    perform public.control_data_patch_by_slug(v_slug, '{"weather":{"temp":4}}'::jsonb);
+  exception when others then v_refused := sqlerrm;
+  end;
+  if v_refused is distinct from 'not a bound path: weather.temp' then
+    raise exception 'operator-patch self-check failed: the operator door wrote a path nothing binds (%)',
+      coalesce(v_refused, 'it was accepted');
+  end if;
+  -- …and the one shape that is NOT a bound path and must still go: merge-patch cannot address an
+  -- array element, so a press on `drivers.0.gap` has to send the whole array.
+  v_got := public.control_data_patch_by_slug(v_slug, '{"drivers":[{"gap":"+1.204"}]}'::jsonb);
+  if v_got #>> '{data,drivers,0,gap}' <> '+1.204' then
+    raise exception 'operator-patch self-check failed: an indexed binding could not be written';
+  end if;
+  if not exists (
+    select 1 from public.control_events e
+    where e.show_id = v_show and e.graphic = 'Bug' and e.msg #>> '{data,f3}' = '+1.204'
+  ) then
+    raise exception 'operator-patch self-check failed: the array write did not reach its bound field';
+  end if;
 
   -- The FEED's door still behaves as 0048 wrote it: the tree moves, and one row per bound
   -- graphic carries the resolved string, marked `api`.
@@ -252,8 +356,11 @@ begin
   if v_got #>> '{data,match,home,score}' <> '6' then
     raise exception 'operator-patch self-check failed: the operator door did not merge';
   end if;
+  -- Counted by the FIGURE this press carried rather than by `src` alone, so the array write above
+  -- (also the operator's) cannot make this pass by accident.
   select count(*) into v_rows from public.control_events e
-    where e.show_id = v_show and e.msg->>'src' = 'operator';
+    where e.show_id = v_show and e.msg->>'src' = 'operator'
+      and (e.msg #>> '{data,f1}' = '6' or e.msg #>> '{data,f2}' = '6');
   if v_rows <> 2 then
     raise exception 'operator-patch self-check failed: one press on a value two graphics bind wrote % rows, expected 2', v_rows;
   end if;

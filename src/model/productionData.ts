@@ -371,7 +371,12 @@ export type PressVerb = 'adjust' | 'list' | 'set';
  * and starts a number, `add`/`remove` keep a list, and anything else starts a string.
  */
 export function retypeLeaf(previous: JsonValue | undefined, text: string, verb: PressVerb = 'set'): JsonValue {
-  if (Array.isArray(previous) && isLeafValue(previous)) {
+  // AN EMPTY LIST IS STILL A LIST, and `isLeafValue` deliberately says no to one: an empty array
+  // writes NOTHING into a field (`formatValue` answers null for it), which is what stops a board
+  // going blank. Leaning on it here read that "no" as "not an array" and turned the FIRST press on
+  // an empty list into a string - a bingo board's `called` went from `[]` to `"K7"`, and every
+  // press after that appended to a string. Empty is exactly the state a list starts a show in.
+  if (Array.isArray(previous) && (previous.length === 0 || isLeafValue(previous))) {
     const like = previous[0];
     return text === '' ? [] : text.split('\n').map((line) => retypeScalar(like, line));
   }

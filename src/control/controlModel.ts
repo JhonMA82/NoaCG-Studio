@@ -10,7 +10,7 @@ import { parseAnimData } from '../blocks/animData';
 import { deriveMachine, machineControls, type ControlButton } from '../blocks/animMachine';
 import { slug } from '../model/slug';
 import { readPublishedProfile } from '../model/profile';
-import type { PressVerb } from '../model/productionData';
+import { splitBoundWrites, type PressVerb, type TreeWrite } from '../model/productionData';
 
 /** Map an SPX ftype to a control kind. The non-data ftypes carry no control at all.
  *  Exported for the OGraf exporter, which records the kind as a per-property vendor hint so
@@ -210,6 +210,54 @@ export function pressVerb(button: MovingButton, key: string): PressVerb {
   if (button.adjust && key in button.adjust) return 'adjust';
   if ((button.add && key in button.add) || (button.remove && key in button.remove)) return 'list';
   return 'set';
+}
+
+/** Everything one press of an event button produces, once the production's BINDINGS are applied. */
+export interface PressSend {
+  /** What rides the event. `undefined` fires it bare, which is what a press whose every moved
+   *  field is bound does: those figures arrive as the tree's own update rows instead. */
+  payload: Record<string, string> | undefined;
+  /** The UNBOUND fields the press moved - what the surface writes back into its own state (the
+   *  in-app cue, the hosted staging buffer) so the next press does not count from a stale one. */
+  fields: Record<string, string>;
+  /** The BOUND fields it moved, as writes of the SHARED value. Nothing here touches a cue. */
+  tree: TreeWrite[];
+}
+
+/**
+ * WHAT ONE PRESS CARRIES, SPLIT BY WHETHER THE PRODUCTION HAS BOUND THE FIELD.
+ *
+ * `eventPayload` above answers "what rides" for a surface with no production behind it - the
+ * editor's Control tab, the exported panel. A DASHBOARD has a production, and a production can
+ * say that a field is not this graphic's to carry at all: it is one shared value several graphics
+ * follow (docs/PRODUCTION_DATA_PLAN.md §2.9). Three surfaces then have to agree on the same three
+ * answers - what still rides, what is written back locally, what moves the tree - and they had
+ * three copies of it, which is the shape `combineSend.ts`'s own header calls out as how two
+ * surfaces come to disagree on air.
+ *
+ * `valueOf` stays the SURFACE's answer to "what does this field read right now", because that
+ * genuinely differs: a bound field reads the tree, a moved unbound one reads the wire, one the
+ * press only reads is the cue's. `bound` is field id -> production-data path, empty for the
+ * productions that have bound nothing - and then every answer here is what it was before shared
+ * values existed.
+ */
+export function pressSend(
+  button: ControlButton,
+  bound: Record<string, string>,
+  valueOf: (key: string) => string | number | undefined,
+): PressSend {
+  const isBound = (key: string) => Object.prototype.hasOwnProperty.call(bound, key) && !!bound[key];
+  const payload = eventPayload(button, valueOf);
+  // Only what actually rode: an `add` whose source box was empty moves nothing, and writing an
+  // empty string back for it would wipe the list the press left alone.
+  const moved = Object.fromEntries(
+    movedKeys(button)
+      .filter((key) => payload?.[key] !== undefined)
+      .map((key) => [key, payload![key]]),
+  );
+  const { fields, tree } = splitBoundWrites(moved, bound, (key) => pressVerb(button, key));
+  const rides = Object.fromEntries(Object.entries(payload ?? {}).filter(([key]) => !isBound(key)));
+  return { payload: Object.keys(rides).length > 0 ? rides : undefined, fields, tree };
 }
 
 /** The field ids a press READS without moving them - the sources an `add` or a `remove` takes

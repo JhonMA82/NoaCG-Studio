@@ -63,12 +63,50 @@ test('the write path is update-only: no other command type can be emitted', () =
   assert.deepEqual([...new Set(emitted)], ['update'], 'the data path emitted a command other than `update`');
 });
 
-test('0048 no longer carries the merge/diff body it handed to 0060', () => {
-  // 0060 moved merge-resolve-diff-cap-append into `control_data_apply` and left both doors as
-  // thin wrappers. If a later edit puts a second copy of that paragraph back into 0048's
-  // `control_data_patch`, the two will drift and the copy that forgets "a path that disappeared
-  // writes nothing" will blank a live graphic. The guards below therefore read 0060's body.
+test('merge, resolve, diff and append exist ONCE, and both doors are thin wrappers over it', () => {
+  // 0060 moved that paragraph into `control_data_apply`. Two copies of it would drift, and the
+  // copy that forgets "a path that disappeared writes nothing" blanks a live graphic. A migration
+  // file is immutable history, so 0048 still CONTAINS the old body - what has to stay true is that
+  // the doors 0060 leaves behind do not, which is what this reads.
   assert.match(sql60, /create or replace function public\.control_data_apply\(/i);
+  for (const door of ['control_data_patch', 'control_data_patch_by_slug']) {
+    const body = new RegExp(String.raw`create or replace function public\.${door}\([\s\S]*?\$\$;`, 'i').exec(sql60);
+    assert.ok(body, `${door} is not defined in 0060`);
+    assert.match(body[0], /public\.control_data_apply\(/, `${door} must delegate rather than merge`);
+    for (const owned of ['jsonb_merge_patch', 'production_data_resolve', 'insert into public.control_events']) {
+      assert.doesNotMatch(
+        body[0],
+        new RegExp(owned.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+        `${door} carries its own ${owned} - that paragraph belongs to control_data_apply alone`,
+      );
+    }
+  }
+});
+
+test('the OPERATOR door may only move values the production has BOUND', () => {
+  // The slug is a shared operating link, not the owner's key. Before 0060 it reached only the
+  // append-only command log; a door forwarding an arbitrary merge patch would let anyone holding
+  // it delete a production's authored tree with `{"match": null}`, which no surface would report
+  // and no later row could undo. A press can only ever name a bound path, so nothing else is
+  // allowed - and the ONE exception is an array, because merge-patch cannot address an element.
+  const body = /create or replace function public\.control_data_patch_by_slug\([\s\S]*?\$\$;/i.exec(sql60)[0];
+  assert.match(body, /production_data_patch_paths\(/, 'the door must read what the patch names');
+  assert.match(body, /not a bound path/, 'the door must refuse a path nothing binds');
+  assert.match(
+    body,
+    /jsonb_typeof\(p\.value\) = 'array' and f\.value like p\.path \|\| '\.%'/,
+    "the array exception must be the array's alone, or a scalar could replace a whole branch",
+  );
+  // The FEED's door keeps no such restriction: a data key is the owner's own and says "write this
+  // production's state". Asserting the absence is what stops the two doors being levelled by a
+  // later edit in either direction.
+  const feed = /create or replace function public\.control_data_patch\(p_key[\s\S]*?\$\$;/i.exec(sql60)[0];
+  assert.doesNotMatch(feed, /not a bound path/);
+  const check = sql60.slice(sql60.lastIndexOf('do $$'));
+  for (const refused of ['{"match":null}', '{"match":"gone"}', '{"weather":{"temp":4}}']) {
+    assert.ok(check.includes(refused), `the self-check never tries ${refused} against the operator door`);
+  }
+  assert.match(check, /\{"drivers":\[\{"gap":"\+1\.204"\}\]\}/, 'the self-check must prove an indexed binding still writes');
 });
 
 test('the patch RPC locks the row before merging', () => {
@@ -154,7 +192,14 @@ test("0060's self-check drives a real production through BOTH doors", () => {
     assert.ok(check.includes(fn), `0060's self-check never calls ${fn} - it would prove shape, not behaviour`);
   }
   // The claim AC-7 actually makes is that ONE press moves EVERY graphic bound to that value. A
-  // check with a single bound graphic would pass without ever testing it.
-  assert.match(check, /"Board":\{"f1":"match\.home\.score"\},"Bug":\{"f2":"match\.home\.score"\}/);
+  // check with a single bound graphic would pass without ever testing it, so the fixture has to
+  // point two different graphics at one path.
+  const bindings = /'(\{"Board":[^']*\})'::jsonb/.exec(check);
+  assert.ok(bindings, "0060's self-check no longer sets up a bindings fixture");
+  const paths = Object.values(JSON.parse(bindings[1])).flatMap((fields) => Object.values(fields));
+  assert.ok(
+    Object.keys(JSON.parse(bindings[1])).length > 1 && new Set(paths).size < paths.length,
+    'two graphics must bind the SAME path, or "every graphic bound to it follows" is never tested',
+  );
   assert.match(check, /expected 2/, 'the self-check must assert the row count a shared value produces');
 });

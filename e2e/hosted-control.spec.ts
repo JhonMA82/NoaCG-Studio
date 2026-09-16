@@ -839,8 +839,9 @@ test('a bound field on the hosted page reads the tree, and a press moves the val
     const shows = await import('/src/model/shows.ts');
     const { buildPanelSpec, buildOutputPayload } = await import('/src/control/hostedControl.ts');
     const { readPublishedProfile } = await import('/src/model/profile.ts');
-    const { hostedPoolMachines, hostedCombineNow, hostedCombineWorld, hostedCueValues, hostedResolved } =
+    const { hostedPoolMachines, hostedCombineNow, hostedCombineWorld, hostedCueValues } =
       await import('/src/control/hostedCombine.ts');
+    const { resolveBindings } = await import('/src/model/productionData.ts');
     const { resolveCombineSend } = await import('/src/control/combineSend.ts');
     const { planCombine } = await import('/src/control/combine.ts');
 
@@ -856,7 +857,7 @@ test('a bound field on the hosted page reads the tree, and a press moves the val
     const PATH = 'panel.katri.points';
     const bindings = { [TOTALS]: { f5: PATH }, [VOTES]: { f5: PATH } };
     const tree = { panel: { katri: { points: 4 } } };
-    const resolved = hostedResolved(tree, bindings);
+    const resolved = resolveBindings(tree, bindings);
 
     const base = {
       panel,

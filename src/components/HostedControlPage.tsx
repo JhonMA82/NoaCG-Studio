@@ -6,15 +6,13 @@ import {
   eventButtons,
   eventLegality,
   adjustedValue,
-  eventPayload,
   fieldDescriptors,
   formatMachineState,
   isEventLegal,
   machineStateGroups,
   machineStateNames,
-  movedKeys,
   overflowNote,
-  pressVerb,
+  pressSend,
   OVERFLOW_FIELD_HINT,
   OVERFLOW_FIELD_MARK,
   type ArrangedControl,
@@ -36,13 +34,12 @@ import {
   hostedCombineWorld,
   hostedCueValues,
   hostedPoolMachines,
-  hostedResolved,
   type HostedCombineInput,
 } from '../control/hostedCombine';
 import { fetchProductionDataBySlug, patchProductionDataBySlug } from '../control/productionDataApi';
 import {
   replacementPatch,
-  splitBoundWrites,
+  resolveBindings,
   withTreeWrites,
   type JsonObject,
   type ProductionBindings,
@@ -497,7 +494,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
 
   /** What the production's bindings resolve to right now: the figure every bound field on every
    *  bound graphic is showing. One resolve per render, not one per cue. */
-  const boundValues = hostedResolved(dataTree, bindings);
+  const boundValues = resolveBindings(dataTree, bindings);
 
   /** The values the operator sees for the selected cue: the cue's own, with the SHARED staged
    *  buffer over them (another operator typing is visible here, by design) and the production's
@@ -517,10 +514,21 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const patchBound = async (writes: TreeWrite[]): Promise<void> => {
     if (writes.length === 0) return;
     const before = dataTreeRef.current;
-    const patch = replacementPatch(before, withTreeWrites(before, writes));
+    const next = withTreeWrites(before, writes);
+    const patch = replacementPatch(before, next);
     if (Object.keys(patch).length === 0) return;
+    // OPTIMISTIC, and not as a nicety: the ref is what the NEXT press counts from, and an RPC is a
+    // round trip. Four ± presses inside one of those all read the figure from before the first and
+    // the score moved by one instead of by four - the unbound stepper beside this one never had the
+    // problem because it echoes locally before sending.
+    dataTreeRef.current = next;
+    setDataTree(next);
     try {
-      setDataTree((await patchProductionDataBySlug(slug, patch)) as JsonObject);
+      // The ANSWER is what we then hold: a feed tick that landed in the same moment is already
+      // merged into it, so the press cannot silently overwrite the feed's write.
+      const server = (await patchProductionDataBySlug(slug, patch)) as JsonObject;
+      dataTreeRef.current = server;
+      setDataTree(server);
     } catch (error) {
       setError(`The shared value did not move: ${(error as Error).message}`);
       refreshData.current();
@@ -838,7 +846,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               airedValues={airedData[selectedCue.graphic] ?? null}
               onPreview={(values) => previewCue(selectedCue, values)}
               onSnap={snapTo}
-              onSend={(items) => void sendVerb(items)}
+              onSend={(items) => sendVerb(items)}
               onError={setError}
               moved={combineMoved}
               bound={boundFields(selectedCue.graphic)}
@@ -1096,8 +1104,10 @@ function HostedCueEditor({
   airedValues: Record<string, string> | null;
   onPreview: (values: Record<string, string>) => void;
   onSnap: (groupId: string | null, stateId: string) => void;
-  /** The page's one door for a verb — both roads, its own monitor, and the log. */
-  onSend: (items: ControlSendItem[]) => void;
+  /** The page's one door for a verb - both roads, its own monitor, and the log. It answers
+   *  whether the rows went, because a press that moves a SHARED value must not move it for an
+   *  event the log refused: the other bound graphics would follow a figure this one never took. */
+  onSend: (items: ControlSendItem[]) => Promise<boolean>;
   onError: (message: string) => void;
   /** The fields a combined press just moved on air. The editor's own echo has to follow them, or
    *  a field the operator typed into would keep an older figure than the board shows. */
@@ -1261,19 +1271,10 @@ function HostedCueEditor({
       disabled={!isEventLegal(legality, e.event, liveState)}
       className={e.destructive ? 'ctl-event-destructive' : undefined}
       onClick={() => {
-        const payload = eventPayload(e, valueOf);
-        const movedNow = Object.fromEntries(
-          movedKeys(e)
-            .filter((key) => payload?.[key] !== undefined)
-            .map((key) => [key, payload![key]]),
-        );
-        // The split AC-7 turns on: a field the press moves that this production has BOUND leaves
-        // the field road entirely - off the event's payload, out of the staging buffer - and
-        // becomes one write of the shared value, which reaches every graphic bound to it.
-        const { fields: staged, tree } = splitBoundWrites(movedNow, bound, (key) => pressVerb(e, key));
+        const { payload, fields: staged, tree } = pressSend(e, bound, valueOf);
         // An `adjust` field (a goal's +1) rode moved by its delta: stage the new figure into the
         // shared buffer at once (the live-number bump's rule, so every open page follows and the
-        // next press counts from it).
+        // next press counts from it). A BOUND field is not among them - it is not this cue's.
         if (Object.keys(staged).length > 0) {
           setEcho((v) => ({ ...v, ...staged }));
           setEntryId('');
@@ -1281,19 +1282,16 @@ function HostedCueEditor({
           void stageHostedData(slug, cue.graphic, staged).catch((err: Error) => onError(err.message));
           onPreview({ ...currentValues(), ...staged });
         }
-        // A payload carrying only bound fields leaves nothing to ride: those figures arrive as the
-        // tree's own update rows, and the event fires bare.
-        const rides = Object.fromEntries(Object.entries(payload ?? {}).filter(([key]) => !bound[key]));
-        onSend([
+        void onSend([
           {
             graphic: cue.graphic,
-            msg:
-              Object.keys(rides).length > 0
-                ? { t: 'event', event: e.event, payload: rides }
-                : { t: 'event', event: e.event },
+            msg: payload ? { t: 'event', event: e.event, payload } : { t: 'event', event: e.event },
           },
-        ]);
-        void onPatchBound(tree);
+          // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT, the same order the in-app ⚡ button and
+          // this page's own combined press already keep. The tree write is a separate row by
+          // construction - it reaches graphics this event never touched - so nothing but this
+          // order stops a refused press moving every other bound graphic.
+        ]).then((sent) => { if (sent) void onPatchBound(tree); });
       }}
       title={eventHint(e)}
     >

@@ -25,7 +25,7 @@ import {
 import type { CombineNow, StepNames } from './combine';
 import type { CombineWorld } from './combineSend';
 import type { LiveCueMap, LiveReportMap, OutputCue, PanelGraphicSpec } from './hostedControl';
-import { resolveBindings, type ProductionBindings, type ResolvedValues } from '../model/productionData';
+import type { ProductionBindings, ResolvedValues } from '../model/productionData';
 import type { ShowProfile } from '../model/profile';
 
 /** One published graphic's machine, parsed once rather than per step. */
@@ -131,11 +131,6 @@ export function hostedCueValues(
   // operator typing into the shared buffer can push it back. Without this the page's own ± press
   // moved the shared value and the very next ⟳ Take put the old figure back on air.
   return { ...cue.values, ...(own(staged, cue.graphic) ?? {}), ...(own(resolved, cue.graphic) ?? {}) };
-}
-
-/** The tree as this page's bindings resolve it - one call per render rather than one per cue. */
-export function hostedResolved(data: Record<string, unknown>, bindings: ProductionBindings): ResolvedValues {
-  return resolveBindings(data as Parameters<typeof resolveBindings>[0], bindings);
 }
 
 /**

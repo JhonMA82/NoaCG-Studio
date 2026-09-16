@@ -4,8 +4,14 @@
 // THE SPLIT, and why there are two modules rather than one. `combine.ts` owns WHICH steps go and
 // WHEN: it imports nothing at run time, so `scripts/combine-control.test.mjs` can transpile it
 // alone in the build gate, and that fence is only worth having if nothing drags an import back
-// in. This module is the other half — it needs `eventPayload`, `movedKeys` and the cue verbs, so
-// it lives beside that fence rather than behind it.
+// in. This module is the other half — it needs `pressSend`, `movedKeys` and the cue verbs, so it
+// lives beside that fence rather than behind it.
+//
+// WHAT A PRESS CARRIES IS NOT DECIDED HERE EITHER. `controlModel.pressSend` owns that, because the
+// two plain ⚡ buttons ask the same question and three copies of the answer is how two surfaces
+// come to disagree on air. What IS this module's own is the part only a multi-step press has: the
+// chain that carries one step's move to the next, and the split between a figure that rides the
+// wire and one that moves the production's shared value.
 //
 // WHY IT IS SHARED RATHER THAN WRITTEN PER SURFACE. The in-app production page and the hosted
 // control page both send a combined control, and the rule they have to agree on is not "roughly
@@ -19,10 +25,10 @@
 // mirror write-back (a stored cue in the app, the shared staging buffer on the hosted page), and
 // the send itself. Those are genuinely three different things on three different planes.
 
-import { eventPayload, movedKeys, pressVerb, type ControlButton } from './controlModel';
+import { movedKeys, pressSend, type ControlButton } from './controlModel';
 import { stepBlocked, type CombineNow, type StepGroup } from './combine';
 import { clearCueItems, takeCueItems, COMMAND_BATCH_MAX, type ControlSendItem } from './hostedControl';
-import { splitBoundWrites, type TreeWrite } from '../model/productionData';
+import type { TreeWrite } from '../model/productionData';
 import type { ProfileStep } from '../model/profile';
 
 /**
@@ -109,18 +115,6 @@ export interface CombineSend {
   liveAfter: Map<string, string | null>;
   /** Dropped ALONE — the rest of the pass proceeded (§6b). */
   dropped: DroppedStep[];
-}
-
-/** The bound paths among the fields one press moved — the shape `splitBoundWrites` splits on.
- *  Asked per field rather than per graphic because a surface answers "is this bound" from its
- *  own production, and only these fields are about to be written. */
-function boundPaths(graphic: string, moved: Record<string, string>, world: CombineWorld): Record<string, string> {
-  const paths: Record<string, string> = {};
-  for (const key of Object.keys(moved)) {
-    const link = world.bound(graphic, key);
-    if (link) paths[key] = link.path;
-  }
-  return paths;
 }
 
 /**
@@ -222,9 +216,15 @@ export function resolveCombineSend(due: StepGroup[], now: CombineNow, world: Com
     // every graphic bound to that path is showing (plan §2.7).
     const moved = new Set(movedKeys(button));
     const already = ahead.get(step.graphic) ?? {};
-    const boundOf = (key: string) => world.bound(step.graphic, key);
-    const payload = eventPayload(button, (key) => {
-      const link = boundOf(key);
+    // The paths this graphic binds, for the fields this button could move. `pressSend` owns the
+    // SPLIT; what only this surface-independent pass knows is the chain below.
+    const bound: Record<string, string> = {};
+    for (const key of movedKeys(button).concat(button.payload ?? [])) {
+      const link = world.bound(step.graphic, key);
+      if (link) bound[key] = link.path;
+    }
+    const { payload, fields: adjusted, tree: writes } = pressSend(button, bound, (key) => {
+      const link = world.bound(step.graphic, key);
       // A bound field counts from the PATH this pass has already moved, not from the graphic:
       // two graphics bound to one value are one figure, so "+1 here, +1 there" in a single press
       // must land on 2, not twice on 1.
@@ -236,38 +236,23 @@ export function resolveCombineSend(due: StepGroup[], now: CombineNow, world: Com
             (button.adjust && key in button.adjust ? '0' : '')
         : cueValues[key];
     });
-    const movedNow = Object.fromEntries(
-      movedKeys(button)
-        .filter((key) => payload?.[key] !== undefined)
-        .map((key) => [key, payload![key]]),
-    );
-    // The split the whole row turns on: a bound key leaves the field road entirely — off the
-    // event's payload, out of the mirror — and becomes one write of the shared value instead.
-    const { fields: adjusted, tree: writes } = splitBoundWrites(movedNow, boundPaths(step.graphic, movedNow, world), (key) =>
-      pressVerb(button, key),
-    );
     tree.push(...writes);
     for (const write of writes) aheadPath.set(write.path, write.text);
-    if (Object.keys(adjusted).length > 0) ahead.set(step.graphic, { ...already, ...adjusted });
-    if (Object.keys(adjusted).length > 0 && air) {
-      const held = mirrorByCue.get(air.cueId);
-      mirrorByCue.set(air.cueId, {
-        cueId: air.cueId,
-        graphic: step.graphic,
-        values: { ...(held?.values ?? {}), ...adjusted },
-      });
+    if (Object.keys(adjusted).length > 0) {
+      ahead.set(step.graphic, { ...already, ...adjusted });
+      if (air) {
+        const held = mirrorByCue.get(air.cueId);
+        mirrorByCue.set(air.cueId, {
+          cueId: air.cueId,
+          graphic: step.graphic,
+          values: { ...(held?.values ?? {}), ...adjusted },
+        });
+      }
     }
-    // A payload carrying ONLY bound fields leaves nothing to ride the event: the figures arrive
-    // as the tree's own update rows, and the event fires bare — which is what it would have done
-    // if the control had declared no payload at all.
-    const rides = Object.fromEntries(Object.entries(payload ?? {}).filter(([key]) => !boundOf(key)));
     steps.push([
       {
         graphic: step.graphic,
-        msg:
-          Object.keys(rides).length > 0
-            ? { t: 'event', event: button.event, payload: rides }
-            : { t: 'event', event: button.event },
+        msg: payload ? { t: 'event', event: button.event, payload } : { t: 'event', event: button.event },
       },
     ]);
   }

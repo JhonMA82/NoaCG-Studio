@@ -252,6 +252,18 @@ test('retypeLeaf keeps the type the leaf already had', () => {
   assert.deepEqual(retypeLeaf(['a'], '', 'list'), []);
 });
 
+test('an EMPTY list is still a list, which is the state a list starts a show in', () => {
+  // `isLeafValue([])` is false on purpose - an empty array writes nothing into a field, which is
+  // what stops a board going blank - and reading that "no" as "not an array" turned the FIRST
+  // press on a bingo board's `called` from [] into the string "K7". Every press after that
+  // appended to a string, and only a tree that never started empty stayed an array.
+  assert.deepEqual(retypeLeaf([], 'K7', 'list'), ['K7']);
+  assert.deepEqual(withTreeWrites({ called: [] }, [{ path: 'called', text: 'K7', verb: 'list' }]), { called: ['K7'] });
+  assert.deepEqual(withTreeWrites({ called: ['K7'] }, [{ path: 'called', text: 'K7\nB2', verb: 'list' }]), {
+    called: ['K7', 'B2'],
+  });
+});
+
 test('a jersey number stays text, because the TEXT is not where the type comes from', () => {
   // reparseLeaf reads the type out of the text, which is right for a value box (the operator is
   // saying what they mean) and wrong for a press (the type is already known). 07 + 1 must not
