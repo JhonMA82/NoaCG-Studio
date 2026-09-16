@@ -1999,6 +1999,22 @@ What this item did NOT close: an authored machine proven end to end through the 
 the bench's eight-event cap. Both are rows of
 `docs/work-specs/control-panel-any-graphic/spec.md` (AC-2 and AC-3).
 
+## Two Space-key modes, as an operator setting (shipped 2026-09-16)
+
+The live-file item as it stood, verbatim:
+
+> - [ ] **Two Space-key modes, as an operator setting** (owner, ALIGN-2026-09-10-3; build before the
+>       25th). `docs/backlog/space-sends-to-preview-then-to-program.md`.
+
+Closed by a checkbox in the verb bar, **`SPACE` previews first**, on all three dashboard surfaces
+(`docs/PLAYOUT_DASHBOARD.md` §2f holds the contract and his words). Unchecked is the toggle the
+dashboard has had since 2026-08-06, unchanged. Checked, walking the rundown previews nothing:
+SPACE puts the selected cue on PREVIEW, SPACE again airs it, and SPACE on a cue that is on air
+takes it off and leaves it on PREVIEW - his "cut button on a mixer". Per browser, in
+`localStorage`, never synced. Both modes are pinned on the in-app page and the exported controller
+offline, and the hosted page's own walk is a configured spec. The backlog file that held the ask
+was deleted with the landing.
+
 ## Condensed out of the live file (2026-09-16)
 
 `docs/GOALS.md` was 310 lines against the ~200 its own opening paragraph states - the fourth reading
@@ -2184,9 +2200,10 @@ OGraf sequencing argument and the dashed-card device, and the parking lot's prov
 > TAKE spanning them at every window size**. The Preview VERB is gone from the in-app and hosted
 > pages, deliberately kept in the exported controller (archive, 2026-08-30).
 >
-> - [ ] **Two Space-key modes, as an operator setting** (owner, ALIGN-2026-09-10-3; build before
+> - [x] **Two Space-key modes, as an operator setting** (owner, ALIGN-2026-09-10-3; build before
 >       the 25th, 2026-09-15). Space previews and Space again airs, like a mixer's cut; or selection
->       is preview and Space airs, as today. `docs/backlog/space-sends-to-preview-then-to-program.md`.
+>       is preview and Space airs, as today. Shipped 2026-09-16 - `docs/PLAYOUT_DASHBOARD.md` §2f
+>       (the backlog file that held the ask is gone; his words are quoted there verbatim).
 > - [ ] **The production control profile, for 2026-10-20** (owner, 2026-09-15): two primitives,
 >       ARRANGE and COMBINE, started 2026-09-15 (ALIGN-2026-09-15-4). Design and rows: `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6.
 >
