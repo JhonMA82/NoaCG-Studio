@@ -97,9 +97,11 @@ on Codex the same way and registers the server; `docs/AGENT_CLI.md` carries that
   fixes it, and the one command you would check with cannot show it: the docs prompt says to run
   `npx -y @noacg/cli doctor`, which prints the version NPX just fetched, not the global the server
   will import. (A bare `noacg doctor` from the stale global does print 0.2.0 - but nobody is told
-  to run it that way.) Filed as
-  `docs/backlog/a-stale-global-cli-wins-over-npx-silently.md`; `docs/AGENT_CLI.md` carries the
-  measurement.
+  to run it that way.) Filed 2026-09-10 as
+  `docs/backlog/a-stale-global-cli-wins-over-npx-silently.md`, closed 2026-09-16 - `noacg-mcp` now
+  warns on stderr when the resolved copy disagrees with npm's `latest`, and this laptop's global is
+  0.3.3. `docs/AGENT_CLI.md` "Releasing to npm" and its own section on the MCP server carry the
+  measurement and the fix.
 - **Adding the marketplace costs 107 MB of the user's disk.** Both agents clone the whole
   repository to read `.claude-plugin/marketplace.json`. That is the host's behaviour and not
   something this repo chooses, so there is nothing here to fix; it is recorded because it surprises

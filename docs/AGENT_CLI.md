@@ -580,23 +580,38 @@ package-open sequence rather than sharing a core the way `save` and the regenera
 `--` is swallowed). The adapter
 triple is guarded by `scripts/check-shared-instructions.mjs` and never generated.
 
-**Also open, and the one with a date on it: a stale GLOBAL install wins over npx, silently.** This
-is what the old "until 0.3.0 is published" worry turned into. 0.3.0 has been on npm since
-2026-09-05, so a fresh machine gets it - measured 2026-09-10, `mcp-server.mjs` with no `@noacg/cli`
-on the box falls back to npx, says so on stderr, and answers `tools/list` with the single `noacg`
-tool. But `resolveCli()` prefers an installed copy over npx ON PURPOSE, to avoid npx's per-session
-cost, and it walks `PATH` to find one. So a machine that ever ran `npm i -g @noacg/cli` keeps that
-version. On this laptop the global is **0.2.0**, and the same probe against it returned the old
-**seven-tool** shape from the 83 MB server. `npm i -g @noacg/cli@latest` is the whole fix.
+**Closed: a stale GLOBAL install used to win over npx, silently.** This is what the old "until
+0.3.0 is published" worry turned into. 0.3.0 has been on npm since 2026-09-05, so a fresh machine
+gets it - measured 2026-09-10, `mcp-server.mjs` with no `@noacg/cli` on the box falls back to npx,
+says so on stderr, and answers `tools/list` with the single `noacg` tool. But `resolveCli()`
+prefers an installed copy over npx ON PURPOSE, to avoid npx's per-session cost, and it walks `PATH`
+to find one. So a machine that ever ran `npm i -g @noacg/cli` kept that version with nothing on
+screen saying so. On this laptop the global was **0.2.0** as of 2026-09-10, and the same probe
+against it returned the old **seven-tool** shape from the 83 MB server. `npm i -g
+@noacg/cli@latest` on 2026-09-16 brought this laptop to 0.3.3; the paragraph below covers the
+actual fix, which is the warning rather than the one-time install.
 
-What makes it hard to notice is which `doctor` you are told to run. `doctor` prints
+What made it hard to notice is which `doctor` you are told to run. `doctor` prints
 `cliVersion()`, the version of the copy EXECUTING it (`cli/src/commands/doctor.ts`), so a bare
 `noacg doctor` off a stale global does print 0.2.0 and would give the game away. But the docs
-prompt and this page both say `npx -y @noacg/cli doctor`, which fetches `latest` and reports THAT
-- 0.3.0 - while the MCP server goes on importing the global. The check everyone is told to run is
-the one that cannot see the problem. Filed with both measurements as
-`docs/backlog/a-stale-global-cli-wins-over-npx-silently.md`. Worth closing before the tool has
-users, because on this laptop it is already true.
+prompt and this page both say `npx -y @noacg/cli doctor`, which fetches `latest` and reports THAT,
+while the MCP server goes on importing the global. The check everyone is told to run was the one
+that could not see the problem.
+
+**Closed 2026-09-16, in `cli/plugin-mcp/mcp-server.mjs`.** The resolved copy's own version is now
+compared, off the startup critical path, against npm's `latest` (a cached registry read, once a
+day, 1.5 s timeout, never blocks startup or fails loudly offline) and a mismatch prints on the same
+stderr channel the npx-fallback notice already uses: `the installed @noacg/cli is 0.2.0; npm's
+latest is 0.3.3. Run npm i -g @noacg/cli@latest to update it.` The check runs only when `resolveCli`
+did NOT return the `NOACG_CLI` override path (a checkout under development is expected to differ
+from `latest`) - checking merely whether the env var is SET would miss a stale or deleted override
+falling through to a real resolve. The cache write is write-then-rename, because several
+`noacg-mcp` processes across this repo's own concurrent worktrees can race the same file past its
+day-old TTL, and `NOACG_CLI_LATEST_CACHE_FILE` lets a diagnostic run point at a scratch file instead
+of the one every session on the machine shares. What was
+`docs/backlog/a-stale-global-cli-wins-over-npx-silently.md` is closed on that fix; `doctor` still
+reports only the version of the copy running it and does not separately name what `resolveCli()`
+would pick - that half of the file's proposal was left undecided, not done.
 
 Verified
 2026-08-22: `npm pack --dry-run` = 31 files (dist, skill, package.json, README, LICENSE); the plugin
