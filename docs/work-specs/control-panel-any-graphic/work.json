@@ -6,12 +6,12 @@
     "source": "docs/OWNER_RULINGS.md ALIGN-2026-09-14-3 and ALIGN-2026-09-15-1 to -4 (2026-09-15)"
   },
   "review": {
-    "revision": "9c7d93af373767a1672c0f6a9bc4f033d7c956a8",
+    "revision": "b9f7c39f078005efff37ddfa5d5554be037b1418",
     "specSha256": "c8b1ea4b966db1efcee1dd636a238d9cb05bd8bfba347d25455deb30a7443620",
     "evidence": [
       {
         "path": "docs/work-specs/control-panel-any-graphic/evidence/review.md",
-        "sha256": "2ee75458b20ae387136a8b30f573a3df7944c4e8a9d1ecff34526b18ceaacdd1"
+        "sha256": "1056cae4d3a3fecdd433d3c4b4d5efa16bb60387073b87641902cb8e2f0bc9e0"
       }
     ],
     "criteria": [
@@ -61,7 +61,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-5-arrange-on-three-surfaces.md",
-            "sha256": "167af6fc80f6ad9a797f4bc9fe3821a0ac6f8951e95ac283d3943d461e497ba6"
+            "sha256": "0ee4d33724900ccaa2f689923a1179465954799e563fa24eb03def0ac3314cde"
           }
         ]
       },
@@ -71,7 +71,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-6-combine-sends-one-row-per-step.md",
-            "sha256": "43244d6080ac4c1bffb0b66b4c306f7d8c8b2bdb14ec37b2c4339f9f5c93f712"
+            "sha256": "8a51b27ed326be40b010d00ccd44710365a3ee19d808b4c7e80bda93ba59cdc7"
           }
         ]
       },
@@ -81,7 +81,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-7-bound-field-stepper.md",
-            "sha256": "3c06cd6e5aa588f1abaeb8972cd58b6af70eb367f440c3c51bdcfa80f6588bfb"
+            "sha256": "91ffbd770b254e56dd058bc8faf8042c56b9c513b57cd9c22e9caaf05e08e955"
           }
         ]
       },
@@ -101,7 +101,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-9-the-proof-case-timed.md",
-            "sha256": "80633c1616303e52428e05665e92f058b0a8dca929b10ad800dffaa91f9617ef"
+            "sha256": "583cb9a8005ea9bb0d7b57fffa553f378c20799ae145c8b7d7263b01b4f468cd"
           }
         ]
       },
