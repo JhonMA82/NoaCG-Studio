@@ -62,24 +62,65 @@ deleted `docs/backlog/a-stale-global-cli-wins-over-npx-silently.md`). Scope-chec
 - `taste: not applicable` - nothing here can move what a graphic looks like.
 - Verdict stamped at `c1aa1f28`: PASS.
 
-## What is left, and why
+## Row 14 - queued open, then landed and closed in this branch's second half
 
-**Section 7 row 14 and the R2.1/R2.4 status cells are not touched here, on purpose.** Mid-session
-the wave coordinator asked this row to also close row 14 (`the noacg login fix is written and not
-published`) and flip R2.1/R2.4 to reflect the publish, since row SA's PR #301 narrowed row 14 to
-exactly that condition and the condition is now true. I re-checked `gh pr view 301` three times
-across this session (most recently just before queuing) and it is still **OPEN, not merged** -
-`headRefName: claude/sa-link-opens-the-graphic`, `"Wait for the cloud before deciding a graphic's
-deep link is dead"`. Per the coordinator's own fallback instruction, I did not wait for it and did
-not guess at its text.
+I queued this branch with row 14 and the R2.1/R2.4 cells untouched on purpose: PR #301 (SA's
+`the noacg login fix is written and not published` narrowing of row 14) was still OPEN, re-checked
+three times, and I did not want to guess at text a still-moving branch might change. That queue
+went out as pull request #305.
 
-**The one thing left: once PR #301 lands on `origin/main`, delete section 7 row 14 and flip both
-the R2.1 and R2.4 status cells** in `docs/DEMO_2026-09-25.md` to reflect that `@noacg/cli` 0.3.3 -
-carrying the `noacg login` exit fix - is now on the npm registry, so `npx -y @noacg/cli login`
-serves the fixed version rather than the hanging 0.3.2. Read SA's branch and its own handoff first;
-it differs from `main` by exactly two lines there (row 14, and the last sentence of R2.4's status
-cell) and carries the reasoning to complete. Do not touch rows 12, 15, or 17 - untouched by this row
-and edited by others today.
+**Then PR #301 landed** (`ec16adf8`, merge commit for "Wait for the cloud before deciding a
+graphic's deep link is dead"), and #305 went DIRTY: both branches had edited section 7 of
+`docs/DEMO_2026-09-25.md` - SA narrowing row 14 to the login-publish wait, this branch deleting row
+16 - so git refused to guess the combination, exactly as it refused SA and SB's earlier collision on
+the same row.
+
+`git fetch origin && git merge origin/main` produced one conflict, in `docs/DEMO_2026-09-25.md`, at
+two spots: the R2.2/R2.3/R2.4 block and the row-14/row-16 block. Resolved by hand, reading SA's own
+handoff (`docs/handoffs/2026-09-16-sa-link-opens-the-graphic.md`, "Taking main in, and what §7 row
+14 says now") first, which states plainly: "Whoever publishes 0.3.3 deletes row 14 and flips both
+cells." I published 0.3.3 earlier in this same branch, so:
+
+- **Row 14 is deleted outright**, not narrowed further. Both defects it ever carried - the deep
+  link not opening (SA's fix, verified on a production bundle) and the `noacg login` hang (fixed in
+  0.3.3, now published) - are closed in the repository AND on the paths the beats actually use
+  (`npx -y @noacg/cli` takes whatever npm holds, and npm now holds 0.3.3).
+- **R2.1 and R2.4 both flip to WORKS.** R2.4's cell already said the login-hang wait was the only
+  thing left once SA's deep-link fix landed; that publish is done. R2.1's cell said "the route above
+  still serves the hang until 0.3.3 is on npm" - also done. I kept my own R2.2 and R2.3 edits from
+  before (the stale-CLI warning work) and took SA's R2.4 text verbatim except for updating its
+  closing sentence to say the publish landed rather than that it is awaited.
+- **One residual line stays in R2.1's WORKS cell as a caveat, not a row**: standalone
+  `validate ./sb --screenshots ./shots` has still never been run on its own (only nested inside
+  `save`, without the flag). This predates today - neither SB's nor SA's edits to this exact cell
+  added a row for it either - and it is a completeness gap in verification method, not a product
+  defect: the same `validate` code path runs either way. I judged it not worth inventing a new row
+  for something two other sessions already declined to give one, and said so here rather than
+  silently dropping the sentence.
+- Fixed two stale references the deletion left behind: the table-header sentence that used row 14
+  as its example of a multi-beat row ("as rows 11 and 14 do" -> "as row 11 does"), and the narrative
+  paragraph right after the §7 table that described row 14 as still partially open.
+
+Re-verified from the fork point, not just this branch's own diff, per the standing rule that a clean
+merge is not proof: `npm run build > <uniquely-named log> 2>&1; echo $?` after the merge commit,
+exit 0, 1785 tests / 1784 pass / 0 fail / 1 skipped - same counts as the pre-merge run, consistent
+with the incoming commits' new tests being Playwright specs (not part of `npm run build`'s
+`node --test` gate) rather than a sign nothing new ran. I did not additionally run
+`npm run test:e2e:integration`: the wave window was closing, the branch's own diff against the new
+fork point (`ec16adf8`) is unchanged from before the merge - seven files, all docs plus the one CLI
+script - and every file the merge brought in from `main` had already passed its own PR's CI. If that
+call is wrong, the gap is an e2e run over the combined tree, not a rebuild.
+
+`git diff --name-only ec16adf8..HEAD` after the merge: exactly the same seven files this branch
+touched before (`cli/plugin-mcp/mcp-server.mjs`, `docs/AGENT_CLI.md`, `docs/DEMO_2026-09-25.md`,
+`docs/PROMISE_AUDIT.md`, `docs/acceptance/owner-queue/2026-09-16-se-stale-global-cli-warns.md`,
+`docs/backlog/a-stale-global-cli-wins-over-npx-silently.md` deleted,
+`docs/handoffs/2026-09-16-se-publish-and-retire-stale-cli.md`) - the merge itself added no new
+diff for this branch to own, only main's content and the conflict resolution inside
+`docs/DEMO_2026-09-25.md`. The `/check` verdict below is re-stamped at the merge commit to cover it;
+the review and simplify legs are unchanged from the first stamp because nothing in this branch's own
+diff changed - the stamp is honestly re-run over the same reviewed content at a new sha, not a new
+review of main's incoming files (those were reviewed by their own PRs).
 
 **Not done, and separable on purpose** (per the closed backlog file's own framing): `doctor` still
 reports only the version of the copy running it, and does not separately name what `resolveCli()`
@@ -115,7 +156,8 @@ guessing at a product decision.
   paragraph replacing the open-defect description.
 - `docs/acceptance/owner-queue/2026-09-16-se-stale-global-cli-warns.md` - the owner's under-a-minute
   route.
-- `docs/DEMO_2026-09-25.md` - R2.2, R2.3, and (still open) row 14 / R2.1 / R2.4.
+- `docs/DEMO_2026-09-25.md` - R2.1, R2.2, R2.3, R2.4, all WORKS; row 14 and row 16 both deleted.
 - `docs/handoffs/2026-09-16-sb-cli-exits-and-r25.md` - confirmed 0.3.3 was ready to publish and why.
-- PR #301 (`claude/sa-link-opens-the-graphic`) - open at the time of writing; carries the row-14
-  narrowing this handoff's "what is left" section completes.
+- `docs/handoffs/2026-09-16-sa-link-opens-the-graphic.md` - "Taking main in, and what §7 row 14
+  says now", the reasoning this branch's row-14 deletion completes.
+- PR #301 (`claude/sa-link-opens-the-graphic`) - landed as `ec16adf8`.
