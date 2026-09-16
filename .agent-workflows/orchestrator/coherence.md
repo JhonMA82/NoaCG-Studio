@@ -77,14 +77,15 @@ SESSION builds, or how a WAVE is planned? Only the second belongs here.
 1. **A hook**, where the mistake has a tool shape - it fires at the call, whether or not anyone
    read a contract (`scripts/hooks/`, `docs/AGENT_WORKFLOWS.md`). A hook that can false-positive is
    a warning; a refusal needs an exact test.
-2. **A script or a test**, where the fact can be measured - the tick, the drain, the plan check,
-   the receipts. A contract sentence about what a script does, or a number written into prose, is
+2. **A script or a test**, where the fact can be measured or a script's claim can be pinned - the
+   tick, the drain, the plan check, the receipts. A contract sentence about what a script does, or a number written into prose, is
    a cache of the instrument; cite the instrument and its test instead. Six such caches went false
    within a week of the split (`incidents.md`, "the four cached facts of 2026-09-02").
 3. **Durable state**, where a decision must outlive the session that made it - the wave-state file,
    a receipt, a ledger line.
-4. **Text, last, and by MOVING, never by adding.** The lesson edits the module that owns the rule,
-   its evidence goes to `incidents.md` in one dated entry, and a new rule names what it replaced
+4. **Text, last, and by MOVING, never by adding.** Text changes only for a judgement the master
+   itself has to make. The lesson edits the module that owns the rule, its evidence goes to
+   `incidents.md` in one dated entry, and a new rule names what it replaced
    or shrank - budget-neutral by default, and the report says so when nothing could be cut. The
    core changes only for a rule that fires before its module loads, and only against its gate.
    The gate counts the core and the common path; the branch modules (`night`, `recovery`, this

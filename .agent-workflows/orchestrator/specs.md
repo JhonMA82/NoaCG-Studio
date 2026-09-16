@@ -35,7 +35,8 @@ Keep stable parent acceptance IDs. Each child names its parent path and IDs; the
 names the child path and still needs parent-level evidence. A child completing
 does not satisfy an integrated parent scenario automatically. Every criterion stays assigned,
 including cross-child integration and preservation scenarios. Never delete an unmet criterion
-to make coverage pass. Explain the split; it changes delivery units, not product scope.
+to make coverage pass. Explain the split in section 4 and keep letters stable; it changes delivery
+units, not product scope.
 
 Use `docs/work-specs/README.md` for the versioned acceptance/evidence ledger. `work.json` contains
 NO task lifecycle, ready set, launch, dependency or landing state. The existing plan/wave/job

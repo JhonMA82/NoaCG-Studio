@@ -1,7 +1,9 @@
 # The collision pass - what can run at once
 
 Done when every pair of rows is either disjoint in `TOUCHES` and `MINTS` or carries a ruling
-below, and `node scripts/wave-plan-check.mjs` finds no slot minted twice.
+below, and `node scripts/wave-plan-check.mjs` finds no slot minted twice. **Where the pass is
+UNSURE, chain** (owner, 2026-09-03: *"chaining tasks is completely fine"*) - chaining spends
+wall-clock the night has; a wrong parallel call is paid at 05:00 with nobody awake ("two dialogs").
 
 **File overlap is the expensive failure, and a file list alone does not find it** - nor does a list
 of paths nobody confirmed, which is not yet a file list (`prompts.md`, the confirmation pass). Two
