@@ -1421,7 +1421,7 @@ function HostedCueEditor({
                   if (path) {
                     return (
                       <label className="pd-field pd-field-bound" key={d.key} data-testid={`hosted-bound-${d.key}`}>
-                        <span>
+                        <span className="pd-field-bound-label">
                           {d.key.toUpperCase()} · {d.label}
                           <span className="pd-bound-mark" title={`Bound to production data: ${path}`}>
                             {' '}🔗 {path}
