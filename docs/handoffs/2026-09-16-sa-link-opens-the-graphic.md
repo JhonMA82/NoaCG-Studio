@@ -100,6 +100,21 @@ and the new spec answers it the way a reader would.
   path is the one the signed-out case proved on the bundle.
 - The signed-in walk against `noacg.studio` itself after the fix needs the deployment, so it is the
   acceptance item, by hand.
+- **`npm run test:e2e:affected` was NOT run here, and that is a decision rather than an oversight.**
+  `src/App.tsx` is a CORE file, so it escalates - and locally the escalation resolved to the FULL
+  suite over 95 changed files, because `e2e-affected` takes its base from the local `main` this
+  machine's merge queue no longer moves (it listed `.gitattributes`, which this branch never
+  touched). That is hours of browser work on the machine's single browser slot, against a scope
+  that is not this branch's. CI runs the real thing on the merge group, which is what this row's
+  gate says.
+
+## For row SB, which shares §7 row 14
+
+`merge-order` reports this branch and `claude/sb-cli-exits-and-r25` colliding on one file:
+`docs/DEMO_2026-09-25.md`. Row 14 has been rewritten here to carry ONLY the login half - the link
+half is closed - and the R2.4 status cell says the same. Whichever of the two lands second
+integrates `main` and keeps the other's half; if SB's work closes the login defect as well, row 14
+goes entirely.
 
 ## What the check found, and the two things it left
 
