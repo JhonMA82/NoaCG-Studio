@@ -19,9 +19,10 @@
 // mirror write-back (a stored cue in the app, the shared staging buffer on the hosted page), and
 // the send itself. Those are genuinely three different things on three different planes.
 
-import { eventPayload, movedKeys, type ControlButton } from './controlModel';
+import { eventPayload, movedKeys, pressVerb, type ControlButton } from './controlModel';
 import { stepBlocked, type CombineNow, type StepGroup } from './combine';
 import { clearCueItems, takeCueItems, COMMAND_BATCH_MAX, type ControlSendItem } from './hostedControl';
+import { splitBoundWrites, type TreeWrite } from '../model/productionData';
 import type { ProfileStep } from '../model/profile';
 
 /**
@@ -44,6 +45,16 @@ export interface CombineWorld {
   /** What the WIRE last put on that graphic — the figure a MOVED field counts from. It is the
    *  wire and not the cue on purpose: another operator's surface moved the score too. */
   aired(graphic: string): Record<string, string> | undefined;
+  /**
+   * THE PRODUCTION DATA PATH one field is bound to, and what the TREE says it reads right now —
+   * null for a field this production has not bound (plan §2.9, AC-7).
+   *
+   * A bound field is not a cue value and not a wire value the surface may write back: it is one
+   * shared figure several graphics follow. So a bound field READS from the tree rather than from
+   * the cue or the wire, and a press that MOVES it writes the tree instead of the field. The
+   * surface answers this because only it knows which production is open.
+   */
+  bound(graphic: string, field: string): { path: string; current: string | undefined } | null;
 }
 
 /** A step the machine would refuse, with the sentence the feed prints. */
@@ -74,9 +85,20 @@ export interface CombineSend {
    */
   steps: ControlSendItem[][];
   /** What to write back so the next ⟳ Take or ✎ Update cannot regress a moved figure. Only the
-   *  fields this pass MOVED: merging a whole cue read from the current render would put every
-   *  other field back as it stood before the pass. */
+   *  fields this pass MOVED and only the UNBOUND ones: a bound field is never a cue value, and
+   *  merging a whole cue read from the current render would put every other field back as it
+   *  stood before the pass. */
   mirrors: CombineMirror[];
+  /**
+   * THE SHARED VALUES THIS PASS MOVED, in fire order — the half that does not ride the wire as a
+   * field at all (plan §2.9).
+   *
+   * The surface applies them to the production's tree through its own patch road, and the update
+   * rows come back out of that road for EVERY graphic bound to the path, which is the whole
+   * point: a `+1` on the votes board moves the totals board too. In fire order because one press
+   * can move the same path twice and the second write has to land on the first one's value.
+   */
+  tree: TreeWrite[];
   /**
    * Graphic -> the cue a verb step left it playing (null for an Out).
    *
@@ -87,6 +109,18 @@ export interface CombineSend {
   liveAfter: Map<string, string | null>;
   /** Dropped ALONE — the rest of the pass proceeded (§6b). */
   dropped: DroppedStep[];
+}
+
+/** The bound paths among the fields one press moved — the shape `splitBoundWrites` splits on.
+ *  Asked per field rather than per graphic because a surface answers "is this bound" from its
+ *  own production, and only these fields are about to be written. */
+function boundPaths(graphic: string, moved: Record<string, string>, world: CombineWorld): Record<string, string> {
+  const paths: Record<string, string> = {};
+  for (const key of Object.keys(moved)) {
+    const link = world.bound(graphic, key);
+    if (link) paths[key] = link.path;
+  }
+  return paths;
 }
 
 /**
@@ -100,6 +134,7 @@ export interface CombineSend {
  */
 export function resolveCombineSend(due: StepGroup[], now: CombineNow, world: CombineWorld): CombineSend {
   const steps: ControlSendItem[][] = [];
+  const tree: TreeWrite[] = [];
   const mirrorByCue = new Map<string, CombineMirror>();
   const liveAfter = new Map<string, string | null>();
   const dropped: DroppedStep[] = [];
@@ -107,6 +142,9 @@ export function resolveCombineSend(due: StepGroup[], now: CombineNow, world: Com
    *  from each other, or "+1 twice" would send the same figure twice and the receiver would
    *  apply it once. */
   const ahead = new Map<string, Record<string, string>>();
+  /** The same, for the SHARED values: path -> what this pass has already written there. A bound
+   *  field is one figure several graphics follow, so the chain is by path and not by graphic. */
+  const aheadPath = new Map<string, string>();
 
   /**
    * THE PASS'S OWN VIEW OF WHAT IS UP, which is not the surface's until the rows land.
@@ -179,42 +217,62 @@ export function resolveCombineSend(due: StepGroup[], now: CombineNow, world: Com
           : { cueId: taken, values: world.cueSendValues(taken) ?? {} };
     const cueValues = air?.values ?? {};
     // Exactly the ⚡ block's own rule: a field the press MOVES counts from what AIR shows, a
-    // field it only READS is the cue's own value — with this pass's earlier steps on top.
+    // field it only READS is the cue's own value — with this pass's earlier steps on top. A
+    // BOUND field overrides both directions: it reads from the tree, because the tree is what
+    // every graphic bound to that path is showing (plan §2.7).
     const moved = new Set(movedKeys(button));
     const already = ahead.get(step.graphic) ?? {};
-    const payload = eventPayload(button, (key) =>
-      moved.has(key)
+    const boundOf = (key: string) => world.bound(step.graphic, key);
+    const payload = eventPayload(button, (key) => {
+      const link = boundOf(key);
+      // A bound field counts from the PATH this pass has already moved, not from the graphic:
+      // two graphics bound to one value are one figure, so "+1 here, +1 there" in a single press
+      // must land on 2, not twice on 1.
+      if (link) return aheadPath.get(link.path) ?? link.current ?? (moved.has(key) && button.adjust && key in button.adjust ? '0' : undefined);
+      return moved.has(key)
         ? already[key] ??
-          world.aired(step.graphic)?.[key] ??
-          cueValues[key] ??
-          (button.adjust && key in button.adjust ? '0' : '')
-        : cueValues[key],
-    );
-    const adjusted = Object.fromEntries(
+            world.aired(step.graphic)?.[key] ??
+            cueValues[key] ??
+            (button.adjust && key in button.adjust ? '0' : '')
+        : cueValues[key];
+    });
+    const movedNow = Object.fromEntries(
       movedKeys(button)
         .filter((key) => payload?.[key] !== undefined)
         .map((key) => [key, payload![key]]),
     );
-    if (Object.keys(adjusted).length > 0) {
-      ahead.set(step.graphic, { ...already, ...adjusted });
-      if (air) {
-        const held = mirrorByCue.get(air.cueId);
-        mirrorByCue.set(air.cueId, {
-          cueId: air.cueId,
-          graphic: step.graphic,
-          values: { ...(held?.values ?? {}), ...adjusted },
-        });
-      }
+    // The split the whole row turns on: a bound key leaves the field road entirely — off the
+    // event's payload, out of the mirror — and becomes one write of the shared value instead.
+    const { fields: adjusted, tree: writes } = splitBoundWrites(movedNow, boundPaths(step.graphic, movedNow, world), (key) =>
+      pressVerb(button, key),
+    );
+    tree.push(...writes);
+    for (const write of writes) aheadPath.set(write.path, write.text);
+    if (Object.keys(adjusted).length > 0) ahead.set(step.graphic, { ...already, ...adjusted });
+    if (Object.keys(adjusted).length > 0 && air) {
+      const held = mirrorByCue.get(air.cueId);
+      mirrorByCue.set(air.cueId, {
+        cueId: air.cueId,
+        graphic: step.graphic,
+        values: { ...(held?.values ?? {}), ...adjusted },
+      });
     }
+    // A payload carrying ONLY bound fields leaves nothing to ride the event: the figures arrive
+    // as the tree's own update rows, and the event fires bare — which is what it would have done
+    // if the control had declared no payload at all.
+    const rides = Object.fromEntries(Object.entries(payload ?? {}).filter(([key]) => !boundOf(key)));
     steps.push([
       {
         graphic: step.graphic,
-        msg: payload ? { t: 'event', event: button.event, payload } : { t: 'event', event: button.event },
+        msg:
+          Object.keys(rides).length > 0
+            ? { t: 'event', event: button.event, payload: rides }
+            : { t: 'event', event: button.event },
       },
     ]);
   }
 
-  return { steps, mirrors: [...mirrorByCue.values()], liveAfter, dropped };
+  return { steps, mirrors: [...mirrorByCue.values()], liveAfter, dropped, tree };
 }
 
 /**

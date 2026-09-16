@@ -10,6 +10,7 @@ import { parseAnimData } from '../blocks/animData';
 import { deriveMachine, machineControls, type ControlButton } from '../blocks/animMachine';
 import { slug } from '../model/slug';
 import { readPublishedProfile } from '../model/profile';
+import type { PressVerb } from '../model/productionData';
 
 /** Map an SPX ftype to a control kind. The non-data ftypes carry no control at all.
  *  Exported for the OGraf exporter, which records the kind as a per-property vendor hint so
@@ -194,6 +195,21 @@ export function movedKeys(button: MovingButton): string[] {
     ...Object.keys(button.add ?? {}),
     ...Object.keys(button.remove ?? {}),
   ];
+}
+
+/**
+ * WHICH KIND OF MOVE a press makes on one field, for the tree's benefit.
+ *
+ * A bound field's press writes production data rather than the field (plan §2.9), and the tree
+ * is JSON: `retypeLeaf` keeps whatever type the leaf already had, but a path that does not exist
+ * yet has no type to keep and the VERB is the only honest answer. An `adjust` is arithmetic and
+ * starts a number; an `add`/`remove` is a list and starts an array; a `set` writes the figure the
+ * control declares and starts a string.
+ */
+export function pressVerb(button: MovingButton, key: string): PressVerb {
+  if (button.adjust && key in button.adjust) return 'adjust';
+  if ((button.add && key in button.add) || (button.remove && key in button.remove)) return 'list';
+  return 'set';
 }
 
 /** The field ids a press READS without moving them - the sources an `add` or a `remove` takes

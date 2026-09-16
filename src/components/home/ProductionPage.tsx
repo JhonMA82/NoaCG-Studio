@@ -30,11 +30,19 @@ import {
   diffResolved,
   replacementPatch,
   resolveBindings,
+  splitBoundWrites,
+  withTreeWrites,
   type JsonObject,
   type ResolvedValues,
+  type TreeWrite,
 } from '../../model/productionData';
 import { loadLiveData, saveLiveData, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { fetchProductionData, patchProductionData, productionDataKey } from '../../control/productionDataApi';
+import {
+  fetchProductionData,
+  patchProductionData,
+  patchProductionDataBySlug,
+  productionDataKey,
+} from '../../control/productionDataApi';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
 import { revealCue, stepSelection, usePlayoutVerbKeys, type PlayoutVerb } from '../playoutKeys';
@@ -66,6 +74,7 @@ import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import {
   adjustWords,
+  adjustedValue,
   arrangeControls,
   arrangeFor,
   eventButtons,
@@ -77,6 +86,7 @@ import {
   machineStateGroups,
   machineStateNames,
   movedKeys,
+  pressVerb,
   type ArrangedControl,
   type ControlButton,
 } from '../../control/controlModel';
@@ -684,6 +694,49 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [id, dataKey, refreshServerData],
   );
 
+  /**
+   * A PRESS MOVING THE SHARED VALUE — the ± stepper and an event's `adjust` on a BOUND field
+   * (docs/PRODUCTION_DATA_PLAN.md §2.9's Phase 3, AC-7).
+   *
+   * It is a second door beside `setLiveData` rather than a flag on it, because the two are
+   * different actors with different budgets. `setLiveData` is the OWNER editing the tree on the
+   * Data tab, and it goes through the documented integrator endpoint with the owner's own data
+   * key. This is the OPERATOR pressing a button on the dashboard, and it goes through
+   * `control_data_patch_by_slug` (migration 0060) on the control slug they already hold — which
+   * writes its rows without the `src:'api'` mark, so an operator's `+1` spends the production's
+   * ordinary 50-per-5-s command budget and never the feed's 25-per-5-s ingest budget. "The
+   * operator keeps priority" is the reason that second cap exists; routing a press through it
+   * would have let a saturated feed refuse the operator's own score.
+   *
+   * Which world we are in is `setLiveData`'s own test, so the two doors can never disagree about
+   * it: a key means the server owns the tree, and a key is only ever read for a production that
+   * has a hosted slug.
+   */
+  const patchBoundValues = useCallback(
+    async (writes: TreeWrite[]): Promise<void> => {
+      if (writes.length === 0) return;
+      const before = liveDataRef.current;
+      const next = withTreeWrites(before, writes);
+      const patch = replacementPatch(before, next);
+      if (Object.keys(patch).length === 0) return;
+      // Optimistic on both roads, so the figure on screen moves with the press.
+      setLiveDataState(next);
+      if (!dataKey || !hostedSlug) {
+        saveLiveData(id, next);
+        return;
+      }
+      try {
+        // The ANSWER is what we hold: a feed tick that landed in the same moment is already
+        // merged into it, so the press cannot silently overwrite the feed's write.
+        setLiveDataState((await patchProductionDataBySlug(hostedSlug, patch)) as JsonObject);
+      } catch (error) {
+        setNote(`The shared value did not move: ${(error as Error).message}`);
+        void refreshServerData();
+      }
+    },
+    [id, dataKey, hostedSlug, refreshServerData],
+  );
+
   const bindings = show?.bindings;
   /** What every bound field SHOULD be showing right now. */
   const resolved = useMemo(() => resolveBindings(liveData, bindings), [liveData, bindings]);
@@ -785,12 +838,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           // which is what keeps the action buttons' greying honest about air. Durable only: a
           // report is a row, not a verb, and it never travels the fast road.
           if (msg.t === 'live') noteMachineState(row.graphic, msg.state ?? null);
-          // A FEED wrote (control_data_patch marks its rows `src:'api'`), so the production's
-          // tree moved server-side. The row carries the resolved FIELD values, not the tree,
-          // so re-read it - and reuse this signal rather than adding a second subscription on
-          // control_shows just to learn the same fact. Also durable only, and for a sharper
-          // reason: the API appends its rows server-side and broadcasts nothing.
-          else if (msg.t !== 'staged' && msg.t !== 'cue' && (msg as { src?: string }).src === 'api') {
+          // THE TREE MOVED SERVER-SIDE. Every row the patch RPC appends carries a `src` saying
+          // who moved it - `api` for a feed, `operator` for a press on another dashboard (a
+          // hosted control page's bound stepper, migration 0060) - and no other road writes one.
+          // The row carries the resolved FIELD values, not the tree, so re-read it, and reuse
+          // this signal rather than adding a second subscription on `control_shows` just to
+          // learn the same fact. It is ANY src and not `api` alone because this page's own
+          // `withBoundValues` airs the tree on the next Take: missing a hosted press here would
+          // put that press's figure back where it was the moment somebody took a cue.
+          // Durable only, and for a sharper reason: the patch RPC appends server-side and
+          // broadcasts nothing.
+          else if (msg.t !== 'staged' && msg.t !== 'cue' && typeof (msg as { src?: string }).src === 'string') {
             void refreshRef.current();
           }
           const entry = describeLogRow(row, cueLabel);
@@ -1449,11 +1507,24 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * air every OTHER staged edit the operator has not sent yet — a bump must never publish a
    * half-typed name. Receivers write exactly the fields a message carries, and the logs merge
    * partial data, so recovery replays it correctly (docs/CONTROL_LAYER.md).
+   *
+   * A BOUND FIELD TAKES THE OTHER ROAD (plan §2.9's Phase 3). The figure is not this graphic's
+   * to own — it is one shared value several graphics follow — so the press moves the production
+   * tree and every bound graphic follows through the ordinary diff, and nothing is written into
+   * this cue at all (§2.7: a bound field is never a cue value). It counts from the TREE and not
+   * from the wire because the tree is the authority: the wire is only its last resolution, and a
+   * feed that moved the value a moment ago has already changed what "+1" means.
    */
   const bumpLive = async (fieldKey: string, delta: number) => {
     if (!editingCue || !selectedGraphic || !editingIsLive) return;
+    const path = boundFields(selectedGraphic)[fieldKey];
+    if (path) {
+      const base = resolvedRef.current[selectedGraphic]?.[fieldKey];
+      await patchBoundValues([{ path, text: adjustedValue(base, delta), verb: 'adjust' }]);
+      return;
+    }
     const base = airedData[selectedGraphic]?.[fieldKey] ?? cueView(editingCue).values[fieldKey] ?? '0';
-    const next = String((parseInt(base, 10) || 0) + delta);
+    const next = adjustedValue(base, delta);
     editDraft({ values: { [fieldKey]: next } });
     await runVerb([[{ graphic: selectedGraphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
   };
@@ -1652,25 +1723,45 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (!selectedGraphic || !selectedLayerLive) return;
     flushDraft();
     const values = airValues();
+    const bound = boundFields(selectedGraphic);
     // A field the press MOVES counts from what AIR shows (a goal's +1, a Reveal letter's list);
-    // a field it only READS (the guess, the number to call) is the cue's own value.
+    // a field it only READS (the guess, the number to call) is the cue's own value. A BOUND
+    // field is neither: it reads from the production tree, because that is the one figure every
+    // graphic bound to the path is showing (plan §2.7).
     const moved = new Set(movedKeys(button));
     const payload = eventPayload(button, (key) =>
-      moved.has(key) ? (airedData[selectedGraphic]?.[key] ?? values[key] ?? (button.adjust && key in button.adjust ? '0' : '')) : values[key],
+      bound[key]
+        ? resolvedRef.current[selectedGraphic]?.[key] ?? (moved.has(key) && button.adjust && key in button.adjust ? '0' : undefined)
+        : moved.has(key)
+          ? (airedData[selectedGraphic]?.[key] ?? values[key] ?? (button.adjust && key in button.adjust ? '0' : ''))
+          : values[key],
     );
     // Only what actually rode: an add whose source box was empty moves nothing, and mirroring
     // an empty string for it would wipe the list the press left alone.
-    const adjusted = Object.fromEntries(movedKeys(button).filter((key) => payload?.[key] !== undefined).map((key) => [key, payload![key]]));
+    const movedNow = Object.fromEntries(movedKeys(button).filter((key) => payload?.[key] !== undefined).map((key) => [key, payload![key]]));
+    // The split AC-7 turns on: a bound key leaves the field road entirely — off the event's
+    // payload, out of the cue — and becomes one write of the shared value instead.
+    const { fields: adjusted, tree } = splitBoundWrites(movedNow, bound, (key) => pressVerb(button, key));
     if (Object.keys(adjusted).length > 0 && airCue) {
       // Into the draft when the on-air cue is the one being edited (its box repaints at once),
       // straight into the record otherwise - either way the cue holds the figure air shows.
       if (editingIsLive) editDraft({ values: adjusted });
       else setShows(updateShowCue(id, airCue.id, { values: { ...airCue.values, ...adjusted } }));
     }
-    const msg = payload
-      ? { t: 'event' as const, event: button.event, payload }
-      : { t: 'event' as const, event: button.event };
-    await runVerb([[{ graphic: selectedGraphic, msg }]], `Event ${button.event}`);
+    // A payload carrying only bound fields leaves nothing to ride: those figures arrive as the
+    // tree's own update rows, for every graphic bound to them, and the event fires bare.
+    const rides = Object.fromEntries(Object.entries(payload ?? {}).filter(([key]) => !bound[key]));
+    const msg =
+      Object.keys(rides).length > 0
+        ? { t: 'event' as const, event: button.event, payload: rides }
+        : { t: 'event' as const, event: button.event };
+    // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT. The tree write is a separate row by
+    // construction — it reaches graphics this event never touched — so nothing but this order
+    // keeps the two in step, and a press that failed on the way to the log must not leave every
+    // other bound graphic showing a figure this one never took.
+    if (await runVerb([[{ graphic: selectedGraphic, msg }]], `Event ${button.event}`)) {
+      await patchBoundValues(tree);
+    }
   };
 
   /** Snap the live graphic straight to a state — recovery, never an animation. A null group
@@ -1793,6 +1884,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return cue ? { cueId: cue.id, values: cueView(cue).values } : null;
     },
     aired: (graphic) => own(airedData, graphic),
+    bound: (graphic, field) => {
+      const path = own(bindings ?? {}, graphic)?.[field];
+      return path ? { path, current: resolvedRef.current[graphic]?.[field] } : null;
+    },
   };
 
   /** One line of the activity feed that is NOT a command row — a step the machine dropped, or a
@@ -1844,7 +1939,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * A step the machine would drop is dropped ALONE and the feed says which; the rest proceed (§6b).
    */
   fireCombineRef.current = (control, due) => {
-    const { steps, mirrors, liveAfter, dropped } = resolveCombineSend(due, combineNow, combineWorld);
+    const { steps, mirrors, liveAfter, dropped, tree } = resolveCombineSend(due, combineNow, combineWorld);
 
     for (const drop of dropped) {
       feedNote(
@@ -1860,10 +1955,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (editingCue?.id === cueId) editDraft({ values });
       else setShows(updateShowCue(id, cueId, { values }));
     }
-    if (steps.length === 0) return;
+    if (steps.length === 0) {
+      // A press whose every step moved only SHARED values still has work to do: those figures
+      // never rode the wire as fields, and their rows come out of the patch road instead.
+      void patchBoundValues(tree);
+      return;
+    }
     void runVerb(commandBatches(steps), `“${control.name}”`).then((sent) => {
       if (!sent) return;
       for (const [graphic, cueId] of liveAfter) setLiveCue((m) => withLiveCue(m, graphic, cueId));
+      void patchBoundValues(tree);
     });
   };
 
@@ -2372,7 +2473,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                                   🔗 {path}
                                 </span>
                               </div>
-                              <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? '—'} readOnly tabIndex={-1} />
+                              <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder="not set yet" readOnly tabIndex={-1} />
                             </div>
                           );
                         }

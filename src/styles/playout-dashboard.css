@@ -566,6 +566,12 @@
 /* The mark drops the label row's uppercase tracking on purpose: read in the same letterforms
    as the field NAME it sits beside, a warning looks like part of the name. */
 .pd-field .field-over { color: var(--danger); font-weight: 700; text-transform: none; letter-spacing: 0; }
+/* THE BOUND-FIELD PATH, for the same reason and then one more. `.pd-field > span` is uppercase
+   and tracked, and a production-data path is neither: it is case-sensitive text an operator has
+   to be able to read back to whoever writes the feed, so `match.home.score` must not arrive as
+   MATCH.HOME.SCORE. It also takes the label's own 10px rather than the in-app chip's 11px,
+   because here it sits INSIDE the label line rather than in a meta row of its own. */
+.pd-field .pd-bound-mark { text-transform: none; letter-spacing: 0; font-size: 10px; }
 .pd-field-over input,
 .pd-field-over textarea,
 .pd-field-over select { border-color: var(--danger); }

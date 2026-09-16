@@ -335,6 +335,118 @@ export function suggestPath(title: string, leaves: DataLeaf[]): string | null {
   return hits.length === 1 ? hits[0] : null;
 }
 
+// ── The press boundary: a control surface writing BACK into the tree ─────────
+//
+// `formatValue` above is the one direction production data used to need - the tree resolves
+// into field strings and the graphics follow. A ± press or an event's `adjust` on a BOUND field
+// goes the other way (docs/PRODUCTION_DATA_PLAN.md §2.9, Phase 3): the operator's press moves
+// the shared value, and every graphic bound to it follows through the ordinary diff. The three
+// functions below are the whole of that direction, and they are here, pure, because two
+// surfaces and the combined-control resolver all have to agree on them.
+
+/** What a press is doing, for the one case the leaf cannot answer: it is not there yet. */
+export type PressVerb = 'adjust' | 'list' | 'set';
+
+/**
+ * Read a press's new value back into the type the leaf ALREADY HAD.
+ *
+ * The press computes a STRING, because that is what a field holds and what `adjustedValue`,
+ * `addedValue` and a control's declared `set` all produce. The tree is JSON, so something has
+ * to decide which JSON value that string becomes - and the answer that keeps a feed and an
+ * operator writing the same production is: whatever type is already there.
+ *
+ * Without this a scoreboard's `{"score": 4}`, bumped once by the operator, becomes
+ * `{"score": "5"}`. The graphic looks identical (`formatValue` stringifies either), and the
+ * feed writing `score` as a number next tick flips it back - so the tree's own shape depends on
+ * who wrote last. A list is the sharper case: a `lines` field renders `["a","b"]` as two lines,
+ * so writing the joined text back would replace the array with one string and every future
+ * consumer of that path would see a different shape.
+ *
+ * This is NOT `reparseLeaf`, which reads the type out of the TEXT (`parseLiteral`) because its
+ * caller is a value box where the operator is saying what they mean. A press says nothing about
+ * type: the type is already known, and guessing from the text would turn a jersey number
+ * `"07"` into the number 7.
+ *
+ * A leaf that is not there yet has no type to keep, so the VERB decides: `adjust` is arithmetic
+ * and starts a number, `add`/`remove` keep a list, and anything else starts a string.
+ */
+export function retypeLeaf(previous: JsonValue | undefined, text: string, verb: PressVerb = 'set'): JsonValue {
+  if (Array.isArray(previous) && isLeafValue(previous)) {
+    const like = previous[0];
+    return text === '' ? [] : text.split('\n').map((line) => retypeScalar(like, line));
+  }
+  if (previous === undefined || previous === null) {
+    if (verb === 'adjust') return Number.isFinite(Number(text)) ? Number(text) : text;
+    if (verb === 'list') return text === '' ? [] : text.split('\n');
+    return text;
+  }
+  return retypeScalar(previous, text);
+}
+
+/** One scalar, in the type its predecessor had. An unparseable number stays the text rather
+ *  than becoming `NaN`, which is not JSON at all. */
+function retypeScalar(previous: JsonValue | undefined, text: string): JsonValue {
+  if (typeof previous === 'number') return Number.isFinite(Number(text)) ? Number(text) : text;
+  if (typeof previous === 'boolean') return text === 'true';
+  return text;
+}
+
+/** One field's press, resolved to where it lands in the tree and what it says there. */
+export interface TreeWrite {
+  /** The production-data path the field is bound to. */
+  path: string;
+  /** The ABSOLUTE value the press computed, as a string (plan §2.5 - never a delta). */
+  text: string;
+  /** Which press this was, so a path that does not exist yet starts life the right type. */
+  verb: PressVerb;
+}
+
+/**
+ * Apply a press's tree writes, in order, keeping each leaf's type.
+ *
+ * `setPath` rather than `patchForPath` on purpose: a binding may name an array element
+ * (`drivers.0.gap` is the plan's own example) and merge-patch cannot address one at all -
+ * `patchForPath` answers null for exactly that reason. Walking the tree here and letting
+ * `replacementPatch` say the difference on the wire costs a whole-array patch for an indexed
+ * binding and works for every binding; refusing indexed paths at the press would be a stepper
+ * that silently does nothing on a legitimate binding.
+ *
+ * IN ORDER matters: one press of a combined control can move the same path twice, and the
+ * second write has to land on the first one's value.
+ */
+export function withTreeWrites(tree: JsonObject, writes: TreeWrite[]): JsonObject {
+  let out = tree;
+  for (const write of writes) {
+    out = setPath(out, write.path, retypeLeaf(getPath(out, write.path), write.text, write.verb));
+  }
+  return out;
+}
+
+/**
+ * Split what a press MOVED by whether this production has bound the field.
+ *
+ * The one rule both dashboards and the combined-control resolver read, because the question
+ * "does this +1 write a field or the shared value" must have exactly one answer per production.
+ * A bound key leaves the field road entirely - it does not ride the event's payload, it is not
+ * mirrored into the cue, and it is not staged - because a bound field is never a cue value
+ * (plan §2.7). An unbound key is untouched, which is what keeps every graphic that binds
+ * nothing behaving exactly as it did.
+ */
+export function splitBoundWrites(
+  values: Record<string, string>,
+  paths: Record<string, string> | undefined,
+  verbOf: (field: string) => PressVerb,
+): { fields: Record<string, string>; tree: TreeWrite[] } {
+  const fields: Record<string, string> = {};
+  const tree: TreeWrite[] = [];
+  for (const [field, text] of Object.entries(values)) {
+    const path = paths && Object.prototype.hasOwnProperty.call(paths, field) ? paths[field] : undefined;
+    if (path) tree.push({ path, text, verb: verbOf(field) });
+    else fields[field] = text;
+  }
+  return { fields, tree };
+}
+
 /**
  * Read one typed literal the way the playground's value box means it: `4` is a number, `true`
  * a boolean, `[1,2]` / `{"a":1}` real JSON, and anything else the text itself. A quoted string
