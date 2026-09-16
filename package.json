@@ -18,6 +18,7 @@
     "check:shared-instructions": "node scripts/check-shared-instructions.mjs",
     "check:tree-shape": "node scripts/check-tree-shape.mjs",
     "check:line-endings": "node scripts/check-line-endings.mjs",
+    "check:package-merge": "node scripts/package-merge-driver.mjs --check",
     "check:contract-freshness": "node scripts/check-contract-freshness.mjs",
     "check:contract-citations": "node scripts/check-contract-citations.mjs",
     "check:workflows": "node scripts/check-workflows.mjs",
