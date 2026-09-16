@@ -58,13 +58,24 @@ const NOTHING_WAKES_YOU = `(?:${THE_WORK}|${THE_OBSERVER})`;
 // wait, immediately after the preposition, is what decides it.
 const NOT_A_PERSON = '(?!(?:you|your|the owner|a human|a person|someone|somebody)\\b)';
 
+// A SENTENCE THAT CANCELS ITSELF is not a wait, and this hook's own advice is what makes that shape
+// common: it tells a row to stop its background task and take what it was holding into the handoff,
+// so a row that complied writes "the background task will ping me only after the branch lands, which
+// is why I stopped it". Three sentences of exactly that shape refused the review of this change on
+// 2026-09-16. Placed after the promise, it reads the rest of the SENTENCE for the clause that takes
+// it back, which is why `[^.\n]` stops at the full stop rather than running into the next sentence.
+const NOT_TAKEN_BACK = "(?![^.\\n]*\\b(?:but|instead|rather than|which is why|so i|anyway|cannot|can't|won't|nothing)\\b)";
+
 export const WAIT_PATTERNS = Object.freeze([
   // "waiting for CI", "wait on the landing job", "holding until the run finishes"
   new RegExp(`\\b(?:wait(?:ing|s)?|await(?:ing)?|hold(?:ing)?)\\s+(?:for|on|until)\\s+${NOT_A_PERSON}[^.\\n]{0,100}?${NOTHING_WAKES_YOU}`, 'i'),
   // "I'll check back when the run completes", "will resume once CI is green"
   new RegExp(`\\b(?:will|i'll|i will|going to|plan to)\\s+(?:check|pick|resume|continue|come back|report|follow up|queue|write|finish)\\b[^.\\n]{0,80}?\\b(?:when|once|after|as soon as)\\s+${NOT_A_PERSON}[^.\\n]{0,60}?${NOTHING_WAKES_YOU}`, 'i'),
   // "a background watcher will wake me", "set up a monitor to notify me when it lands"
-  /\b(?:background|scheduled|set up an?|armed an?|started an?)\s+(?:task|watcher|monitor|wakeup|poll(?:er)?|loop)\b[^.\n]{0,100}?\b(?:wake|notify|resume|report back|ping|alert)/i,
+  new RegExp(
+    `\\b(?:background|scheduled|set up an?|armed an?|started an?)\\s+(?:task|watcher|monitor|wakeup|poll(?:er)?|loop)\\b[^.\\n]{0,100}?\\b(?:wake|notify|resume|report back|ping|alert)${NOT_TAKEN_BACK}`,
+    'i',
+  ),
   // "checking back in 20 minutes on the shards" - the object is what separates a wait on a
   // machine from a wait on a person ("check again once you have the recording" is the latter)
   new RegExp(`\\b(?:check(?:ing)? back|checking in|check again)\\b[^.\\n]{0,60}?\\b(?:in \\d+ ?(?:min|minutes|hours?|h)\\b|later|shortly|when|once)\\b\\s*${NOT_A_PERSON}[^.\\n]{0,60}?${NOTHING_WAKES_YOU}`, 'i'),
@@ -74,7 +85,11 @@ export const WAIT_PATTERNS = Object.freeze([
   // waiter will wake me when the exit line lands." Nothing matched, nothing fired, and the row sat
   // there with its handoff and /queue-merge undone. The subject must be an observer noun, so a wait
   // on the one thing that CAN wake a session - "the owner will tell me" - is not this shape at all.
-  new RegExp(`\\b(?:the|an?|my|this|that)\\s+(?:${THE_OBSERVER_NOUN})[^.\\n]{0,30}?\\s+(?:will|'ll|should|is going to)\\s+(?:wake|notify|ping|alert|tell|nudge)\\s+me\\b`, 'i'),
+  //
+  new RegExp(
+    `\\b(?:the|an?|my|this|that)\\s+(?:${THE_OBSERVER_NOUN})[^.\\n]{0,30}?\\s+(?:will|should|is going to)\\s+(?:wake|notify|ping|alert|tell|nudge)\\s+me\\b${NOT_TAKEN_BACK}`,
+    'i',
+  ),
 ]);
 
 /** The session already handed its branch to the queue, or said it is done - ending is correct. */
@@ -135,6 +150,14 @@ export function finishedProperly(text) {
  * refusal is one turn, and the cost of a row that never lands is the whole branch.
  */
 export const MAX_REFUSALS = 3;
+
+/**
+ * How long a refusal stays counted. Without this the budget is three refusals per SESSION LIFETIME,
+ * and the night orchestrator lives for hours - three waits spread over a night would leave the
+ * guard off for every turn after them. A window makes the budget three refusals in a stretch, which
+ * is what "do not loop" actually means; an endless loop burns all three inside a minute.
+ */
+export const REFUSAL_WINDOW_MS = 30 * 60 * 1000;
 
 /**
  * The message the hook returns, or null when the stop is fine. `landingState` is the branch's

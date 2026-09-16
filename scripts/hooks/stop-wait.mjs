@@ -10,7 +10,7 @@ import { closeSync, mkdirSync, openSync, readFileSync, readSync, statSync, write
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readHookInput, warn, gitOutput } from './lib.mjs';
-import { decide, declaresWait, lastAssistantText, MAX_REFUSALS } from '../stop-wait.mjs';
+import { decide, declaresWait, lastAssistantText, MAX_REFUSALS, REFUSAL_WINDOW_MS } from '../stop-wait.mjs';
 
 const input = await readHookInput();
 if (!input) process.exit(0);
@@ -52,45 +52,52 @@ try {
   landingState = null; // fail open on the facts, never on the message
 }
 
-// HOW MANY TIMES THIS SESSION HAS ALREADY BEEN REFUSED. One small file per session or row, named by
-// the id Claude Code gives it, under the scratchpad the harness already hands us (a per-session temp
-// directory it cleans up), so two rows of the same wave never touch each other's count.
-function refusalFile() {
-  const key = String(input.agent_id || input.session_id || '').replace(/[^\w.-]/g, '');
-  if (!key) return null;
+// HOW MANY TIMES THIS SESSION HAS ALREADY BEEN REFUSED, and when it last was. One small file per
+// session, holding `<count> <epoch-ms>`. The name carries BOTH ids the event offers: a row's
+// `agent_id` and the session it belongs to, so the count never depends on one of them being unique
+// forever. The file lives in the per-session scratchpad the event names when it has one, which the
+// harness cleans up with the session, and in the system temp directory when it does not - the job
+// store `session-start.mjs` uses for its marker is the other candidate and was not taken, because
+// this state is worth nothing an hour later and that directory is never cleaned.
+function refusalState() {
+  const key = [input.session_id, input.agent_id]
+    .filter((part) => typeof part === 'string' && part)
+    .join('.')
+    .replace(/[^\w.-]/g, '');
+  // No id to count against, so there is nothing to count: fall back to what this hook did before
+  // the count existed - the harness's own `stop_hook_active` flag, one refusal and never a loop.
+  if (!key) return { file: null, refusals: input.stop_hook_active === true ? MAX_REFUSALS : 0 };
+
   const base = typeof input.scratchpad_dir === 'string' && input.scratchpad_dir ? input.scratchpad_dir : tmpdir();
-  const dir = join(base, 'stop-wait-refusals');
-  mkdirSync(dir, { recursive: true });
-  return join(dir, `${key}.count`);
-}
-
-let file = null;
-let refusals = 0;
-try {
-  file = refusalFile();
-  if (file) {
-    const count = Number.parseInt(readFileSync(file, 'utf8'), 10);
-    refusals = Number.isInteger(count) && count > 0 ? count : 0;
+  const file = join(base, 'stop-wait-refusals', `${key}.count`);
+  try {
+    const [count, at] = readFileSync(file, 'utf8').split(' ').map(Number);
+    // A refusal older than the window has done its job and is forgotten, so a long-lived session
+    // gets its budget back rather than spending it once and running unguarded for a whole night.
+    const fresh = Number.isFinite(at) && Date.now() - at < REFUSAL_WINDOW_MS;
+    return { file, refusals: fresh && Number.isInteger(count) && count > 0 ? count : 0 };
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { file, refusals: 0 }; // the ordinary first stop
+    return { file: null, refusals: input.stop_hook_active === true ? MAX_REFUSALS : 0 };
   }
-} catch (error) {
-  // A missing file is the ordinary first stop and reads as zero. Anything else means the count is
-  // unavailable, and an uncountable guard must never become an endless one.
-  if (error?.code !== 'ENOENT') file = null;
 }
-// Without a count, fall back to exactly what this hook did before the count existed: the harness's
-// own `stop_hook_active` flag, which allows one refusal per session and can never loop.
-if (!file) refusals = input.stop_hook_active === true ? MAX_REFUSALS : 0;
 
+const { file, refusals } = refusalState();
 const message = decide({ text, refusals, landingState });
 if (message) {
-  let counted = true;
-  try {
-    writeFileSync(file, String(refusals + 1), 'utf8');
-  } catch {
-    counted = false;
+  let counted = false;
+  if (file) {
+    try {
+      mkdirSync(join(file, '..'), { recursive: true });
+      writeFileSync(file, `${refusals + 1} ${Date.now()}`, 'utf8');
+      counted = true;
+    } catch {
+      counted = false; // disk full, read-only temp: the flag below is what stops a loop instead
+    }
   }
-  // Refuse only when the refusal was recorded, or when the harness's flag is holding the line
-  // instead. A refusal nobody counted, on a session nobody is counting, is how a row gets stuck.
-  if (counted || input.stop_hook_active !== true) warn(message);
+  // Refuse when the refusal was counted, or when the harness's flag is there to hold the line
+  // instead. When NEITHER is available there is nothing to stop this repeating at every stop
+  // forever, and a session that can never end is worse than a wait nobody caught.
+  if (counted || input.stop_hook_active === false) warn(message);
 }
 process.exit(0);

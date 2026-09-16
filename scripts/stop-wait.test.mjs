@@ -66,6 +66,19 @@ test('the observer-as-subject shape does not fire on a person or on the hook\'s 
   assert.ok(!declaresWait('The waiter script is the one I would delete; it has no callers.'));
 });
 
+test('a sentence that takes the wait back is not a wait', () => {
+  // This hook TELLS a row to stop its background task and take what it was holding into the
+  // handoff. A row reporting exactly that writes the same clause and then cancels it, and these
+  // three sentences all refused the review of this change on 2026-09-16 before the lookahead
+  // existed. Refusing a row for complying is the expensive direction, three times over.
+  assert.ok(!declaresWait('That monitor should alert me, but it cannot reach a stopped session, so I read the log myself.'));
+  assert.ok(!declaresWait('The background task will ping me only after the branch lands, which is why I stopped it.'));
+  assert.ok(!declaresWait('The notification I set up will tell me nothing useful, so I stopped it and read the run directly.'));
+  assert.ok(!declaresWait('The watcher would have told me instead of my reading the run, so I killed it and read the run.'));
+  // And the wait that means it still fires, cancelling clause or not elsewhere in the message.
+  assert.ok(declaresWait('The build is committed. The waiter will wake me when the exit line lands.'));
+});
+
 test('declaresWait leaves a wait on a PERSON alone, even when it names a machine', () => {
   assert.ok(!declaresWait('Waiting for you to land the fix.'));
   assert.ok(!declaresWait('I will wait for your decision on the gate.'));
