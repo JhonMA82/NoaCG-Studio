@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { decide, declaresWait, finishedProperly, lastAssistantText } from './stop-wait.mjs';
+import { decide, declaresWait, finishedProperly, lastAssistantText, MAX_REFUSALS } from './stop-wait.mjs';
 
 test('declaresWait catches the four observed shapes', () => {
   assert.ok(declaresWait('Pushed. I am now waiting for the CI run to finish before writing the handoff and queueing.'));
@@ -38,6 +38,32 @@ test('declaresWait catches every observer a session believes will wake it, not o
   assert.ok(declaresWait('Holding until the tick picks it up.'));
   assert.ok(declaresWait('Waiting for the wave tick.'));
   assert.ok(declaresWait('Checking back in 20 minutes on the monitor.'));
+});
+
+test('declaresWait catches the observer handed the subject of the sentence', () => {
+  // SC's exact last words on 2026-09-16 at 13:31:30Z. The row then sat with its handoff and
+  // /queue-merge undone until a person happened to notice, which is the whole failure.
+  assert.ok(
+    declaresWait(
+      'Nothing else can start before the build answers: the commit needs the green, `/check` needs the commit, the handoff needs `/check`\'s findings, and `/queue-merge` is last. The waiter will wake me when the exit line lands.',
+    ),
+  );
+  assert.ok(declaresWait('The watcher will notify me when the shards finish.'));
+  assert.ok(declaresWait('The background task I armed will ping me.'));
+  assert.ok(declaresWait("The monitor I set up will tell me when it's done."));
+});
+
+test('the observer-as-subject shape does not fire on a person or on the hook\'s own words', () => {
+  assert.ok(!declaresWait('The owner will tell me when he has looked at the picture.'));
+  assert.ok(!declaresWait('You will tell me whether the palette is right; stopping here.'));
+  // A row that takes the hook's advice quotes the hook's nouns back. It must still be able to stop.
+  assert.ok(
+    !declaresWait(
+      'Noted: nothing can wake a stopped session, not a CI run, not a landing job, not a background watcher. So I stopped the background task, took what it was holding into the handoff, and queued.',
+    ),
+  );
+  assert.ok(!declaresWait('The build is green, the handoff is written, and I am queueing now.'));
+  assert.ok(!declaresWait('The waiter script is the one I would delete; it has no callers.'));
 });
 
 test('declaresWait leaves a wait on a PERSON alone, even when it names a machine', () => {
@@ -78,9 +104,21 @@ test('decide blocks a declared wait on an unqueued branch and nothing else', () 
   assert.match(decide({ text: waiting, landingState: 'not-queued' }), /nothing can wake a stopped session/);
   assert.equal(decide({ text: waiting, landingState: 'queued' }), null);
   assert.equal(decide({ text: waiting, landingState: 'landed' }), null);
-  assert.equal(decide({ text: waiting, stopHookActive: true }), null);
   assert.equal(decide({ text: 'All done, handoff written, queued as j-0310.', landingState: 'not-queued' }), null);
   assert.equal(decide({ text: 'Build green. Stopping here; nothing left.', landingState: null }), null);
+});
+
+test('decide refuses a SECOND wait from the same session, and runs out after the budget', () => {
+  // Row SE was caught on its first wait and then ended its turn on a second one ninety-five seconds
+  // later, which the old `stop_hook_active` bail made invisible. Every refusal up to the budget
+  // fires; the budget is what guarantees a session can always end.
+  const waiting = "I've kicked off a bounded background watcher that will notify me when it finishes.";
+  for (let refusals = 0; refusals < MAX_REFUSALS; refusals += 1) {
+    assert.match(decide({ text: waiting, refusals, landingState: 'not-queued' }), /nothing can wake a stopped session/);
+  }
+  assert.equal(decide({ text: waiting, refusals: MAX_REFUSALS, landingState: 'not-queued' }), null);
+  assert.equal(decide({ text: waiting, refusals: MAX_REFUSALS + 7, landingState: 'not-queued' }), null);
+  assert.ok(MAX_REFUSALS >= 2, 'a budget of one is the one-shot bug this replaced');
 });
 
 test('decide names the three things to do instead', () => {

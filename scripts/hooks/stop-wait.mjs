@@ -2,15 +2,18 @@
 // is told so, at that moment, and continues. The reasoning and the patterns live in
 // scripts/stop-wait.mjs (the pure, tested half); this file is the shell around it.
 //
-// Cost: the message regexes run at every turn end and are microseconds. Git and the job store are
-// read only when a wait is declared, which is rare, so an ordinary turn end pays nothing.
+// Cost: the message regexes run at every turn end and are microseconds. Git, the job store and the
+// refusal count are read only when a wait is declared, which is rare, so an ordinary turn end pays
+// nothing. Nothing expensive may move above the `declaresWait` line.
 
-import { closeSync, openSync, readSync, statSync } from 'node:fs';
+import { closeSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { readHookInput, warn, gitOutput } from './lib.mjs';
-import { decide, declaresWait, lastAssistantText } from '../stop-wait.mjs';
+import { decide, declaresWait, lastAssistantText, MAX_REFUSALS } from '../stop-wait.mjs';
 
 const input = await readHookInput();
-if (!input || input.stop_hook_active === true) process.exit(0);
+if (!input) process.exit(0);
 
 function readTail(file, bytes) {
   const size = statSync(file).size;
@@ -49,6 +52,45 @@ try {
   landingState = null; // fail open on the facts, never on the message
 }
 
-const message = decide({ text, stopHookActive: false, landingState });
-if (message) warn(message);
+// HOW MANY TIMES THIS SESSION HAS ALREADY BEEN REFUSED. One small file per session or row, named by
+// the id Claude Code gives it, under the scratchpad the harness already hands us (a per-session temp
+// directory it cleans up), so two rows of the same wave never touch each other's count.
+function refusalFile() {
+  const key = String(input.agent_id || input.session_id || '').replace(/[^\w.-]/g, '');
+  if (!key) return null;
+  const base = typeof input.scratchpad_dir === 'string' && input.scratchpad_dir ? input.scratchpad_dir : tmpdir();
+  const dir = join(base, 'stop-wait-refusals');
+  mkdirSync(dir, { recursive: true });
+  return join(dir, `${key}.count`);
+}
+
+let file = null;
+let refusals = 0;
+try {
+  file = refusalFile();
+  if (file) {
+    const count = Number.parseInt(readFileSync(file, 'utf8'), 10);
+    refusals = Number.isInteger(count) && count > 0 ? count : 0;
+  }
+} catch (error) {
+  // A missing file is the ordinary first stop and reads as zero. Anything else means the count is
+  // unavailable, and an uncountable guard must never become an endless one.
+  if (error?.code !== 'ENOENT') file = null;
+}
+// Without a count, fall back to exactly what this hook did before the count existed: the harness's
+// own `stop_hook_active` flag, which allows one refusal per session and can never loop.
+if (!file) refusals = input.stop_hook_active === true ? MAX_REFUSALS : 0;
+
+const message = decide({ text, refusals, landingState });
+if (message) {
+  let counted = true;
+  try {
+    writeFileSync(file, String(refusals + 1), 'utf8');
+  } catch {
+    counted = false;
+  }
+  // Refuse only when the refusal was recorded, or when the harness's flag is holding the line
+  // instead. A refusal nobody counted, on a session nobody is counting, is how a row gets stuck.
+  if (counted || input.stop_hook_active !== true) warn(message);
+}
 process.exit(0);
