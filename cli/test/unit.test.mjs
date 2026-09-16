@@ -612,59 +612,73 @@ async function drivenLogin({ waitSec }) {
   child.stderr.on('data', (d) => (stderr += d));
   const exited = new Promise((resolve) => child.on('exit', (code) => { exit = { code, at: Date.now() }; resolve(exit); }));
 
-  // The consent URL carries the loopback port and the state, and goes to stderr through out.log().
-  let consent = null;
-  for (let i = 0; i < 300 && !consent; i++) {
-    const m = /http:\/\/\S+\/app\?\S+/.exec(stderr);
-    if (m) consent = new URL(m[0]);
-    else await new Promise((r) => setTimeout(r, 50));
-  }
-  assert.ok(consent, `login printed no consent URL in 15 s. stderr:\n${stderr}`);
-  const port = Number(consent.searchParams.get('port'));
-  const state = consent.searchParams.get('agent');
-
   const browser = new http.Agent({ keepAlive: true });
-  const request = (options, body) =>
-    new Promise((resolve, reject) => {
-      const r = http.request({ host: '127.0.0.1', port, agent: browser, ...options }, (res) => {
-        let text = '';
-        res.setEncoding('utf8');
-        res.on('data', (c) => (text += c));
-        res.on('end', () => resolve({ status: res.statusCode, text }));
+  let speculative = null;
+  /** Everything this helper owns, freed once. The caller's `finally` cannot cover the setup
+   *  below, so anything that throws before the session object exists frees it here instead -
+   *  otherwise the spawned CLI keeps its stdio attached and holds the whole test run open. */
+  const release = () => {
+    browser.destroy();
+    speculative?.destroy();
+    stub.close();
+    if (exit === null) child.kill();
+  };
+
+  try {
+    // The consent URL carries the loopback port and the state, and goes to stderr through out.log().
+    let consent = null;
+    for (let i = 0; i < 300 && !consent; i++) {
+      const m = /http:\/\/\S+\/app\?\S+/.exec(stderr);
+      if (m) consent = new URL(m[0]);
+      else await new Promise((r) => setTimeout(r, 50));
+    }
+    assert.ok(consent, `login printed no consent URL in 15 s. stderr:\n${stderr}`);
+    const port = Number(consent.searchParams.get('port'));
+    const state = consent.searchParams.get('agent');
+
+    const request = (options, body) =>
+      new Promise((resolve, reject) => {
+        const r = http.request({ host: '127.0.0.1', port, agent: browser, ...options }, (res) => {
+          let text = '';
+          res.setEncoding('utf8');
+          res.on('data', (c) => (text += c));
+          res.on('end', () => resolve({ status: res.statusCode, text }));
+        });
+        r.on('error', reject);
+        if (body !== undefined) r.write(body);
+        r.end();
       });
-      r.on('error', reject);
-      if (body !== undefined) r.write(body);
-      r.end();
+
+    const page = await request({ method: 'GET', path: '/callback' });
+    assert.equal(page.status, 200, 'the listener serves the callback page');
+    speculative = net.connect(port, '127.0.0.1');
+    await new Promise((resolve, reject) => {
+      speculative.once('connect', resolve);
+      speculative.once('error', reject);
     });
 
-  const page = await request({ method: 'GET', path: '/callback' });
-  assert.equal(page.status, 200, 'the listener serves the callback page');
-  const speculative = net.connect(port, '127.0.0.1');
-  await new Promise((resolve, reject) => {
-    speculative.once('connect', resolve);
-    speculative.once('error', reject);
-  });
-
-  return {
-    key,
-    origin,
-    home,
-    state,
-    out: () => ({ stdout, stderr }),
-    complete: (params) => request({ method: 'POST', path: '/complete', headers: { 'content-type': 'text/plain' } }, params),
-    waitForExit: async (withinMs) => {
-      const deadline = new Promise((resolve) => setTimeout(() => resolve('timed out'), withinMs));
-      const which = await Promise.race([exited, deadline]);
-      assert.notEqual(which, 'timed out', `login did not exit within ${withinMs} ms of the handoff - it is hanging with a browser socket still open. stdout:\n${stdout}\nstderr:\n${stderr}`);
-      return exit;
-    },
-    release: () => {
-      browser.destroy();
-      speculative.destroy();
-      stub.close();
-      if (exit === null) child.kill();
-    },
-  };
+    return {
+      key,
+      origin,
+      home,
+      state,
+      out: () => ({ stdout, stderr }),
+      complete: (params) => request({ method: 'POST', path: '/complete', headers: { 'content-type': 'text/plain' } }, params),
+      waitForExit: async (withinMs) => {
+        // The timer is cleared rather than left to fire: a pending one holds the whole test file
+        // open for the rest of its budget after the assertion has already passed.
+        let timer;
+        const deadline = new Promise((resolve) => { timer = setTimeout(() => resolve('timed out'), withinMs); });
+        const which = await Promise.race([exited, deadline]).finally(() => clearTimeout(timer));
+        assert.notEqual(which, 'timed out', `login did not exit within ${withinMs} ms of the handoff - it is hanging with a browser socket still open. stdout:\n${stdout}\nstderr:\n${stderr}`);
+        return exit;
+      },
+      release,
+    };
+  } catch (e) {
+    release();
+    throw e;
+  }
 }
 
 test('a successful login exits 0 promptly, with the browser tab still open', { skip: noConfigDoor }, async () => {
@@ -672,14 +686,12 @@ test('a successful login exits 0 promptly, with the browser tab still open', { s
   try {
     const done = await session.complete(`code=test-code&state=${session.state}`);
     assert.equal(done.status, 200, 'the listener accepts the code the page hands back');
-    const handoffAt = Date.now();
 
     // Five seconds is not the target - the fixed path exits in about 0.3 s, and the point is that
     // this never again becomes "as long as the person leaves the tab open". It is the slack a
     // loaded CI runner gets for one redeem and one credentials write.
     const exit = await session.waitForExit(5000);
     assert.equal(exit.code, 0, `a login that minted and stored a key exits 0. stdout:\n${session.out().stdout}`);
-    assert.ok(exit.at - handoffAt < 5000);
 
     // The line the person reads is on STDOUT (out.say), while every progress line is on stderr
     // (out.log). Reading the wrong stream is what made this defect look like a different one.
@@ -696,13 +708,16 @@ test('a successful login exits 0 promptly, with the browser tab still open', { s
 });
 
 test('a login whose code never arrives exits non-zero within its wait, and says it gave up', async () => {
-  const session = await drivenLogin({ waitSec: 2 });
+  // Six seconds rather than two: the giving-up clock starts when the listener opens, BEFORE the
+  // helper has read the consent URL and connected to it, so a short wait races its own setup on a
+  // loaded runner and fails with ECONNREFUSED instead of the assertion below.
+  const session = await drivenLogin({ waitSec: 6 });
   try {
     // Nothing is posted back: this is the person who never presses Allow, or closes the tab.
     const exit = await session.waitForExit(20_000);
     assert.equal(exit.code, 1, 'giving up is exit 1, the documented "refused" code');
     const { stdout } = session.out();
-    assert.match(stdout, /No reply from the browser within 2 s/, 'it says what it waited for');
+    assert.match(stdout, /No reply from the browser within 6 s/, 'it says what it waited for');
     assert.match(stdout, /run `noacg login` again/, 'it says what to do next');
   } finally {
     session.release();

@@ -46,7 +46,8 @@ browser-like socket held open across the handoff (`cli/test/unit.test.mjs`).
 - **0.3 s** from the code arriving to exit 0, with the tab still open. Unfixed, on the same rig:
   still running when the test gave up, and it exited **100 ms** after the socket was released,
   which is the 923 s of 2026-09-10 in miniature - that number was the life of the browser tab.
-- **3.0 s** for a `--wait 3` login that never hears back: exit 1, giving-up line on stdout.
+- **6.0 s** for a `--wait 6` login that never hears back: exit 1, giving-up line on stdout. That
+  wait is the test's own; the route above uses 10 s so you are not typing against a clock.
 
 ## What it was, since it is not what the file said
 
