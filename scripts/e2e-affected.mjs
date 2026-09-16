@@ -554,7 +554,9 @@ const MAP = [
   // and the save dialogs whose z-order it clicks through, select it too. AppShell and App.tsx
   // are CORE already; VideoAppShell and SaveDialogs are not.
   [/^src\/components\/video\/VideoAppShell\.tsx$/, ['project.spec.ts']],
-  [/^src\/components\/save\/SaveDialogs\.tsx$/, ['project.spec.ts']],
+  // The save dialog also names WHERE a graphic goes when a backend is configured, and the
+  // offline pin that it names no account at all is in auth.spec.ts.
+  [/^src\/components\/save\/SaveDialogs\.tsx$/, ['project.spec.ts', 'auth.spec.ts']],
 ];
 
 // Anything matching these runs the FULL suite - shared foundations with fan-out everywhere.

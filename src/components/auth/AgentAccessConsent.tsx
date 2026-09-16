@@ -63,7 +63,7 @@ export default function AgentAccessConsent({ params }: { params: URLSearchParams
       <Frame>
         <SignInPrompt
           feature={`Allow “${request.name}” to save graphics to your NoaCG library?`}
-          reason="A free account is where your library lives. Sign in, or create one, and this page will ask again."
+          reason="Your library lives in your account. Sign in, or create one, and this page will ask again."
           offerSignUp
         />
         <SignInDialog />

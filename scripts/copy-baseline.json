@@ -41,18 +41,12 @@
       "em-dash": 4
     },
     "src/components/SettingsDialog.tsx": {
-      "em-dash": 5
+      "em-dash": 4
     },
     "src/components/StylePanel.tsx": {
       "em-dash": 2
     },
     "src/components/SyncStatus.tsx": {
-      "em-dash": 1
-    },
-    "src/components/auth/AuthStatus.tsx": {
-      "em-dash": 2
-    },
-    "src/components/auth/SignInDialog.tsx": {
       "em-dash": 1
     },
     "src/components/canvas/CanvasInteraction.tsx": {
@@ -118,9 +112,6 @@
     "src/components/render/RenderPanel.tsx": {
       "em-dash": 1
     },
-    "src/components/save/SaveDialogs.tsx": {
-      "em-dash": 1
-    },
     "src/components/save/StorageAlertDialog.tsx": {
       "em-dash": 2
     },
@@ -173,7 +164,7 @@
       "em-dash": 1
     },
     "src/components/wizard/import/MapSvgFieldsStep.tsx": {
-      "em-dash": 3
+      "em-dash": 2
     },
     "src/components/wizard/import/PlaceFieldsStep.tsx": {
       "em-dash": 4

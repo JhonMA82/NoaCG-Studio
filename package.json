@@ -93,6 +93,7 @@
     "test:claude-agents": "node --test scripts/claude-agents.test.mjs",
     "test:e2e:catalog": "playwright test --config=playwright.catalog.config.ts",
     "test:e2e:live": "playwright test --config=playwright.live.config.ts",
+    "test:e2e:production": "playwright test --config=playwright.production.config.ts",
     "test:e2e:live:queued": "node scripts/e2e-runs.mjs --wait && playwright test --config=playwright.live.config.ts",
     "test:ports": "node --test scripts/port-registry.test.mjs",
     "test:worktree-safety": "node --test scripts/worktree-safety.test.mjs",

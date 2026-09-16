@@ -133,6 +133,12 @@ test.describe('signed-in UX walk (configured)', () => {
     await wipeMyGraphics(page);
     await createGraphic(page, 'Lower thirds', 'Hairline');
     await page.getByTestId('save-graphic').click();
+    // WHERE THE GRAPHIC GOES, in the signed-in words. The other half of anonymous.spec.ts
+    // ("on this computer only"): the two states must read differently at the moment of saving,
+    // not only on the topbar (owner, 2026-09-10: "a clear indication when we are logged in and
+    // when we are not").
+    await expect(page.getByTestId('save-where')).toContainText('any computer you sign in on');
+    await expect(page.getByTestId('save-where')).not.toContainText('this computer only');
     await page.getByTestId('save-name').fill('Hairline');
     await page.getByTestId('save-confirm').click();
     await page.getByTestId('open-home').click();

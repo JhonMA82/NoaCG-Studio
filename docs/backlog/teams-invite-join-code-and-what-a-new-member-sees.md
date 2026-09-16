@@ -105,7 +105,8 @@ with the team - and a partial, named subset is exactly the shape that produces.
 **So the leading reading is that the policies are doing their job**, and the real defect is that
 nothing in the interface distinguishes "shared with this team" from "mine". The owner could not
 tell which of the 44 he was entitled to, and neither could a reader of his report. That is the same
-complaint as `docs/backlog/signed-in-looks-identical-to-signed-out.md`, one level in: the product
+complaint the owner made about signed in looking like signed out (closed on 2026-09-16 by
+`docs/acceptance/owner-queue/2026-09-16-si-what-an-account-is-for.md`), one level in: the product
 does not show the boundary it is enforcing.
 
 **The check that settles it, and it belongs to an agent rather than to him.** Count what a FRESH

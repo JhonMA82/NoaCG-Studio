@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { awaitPreviewRebuild } from './_preview';
 import { previewFrame } from './_frame';
-import { dropSvg, rowLabelled, rowLayerName } from './_svg-import';
+import { boxGrow, boxGrowOf, boxGrows, dropSvg, growthNow, rowLabelled, rowLayerName } from './_svg-import';
 import { LADDER_VALUES, LADDER_MODES } from '../scripts/ladder-values.mjs';
 
 // THE EXPORTER CORPUS - the SVG import road walked with files shaped the way Illustrator, Figma,
@@ -403,11 +403,13 @@ test('corpus: a photo-filled backplate is offered as a picture AND as the panel 
   // answer instead of asking. Read before the picture is ticked and again after, because the
   // marker is assigned at import: whether the author wants a swappable photo has never had
   // anything to do with whether the panel can widen.
-  await expect(page.getByTestId('map-svg-stretch-mode')).toHaveValue('grow-xy');
-  await expect(page.getByTestId('map-svg-stretch-only')).toContainText('Strap backplate');
+  const before = await growthNow(page);
+  expect(before.mode).toBe('grow-xy');
+  expect(before.named).toContain('Strap backplate');
   await pickPicture(page);
-  await expect(page.getByTestId('map-svg-stretch-mode')).toHaveValue('grow-xy');
-  await expect(page.getByTestId('map-svg-stretch-only')).toContainText('Strap backplate');
+  const after = await growthNow(page);
+  expect(after.mode).toBe('grow-xy');
+  expect(after.named).toContain('Strap backplate');
   await exportsClean(page);
 
   await mapCorpusFile(page, 'figma-photo-strap-backplate');
@@ -564,9 +566,11 @@ test('corpus: every file arrives on the too-long answer and the picture count it
     // shared helper.
     await test.step(s.name, async () => {
       await mapCorpusFile(page, s.name);
+      const answered = await growthNow(page);
       if (s.expect.growth && !GROWTH_FINDINGS.includes(s.name)) {
-        const got = await page.getByTestId('map-svg-stretch-mode').inputValue();
-        if (got !== s.expect.growth) wrong.push(`${s.name}: stated ${s.expect.growth}, got ${got}`);
+        if (answered.mode !== s.expect.growth) {
+          wrong.push(`${s.name}: stated ${s.expect.growth}, got ${answered.mode}`);
+        }
       }
       // WHICH SHAPE, where the sidecar names one (sweep finding 7). Its OWN column, at the same
       // level as the ladder rather than inside it: the two answer different questions - the
@@ -574,17 +578,10 @@ test('corpus: every file arrives on the too-long answer and the picture count it
       // `grow-x` on the control while only one does anything - and nesting it would mean a
       // fixture on the findings list, or one stating a shape and no ladder answer, passing green
       // with this never executed. That is the exact false-green the column was added to close.
-      // Read wherever the step names the shape: a sole grower is stated in a sentence, a choice
-      // is the picker's selected option.
-      if (s.expect.growthShape) {
-        const only = page.getByTestId('map-svg-stretch-only');
-        const picker = page.getByTestId('map-svg-stretch-shape');
-        let named = '(growth is off, so the step names no shape)';
-        if (await only.count()) named = (await only.textContent()) ?? '';
-        else if (await picker.count()) named = (await picker.locator('option:checked').textContent()) ?? '';
-        if (!named.includes(s.expect.growthShape)) {
-          wrong.push(`${s.name}: stated "${s.expect.growthShape}" grows, step names "${named}"`);
-        }
+      // Read off the HEADING of the box that grows, which is where the step names a shape now
+      // that the answer is chosen per box (docs/TEXT_BOX_BINDING.md, rung 4).
+      if (s.expect.growthShape && !answered.named.includes(s.expect.growthShape)) {
+        wrong.push(`${s.name}: stated "${s.expect.growthShape}" grows, step names "${answered.named}"`);
       }
       // The PICTURE column, read on the same walk so it costs nothing. It went stale in exactly
       // the way this loop exists to prevent - two sidecars stated a picture row and only the
@@ -652,8 +649,10 @@ async function overhang(page: Page): Promise<Record<string, Record<string, numbe
 /** Every long value the step will take, then every growth-ruled panel that GREW past the frame.
  *  Empty is the pass. */
 async function overgrown(page: Page, slug: string): Promise<string[]> {
-  const mode = page.getByTestId('map-svg-stretch-mode');
-  if (!(await mode.count())) return []; // a graphic with no growth control has no cap to keep
+  // THE FIRST BOX, which is the plate the graphic-wide picker used to name: this asks whether
+  // a cap is kept, not how many plates can be told to grow at once.
+  const mode = boxGrow(page);
+  if (!(await boxGrows(page).count())) return []; // no growth control, so no cap to keep
   const samples = page.locator('[data-testid^="map-svg-sample-"]');
   const n = await samples.count();
   if (n === 0) return []; // nothing to type, so nothing can ask the panel to grow
@@ -808,7 +807,7 @@ test('corpus: the fit ladder spends its rungs in order, on every option and ever
   const wrong: string[] = [];
 
   for (const mode of LADDER_MODES) {
-    await page.getByTestId('map-svg-stretch-mode').selectOption(mode);
+    await boxGrowOf(page, qId).selectOption(mode);
     // The design's own answer under this option, taken on a value that fits - the datum every
     // longer one is judged against.
     await typeQuestion(page, qId, LADDER_VALUES.short);
@@ -928,7 +927,7 @@ test('corpus: a panel told to get wider AND taller spends both, at the drawn siz
   await mapCorpusFile(page, 'effects-gradient-shadow-lower-third');
   const nameId = await rowLabelled(page, /name/i);
   const frame = page.frameLocator('.wz-side iframe');
-  await page.getByTestId('map-svg-stretch-mode').selectOption('grow-xy');
+  await boxGrow(page).selectOption('grow-xy');
 
   /** The plate, the name's painted block and the row drawn under it, in screen px. */
   const read = () =>

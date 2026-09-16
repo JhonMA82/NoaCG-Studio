@@ -11,10 +11,11 @@ import type {
   SvgStretchMode,
 } from './draft';
 import {
+  modeOfAxis,
   pollDrivenLayers,
 } from './draft';
 import { SVG_ALIGN_WORD } from '../../../templates/importedDesign/svg';
-import type { PreviewBoxOverlay } from '../WizardPreview';
+import type { PreviewBoxOverlay, PreviewGrowCap } from '../WizardPreview';
 import {
   artworkInk as inkOfArtwork,
   type FillLayer,
@@ -38,6 +39,10 @@ import {
   nudgeOffered,
   nudgeWords,
   boxFitOf,
+  capClamped,
+  capLines,
+  growCapOf,
+  type GrowCapFit,
   withoutBackplates,
   boxLooksOf,
   measureOutline,
@@ -58,6 +63,19 @@ interface Props {
    * for a line with no box of its own - text on the artwork has no room to show.
    */
   onBoxOverlay: (overlay: PreviewBoxOverlay | null) => void;
+  /**
+   * HOW FAR EACH GROWING BOX MAY REACH (docs/TEXT_BOX_BINDING.md, rung 4): one line per box that
+   * grows, drawn on the preview. Measured and WORDED here, because both answers are facts about
+   * the drawing - where the limit stands and how many lines it buys at the size the text was
+   * drawn - and the canvas draws what it is handed.
+   */
+  onGrowCaps: (caps: PreviewGrowCap[]) => void;
+  /**
+   * And the handler that takes one back when the reader moves it, armed the way the draw and
+   * pick handlers are and for the same reason: its closure reads the draft, so it is a fresh
+   * function on every keystroke and holding it in the wizard's STATE would loop.
+   */
+  onArmCap: (handler: ((boxId: string, margin: number) => void) | null) => void;
   /**
    * ADD A FIELD BY DRAWING ONE (docs/SVG_IMPORT_PLAN.md §6a step 3). Arming reports a HANDLER
    * rather than a flag: the preview gives back a box in fractions of the artwork's rect, and
@@ -84,44 +102,38 @@ const STRETCH_AXIS: Record<Exclude<StretchMode, 'shrink'>, 'x' | 'y' | 'xy'> = {
   'grow-y': 'y',
 };
 
+/** THE LADDER, IN THE OWNER'S ORDER (2026-08-26): "first I want it to get wider, and then it
+ *  should go to the next line. And the last thing is to shrink" - shrink last "because that
+ *  changes the design more". The runtime already runs in that order, so this list IS the order,
+ *  and every box's select offers it. The WORDS are below. */
+const STRETCH_ORDER: StretchMode[] = ['grow-x', 'grow-xy', 'grow-y', 'shrink'];
+
 /**
- * EVERY OPTION NAMES THE PANEL, because the panel is the only thing that differs (2026-09-05).
+ * THE FOUR RUNGS, SAID AS THE BOX (docs/TEXT_BOX_BINDING.md, rung 4). The select sits on the
+ * heading row that already names the shape, so "The panel gets wider" would name a second thing
+ * beside the first: the row IS the shape, and the option is what happens to it.
  *
- * Two of these used to name the TEXT - "the text wraps onto more lines", "the text gets smaller" -
- * and both were false as descriptions of a choice. The ladder is one order for all four (fill the
- * room, grow where allowed, wrap into what is there, shrink, squeeze), so the text wraps under
- * every option and shrinks under every option; what the reader is actually choosing is how much
- * room the panel is allowed to offer it first.
+ * EVERY OPTION NAMES THE BOX, because the box is the only thing that differs (2026-09-05). Two
+ * of these used to name the TEXT - "the text wraps onto more lines", "the text gets smaller" -
+ * and both were false as descriptions of a choice. The ladder is one order for all four (fill
+ * the room, grow where allowed, wrap into what is there, shrink, squeeze), so the text wraps
+ * under every option and shrinks under every option; what the reader is choosing is how much
+ * room the box is allowed to offer it first.
  *
  * Measured on the owner's own board, one question at three lengths, all four options each time:
  * at 147 and 295 characters the four give IDENTICAL text - same size, same line count - and only
  * the panel's width differs. So a reader switching between "the text gets smaller" and "the text
  * wraps onto more lines" watched the text do exactly the same thing and reasonably concluded the
  * control was dead (owner, 2026-09-05: "I can change how the text should react, but nothing
- * happens in the preview"). The rungs only diverge on copy no panel could hold - at 591 characters
- * they finally do, correctly and four different ways.
- *
- * The section's own prose has always said the true thing - "Text that still does not fit gets
- * smaller, whatever you pick" - so only the labels were lying.
+ * happens in the preview"). The rungs only diverge on copy no panel could hold - at 591
+ * characters they finally do, correctly and four different ways.
  */
-const STRETCH_SUMMARY: Record<StretchMode, string> = {
-  'grow-x': 'the panel gets wider',
-  'grow-xy': 'the panel gets wider, then taller',
-  'grow-y': 'the panel gets taller',
-  shrink: 'the panel stays the size you drew',
+const BOX_GROW_LABEL: Record<StretchMode, string> = {
+  'grow-x': 'gets wider',
+  'grow-xy': 'gets wider, then taller',
+  'grow-y': 'gets taller',
+  shrink: 'stays as drawn',
 };
-
-/** THE LADDER, IN THE OWNER'S ORDER (2026-08-26): "first I want it to get wider, and then it
- *  should go to the next line. And the last thing is to shrink" - shrink last "because that
- *  changes the design more". The runtime already runs in that order, so the list IS the order.
- *  One array because the graphic-wide picker and every per-layer one offer the same four rungs,
- *  and two spellings of one ladder is how the two drift apart. */
-const STRETCH_OPTIONS: { value: StretchMode; label: string }[] = [
-  { value: 'grow-x', label: 'The panel gets wider' },
-  { value: 'grow-xy', label: 'The panel gets wider, then taller' },
-  { value: 'grow-y', label: 'The panel gets taller' },
-  { value: 'shrink', label: 'The panel stays the size you drew' },
-];
 
 /* WHICH WAY IT WIDENS IS THE ARTWORK'S ANSWER, not a fixed one (svg.ts `svgGrowDir`): a panel
    holding start-anchored text widens to the right, because that is the only side those lines
@@ -131,17 +143,6 @@ const STRETCH_HINT: Record<Exclude<StretchMode, 'shrink'>, string> = {
   'grow-x': 'It widens the way you composed it, and the type stays the size you drew.',
   'grow-xy': 'It widens first. Once it reaches the margin it gets taller and the text wraps.',
   'grow-y': 'It gets taller and the text wraps into the new height.',
-};
-
-/** WHAT THE READER WILL SEE HAPPEN to the chosen shape, in the words of the result rather than
- *  of our model (owner walk, 2026-09-01: "Which panel grows?" named a concept, not a picture).
- *  The picker's label carries the FIRST visible move only - `STRETCH_HINT`, one line below it,
- *  is where the rest of the ladder is spelled out, and a label that repeated it would be a
- *  question longer than its own answer. */
-const GROW_RESULT: Record<Exclude<StretchMode, 'shrink'>, string> = {
-  'grow-x': 'gets wider',
-  'grow-xy': 'gets wider',
-  'grow-y': 'gets taller',
 };
 
 
@@ -174,7 +175,16 @@ function rowIsTexty(f: SvgOutlineDraft): boolean {
  * channel the editor canvas already uses (`preview/canvasControlProtocol.ts`) — the wizard
  * preview iframe deliberately carries no allow-same-origin, so nothing reaches into it.
  */
-export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay, onArmDraw, onArmPick }: Props) {
+export default function MapSvgFieldsStep({
+  draft,
+  onDraft,
+  onHover,
+  onBoxOverlay,
+  onGrowCaps,
+  onArmCap,
+  onArmDraw,
+  onArmPick,
+}: Props) {
   const svg = draft.designSvg;
   const stageRef = useRef<HTMLDivElement>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
@@ -291,13 +301,6 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
   // combination's declared set rides its sideways row (draft.ts `svgGrowthOptions`), and its
   // downward row derives its own.
   const growAxis = draft.svgStretch.axis === 'y' ? 'y' : 'x';
-  const stretchMode: StretchMode = !draft.svgStretch.on
-    ? 'shrink'
-    : draft.svgStretch.axis === 'y'
-      ? 'grow-y'
-      : draft.svgStretch.axis === 'xy'
-        ? 'grow-xy'
-        : 'grow-x';
 
   // EVERY BOUND LINE, of both kinds, and every line the reader DREW - the one statement of
   // "what has to fit in this artwork", read by the two measurements that ask it (which shapes
@@ -385,8 +388,6 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
   // worse than either answer. The stage is rendered off screen in this same tree, so it is laid
   // out by the time this runs.
   const [panelIds, setPanelIds] = useState<string[]>([]);
-  /** Bound line -> the plate it sits on, for the per-layer answers below. */
-  const [panelOfLine, setPanelOfLine] = useState<Record<string, string>>({});
   /** Text row -> the box the CHECKLIST groups it under: the plate it sits on, minus the board's
    *  own backplate, which is a heading over everything rather than a grouping of anything. */
   const [boxOfRow, setBoxOfRow] = useState<Record<string, string>>({});
@@ -395,23 +396,21 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
   /** Text row -> its box, the room round it and the alignment it was drawn with, all in the
    *  LINE's own units (`boxFitOf`). What the preview overlay draws while that row is hovered. */
   const [boxFits, setBoxFits] = useState<Record<string, BoxFit>>({});
-  /** Whether the per-layer answers are showing. Closed on arrival, always: the graphic-wide
-   *  picker is the whole control for almost everybody. */
-  const [perPanelOpen, setPerPanelOpen] = useState(false);
+  /** Box -> how far it may grow and how far it may be told to grow (`growCapOf`). Measured for
+   *  the boxes that CAN get taller and nothing else, so a board where nothing grows measures
+   *  nothing at all. */
+  const [capFits, setCapFits] = useState<Record<string, GrowCapFit>>({});
   useLayoutEffect(() => {
     const stage = stageRef.current;
     if (!svg || !stage) {
       setPanelIds([]);
-      setPanelOfLine({});
       setBoxOfRow({});
       setBoxLooks({});
       setBoxFits({});
       return;
     }
     setPanelIds(panelsHoldingText(stage, svg, boundMarkerIds, placedLines));
-    const ofLine = panelOfEachLine(stage, svg, allMarkerIds);
-    setPanelOfLine(ofLine);
-    const grouped = withoutBackplates(stage, ofLine);
+    const grouped = withoutBackplates(stage, panelOfEachLine(stage, svg, allMarkerIds));
     setBoxOfRow(grouped);
     setBoxLooks(boxLooksOf(stage, svg, Object.values(grouped)));
     const fits: Record<string, BoxFit> = {};
@@ -477,45 +476,79 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
   }, [hoverId, boxOfRow, boxFits, onBoxOverlay, hoveredAlign]);
   useEffect(() => () => onBoxOverlay(null), [onBoxOverlay]);
 
-  /** The shapes the picker offers. The measurement where it found any, every shape where it
-   *  found none, and ALWAYS whatever is currently chosen - a shape picked by dragging on the
-   *  artwork is a real answer even when it holds no line, and dropping it out of its own picker
-   *  would show a control set to something it does not list. */
-  const growOptions = !svg
-    ? []
-    : (panelIds.length > 0 ? svg.shapes.filter((s) => panelIds.includes(s.id)) : svg.shapes).concat(
-        draft.svgStretch.shapeId && panelIds.length > 0 && !panelIds.includes(draft.svgStretch.shapeId)
-          ? svg.shapes.filter((s) => s.id === draft.svgStretch.shapeId)
-          : [],
-      );
-  /** The one shape, when there is only one: no question is asked, and the step says so instead.
-   *  Only where the MEASUREMENT found it - the all-shapes fallback below means nothing was
-   *  measured, and a single shape there has not earned the sentence's claim about it. */
-  const soleGrower = growOptions.length === 1 && panelIds.length > 0 ? growOptions[0] : null;
-
-  // ── ONE PLATE MAY ANSWER DIFFERENTLY FROM ANOTHER (owner walk, 2026-09-03) ──
-  // His question was about a quiz board: the question and the answers sit on different plates
-  // and he wants them to behave differently. GROUPED BY PLATE, not listed per field: growth is
-  // something a rectangle does for whatever text sits inside it, so four answers sharing one
-  // plate are one row naming all four rather than four rows that would silently fight. That is
-  // also what keeps the list two or three rows long on a real board instead of twenty.
+  // ── GROWTH IS CHOSEN PER BOX (docs/TEXT_BOX_BINDING.md, rung 4) ──
+  // The owner's question, on his own quiz board: "What if you want it to react differently
+  // between the question and the answer?" The answer is that the BOX says it, on the heading
+  // row that already names it - so the shape is never asked for, because the row is the shape.
+  //
+  // KEYED BY THE PLATE, because growth is something a rectangle does for whatever text sits
+  // inside it: two lines sharing one plate cannot be given opposite answers, and a map keyed by
+  // layer would let a reader ask for that and then silently pick one.
+  //
+  // WHAT THE DRAFT HOLDS DID NOT MOVE. `svgStretch` still carries one box in `shapeId` and the
+  // rest in `perPanel`, and the emitter still writes one row per box per axis (draft.ts
+  // `svgGrowthOptions`) - so no persisted shape changed and no import emits different bytes for
+  // the same answers. The one box in `shapeId` is now simply THE BOX THAT CARRIES THE DECLARED
+  // FOLLOWERS, which is the only thing the format attaches to a single rule, and the reader
+  // never sees the distinction.
   const perPanel = draft.svgStretch.perPanel ?? {};
-  const perPanelRows = useMemo(() => {
-    const byPanel = new Map<string, { panelId: string; titles: string[] }>();
-    const line = (candidateId: string, title: string) => {
-      const panelId = panelOfLine[candidateId];
-      if (!panelId) return;
-      const row = byPanel.get(panelId) ?? { panelId, titles: [] };
-      row.titles.push(title.trim() || 'Text');
-      byPanel.set(panelId, row);
-    };
-    for (const f of draft.svgFields) if (f.on) line(f.candidateId, f.title);
-    // A ticked outline row is replaced by a placed line in the same spot and the ladder walks
-    // it exactly like a drawn one, so it gets the same answer and the same row.
-    for (const f of draft.svgOutlines) if (f.on && f.box) line(f.candidateId, f.title);
-    return [...byPanel.values()];
-  }, [draft.svgFields, draft.svgOutlines, panelOfLine]);
-  const perPanelSet = perPanelRows.filter((r) => perPanel[r.panelId] != null).length;
+  /** WHAT ONE BOX DOES WITH A LONG VALUE, as the draft stands: its own answer where it has one,
+   *  else the carrier's answer where this is the carrier, else it stays as drawn. */
+  const modeOfBox = (boxId: string): StretchMode =>
+    perPanel[boxId] ??
+    (draft.svgStretch.on && draft.svgStretch.shapeId === boxId
+      ? modeOfAxis(draft.svgStretch.axis)
+      : 'shrink');
+  /** Give one box its answer. Touching this is AUTHORING, like every other growth control: the
+   *  measured default stops re-deriving from that moment on.
+   *
+   *  THE CARRIER FOLLOWS THE READER. A box told to grow while no box is growing takes the
+   *  carrier slot, so its travellers are the ones the "What else moves" list shows and emits;
+   *  a second box growing beside it is an ordinary per-box row and derives its own at play time,
+   *  which is what the runtime has always done for a rule with no declared list. */
+  const setBoxMode = (boxId: string, mode: StretchMode) => {
+    const cur = draft.svgStretch;
+    const carrier = cur.on ? cur.shapeId : null;
+    const rest = { ...perPanel };
+    // The box's own answer is rewritten from scratch either way, so a box that used to be an
+    // override and is now the carrier is never both.
+    delete rest[boxId];
+    // Emptied back out rather than left as `{}`, so a reader who sets an answer and puts it back
+    // emits exactly the bytes they started with.
+    const clean = (map: Record<string, StretchMode>) =>
+      Object.keys(map).length > 0 ? map : undefined;
+    if (mode === 'shrink') {
+      onDraft({
+        svgStretch: {
+          ...cur,
+          authored: true,
+          ...(carrier === boxId ? { on: false } : {}),
+          perPanel: clean(rest),
+        },
+      });
+      return;
+    }
+    if (carrier === null || carrier === boxId) {
+      onDraft({
+        svgStretch: {
+          ...cur,
+          authored: true,
+          on: true,
+          shapeId: boxId,
+          axis: STRETCH_AXIS[mode],
+          // A set measured against ANOTHER box is not this box's set, so taking the slot hands
+          // the travellers back to the geometry; staying on the same box keeps what the reader
+          // declared, exactly as changing the axis alone always did.
+          ...(carrier === boxId ? {} : { followers: null }),
+          perPanel: clean(rest),
+        },
+      });
+      return;
+    }
+    onDraft({
+      svgStretch: { ...cur, authored: true, perPanel: clean({ ...rest, [boxId]: mode }) },
+    });
+  };
 
   // ── THE CHECKLIST, GROUPED BY THE BOX EACH LINE SITS IN ──
   // "Every text field lives in a box: the shape drawn under it", and THE GROUPING IS THE BINDING
@@ -571,25 +604,189 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
     }
     return groups;
   }, [draft.svgFields, boxOfRow, boxLooks]);
-  /** One box holding every line is not a grouping, it is a heading over the whole list - so the
-   *  headings only appear once the artwork actually has more than one place to put text. */
-  const showBoxGroups = fieldGroups.length > 1;
-  /** Give one plate its own answer, or hand it back to the graphic-wide one. Touching this is
-   *  AUTHORING, like every other growth control: the measured default stops re-deriving. */
-  const setPanelMode = (panelId: string, mode: StretchMode | null) => {
-    const next = { ...perPanel };
-    if (mode == null) delete next[panelId];
-    else next[panelId] = mode;
-    onDraft({
-      svgStretch: {
-        ...draft.svgStretch,
-        authored: true,
-        // Emptied back out rather than left as `{}`, so a reader who sets an override and takes
-        // it off again emits exactly the bytes they started with.
-        perPanel: Object.keys(next).length > 0 ? next : undefined,
-      },
+  /** ONE BOX HOLDING EVERY LINE IS NOT A GROUPING - but it is still the thing that grows, and
+   *  the heading is now where its answer lives. So a heading appears wherever there is more than
+   *  one place to put text, AND on the single box a lower third draws, whose hug would otherwise
+   *  have no control at all. Text inside no shape still gets no heading of its own on a file
+   *  with one group: there is nothing to say about it and nothing to set. */
+  const showBoxGroups = fieldGroups.length > 1 || !!fieldGroups[0]?.boxId;
+
+  // ── HOW FAR A GROWING BOX MAY REACH (docs/TEXT_BOX_BINDING.md, rung 4) ──
+  // The limit is a line on the preview the reader can move, and every value it can reach is a
+  // value the growth can keep: the two ends are the frame's safe margin and the box's own drawn
+  // edge, so a wrong answer is UNREACHABLE rather than warned about.
+  //
+  // Offered on the boxes that may get TALLER and on no others, which is a departure from the
+  // design's own text and is recorded there: downwards the runtime has one answer for which way
+  // a box grows, and downwards is where "we shouldn't be able to put one page of text" lives.
+  /** Every box that grows, in the checklist's own order, with the name the reader sees it under.
+   *  One entry per box even where its rows are split across two runs. */
+  const growingBoxes: { boxId: string; label: string; mode: Exclude<StretchMode, 'shrink'> }[] = [];
+  const capBoxes: string[] = [];
+  for (const g of fieldGroups) {
+    if (!g.boxId || growingBoxes.some((b) => b.boxId === g.boxId)) continue;
+    const mode = modeOfBox(g.boxId);
+    if (mode === 'shrink') continue;
+    growingBoxes.push({ boxId: g.boxId, label: g.label, mode });
+    // ONLY A BOX THAT MAY GET TALLER CARRIES A LINE (see above).
+    if (mode === 'grow-y' || mode === 'grow-xy') capBoxes.push(g.boxId);
+  }
+  // AND ANY BOX THIS CHECKLIST CANNOT HEAD. A plate whose only editable text is a replaced
+  // OUTLINE row has no heading here - those rows are their own section - and a drag on the
+  // artwork still turns growth on for any shape. Naming it in the section's summary is what
+  // keeps the guardrail true ("a box that stays as drawn moves nothing" needs the list of the
+  // ones that do not), even where there is no heading to put its select on.
+  for (const boxId of [
+    ...Object.keys(perPanel),
+    ...(draft.svgStretch.on && draft.svgStretch.shapeId ? [draft.svgStretch.shapeId] : []),
+  ]) {
+    if (growingBoxes.some((b) => b.boxId === boxId)) continue;
+    const mode = modeOfBox(boxId);
+    if (mode === 'shrink') continue;
+    growingBoxes.push({
+      boxId,
+      label: svg?.shapes.find((s) => s.id === boxId)?.label ?? 'A shape',
+      mode,
     });
+  }
+  const capKey = capBoxes.join('|');
+  // A LAYOUT effect, like every other measurement on this step: the sentence under the heading
+  // carries a NUMBER, and measuring after paint would print one answer for a frame and correct
+  // it. Re-run when a font lands, because the line count is arithmetic on the drawn type.
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!svg || !stage || !capKey) {
+      setCapFits({});
+      return;
+    }
+    const fits: Record<string, GrowCapFit> = {};
+    for (const boxId of capKey.split('|')) {
+      const lines = Object.keys(boxOfRow).filter((lineId) => boxOfRow[lineId] === boxId);
+      const fit = growCapOf(stage, svg, boxId, lines);
+      if (fit) fits[boxId] = fit;
+    }
+    setCapFits(fits);
+  }, [svg, capKey, boxOfRow, fontKey]);
+
+  /** The layer's own name and its drawn size, for the heading's tooltip. The name shown is the
+   *  reader's ("Tan plate"), which is the right one to read and the wrong one to check a file
+   *  against; the SIZE is the one number that says the geometry was read where the shape is
+   *  PAINTED rather than off its attributes - the owner's question plate is a portrait rectangle
+   *  turned 88.68 degrees, drawn 231 x 1233 and painted 1238 x 259. */
+  const boxTitle = (boxId: string | null) => {
+    const shape = boxId ? svg?.shapes.find((s) => s.id === boxId) : null;
+    return shape
+      ? `${shape.label}, ${Math.round(shape.width)} × ${Math.round(shape.height)} px as drawn`
+      : undefined;
   };
+
+  /** WHERE THE LIMIT STANDS AND WHAT IT BUYS, in the reader's own words and the artwork's own px.
+   *  Two pieces rather than one sentence, because the row under the heading and the chip on the
+   *  preview say it at different lengths and must not be able to disagree about the FACTS. */
+  /** IS THE LINE SOMEWHERE THE DESIGN DID NOT PUT IT - because the reader moved it, or because
+   *  the design's own mirrored margin does not fit between the two ends and was clamped to one of
+   *  them. Either way "the same margin as the top" would be describing a line that is not there. */
+  const capMoved = (boxId: string, fit: GrowCapFit, margin: number) =>
+    capsSet?.[boxId]?.y != null || Math.abs(margin - fit.mirrored) > 0.0005;
+  const capWords = (fit: GrowCapFit, margin: number, moved: boolean) => ({
+    where: moved
+      ? `${Math.round(margin * (svg?.height ?? 0))} px ${fit.dir > 0 ? 'above the bottom' : 'below the top'} of the frame`
+      : `the same margin as the ${fit.dir > 0 ? 'top' : 'bottom'}`,
+    lines: capLines(fit, margin),
+  });
+  const capsSet = draft.svgStretch.caps;
+  /** Where one box's limit stands right now: the reader's own answer where they moved it, else
+   *  the design's. Clamped on the way out, so a cap stored against an artwork that has since
+   *  been re-dropped can never draw a line outside the two ends. */
+  const capMargin = (boxId: string, fit: GrowCapFit) =>
+    capClamped(fit, capsSet?.[boxId]?.y ?? fit.drawn);
+  // THE NAME THE CHECKLIST SHOWS, not the box's own: a board with two plates of one colour heads
+  // them "Board 1" and "Board 2", and a line on the canvas calling itself "Board" would be a
+  // limit the reader cannot match to a row.
+  //
+  // As JSON rather than as a delimited string, which is not fussiness: written with a NUL between
+  // the two halves, git read the whole FILE as binary - `git ls-files --eol` said `i/-text`, grep
+  // answered "Binary file matches", and the diff a reviewer reads came out as 1819 added lines
+  // instead of the 343 that changed.
+  const capLabels = JSON.stringify(growingBoxes.map((b) => [b.boxId, b.label]));
+  /** HOW FAR THIS BOX MAY GET, said once under its heading in the same words the line on the
+   *  preview carries. The line is the control; this is what it says, for a reader whose eyes are
+   *  on the checklist. Null for a box with no limit to show, which is every box that stays as
+   *  drawn. */
+  const capSentence = (boxId: string | null, key: string) => {
+    const fit = boxId ? capFits[boxId] : undefined;
+    if (!boxId || !fit) return null;
+    const margin = capMargin(boxId, fit);
+    const w = capWords(fit, margin, capMoved(boxId, fit, margin));
+    return (
+      <p className="hint map-svg-box-cap" data-testid={`map-svg-box-cap-${key}`}>
+        Stops at {w.where}
+        {w.lines ? `, room for ${w.lines} line${w.lines === 1 ? '' : 's'} at the size you drew` : ''}.{' '}
+        <span className="map-svg-box-cap-how">Drag the line on the preview.</span>
+      </p>
+    );
+  };
+
+  const growCaps = useMemo<PreviewGrowCap[]>(() => {
+    const labels = new Map(JSON.parse(capLabels) as [string, string][]);
+    const out: PreviewGrowCap[] = [];
+    for (const boxId of capKey ? capKey.split('|') : []) {
+      const fit = capFits[boxId];
+      if (!fit) continue;
+      const margin = capClamped(fit, capsSet?.[boxId]?.y ?? fit.drawn);
+      const w = capWords(fit, margin, capMoved(boxId, fit, margin));
+      const label = labels.get(boxId) ?? 'This box';
+      out.push({
+        id: boxId,
+        label,
+        dir: fit.dir,
+        margin,
+        min: fit.min,
+        max: fit.max,
+        // NAMED, because two boxes may carry a line each and a limit that does not say whose it
+        // is is a limit the reader has to guess at.
+        note: `${label}: stops at ${w.where}${w.lines ? `, room for ${w.lines} line${w.lines === 1 ? '' : 's'}` : ''}`,
+      });
+    }
+    return out;
+    // `capWords` is a pure reading of `svg` and the fit, both of which are dependencies here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capKey, capLabels, capFits, capsSet, svg]);
+  useEffect(() => {
+    onGrowCaps(growCaps);
+  }, [growCaps, onGrowCaps]);
+  useEffect(() => () => onGrowCaps([]), [onGrowCaps]);
+
+  /** A limit the reader moved on the preview. Clamped HERE as well as on the canvas: the step
+   *  measured the two ends, so it is the step that owns them, and a stored cap is never a value
+   *  the growth could not keep. */
+  const setCap = useCallback(
+    (boxId: string, margin: number) => {
+      const fit = capFits[boxId];
+      if (!fit) return;
+      const m = capClamped(fit, margin);
+      const caps = { ...(draft.svgStretch.caps ?? {}) };
+      // PUTTING THE LINE BACK WHERE THE DESIGN HAD IT TAKES THE CAP AWAY, so a reader who drags
+      // it out and back emits exactly the bytes they started with rather than a rule saying in
+      // numbers what the artwork already said.
+      if (Math.abs(m - fit.drawn) < 0.0005) delete caps[boxId];
+      // Rounded to a tenth of a percent of the frame, because this number lands in generated
+      // code a person reads and 0.081 says everything 0.0812345 says.
+      else caps[boxId] = { ...caps[boxId], y: Math.round(m * 1000) / 1000 };
+      onDraft({
+        svgStretch: {
+          ...draft.svgStretch,
+          authored: true,
+          caps: Object.keys(caps).length > 0 ? caps : undefined,
+        },
+      });
+    },
+    [capFits, draft.svgStretch, onDraft],
+  );
+  useEffect(() => {
+    onArmCap(setCap);
+  }, [setCap, onArmCap]);
+  useEffect(() => () => onArmCap(null), [onArmCap]);
 
   /** The ARTWORK set as it stands: the author's own list once they have touched it, else the
    *  proposal. Text is filtered back out of a materialized list - it rides in the draft so the
@@ -930,7 +1127,11 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
                  has never heard the word binding still checks a colour against the picture beside
                  them in under a second. `aria-hidden` because the NAME already says the colour;
                  read aloud, the swatch would be a second copy of it. */
-              <p className="map-svg-box-head" data-testid={`map-svg-box-head-${group.fields[0].candidateId}`}>
+              <p
+                className="map-svg-box-head"
+                data-testid={`map-svg-box-head-${group.fields[0].candidateId}`}
+                title={boxTitle(group.boxId)}
+              >
                 {group.boxId && (
                   <span
                     className="map-svg-swatch"
@@ -947,8 +1148,43 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
                     nothing under it but the board's own backplate. Either way there is no box
                     around it that could grow, which is the consequence the reader needs. */}
                 {!group.boxId && <span>no box of their own, so nothing grows around them</span>}
+                {/* WHAT THIS BOX DOES WITH A LONG VALUE (docs/TEXT_BOX_BINDING.md, rung 4), on
+                    the row that already names it - so one plate may grow while its neighbours
+                    stay, and the shape is never asked for, because the row IS the shape.
+                    OFFERED WHERE IT CAN DO SOMETHING: a box with no ticked line in it grows for
+                    nobody, and the runtime would grant it nothing
+                    (`wizard/offer-control-can-change-graphic-front`). A box already carrying an
+                    answer keeps its control whatever the measurement says, or unticking a row
+                    would take away the control holding the answer.
+                    The WHY is on the tooltip rather than in a line per box - the same place the
+                    alignment grid's words went, and for the same measured reason: this step has
+                    a rows-on-screen budget and a sentence per heading costs a row per box. */}
+                {group.boxId && (panelIds.includes(group.boxId) || modeOfBox(group.boxId) !== 'shrink') && (
+                  <select
+                    className="map-svg-box-grow"
+                    value={modeOfBox(group.boxId)}
+                    aria-label={`What ${group.label} does when the text is too long`}
+                    title={
+                      `What ${group.label} does when someone types more than you drew room for.` +
+                      ' The text wraps and gets smaller whatever you pick; this is how much room it gets first.' +
+                      (modeOfBox(group.boxId) === 'shrink'
+                        ? ''
+                        : ` ${STRETCH_HINT[modeOfBox(group.boxId) as Exclude<StretchMode, 'shrink'>]}`) +
+                      (draft.svgStretch.authored ? '' : ' Read from your artwork.')
+                    }
+                    onChange={(e) => setBoxMode(group.boxId!, e.target.value as StretchMode)}
+                    data-testid={`map-svg-box-grow-${group.fields[0].candidateId}`}
+                  >
+                    {STRETCH_ORDER.map((mode) => (
+                      <option key={mode} value={mode}>
+                        {BOX_GROW_LABEL[mode]}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </p>
             )}
+            {showBoxGroups && capSentence(group.boxId, group.fields[0].candidateId)}
             {group.fields.map((f) => {
             // A LAYER THE VOTE WRITES IS NOT A FIELD, so this row does not offer the two boxes
             // that would pretend it is (owner walk, 2026-09-03: he selected a percentage, watched
@@ -1263,14 +1499,20 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
         /* THE HUG (docs/SVG_IMPORT_PLAN.md §3, GOALS goal 5). A lower third's banner should be
            as wide as the name on it; a quiz board and a scorebug declare a stage and must not
            move. Where the artwork answers that unambiguously the default is already right (the
-           measuring effect above); where it does not, shrink stands and this asks. */
+           measuring effect above); where it does not, shrink stands.
+           THE CHOICE ITSELF MOVED ONTO THE BOXES (docs/TEXT_BOX_BINDING.md, rung 4): what is
+           left here is the ⓘ that explains the ladder, what travels with a growing edge, and
+           one line saying which boxes grow. */
         <div className="panel-section" data-testid="map-svg-stretch">
           <SectionHead
             title="When the text is too long"
             summary={
-              !draft.svgStretch.on
-                ? STRETCH_SUMMARY.shrink
-                : `${STRETCH_SUMMARY[stretchMode]}${draft.svgStretch.authored ? '' : ' — read from your artwork'}`
+              (growingBoxes.length === 0
+                ? 'every box stays the size you drew'
+                : growingBoxes.length === 1
+                  ? `${growingBoxes[0].label} ${BOX_GROW_LABEL[growingBoxes[0].mode]}`
+                  : `${growingBoxes.length} boxes grow`) +
+              (draft.svgStretch.authored ? '' : ' — read from your artwork')
             }
             testid="map-svg-why-stretch"
           >
@@ -1282,165 +1524,26 @@ export default function MapSvgFieldsStep({ draft, onDraft, onHover, onBoxOverlay
             <p>Someone will type more than you drew room for. This says how much room it gets.</p>
             <p>
               The text wraps onto more lines whatever you pick, and gets smaller if it still does
-              not fit. What you are choosing here is the panel.
+              not fit. What you are choosing is how much room the box gives it first.
             </p>
             <p>
-              We read your artwork and picked one. Change it here, or drag a rectangle on the
-              preview.
+              Each box says it on its own row above, so one can grow while its neighbours stay.
+              We read your artwork and answered for you.
             </p>
           </SectionHead>
-          <label className="save-field">
-            <span>Too-long text</span>
-            {/* The rungs and their order live in `STRETCH_OPTIONS`, shared with the per-layer
-                pickers below. The combination is a real choice rather than a fourth thing to
-                explain (owner, 2026-08-26: "There are many graphics that we do not want to
-                scale ... we should let the customer choose whatever they want."). */}
-            <select
-              value={stretchMode}
-              onChange={(e) => {
-                const mode = e.target.value as StretchMode;
-                onDraft({
-                  svgStretch: {
-                    ...draft.svgStretch,
-                    on: mode !== 'shrink',
-                    // Touching the select is AUTHORING: the measured default never overwrites
-                    // an answer a person gave (the effect above skips authored state).
-                    authored: true,
-                    // Turning it on with nothing picked takes the proposal rather than
-                    // leaving a switch that is on and does nothing.
-                    shapeId: draft.svgStretch.shapeId ?? growOptions[0]?.id ?? svg.shapes[0]?.id ?? null,
-                    axis: mode === 'shrink' ? (draft.svgStretch.axis ?? 'x') : STRETCH_AXIS[mode],
-                  },
-                });
-              }}
-              data-testid="map-svg-stretch-mode"
-            >
-              {STRETCH_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {/* NO QUESTION WHERE THERE IS ONE ANSWER (owner walk, 2026-09-01). One candidate is
-              stated, not asked: the shape is NAMED, hovering the line lights it up on the artwork
-              exactly as hovering the picker did, and the reason it is the only one is said out
-              loud - so a missing control never reads as a missing feature. What will visibly
-              happen to it is the next line's job (`STRETCH_HINT`), whose "It" this gives an
-              antecedent to. */}
-          {draft.svgStretch.on && stretchMode !== 'shrink' && soleGrower && (
-            <p
-              className="hint map-svg-grow-one"
-              onMouseEnter={() => setHoverId(soleGrower.id)}
-              onMouseLeave={() => setHoverId((h) => (h === soleGrower.id ? null : h))}
-              data-testid="map-svg-stretch-only"
-            >
-              <strong>{soleGrower.label}</strong> is the shape that grows. It is the only one your
-              text sits in.
-            </p>
-          )}
-          {draft.svgStretch.on && !soleGrower && (
-            <label
-              className="save-field"
-              onMouseEnter={() => setHoverId(draft.svgStretch.shapeId)}
-              onMouseLeave={() => setHoverId((h) => (h === draft.svgStretch.shapeId ? null : h))}
-            >
-              {/* NAMED BY THE VISIBLE RESULT, never by our model. "Which panel grows" asked about
-                  a concept the reader has no word for; this asks about the thing they drew and
-                  the thing they will watch happen to it. */}
-              {/* `stretchMode` is 'shrink' exactly when growth is OFF, and this block only
-                  renders while it is on - so the ladder always has a visible result to name. */}
-              <span>Which shape {GROW_RESULT[stretchMode as Exclude<StretchMode, 'shrink'>]}</span>
-              <select
-                value={draft.svgStretch.shapeId ?? ''}
-                // SPREAD, never rebuild. Written as a fresh object this dropped the AXIS the
-                // reader had just chosen - picking the panel silently sent a "grows taller"
-                // graphic back to growing sideways - and it would drop their declared
-                // followers with it. Changing the panel also invalidates that set: it was
-                // measured against a different element, so it goes back to being proposed.
-                onChange={(e) =>
-                  onDraft({
-                    svgStretch: {
-                      ...draft.svgStretch,
-                      on: true,
-                      authored: true,
-                      shapeId: e.target.value || null,
-                      followers: null,
-                    },
-                  })
-                }
-                data-testid="map-svg-stretch-shape"
-              >
-                {/* Only the shapes a bound line actually sits in (`growOptions`): the rest are
-                    granted nothing by the runtime, so offering them is offering a control with
-                    no effect - the defect the owner named on the shipped Inkscape lower third. */}
-                {growOptions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label} — {Math.round(s.width)} × {Math.round(s.height)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {draft.svgStretch.on && stretchMode !== 'shrink' && (
-            <p className="hint">{STRETCH_HINT[stretchMode]}</p>
-          )}
-          {/* THE ANSWER ABOVE IS THE DEFAULT, NOT THE ONLY ANSWER (owner walk, 2026-09-03: "What
-              if you want it to react differently between the question and the answer? What's our
-              solution for that?").
-              CLOSED UNTIL SOMEBODY WANTS IT. A row per layer, always shown, would turn a
-              two-click step into a twenty-click one for every reader who does not care - and
-              most do not, which is why the graphic-wide picker exists at all. So this is one
-              line, and it says what opening it gets you.
-              OFFERED ONLY WHERE THERE IS A CHOICE: with one plate under all the text there is
-              nothing to differentiate, and the picker above already IS that plate's answer. */}
-          {perPanelRows.length > 1 && (
-            <div className="map-svg-per-panel">
-              <button
-                type="button"
-                className="map-svg-per-panel-toggle"
-                aria-expanded={perPanelOpen}
-                onClick={() => setPerPanelOpen((o) => !o)}
-                data-testid="map-svg-per-panel-toggle"
-              >
-                {perPanelSet === 0
-                  ? 'Give one part of the graphic its own answer'
-                  : `${perPanelSet} part${perPanelSet === 1 ? '' : 's'} answer${perPanelSet === 1 ? 's' : ''} differently`}
-              </button>
-              {perPanelOpen && (
-                <div className="map-svg-per-panel-rows" data-testid="map-svg-per-panel-rows">
-                  {perPanelRows.map((row) => (
-                    <label
-                      className="save-field"
-                      key={row.panelId}
-                      onMouseEnter={() => setHoverId(row.panelId)}
-                      onMouseLeave={() => setHoverId((h) => (h === row.panelId ? null : h))}
-                    >
-                      {/* NAMED BY THE LAYERS, KEYED BY THE PLATE. The reader thinks in the text
-                          they typed; the runtime grows the rectangle behind it. Lines sharing a
-                          plate are named together on one row, so a shared answer is visible
-                          rather than a surprise. */}
-                      <span>{row.titles.join(', ')}</span>
-                      <select
-                        value={perPanel[row.panelId] ?? ''}
-                        onChange={(e) =>
-                          setPanelMode(row.panelId, (e.target.value || null) as StretchMode | null)
-                        }
-                        data-testid={`map-svg-per-panel-${row.panelId}`}
-                      >
-                        <option value="">Same as above</option>
-                        {STRETCH_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {/* WHICH BOXES GROW, said once. The ANSWERS live on the heading rows in the
+              checklist above (docs/TEXT_BOX_BINDING.md, rung 4), because the row is the shape -
+              so this section no longer asks which shape, and what is left of it is the two
+              things that are true of the graphic rather than of one box: what travels with a
+              growing edge, and the guardrail. A graphic where nothing grows says so, which is
+              the guardrail stated: a box that stays as drawn moves nothing. */}
+          <p className="hint" data-testid="map-svg-grow-summary">
+            {growingBoxes.length === 0
+              ? 'Every box stays the size you drew, so nothing on this graphic moves.'
+              : growingBoxes.length === 1
+                ? `${growingBoxes[0].label} ${BOX_GROW_LABEL[growingBoxes[0].mode]}. Every other box stays the size you drew.`
+                : `${growingBoxes.map((g) => g.label).join(', ')} grow. Every other box stays the size you drew.`}
+          </p>
           {/* TEXT PAST THE EDGE TRAVELS, AND IS STATED RATHER THAN ASKED ABOUT (owner walk,
               2026-09-01). It still moves - it has to, or the grown panel prints over it - but
               "should this line stretch?" is not a question anyone can answer about a line the
