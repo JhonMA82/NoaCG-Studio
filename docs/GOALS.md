@@ -82,8 +82,10 @@ student draws the graphic, we supply the behaviour, and **a walk that is owed ne
 - [ ] **Brands: make one, choose it in the wizard, the graphic adapts** (owner, 2026-09-05).
       **`docs/BRAND_PLAN.md`** holds the plan and the two wave rows, and parks level 2, the bible.
 - [ ] **The production control profile, for 2026-10-20** (owner, 2026-09-15): the ARRANGE and
-      COMBINE primitives. All ten rows landed by 2026-09-16; what is left is an eye on the hosted
-      page. `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6, and §5a for what that day actually needs.
+      COMBINE primitives (**`docs/CONTROL_PANEL_ANY_GRAPHIC.md`** §6). All ten rows of §5 landed by
+      2026-09-16, and the date's two open ends are an EYE on the hosted page and the door into SPX -
+      the output embed that keeps the profile has never run on a real SPX server. §5a is the day's
+      own list.
 
 **CUSTOMIZING that behaviour is not needed for the 25th**, and is no longer held for it (owner,
 2026-09-15): it is the P2 question one level up, first step `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5.

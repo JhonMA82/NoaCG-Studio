@@ -37,17 +37,18 @@ is standing there, in front of the people the day is meant to impress.
 
 ## What it would take
 
-Two halves, and only the second needs hardware.
+**This receipt is the OFFLINE half only, and it needs nobody.** Take the two proof-case graphics
+(`e2e/fixtures/agent-made/elamani-biisi.noacgpack.json`), export the production through both doors,
+and write down exactly what an SPX operator gets from each: which fields, which buttons, what
+happens to a combined control, what happens to a `+1` on a bound field, and what the embed asks of
+the room's network. The answer is derivable from the code, it has never been derived, and §6f is a
+sentence rather than a walked result. Half a day, and it ends in a recommendation for the day.
 
-1. **Offline, a session's work.** Take the two proof-case graphics
-   (`e2e/fixtures/agent-made/elamani-biisi.noacgpack.json`), export the production both ways, and
-   write down exactly what an SPX operator sees from each: which fields, which buttons, what
-   happens to the combined control, what happens to a `+1` on a bound field. The answer is derivable
-   from the code, but it has never been derived, and §6f is a sentence rather than a walked result.
-2. **On hardware, the owner's SPX machine.** The embed check that is already in the owner queue.
-   Extract, add to a rundown, Play, confirm the frame is the live output and that a cue taken from
-   the NoaCG control page appears in it. That item stands; this file exists so the question it
-   answers is attached to the date.
+**The hardware half is not this file's ask.** Running the embed on a real SPX server needs the
+owner's machine and is already the owner-queue item
+`docs/acceptance/owner-queue/2026-08-25-spx-output-embed-on-a-real-spx-server.md`, open since
+2026-08-25. That item stands as it is; this file exists so the CHOICE it settles is attached to the
+date and made before the room rather than in it.
 
 ## Evidence
 

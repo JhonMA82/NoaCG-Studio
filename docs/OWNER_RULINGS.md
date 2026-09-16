@@ -1106,20 +1106,21 @@ ahead of both editors. He answered in conversation on 2026-09-16, which is why
   host and contestants can follow along - the running score, read in the room - which is the
   totals board of `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §3b doing exactly what it already does. There
   is no broadcast chain to prove and no Yle output to be compatible with.
-- **The playout on the day is SPX.** That is a fact about the room, not a programme of work. NoaCG
-  has two doors into SPX and they differ in what the operator keeps: the output embed
-  (`src/export/outputEmbed.ts`), one SPX-legal file whose body is the production's own output URL,
-  which leaves every cue and the whole control profile with the NoaCG operator; and the SPX starter
-  export (`src/export/targets/spxStarter.ts`), a self-contained folder that carries fields and the
-  default path but deliberately no combined controls and no shared data (§6f). The embed has never
-  been run against a real SPX server - `docs/acceptance/owner-queue/2026-08-25-spx-output-embed-on-a-real-spx-server.md`,
-  open since 2026-08-25 - and that check is now the one thing on this date that only hardware can
-  answer.
+- **The playout on the day is SPX.** That is a fact about the room, not a programme of work. It
+  does land on a seam, because NoaCG's two doors into SPX hand the operator different products and
+  only one of them keeps the control profile - which door the day uses, and what the other costs,
+  is `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5a item 2. The half of that question only hardware can
+  answer has been in the owner queue since 2026-08-25.
 - **What is being demonstrated is how easily the graphic is made**, and the audience is the
   producers and creators of the show - people whose own job is making graphics. So the measurement
-  that matters is the authoring stopwatch the proof walks already keep (24.8 s of tool time for the
-  seven verbs; 7.4 s from `noacg save` returning to the graphic readable on a production's output
-  URL), not any playout chain.
+  that matters is the authoring stopwatch, not any playout chain. The numbers and what each one was
+  measured on are `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5a item 3; they are three separate runs and
+  are never added into one figure.
+
+The weekly session's own ledger was filled at the same time - `**Answer:**` under
+ALIGN-2026-09-15-6 in `docs/handoffs/2026-09-15-orchestrator-week.local.md`, which is gitignored and
+lives only in the primary checkout - because `scripts/alignment-answers.mjs` reads that file and not
+this one, and an id left with an empty answer is carried forward and asked again.
 
 **What it does not settle.** It does not downgrade the control-panel work. ALIGN-2026-09-15-2 built
 the production control profile on a general argument - "essentially any sensible graphic sequence" -

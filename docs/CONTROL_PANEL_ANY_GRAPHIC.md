@@ -312,16 +312,22 @@ the programme's producers and creators, to show how easily the graphic was made.
 a clear list of what it needs and never the whole machine (owner, 2026-09-15), so here is the list
 and the evidence for each line. It is short because most of it is already standing.
 
-1. **A score that updates, readable as a follow-along.** EXISTS. Both graphics of §3a and §3b were
-   prompted through the agent road and walked end to end twice: in-app on 2026-09-16 (pull request
-   283, `docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md`), then
-   published and driven on the hosted control page in the configured suite the same day, where the
-   walk re-runs on every landing (`e2e/configured/hosted-control-profile.spec.ts`). The follow-along
-   IS the totals board sitting on its own layer for the whole show while +1 presses move it; the
-   day asks nothing of it that §3c does not already describe.
+1. **A score that updates, readable as a follow-along.** EXISTS. Two walks cover the road between
+   them, and neither covers it alone. Walk 1, in-app, 2026-09-16 (pull request 283,
+   `docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md`): both
+   graphics of §3a and §3b prompted through the agent road, the combined control composed by hand,
+   §3c driven - but nothing published, because a linked worktree carries no backend configuration.
+   Walk 2, the same day, in the configured suite: a production carrying the profile published and
+   driven on the HOSTED control page, where it now re-runs on every landing
+   (`e2e/configured/hosted-control-profile.spec.ts`) - but the profile was written through
+   `setShowProfile` rather than composed. So prompt-to-hosted has never run as one walk
+   (`docs/work-specs/control-panel-any-graphic/evidence/ac-9-the-proof-case-timed.md`), and the
+   follow-along itself is not in doubt: it is the totals board sitting on its own layer while +1
+   presses move it, which §3c already describes.
 
-2. **That score, playing out on SPX.** THE ONE GAP, and it is hardware rather than code. NoaCG has
-   two doors into SPX and they differ in what the operator keeps:
+2. **That score, playing out on SPX.** THE ONE GAP. Half of it is a choice nobody has made yet and
+   half is a check only hardware can run. NoaCG has two doors into SPX and they hand the operator
+   different products:
    - the **output embed** (`src/export/outputEmbed.ts`) - one SPX-legal file whose body is the
      production's own output URL, so SPX's Play and Stop move the frame while every cue, the
      combined control and the shared data stay with the NoaCG operator. This is the door the day
@@ -332,16 +338,19 @@ and the evidence for each line. It is short because most of it is already standi
      is the strictest export gate we have and carries fields plus the default path, but by §6f no
      combined controls and no production data tree. It is the honest offline fallback, and it costs
      the profile.
-   Filed as `docs/backlog/spx-is-the-playout-on-20-october.md` so the choice is in the repository
-   rather than in a session.
+   Comparing the two doors on the proof case is offline work nobody has done, and it is filed as
+   `docs/backlog/spx-is-the-playout-on-20-october.md` so the choice is made before the day rather
+   than in the room.
 
 3. **An authoring story that looks effortless to people who make graphics for a living.** EXISTS
-   and is timed, with one honest hole. The skill teaches the contract (row 1), and the measured
-   road is 32.6 s of tool time for the seven authoring verbs on the second proof walk, 5.8 s to
-   import the pack and land on the production page, and 7.4 s from `noacg save` returning to a
-   readable frame on a public output URL (`docs/DEMO_2026-09-25.md` R2.5). None of those numbers
-   contains a human thinking, and nobody has yet done the minute with an audience watching - which
-   is the half the producers will actually judge.
+   and is timed, with one honest hole. The skill teaches the contract (row 1), and the road is
+   measured in three separate runs that are never added together: **32.6 s** of tool time for the
+   seven authoring verbs and **5.8 s** to import the pack and land on the production page, both on
+   walk 1 (`docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md`); and
+   **7.4 s** from `noacg save` returning to a readable frame on a public output URL, measured by
+   `scripts/save-to-air-bench.mjs` against `noacg.studio` (`docs/DEMO_2026-09-25.md` R2.5, which
+   also says how to quote it). None of them contains a human thinking, and nobody has done the
+   minute with an audience watching - which is the half the producers will actually judge.
 
 4. **Nothing else, and this is the part worth saying out loud.** The day needs no broadcast chain,
    no compatibility with Yle's own playout, and none of the programme's graphics, which its own
