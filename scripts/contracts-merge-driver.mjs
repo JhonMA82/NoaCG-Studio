@@ -39,6 +39,12 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+import {
+  install as registerMergeDriver,
+  isInstalled as mergeDriverIsInstalled,
+  registeredCommand as mergeDriverRegisteredCommand,
+} from './merge-driver-registration.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LABEL = '[contracts-merge-driver]';
 export const DRIVER_NAME = 'noacg-contracts';
@@ -48,8 +54,6 @@ export const DRIVER_NAME = 'noacg-contracts';
  * register the merge driver on this run. Exported so the compiler and the tests name one string.
  */
 export const SKIP_INSTALL_ENV = 'NOACG_CONTRACTS_SKIP_DRIVER_INSTALL';
-
-const git = (args, cwd = ROOT) => spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
 
 /**
  * The command git is told to run, with the script named RELATIVELY.
@@ -73,17 +77,17 @@ export const DRIVER_COMMAND = 'node "scripts/contracts-merge-driver.mjs" %O %A %
 
 /** What git would actually run for this driver in `cwd`'s clone, or null when nothing is set. */
 export function registeredCommand(cwd = ROOT) {
-  const got = git(['config', '--get', `merge.${DRIVER_NAME}.driver`], cwd);
-  return got.status === 0 ? got.stdout.trim() : null;
+  return mergeDriverRegisteredCommand(DRIVER_NAME, cwd);
 }
 
 /**
  * Is this clone registered with the command we would write? Presence is not enough: a clone
  * carrying an older version's absolute path has the key and no working driver, and reading only
  * presence is how that survived. A worktree shares the common dir's config, so this is per clone.
+ * The shape - and the sibling that shares it - is scripts/merge-driver-registration.mjs.
  */
 export function isInstalled(cwd = ROOT) {
-  return registeredCommand(cwd) === DRIVER_COMMAND;
+  return mergeDriverIsInstalled(DRIVER_NAME, DRIVER_COMMAND, cwd);
 }
 
 /**
@@ -91,20 +95,18 @@ export function isInstalled(cwd = ROOT) {
  * must be unconditional, because a clone where the entry is WRONG is worse than one where it is
  * missing and only a write can tell those apart.
  *
- * `--replace-all` because a plain `git config <key> <value>` REFUSES a key that carries more than
- * one value: exit 5, "cannot overwrite multiple values with a single value", and the stale command
- * survives the repair that was meant to remove it. A doubled key is exactly the shape a clone
- * picks up from two tools writing the same config, and `--get` answers with the last value, so
- * nothing else would have noticed.
+ * `--replace-all` (inside the shared helper) because a plain `git config <key> <value>` REFUSES a
+ * key that carries more than one value: exit 5, "cannot overwrite multiple values with a single
+ * value", and the stale command survives the repair that was meant to remove it. A doubled key is
+ * exactly the shape a clone picks up from two tools writing the same config, and `--get` answers
+ * with the last value, so nothing else would have noticed.
  *
  * What it returns is what is REGISTERED afterwards, not whether our own write is the one that put
  * it there. Every worktree of this clone shares one `.git/config` and several sessions compile at
  * once, so a lost race for `config.lock` is a failed write and not a failed registration.
  */
 export function install(cwd = ROOT) {
-  git(['config', '--replace-all', `merge.${DRIVER_NAME}.name`, 'Regenerate a compiled contract from the rule store'], cwd);
-  git(['config', '--replace-all', `merge.${DRIVER_NAME}.driver`, DRIVER_COMMAND], cwd);
-  return isInstalled(cwd);
+  return registerMergeDriver(DRIVER_NAME, DRIVER_COMMAND, 'Regenerate a compiled contract from the rule store', cwd);
 }
 
 /**

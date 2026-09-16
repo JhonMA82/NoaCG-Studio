@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DRIVER_COMMAND, DRIVER_NAME, install, isInstalled, loadCorpus, mergePackageText, namedInAttributes, replayCorpus } from './package-merge-driver.mjs';
+import { DRIVER_COMMAND, DRIVER_NAME, install, isInstalled, loadCorpus, mergePackageText, namedInAttributes, registeredCommand, replayCorpus } from './package-merge-driver.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DRIVER = path.join(ROOT, 'scripts', 'package-merge-driver.mjs');
@@ -218,8 +218,36 @@ test('installing registers a worktree-independent command, and corrects a stale 
     assert.equal(isInstalled(dir), true);
 
     execFileSync('git', ['config', `merge.${DRIVER_NAME}.driver`, 'node "C:/gone/package-merge-driver.mjs" %O %A %B %P'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(
+      isInstalled(dir),
+      false,
+      'the key is present and the driver is dead - reading presence alone is what hid this',
+    );
     assert.equal(install(dir), true, 'registering again is what corrects it, so every build can do it');
     assert.equal(configured(), DRIVER_COMMAND, 'a stale command left by an older version is rewritten');
+    assert.equal(isInstalled(dir), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a key that has somehow collected two values is replaced, not refused', () => {
+  // `git config <key> <value>` exits 5 on a multi-valued key - "cannot overwrite multiple values
+  // with a single value" - and leaves both in place. `--get` answers with the LAST of them, and so
+  // does git when it runs the driver, so a doubled key is a stale command nothing reports.
+  const dir = mkdtempSync(path.join(tmpdir(), 'package-merge-doubled-'));
+  try {
+    const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
+    g('init');
+    g('config', '--add', `merge.${DRIVER_NAME}.driver`, 'node "gone-one.mjs" %O %A %B %P');
+    g('config', '--add', `merge.${DRIVER_NAME}.driver`, 'node "gone-two.mjs" %O %A %B %P');
+    assert.equal(install(dir), true);
+    assert.equal(
+      g('config', '--get-all', `merge.${DRIVER_NAME}.driver`).trim(),
+      DRIVER_COMMAND,
+      'one value, and it is ours',
+    );
+    assert.equal(registeredCommand(dir), DRIVER_COMMAND);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
