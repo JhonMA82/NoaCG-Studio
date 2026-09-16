@@ -105,8 +105,7 @@
    already uses for "armed, not yet done", and only the border moves: the text must not shift
    under the caret while somebody is typing in it. */
 .pd-live-row input[data-dirty],
-.pd-live-row textarea[data-dirty],
-.pd-bind-row input[data-dirty] { border-color: var(--amber); }
+.pd-live-row textarea[data-dirty] { border-color: var(--amber); }
 .pd-live-type { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .pd-live-step { display: flex; gap: 4px; justify-self: start; }
 .pd-live-step button { padding: 2px 8px; line-height: 1.4; font-size: 13px; }
@@ -182,6 +181,8 @@
 .pd-bind-field { font-size: 12px; overflow-wrap: anywhere; }
 .pd-bind-field code { color: var(--muted); margin-right: 4px; }
 .pd-bind-row input { width: 100%; min-width: 0; font-family: var(--mono, ui-monospace, monospace); font-size: 12px; }
+/* Still being typed into - the same amber as the value boxes above, and for the same reason. */
+.pd-bind-row input[data-dirty] { border-color: var(--amber); }
 /* `justify-self: start`, because the status track is wide and a grid item stretches to fill it:
    without this the button ran the full track width instead of hugging its label. */
 .pd-bind-suggest { padding: 2px 8px; font-size: 11px; line-height: 1.5; justify-self: start; }

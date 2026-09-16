@@ -1023,8 +1023,13 @@ test('a refresh arriving mid-word never overwrites the box under the cursor', as
   // CONTROLLED input, so whatever the tree now says lands in it mid-word. THE RULE: a box holding
   // an uncommitted edit shows what was typed and nothing else, until that edit is committed.
   //
-  // The probe is a second tab writing the same path, which offline is the same door a server
-  // refresh comes through (the `storage` listener on ProductionPage).
+  // THE PROBE is the PLAYOUT tab writing the same path. Offline that is the same door a server
+  // refresh comes through - ProductionPage's `storage` listener - and it costs one `evaluate`,
+  // which neither fronts a tab nor moves the focus, so the box under test keeps its caret.
+  //
+  // It runs WHILE the word is still being typed, because an uncommitted edit is only
+  // uncommitted for as long as the typing keeps it so. Awaiting the write and then typing would
+  // be a race against this panel's own settle timer; typing THROUGH the write is not.
   await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Mid Word');
   const dataOne = await openWorkspace(page, 'data');
@@ -1036,16 +1041,25 @@ test('a refresh arriving mid-word never overwrites the box under the cursor', as
   await box.pressSequentially('Hels');
   await expect(box, 'a box with an uncommitted edit says so').toHaveAttribute('data-dirty', 'true');
 
-  const dataTwo = await dataOne.context().newPage();
-  await dataTwo.goto(dataOne.url());
-  await expect(dataTwo.getByTestId('production-live-data')).toBeVisible();
-  await dataTwo.getByTestId('data-value-match.home.name').fill('Norge');
-  await expect.poll(() => persistedValue(dataTwo, 'match.home.name')).toBe('Norge');
+  await Promise.all([
+    page.evaluate(() => {
+      const KEY = 'spx-gfx-production-data';
+      const store = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<
+        string,
+        { match?: { home?: { name?: string } } }
+      >;
+      const tree = store[Object.keys(store)[0]];
+      if (!tree?.match?.home) throw new Error('the production tree is not where this probe expects it');
+      tree.match.home.name = 'Norge';
+      localStorage.setItem(KEY, JSON.stringify(store));
+    }),
+    box.pressSequentially('inki', { delay: 100 }),
+  ]);
 
-  // The box under the cursor is untouched, and finishing the word wins the path.
-  await expect(box).toHaveValue('Hels');
-  await box.pressSequentially('inki');
+  // The word is whole: nothing that arrived while it was being typed reached the box.
+  await expect(box, 'the arriving write must not reach a box under the cursor').toHaveValue('Helsinki');
   await box.blur();
   await expect(box).toHaveValue('Helsinki');
-  await expect(dataTwo.getByTestId('data-value-match.home.name')).toHaveValue('Helsinki');
+  // …and the edit wins its own path when it commits, over the value that arrived meanwhile.
+  await expect.poll(() => persistedValue(dataOne, 'match.home.name')).toBe('Helsinki');
 });
