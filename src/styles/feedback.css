@@ -114,13 +114,32 @@
 }
 .pd-bind-graphic-head { margin: 14px 0 6px; }
 .pd-bind-all { padding: 2px 8px; font-size: 11px; line-height: 1.5; }
+/* FOUR COLUMNS, and every child PLACED in one of them.
+   Each row is its own grid, so a column whose width came from its own content made the rows
+   disagree: a row reading "Otava" back gave its first column 373px and the row beside it
+   reading "2" gave its own 381px, and the path inputs - the one thing a reader scans down -
+   sat eight pixels apart all the way down the list. The fourth column was worse. It was the
+   FIFTH in a five-column template, but a bound row only ever renders four children (field,
+   input, value, ✕), so the 28px track went to nothing and the unbind ✕ landed in the 0.9fr
+   one: a 336px slab where a 28px button belongs.
+   Column 3 is one slot because the things that want it are mutually exclusive - a row either
+   HAS a binding, and reads its live value back, or has none and offers the suggestion or names
+   the ambiguity. Placing each child by class rather than by its position means a row that
+   renders three children and a row that renders four still line up. */
 .pd-bind-row {
   display: grid;
-  grid-template-columns: minmax(130px, 1fr) minmax(120px, 1.2fr) auto minmax(80px, 0.9fr) 28px;
+  grid-template-columns: minmax(130px, 1fr) minmax(120px, 1.2fr) minmax(80px, 0.9fr) 28px;
   align-items: center;
   gap: 8px;
   padding: 2px 0;
 }
+.pd-bind-row > .pd-bind-field { grid-column: 1; }
+.pd-bind-row > input { grid-column: 2; }
+.pd-bind-row > .pd-bind-suggest,
+.pd-bind-row > .pd-bind-ambiguous,
+.pd-bind-row > .pd-bind-live,
+.pd-bind-row > .pd-bind-miss { grid-column: 3; }
+.pd-bind-row > .pd-live-del { grid-column: 4; }
 .pd-bind-field { font-size: 12px; overflow-wrap: anywhere; }
 .pd-bind-field code { color: var(--muted); margin-right: 4px; }
 .pd-bind-row input { width: 100%; min-width: 0; font-family: var(--mono, ui-monospace, monospace); font-size: 12px; }
