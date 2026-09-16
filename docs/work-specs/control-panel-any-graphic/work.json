@@ -5,5 +5,116 @@
     "status": "agreed",
     "source": "docs/OWNER_RULINGS.md ALIGN-2026-09-14-3 and ALIGN-2026-09-15-1 to -4 (2026-09-15)"
   },
-  "review": null
+  "review": {
+    "revision": "1ecf34d8a64b80da90348e812592eb2ce0cfbd1c",
+    "specSha256": "c8b1ea4b966db1efcee1dd636a238d9cb05bd8bfba347d25455deb30a7443620",
+    "evidence": [
+      {
+        "path": "docs/work-specs/control-panel-any-graphic/evidence/review.md",
+        "sha256": "4e7b624412a89caf56e7b68b389482eeba948e476bbfa98be072308d0a904a3e"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-1-skill-teaches-the-contract.md",
+            "sha256": "fa7ff7aa67a6c6e3e5de56b25639985436044dfa57a8d20601ff988b03da5441"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-2-agent-road-end-to-end.md",
+            "sha256": "af0805354f0f30816747de4e71979a96e5be1d4362f8560af6872f6bc4dbf01f"
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-3-bench-presses-every-event.md",
+            "sha256": "3fa74b471ecda1a714a404662ab35a1247b998158dd797d3142d9a35b00db6af"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-4-profile-is-versioned-and-deletable.md",
+            "sha256": "056c104cd3bbd612057a7202c16364a9a6a56e03e0ddcea6b9323e5469ab02ef"
+          }
+        ]
+      },
+      {
+        "id": "AC-5",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-5-arrange-on-three-surfaces.md",
+            "sha256": "05b0a3ccf62b7a325d8229faa5143510ce69b37bf24a9580d2ef0067d8daaabb"
+          }
+        ]
+      },
+      {
+        "id": "AC-6",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-6-combine-sends-one-row-per-step.md",
+            "sha256": "ef4c975d46c013b8f8c6b3c40fde1b52c6d3f083e7f67aef932a835c9c396d52"
+          }
+        ]
+      },
+      {
+        "id": "AC-7",
+        "status": "fail",
+        "evidence": [
+          {
+            "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-7-bound-field-stepper.md",
+            "sha256": "e35eef77953bbfce72fd4a8c86255ef3f5ff14bb09fe4f8c2b336a508be8d4ee"
+          }
+        ]
+      },
+      {
+        "id": "AC-8",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-8-bind-all-by-title.md",
+            "sha256": "3c67cbc77a08bf47b01e2dad35b84a0360403d7176faf66feb0f02cd91c931a1"
+          }
+        ]
+      },
+      {
+        "id": "AC-9",
+        "status": "fail",
+        "evidence": [
+          {
+            "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-9-the-proof-case-timed.md",
+            "sha256": "acff470e20ff57ec4cd6b24bec91f2d100a293ccdf89e826855833a92d950e95"
+          }
+        ]
+      },
+      {
+        "id": "AC-10",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-10-nothing-a-downloaded-graphic-carries-changed.md",
+            "sha256": "a26b536405f63c734eba7fdea2981f71b98c8ecec7dec03742e9f288e9d83b93"
+          }
+        ]
+      }
+    ]
+  }
 }
