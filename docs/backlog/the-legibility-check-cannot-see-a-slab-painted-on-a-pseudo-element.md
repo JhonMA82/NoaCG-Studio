@@ -18,8 +18,8 @@ gate at exactly the moment a new user is deciding whether the gate knows what it
 about - and the readiness row "Reads where it will be watched" reads WARN instead of PASS on a
 package that deserves PASS.
 
-The mechanism is exact. `resolveBacking` (`src/validation/readabilityCheck.ts:137`) walks real DOM
-ancestors and asks each for `getComputedStyle(node)`:
+The mechanism is exact. `resolveBacking` (`src/validation/readabilityCheck.ts:136-148`) walks real
+DOM ancestors and asks each for `getComputedStyle(node)`:
 
 ```js
 const cs = win.getComputedStyle(node);
@@ -34,8 +34,8 @@ pseudo-element is not in the ancestor chain and `getComputedStyle` is never aske
 ancestor reads transparent, `contrast` comes back `null`, and the `text-unprotected-over-video`
 branch fires (`readabilityCheck.ts:338-346`).
 
-This is not a disagreement with the canonical legibility rules. `contracts/rules/model/
-holds-canonical-air-legibility-rules-owner.md` scopes `src/model/designRules.ts`, which owns the
+This is not a disagreement with the canonical legibility rules.
+`contracts/rules/model/holds-canonical-air-legibility-rules-owner.md` scopes `src/model/designRules.ts`, which owns the
 size, weight and contrast NUMBERS. This item is about which surface those numbers get measured
 against, one module away.
 
@@ -58,5 +58,7 @@ Run on 2026-09-16 with `noacg` 0.3.3 (published build, global install):
 `noacg scaffold --type scoreboard --design sb01 --name "Audit scoreboard" --out <dir>` then
 `noacg validate <dir> --screenshots <shots>` - exit 0, "0 error(s), 2 warning(s)", both
 `legibility-protection`, against `shots/onair.png` which shows the slab plainly.
-Source read at `src/validation/readabilityCheck.ts:137-147` and `:338-346`; the chassis CSS at
-`css/template.css` `.scoreboard-box::before`.
+Source read at `src/validation/readabilityCheck.ts:136-148` and `:338-346`. The chassis CSS is
+`src/templates/scoreboards/sb01.ts:77` (`.scoreboard-box::before`); it reaches the scaffolded package
+as `css/template.css`, which is where the run above showed it, but the file to FIX is the template
+source in `src/`.

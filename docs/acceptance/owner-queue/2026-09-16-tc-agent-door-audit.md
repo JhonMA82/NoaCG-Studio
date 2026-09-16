@@ -17,8 +17,9 @@ and the three things I could not witness say UNVERIFIED instead of being rounded
 1. Open `docs/AGENT_DOOR_AUDIT.md` and read the last paragraph, **The verdict** - one sentence.
 2. Above it, the table **Defects filed**: three rows, each with the smallest fix and the backlog
    file it lives in.
-3. If you want one number, the table in section 2: the whole authoring chain a stranger runs before
-   touching their account is twenty-three seconds of tool time.
+3. If you want one number, the table in section 2: **8.4 s** from `save` returning to the graphic
+   readable on a public output URL, driven end to end tonight against `noacg.studio`. The authoring
+   chain before it is twenty seconds of tool time.
 4. If you want one picture, section 4 - one sentence in, a broadcast-credible lower third out, in
    about twelve seconds.
 

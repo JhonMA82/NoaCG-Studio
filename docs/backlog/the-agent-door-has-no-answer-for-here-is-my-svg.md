@@ -53,6 +53,7 @@ here; naming that limit in the skill is part of the same text fix.
 Run on 2026-09-16 with `noacg` 0.3.3: `noacg import` -> `Unknown command "import"`; `noacg validate
 <file>.svg` and `<file>.png` -> both `expected a package directory or a .zip file`, exit 2 (read
 from the command's own exit code, not a pipeline's). `noacg --help` lists the full verb set above.
-`grep -niE "svg" cli/plugin/skills/noacg-graphic/SKILL.md` returns one line, about zipping a package
-for the Import door. Studio side: `src/assets/svgImport.ts:1-16`,
+`grep -ci "svg" cli/plugin/skills/noacg-graphic/SKILL.md` returns **0** - the word does not appear in
+the skill at all; its one sentence about importing (`SKILL.md:66`) is about zipping a finished
+package for the Import door and never mentions artwork. Studio side: `src/assets/svgImport.ts:1-16`,
 `src/components/wizard/import/ImportDesignStep.tsx:384`.
