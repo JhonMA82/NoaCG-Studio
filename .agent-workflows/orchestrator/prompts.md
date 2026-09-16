@@ -85,7 +85,12 @@ QUEUE  Then, as your LAST THREE actions and in this order:
   `specs.md`; size `large` is a decomposition signal, not a launchable SPEC task.
 - **CORE is an independently verifiable stop**, not permission to drop required behaviour.
   Preserve unfinished acceptance in the ledger and gap work in the wave; a landed slice is not a done parent.
-- **GATE is `npm run build` plus CI**; add a local browser job only for what CI cannot do.
+- **GATE is `npm run build` plus CI**; add a local browser job only for what CI cannot do. When a
+  GATE spells out a queued run, the COMMAND comes FIRST and the flags after it -
+  `node scripts/jobs.mjs add "npx playwright test <spec> --workers 1" --cost 0.5`. The
+  flag-before-command form prints usage and adds nothing, quietly enough to read as a queue that
+  refused; seven consecutive handoffs (HC to HJ, 2026-09-15 and -16) reported being given the
+  wrong order, so write it out rather than leaving each row to rediscover `jobs.mjs`'s usage line.
 - **QUEUE is mandatory on every prompt and is the last thing in it**, because the session running
   it may never see this file. Landing is serialized, not permissioned: a finished session queues
   itself and the machine-wide queue lands it - gated on CI, one branch at a time, pushing when it
