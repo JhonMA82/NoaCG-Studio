@@ -1,56 +1,39 @@
-# Nothing tells a user their installed NoaCG plugin is stale
+# This laptop's marketplace is still pinned to the pre-rename repo name
 
 **Filed:** 2026-09-16. **Source:** measurement in the agent-door audit (`docs/AGENT_DOOR_AUDIT.md`)
 
+This file kept its slug after most of it was done on 2026-09-17, because `docs/AGENT_CLI.md`,
+`cli/src/skillVersion.ts` and `cli/src/npmLatest.mjs` all point here for the measurement below.
+
 ## Why
-This laptop - the machine the 2026-09-25 demo runs from - loads a NoaCG skill that is nineteen days
-old, and nothing anywhere says so.
+One thing is left, and it is one line. This machine's marketplace entry still names the pre-rename
+repository `miwco/NoaCG-Studio` (`~/.claude/plugins/known_marketplaces.json`). GitHub 301s that to
+`NoaCG/NoaCG-Studio`, so it works today and will keep working until the redirect stops, which is a
+promise nobody in this project controls.
 
-```
-$ claude plugin list
-  noacg@noacg-studio   Version: 0.2.0   Scope: user   Status: enabled
-```
-
-The marketplace ships 0.3.3. The gap is a marketplace checkout that was cloned on 2026-08-28 and
-never refreshed (`~/.claude/plugins/known_marketplaces.json`: `"lastUpdated":
-"2026-08-28T11:25:47.632Z"`), still pinned to the pre-rename repo `miwco/NoaCG-Studio`. The skill
-text a session actually loads is 96 lines; the repository's is 107.
-
-This is the same class of defect that was closed for the CLI on 2026-09-16, but that fix is narrower
-than it first looks, and the gap is correspondingly wider. The npm-`latest` comparison lives only in
-`cli/plugin-mcp/mcp-server.mjs:156-161` - the OPTIONAL MCP plugin's launcher. The `noacg` binary
-itself (`cli/package.json` bin -> `dist/index.js`) has no such check, and `cli/src/bridgeClient.ts:183`
-is a bridge-protocol mismatch, a different condition entirely. So the warning reaches only the
-entrance we recommend LEAST: a terminal user, which is the entrance `docs/AGENT_DOOR_AUDIT.md` §5
-argues for, is told nothing about a stale CLI either. The plugin has no equivalent at all. So the
-door we ask strangers to walk
-through can silently serve them last month's instructions, and the person most exposed is the one
-who installed earliest - which on 2026-09-25 is the owner.
-
-Nothing auto-updates a Claude Code marketplace: `claude plugin marketplace update` exists and is
-manual. A user has no reason to suspect they need it, because the plugin reports itself as enabled
-and working either way.
+Re-pointing it swaps the skill text under every session running against that checkout, so it is a
+MORNING item on a quiet machine, never something a wave row does at night with three sessions live.
 
 ## What it would take
-The smallest fix is a line in `noacg doctor`, which already prints the deployment, the browser and
-the bridge version and is the command the README's setup prompt tells every agent to run. Give it
-one more row: the `noacg-graphic` skill version the caller is running, compared against the version
-this CLI ships. The CLI is invoked BY the skill, so it can be told - the skill's own command lines
-can pass the version it was loaded from (or `doctor` can read the plugin manifest next to the skill
-on disk), and `doctor` prints `skill 0.2.0 (0.3.3 available - run: claude plugin marketplace update
-noacg-studio)` when they differ. Silent when they match, exactly like the MCP launcher's warning.
+`claude plugin marketplace remove noacg-studio` then
+`claude plugin marketplace add NoaCG/NoaCG-Studio`, on a machine with nothing running, followed by
+`claude plugin update noacg@noacg-studio` and one `noacg doctor` to confirm the skill row has gone
+quiet. Nothing in the repository changes.
 
-While that row is being added, `doctor` is also the natural home for the CLI's OWN staleness check,
-which today exists only inside the optional MCP launcher (above). The comparison is already written
-in `mcp-server.mjs` - day-scoped cache file, 1.5 s registry timeout, silent on any failure - so
-moving it to where both entrances can call it costs less than writing a second one.
+## What landed on 2026-09-17
+`noacg doctor` now names a stale install, so the state below is visible instead of silent
+(`docs/AGENT_CLI.md`, "The installed skill can be older than everything else"):
 
-Two smaller things worth doing in the same pass, both one-liners:
-- Re-point this machine's marketplace at the current repo name. The entry still says
-  `miwco/NoaCG-Studio`; GitHub 301s it to `NoaCG/NoaCG-Studio`, so it works today and depends on a
-  redirect nobody controls forever.
-- Say in `cli/README.md` that a plugin installed earlier does not update itself, and give the
-  update command. One sentence next to the install block.
+```
+skill        0.2.0 in Claude Code, but this CLI ships 0.3.3 - an installed plugin never updates itself
+             run: claude plugin marketplace update noacg-studio && claude plugin update noacg@noacg-studio
+```
+
+The version comes from the plugin manifest beside the skill on disk - never from the skill text,
+which would only carry a version on copies that were already current, and never from a directory
+name. The CLI's own npm-`latest` check, which used to live only inside the optional MCP launcher,
+moved to `cli/src/npmLatest.mjs`; `doctor` runs it and the launcher reads a generated copy of the
+same file. `cli/README.md` says beside the install block that a plugin does not update itself.
 
 ## Evidence
 Read on 2026-09-16 on this laptop: `claude plugin list` -> `noacg@noacg-studio 0.2.0`;
@@ -61,3 +44,6 @@ A fresh install in a scratch config dir on the same machine and in the same hour
 the marketplace and the plugin are correct - only the already-installed copy is stale.
 Codex, on the same machine, holds 0.3.3 (`codex plugin list`), so this is specific to the
 Claude Code install.
+
+Still true on 2026-09-17: `noacg doctor` on this laptop prints the 0.2.0 row above, and its `--json`
+report carries the Codex install at 0.3.3 beside it - matching, and therefore silent on screen.

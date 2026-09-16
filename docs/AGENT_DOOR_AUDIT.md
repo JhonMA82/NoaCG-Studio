@@ -89,6 +89,11 @@ Filed: `docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.
 repair for this laptop before the 25th is `claude plugin marketplace update noacg-studio`, and I
 have deliberately not run it: it would swap the skill text under other sessions working tonight.
 
+**2026-09-17: the silence is fixed, the install is not.** `noacg doctor` now prints the installed
+skill's version whenever it is behind the CLI, with the harness's own update command
+(`docs/AGENT_CLI.md`, "The installed skill can be older than everything else"). This laptop still
+holds 0.2.0 - running the repair is still a job for a quiet machine.
+
 ---
 
 ## 2. The chain, leg by leg
@@ -372,7 +377,7 @@ cannot say it.
 | Defect | Smallest fix named | File |
 |---|---|---|
 | The legibility check misses a slab painted on `::before`, so a shipped scoreboard chassis is warned about twice, wrongly | `resolveBacking` reads `::before` / `::after` when the element's own background is transparent | `docs/backlog/the-legibility-check-cannot-see-a-slab-painted-on-a-pseudo-element.md` |
-| Nothing tells a user their installed plugin is stale; this laptop runs 0.2.0 | one row in `noacg doctor` comparing the running skill against the shipped version | `docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md` |
+| Nothing tells a user their installed plugin is stale; this laptop runs 0.2.0 | one row in `noacg doctor` comparing the running skill against the shipped version - **done 2026-09-17**, the file now holds only the marketplace re-point | `docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md` |
 | The agent door has no answer for "here is my SVG", so an agent will redraw it | a section in `SKILL.md` telling the agent to send the user to the studio's Import door | `docs/backlog/the-agent-door-has-no-answer-for-here-is-my-svg.md` |
 
 Nothing was fixed in code tonight. Nothing found was a broken link or a wrong command in a README -
