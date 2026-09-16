@@ -115,8 +115,14 @@ begin
   end if;
 
   -- The tree moves whether or not anything was bound: production data is the production's
-  -- state, and a value nothing displays yet is still true.
-  update public.control_shows s set data = v_after where s.id = p_show;
+  -- state, and a value nothing displays yet is still true. A patch that changes NOTHING is the
+  -- one case that writes nothing: both caps above sit behind `v_pending > 0`, so a no-op is
+  -- uncapped, and this door is granted to `anon` - a stuck retry or a second phone re-sending
+  -- the same score would otherwise take the production's row lock and leave a dead tuple per
+  -- call, serializing every real press behind it while the programme is on air.
+  if v_after is distinct from v_before then
+    update public.control_shows s set data = v_after where s.id = p_show;
+  end if;
 
   for v_graphic, v_changed in select key, value from jsonb_each(v_changes) loop
     insert into public.control_events (show_id, graphic, msg)
@@ -220,7 +226,21 @@ begin
     cross join lateral jsonb_each_text(
       case when jsonb_typeof(g.value) = 'object' then g.value else '{}'::jsonb end) f
     where f.value = p.path
-       or (jsonb_typeof(p.value) = 'array' and f.value like p.path || '.%')
+       -- THE ARRAY CARVE-OUT IS NARROW ON PURPOSE, and both halves of it are load-bearing.
+       -- A PREFIX TEST, NOT `like`: `p.path` is a key out of the caller's own JSON, so a `%` or
+       -- an `_` in it is a LIKE wildcard. `{"%": [1]}` builds the pattern `%.%`, which matches
+       -- every dotted binding there is, and the door then writes an arbitrary top-level key.
+       -- AND THE BINDING MUST REACH THROUGH AN INDEX. The exception exists because merge-patch
+       -- cannot address an array ELEMENT, so a press on `drivers.0.gap` has to send the whole
+       -- `drivers` array. A binding that descends by NAME needs no such thing, and letting an
+       -- array through on one is how `{"panel": []}` deletes a production's authored branch
+       -- behind a binding like `panel.katri.points` - silently, because the bound leaves are
+       -- then gone from the resolve and no `update` row is appended to say anything happened.
+       -- That is the very destruction this whole door was written to refuse, reached by a
+       -- different literal. Both shapes are pinned in the self-check below.
+       or (jsonb_typeof(p.value) = 'array'
+           and starts_with(f.value, p.path || '.')
+           and split_part(substr(f.value, length(p.path) + 2), '.', 1) ~ '^[0-9]+$')
   )
   limit 1;
   if v_stray is not null then
@@ -340,6 +360,33 @@ begin
   end;
   if v_refused is distinct from 'not a bound path: weather.temp' then
     raise exception 'operator-patch self-check failed: the operator door wrote a path nothing binds (%)',
+      coalesce(v_refused, 'it was accepted');
+  end if;
+  -- An ARRAY over a branch a binding descends into BY NAME is the fourth shape, and it is the one
+  -- that reads like an accident: `match.home.score` is bound, so `{"match":[]}` looks like a press
+  -- on a bound path and is in fact the same deletion as `{"match":null}` wearing a type the
+  -- carve-out below was written for. The carve-out belongs to a binding that reaches through an
+  -- INDEX and to no other.
+  v_refused := null;
+  begin
+    perform public.control_data_patch_by_slug(v_slug, '{"match":[]}'::jsonb);
+  exception when others then v_refused := sqlerrm;
+  end;
+  if v_refused is distinct from 'not a bound path: match' then
+    raise exception 'operator-patch self-check failed: an array emptied a branch bound by name (%)',
+      coalesce(v_refused, 'it was accepted');
+  end if;
+  -- And the fifth: a key that is a LIKE WILDCARD. The guard compares prefixes rather than running
+  -- the caller's own key as a pattern, so a key of "%" matches nothing and is refused like any
+  -- other unbound path. Run this one through a variable, because the string carries a `%` and a
+  -- raise format would eat it.
+  v_refused := null;
+  begin
+    perform public.control_data_patch_by_slug(v_slug, '{"%":[1]}'::jsonb);
+  exception when others then v_refused := sqlerrm;
+  end;
+  if v_refused is distinct from 'not a bound path: %' then
+    raise exception 'operator-patch self-check failed: a wildcard key was matched as a pattern (%)',
       coalesce(v_refused, 'it was accepted');
   end if;
   -- …and the one shape that is NOT a bound path and must still go: merge-patch cannot address an
