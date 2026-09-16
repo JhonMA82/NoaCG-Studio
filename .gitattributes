@@ -105,3 +105,16 @@ package.json merge=noacg-package
 # The corpus is rewritten in place by `node scripts/package-merge-driver.mjs --record`, which
 # writes LF, so an autocrlf checkout must not report it phantom-dirty.
 scripts/fixtures/package-merge-corpus.json text eol=lf
+
+# HALF OF ONE MEASUREMENT AND HALF OF ANOTHER IS NOT A MEASUREMENT. Every number in the durations
+# table comes from ONE CI run, and `source` names which - so a line-level merge of two recordings
+# produces a table whose stamp is true of some of its rows and false of the rest, with no conflict
+# to say so. Nothing downstream can catch that: each value is a plausible duration, the packer
+# divides the suite by them either way, and the run it claims to come from is still a real run.
+#
+# `-merge` refuses to blend them. A branch and `main` that both re-recorded conflict loudly and
+# somebody keeps one file whole - which is the only correct resolution there is, since re-recording
+# takes a green full run's artifacts and cannot be done from a laptop. Concurrent writers became
+# likelier on 2026-09-16, when .github/workflows/e2e-durations-refresh.yml started proposing a
+# recording every week.
+scripts/e2e-durations.json -merge

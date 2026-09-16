@@ -1008,12 +1008,19 @@ something other than its verdict" above) reports `failure` and emails like one, 
 verdict; check `jobs: []` before treating one as red. And a rolling alarm filed by a run on a
 **feature branch** is a false alarm about `main`. That is where issue #38's seven identical comments
 came from, and the guard is now on every alarm that speaks about `main`: `ci.yml`,
-`configured-suite.yml` (since `13f057fa`), and `hosted-latency.yml` + `nightly.yml` (since
-2026-08-30) all scope their file/update AND close steps to
-`github.event_name == 'schedule' || github.ref == 'refs/heads/main'`. `nightly-drift.yml`,
-`deploy-verify.yml` and `weekly-audit.yml` are unguarded on purpose - their alarms are about the
-schedule, production and the repository, none of which a branch dispatch misstates
-(`docs/CI_STABILITY.md` class 6).
+`configured-suite.yml` (since `13f057fa`), `hosted-latency.yml` + `nightly.yml` (since
+2026-08-30), `weekly-audit.yml` (since 2026-09-08) and `e2e-durations-refresh.yml` all scope their
+file/update AND close steps to
+`github.event_name == 'schedule' || github.ref == 'refs/heads/main'`. `nightly-drift.yml` and
+`deploy-verify.yml` are unguarded on purpose - their alarms are about the schedule and about
+production, neither of which a branch dispatch misstates (`docs/CI_STABILITY.md` class 6).
+
+**`weekly-audit.yml` was on that second list until 2026-09-08**, on the reasoning that a dispatch
+from a branch cannot misstate something "about the repository". It can: measured on the branch that
+FIXED the browserslist advisory - the likeliest branch anyone dispatches it from - the run is green,
+so the close step fires and posts "Audit green again at" a branch sha, while `main` is still red
+and the alarm is still true. A rolling alarm is a statement about `main`, and nothing else may
+raise or withdraw one.
 
 ### The last 48 hours, and which causes are now closed
 
