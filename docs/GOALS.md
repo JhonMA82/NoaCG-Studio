@@ -37,7 +37,9 @@ two surfaces already tried: a standing thread with no date that decides whether 
 productions bigger than one school.
 
 **The dates: 2026-09-25, students and Yle people try NoaCG hands on and their own graphics play;
-an early-October production on the scoreboards and quiz boards; 2026-10-20, Elämäni biisi on Yle.**
+an early-October production on the scoreboards and quiz boards; 2026-10-20, the Elämäni biisi
+DEMONSTRATION - a follow-along score in the room, run on SPX, shown to the programme's producers to
+prove how easily the graphic is made. Not an air date, not Yle's playout** (owner, 2026-09-16).
 NOW lists what they need; work that serves none of them is still current when it makes sense. The
 year beyond this file is [`NORTH_STAR_2027.md`](NORTH_STAR_2027.md), whose evidence model stops a
 capability being called complete because its implementation exists. **Who we are replacing**,
@@ -80,7 +82,10 @@ student draws the graphic, we supply the behaviour, and **a walk that is owed ne
 - [ ] **Brands: make one, choose it in the wizard, the graphic adapts** (owner, 2026-09-05).
       **`docs/BRAND_PLAN.md`** holds the plan and the two wave rows, and parks level 2, the bible.
 - [ ] **The production control profile, for 2026-10-20** (owner, 2026-09-15): the ARRANGE and
-      COMBINE primitives, started 2026-09-15. `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6.
+      COMBINE primitives (**`docs/CONTROL_PANEL_ANY_GRAPHIC.md`** §6). All ten rows of §5 landed by
+      2026-09-16, and the date's two open ends are an EYE on the hosted page and the door into SPX -
+      the output embed that keeps the profile has never run on a real SPX server. §5a is the day's
+      own list.
 
 **CUSTOMIZING that behaviour is not needed for the 25th**, and is no longer held for it (owner,
 2026-09-15): it is the P2 question one level up, first step `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5.

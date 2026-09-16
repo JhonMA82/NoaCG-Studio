@@ -1076,3 +1076,55 @@ waits, because a box that swaps runs every job slower rather than more of them. 
 standing permission to leave the machine marked away - presence is an explicit signal that expires,
 so a forgotten "away" reverts to the safe answer rather than spending the machine out from under
 him the next morning.
+
+---
+
+## ALIGN-2026-09-15-6 - answered 2026-09-16 - 20 October is a demonstration, not an air date
+
+**Asked at the weekly alignment session of 2026-09-15** and left unanswered in that session's file:
+on 20 October, will the vote board and scoreboard be on air in the Elämäni biisi broadcast through
+Yle's own playout, or is it a demonstration for the producer and director on the NoaCG player? The
+question carried a consequence - if they air for real, proving NoaCG on Yle's actual output moves
+ahead of both editors. He answered in conversation on 2026-09-16, which is why
+`scripts/alignment-answers.mjs` never picked it up and why it is recorded by hand here:
+
+> To answer the YLE question and Elämäni Biisi question, it's not about using it on air for real.
+> The main point is to show how easily the graphic can be done. If we are going to use it, it would
+> be just to show the host and contestants what the graphics are and what the score is, because
+> it's not a live show. They will make the graphics for it in post, but they need to have a graphic
+> that gets updated so they can follow along. We will be running that on SPX. The point is to
+> impress the producers and creators of this show with what NoaCG can do.
+
+**What it settles.**
+
+- **Nothing moves ahead of the editors.** The premise the question attached to a yes is false, so
+  the order of ALIGN-2026-09-14-3 stands untouched: the editor rebuild and the control panel for
+  any graphic both lead, and the desktop app waits. No work is added, reordered or pulled forward
+  by this date.
+- **It is not a live broadcast and not Yle's own playout.** The programme's own graphics are made
+  in POST and are not ours to make. What is wanted on the day is a graphic that gets UPDATED so the
+  host and contestants can follow along - the running score, read in the room - which is the
+  totals board of `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §3b doing exactly what it already does. There
+  is no broadcast chain to prove and no Yle output to be compatible with.
+- **The playout on the day is SPX.** That is a fact about the room, not a programme of work. It
+  does land on a seam, because NoaCG's two doors into SPX hand the operator different products and
+  only one of them keeps the control profile - which door the day uses, and what the other costs,
+  is `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5a item 2. The half of that question only hardware can
+  answer has been in the owner queue since 2026-08-25.
+- **What is being demonstrated is how easily the graphic is made**, and the audience is the
+  producers and creators of the show - people whose own job is making graphics. So the measurement
+  that matters is the authoring stopwatch, not any playout chain. The numbers and what each one was
+  measured on are `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5a item 3; they are three separate runs and
+  are never added into one figure.
+
+The weekly session's own ledger was filled at the same time - `**Answer:**` under
+ALIGN-2026-09-15-6 in `docs/handoffs/2026-09-15-orchestrator-week.local.md`, which is gitignored and
+lives only in the primary checkout - because `scripts/alignment-answers.mjs` reads that file and not
+this one, and an id left with an empty answer is carried forward and asked again.
+
+**What it does not settle.** It does not downgrade the control-panel work. ALIGN-2026-09-15-2 built
+the production control profile on a general argument - "essentially any sensible graphic sequence" -
+and said in the same breath that the Elämäni biisi press is evidence for that capability and never
+the workflow being designed around. A day that turns out to be a demonstration rather than an air
+date takes nothing away from that reasoning, and the 2026-09-15 ruling that a concrete production
+case never becomes the design target is what this answer confirms rather than what it weakens.
