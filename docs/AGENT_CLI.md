@@ -599,11 +599,16 @@ while the MCP server goes on importing the global. The check everyone is told to
 that could not see the problem.
 
 **Closed 2026-09-16, in `cli/plugin-mcp/mcp-server.mjs`.** The resolved copy's own version is now
-compared against npm's `latest` (a cached registry read, once a day, 1.5 s timeout, never blocks
-startup or fails loudly offline) and a mismatch prints on the same stderr channel the npx-fallback
-notice already uses: `the installed @noacg/cli is 0.2.0; npm's latest is 0.3.3. Run npm i -g
-@noacg/cli@latest to update it.` An explicit `NOACG_CLI` override (a checkout under development)
-skips the check, since differing from `latest` is expected there. What was
+compared, off the startup critical path, against npm's `latest` (a cached registry read, once a
+day, 1.5 s timeout, never blocks startup or fails loudly offline) and a mismatch prints on the same
+stderr channel the npx-fallback notice already uses: `the installed @noacg/cli is 0.2.0; npm's
+latest is 0.3.3. Run npm i -g @noacg/cli@latest to update it.` The check runs only when `resolveCli`
+did NOT return the `NOACG_CLI` override path (a checkout under development is expected to differ
+from `latest`) - checking merely whether the env var is SET would miss a stale or deleted override
+falling through to a real resolve. The cache write is write-then-rename, because several
+`noacg-mcp` processes across this repo's own concurrent worktrees can race the same file past its
+day-old TTL, and `NOACG_CLI_LATEST_CACHE_FILE` lets a diagnostic run point at a scratch file instead
+of the one every session on the machine shares. What was
 `docs/backlog/a-stale-global-cli-wins-over-npx-silently.md` is closed on that fix; `doctor` still
 reports only the version of the copy running it and does not separately name what `resolveCli()`
 would pick - that half of the file's proposal was left undecided, not done.

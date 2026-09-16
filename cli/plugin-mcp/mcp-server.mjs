@@ -15,7 +15,7 @@
 // fresh user with no global install must still get a working server, and for them this stays
 // exactly as expensive as the plugin already was, never more.
 
-import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
@@ -28,7 +28,11 @@ const ENTRY = path.join('@noacg', 'cli', 'dist', 'index.js');
 // copy wins over npx silently, so a machine that ran `npm i -g @noacg/cli` once keeps that version
 // forever with nothing on screen saying so. One cached registry read fixes that.
 const REGISTRY_LATEST_URL = 'https://registry.npmjs.org/@noacg/cli/latest';
-const VERSION_CACHE_FILE = path.join(os.tmpdir(), 'noacg-cli-latest-version.json');
+// One path per machine by default, so every `noacg-mcp` process shares one cached read. An explicit
+// override exists solely so a diagnostic run (docs/acceptance/owner-queue/*-stale-global-cli-warns.md)
+// can plant a fake `latest` without touching the real cache every other session on the box reads.
+const VERSION_CACHE_FILE = process.env.NOACG_CLI_LATEST_CACHE_FILE
+  || path.join(os.tmpdir(), 'noacg-cli-latest-version.json');
 const VERSION_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // once a day is enough to catch a stale machine
 const REGISTRY_TIMEOUT_MS = 1500; // never let a slow network add real time to a session start
 
@@ -107,14 +111,21 @@ async function fetchLatestVersion() {
     // No cache yet, or it is unreadable - fetch below.
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REGISTRY_TIMEOUT_MS);
+  let timeout;
   try {
+    const controller = new AbortController();
+    timeout = setTimeout(() => controller.abort(), REGISTRY_TIMEOUT_MS);
     const res = await fetch(REGISTRY_LATEST_URL, { signal: controller.signal });
     if (!res.ok) return null;
     const { version } = await res.json();
     try {
-      writeFileSync(VERSION_CACHE_FILE, JSON.stringify({ latest: version, checkedAt: Date.now() }));
+      // Several concurrent `noacg-mcp` processes on one machine (a normal state in this repo's own
+      // multi-worktree workflow) can race past the TTL check together and all land here at once.
+      // Write-then-rename makes each write atomic, so a reader never sees a torn write from another
+      // process - only ever one writer's complete JSON or another's, never a mix of both.
+      const tmp = `${VERSION_CACHE_FILE}.${process.pid}.tmp`;
+      writeFileSync(tmp, JSON.stringify({ latest: version, checkedAt: Date.now() }));
+      renameSync(tmp, VERSION_CACHE_FILE);
     } catch {
       // A machine where the temp dir cannot be written still gets the warning, just every session.
     }
@@ -131,19 +142,27 @@ const cli = resolveCli();
 
 if (cli) {
   // Say what is about to import, so a stale global install is visible instead of silent (the
-  // defect docs/backlog/a-stale-global-cli-wins-over-npx-silently.md describes). Skipped for an
-  // explicit `NOACG_CLI` override - a checkout under active development is expected to differ from
-  // npm's latest, and that comparison is not the useful one there.
-  if (!process.env.NOACG_CLI) {
+  // defect docs/backlog/a-stale-global-cli-wins-over-npx-silently.md describes). Skipped only when
+  // `cli` actually IS the `NOACG_CLI` override (a checkout under active development is expected to
+  // differ from npm's latest) - not merely when the env var is set, because a stale or deleted
+  // override path falls through to a normal resolve inside `resolveCli`, and the copy that gets
+  // imported then is one this check should cover. `resolveCli` returns the override path verbatim
+  // when it uses it, so comparing against the result says the same thing its own check does,
+  // without re-deriving it. Run in the background so a slow or unreachable registry cannot add real
+  // time to startup: the warning, if any, may print a beat after the CLI is already live.
+  if (cli !== process.env.NOACG_CLI) {
     const ownVersion = readOwnVersion(cli);
     if (ownVersion) {
-      const latest = await fetchLatestVersion();
-      if (latest && latest !== ownVersion) {
-        process.stderr.write(
-          `[noacg] the installed @noacg/cli is ${ownVersion}; npm's latest is ${latest}. Run\n`
-            + '[noacg] `npm i -g @noacg/cli@latest` to update it.\n',
-        );
-      }
+      fetchLatestVersion().then((latest) => {
+        if (latest && latest !== ownVersion) {
+          process.stderr.write(
+            `[noacg] the installed @noacg/cli is ${ownVersion}; npm's latest is ${latest}. Run\n`
+              + '[noacg] `npm i -g @noacg/cli@latest` to update it.\n',
+          );
+        }
+      }).catch(() => {
+        // A version check must never surface as an error - see fetchLatestVersion's own contract.
+      });
     }
   }
   // `dist/index.js` runs its own `main()` on import and reads `process.argv.slice(2)`, so hand it
