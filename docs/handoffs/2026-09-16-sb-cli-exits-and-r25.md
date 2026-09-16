@@ -127,6 +127,16 @@ reason: before the sandbox fix, each run's `login` overwrote the stored key for 
 the cleanup revoked it. If `noacg whoami` says there is no key, `noacg login` mints a new one; no
 key belonging to anyone else can have been revoked, because the account is the E2E one.
 
+## Taking `main` in
+
+The one-page-indexes row landed while this was finishing and edited the same block of §7: it closed
+rows 12 and 17 and opened row 18, where this branch closed row 15 and halved row 14. The resolution
+keeps every row either side meant to keep - row 18 as it arrived, row 13 carrying the note that the
+deck was rebuilt on the 16th - and the prose under the table now reads as one history. Re-verified
+from the FORK POINT after the merge, not just on this branch's own files: `npm run build` green
+from its own exit code, and `npm run test:e2e:integration` (`docs.spec.ts` and `landing.spec.ts`,
+the two specs the fork-point diff maps to) **20 passed in 1.7 minutes**, job `j-1201`.
+
 ## Traps that are in no repo file
 
 - **`server.close()` on Node >= 19 already closes idle keep-alive connections.** Anything written

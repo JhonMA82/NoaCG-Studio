@@ -48,6 +48,9 @@ browser-like socket held open across the handoff (`cli/test/unit.test.mjs`).
   which is the 923 s of 2026-09-10 in miniature - that number was the life of the browser tab.
 - **6.0 s** for a `--wait 6` login that never hears back: exit 1, giving-up line on stdout. That
   wait is the test's own; the route above uses 10 s so you are not typing against a clock.
+- **1.5 to 5.1 s** from Allow to exit 0 against `noacg.studio` itself, over seven driven runs of
+  the real consent page the same day (`scripts/save-to-air-bench.mjs`). So the route above is one
+  you can expect to behave, not a laboratory result.
 
 ## What it was, since it is not what the file said
 
