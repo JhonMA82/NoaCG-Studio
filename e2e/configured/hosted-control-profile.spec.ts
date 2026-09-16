@@ -203,7 +203,7 @@ test('a published profile arranges, combines and moves the shared value on the h
               // The proof case's own press: reveal the performer, then after a beat one +1 under
               // each panelist who was right, each offered as a tick.
               { kind: 'event', graphic: VOTES, control: 'reveal' },
-              { kind: 'event', graphic: TOTALS, control: 'plus2', after: 3, ask: { default: true } },
+              { kind: 'event', graphic: TOTALS, control: 'plus2', after: 5, ask: { default: true } },
               { kind: 'event', graphic: TOTALS, control: 'plus3', ask: { default: true } },
             ],
           },
@@ -313,6 +313,41 @@ test('a published profile arranges, combines and moves the shared value on the h
   // never what the graphic accepts, so the hidden one is live rather than decorative.
   await expect(more.locator('button')).toBeEnabled();
 
+  // ── AC-6, THE CANCEL: the tail stands down under the operator's own thumb ───────────────────
+  //
+  // The half that has to work under pressure, and the one nobody had seen here: while a combined
+  // control counts down, the button IS the cancel. What follows is a claim about ABSENCE - the two
+  // +1s must never reach the wire - so it is asserted by waiting out the whole wait they would
+  // have run and reading the log afterwards, which is the one case a fixed wait is the honest
+  // instrument rather than the lazy one.
+  const countdown = combined.locator('.pd-combined-count');
+  const beforeCancel = await wireHead(op, hosted);
+  await combined.click();
+  await expect(countdown).toBeVisible();
+  await combined.click();
+  await expect(countdown).toHaveCount(0);
+  await expect(op.locator('.prod-log-note')).toContainText(
+    '“Reveal, then the points” cancelled, 2 steps not sent',
+  );
+  await op.waitForTimeout(7_000); // past the whole 5 s the cancelled tail would have run
+  const cancelled = await wire(op, hosted, beforeCancel);
+  expect(
+    cancelled.map((r) => `${r.graphic}:${r.event}`),
+    'the reveal went; the tail must never arrive',
+  ).toEqual([`${VOTES}:reveal`]);
+
+  // The reveal is spent, so the votes board has no arrow left and the button greys on its first
+  // step again - which is the same rule as before, now reached by the operator's own press rather
+  // than by the production being cold.
+  await expect(combined).toBeDisabled();
+
+  // ⟳ TAKE the votes board again to put its walk back to the start, then back to the totals cue,
+  // whose ± block the last section needs.
+  await cues.nth(0).getByTestId('hosted-select-cue').click();
+  await op.getByTestId('hosted-take-cue').click();
+  await expect(combined).toBeEnabled({ timeout: 30_000 });
+  await cues.nth(1).getByTestId('hosted-select-cue').click();
+
   // ── AC-6, THE PRESS: one row per step, in order, with the wait honoured ─────────────────────
   //
   // Panelist 3 guessed wrong, so the operator unticks that step before pressing - the real
@@ -327,9 +362,8 @@ test('a published profile arranges, combines and moves the shared value on the h
 
   // THE COUNTDOWN, on the button itself. It is the only thing telling an operator that something
   // is still coming, and it is the half only a rendered page can show.
-  const countdown = combined.locator('.pd-combined-count');
   await expect(countdown).toBeVisible();
-  await expect(countdown).toHaveText(/·\s*[123]s/);
+  await expect(countdown).toHaveText(/·\s*[1-5]s/);
   await expect(combined).toHaveClass(/pd-combined-waiting/);
 
   // THE WIRE. Two rows, not three: the unticked step did not send. One per step, in step order,
@@ -342,12 +376,12 @@ test('a published profile arranges, combines and moves the shared value on the h
   ]);
 
   // THE WAIT WAS REALLY WAITED, measured on the SERVER's clock across the two rows. The step is
-  // marked `after 3 s`; under two seconds would mean the batch went out together and the
+  // marked `after 5 s`; under four seconds would mean the batch went out together and the
   // countdown was decoration.
   expect(
     sent[1].at - sent[0].at,
     'the delayed step must land a beat after the first, on the server clock',
-  ).toBeGreaterThanOrEqual(2_000);
+  ).toBeGreaterThanOrEqual(4_000);
 
   // …and the countdown is gone once the tail has fired, so the button is a button again.
   await expect(countdown).toHaveCount(0);
