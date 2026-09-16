@@ -17,6 +17,10 @@
 //      under cli/plugin-mcp/, a Claude Code and a Codex manifest each) and on both marketplace
 //      entries at the repo root (.claude-plugin/marketplace.json) - cli/package.json's version,
 //      so a release bumps ONE number
+//   4. cli/plugin-mcp/npm-latest.mjs - a byte-identical copy of cli/src/npmLatest.mjs, the "is
+//      this copy behind npm's latest?" check that `noacg doctor` and the MCP launcher both run.
+//      The launcher gets a copy rather than importing it from the CLI it resolves, because the
+//      copy it resolves may be too old to carry the check at all (that file's header says why)
 // cli/LICENSE used to be generated here too - the repository LICENSE copied in, on the assumption
 // that the repo keeps one licence text. That assumption ended on 2026-08-25: this package is
 // Apache-2.0 and the rest of the repository is AGPL-3.0-only (docs/AGENT_CLI.md explains why).
@@ -45,6 +49,9 @@ const ROOT = path.resolve(CLI, '..');
 const SOURCE = path.join(CLI, 'skill', 'noacg-graphic');
 const PLUGIN = path.join(CLI, 'plugin');
 const PLUGIN_SKILL = path.join(PLUGIN, 'skills', 'noacg-graphic');
+/** The shared registry check, and where the MCP plugin's launcher reads its copy of it. */
+const NPM_LATEST_SOURCE = path.join(CLI, 'src', 'npmLatest.mjs');
+const NPM_LATEST_COPY = path.join(CLI, 'plugin-mcp', 'npm-latest.mjs');
 const MARKETPLACE = path.join(ROOT, '.claude-plugin', 'marketplace.json');
 /** The plugins the marketplace offers, read from the marketplace itself so a plugin listed there
  *  can never miss its stamp: today `noacg` (the skill and the command, no server) and `noacg-mcp`
@@ -121,11 +128,18 @@ expected.set(
   }),
 );
 
+// 3. The MCP launcher's copy of the shared "behind npm's latest?" check.
+if (!existsSync(NPM_LATEST_SOURCE)) {
+  console.error(`missing ${rel(NPM_LATEST_SOURCE)} - the MCP launcher's version check is copied from it`);
+  process.exit(2);
+}
+expected.set(NPM_LATEST_COPY, readFileSync(NPM_LATEST_SOURCE));
+
 // Every generated copy is now known. `expected` is built by walking the skill source and by
 // stamping manifests found through the marketplace, so an empty map is what a moved source folder
 // or an emptied marketplace list looks like - and a comparison over no files is a --check that
 // passes having compared nothing.
-measured(expected.size, 'skill files');
+measured(expected.size, 'generated files');
 
 // (cli/LICENSE is deliberately NOT generated - see the header. The package's licence differs from
 //  the repository's, so there is nothing to copy it from.)
