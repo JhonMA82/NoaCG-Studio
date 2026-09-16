@@ -197,6 +197,22 @@ refutation of a sentence four contracts state. One observation is not a rule in 
 the standard this file sets for a hook, the real case AND the must-not-fire case, applies to a
 refutation too.
 
+**A third thing, learned on 2026-09-16 by the row that re-opened the table's first line.** That
+mistake was routed here to a warn hook because a workflow fix looked out of reach. It was fixed in
+the workflow on 2026-09-06 anyway: `ci.yml` now measures every branch push from the merge-base with
+`main`, so a cancelled predecessor's delta is covered by construction and the hook became
+belt-and-braces. The prose did not follow. Ten days later `docs/VERIFICATION.md`,
+`docs/WORKFLOW_ARCHITECTURE.md`, two backlog files and the hook's own header still described the
+retired mechanism as current, and a wave row was planned off that prose to build a fix that
+existed - one that would have made the shipped behaviour narrower, since it proposed applying the
+merge-base only when no finished run existed for `before`. The row that catches this is the one
+that reproduces first, which is why that step is a contract line and not advice. The routing
+lesson is the harder one: **a mistake's entry in this table records where the answer went, and the
+answer can move.** When a fix lands upstream of a hook, the hook's header, the contract prose and
+the backlog file are all now wrong, and nothing in this repository fails when they are. That is the
+tenth handoff on the table's "the row's premise was wrong" line, and the first where the premise
+came from the repository's own documentation rather than from a misreading.
+
 ## What cannot be hooked
 
 These recur too, and a hook is the wrong instrument for every one of them. The tell is the same in

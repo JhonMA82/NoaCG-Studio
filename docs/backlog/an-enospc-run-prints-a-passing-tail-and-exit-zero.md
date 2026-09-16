@@ -42,6 +42,9 @@ Measured 2026-09-06 on `claude/f-growth-question`, landed as `856f8792`. A repo-
 `ENOSPC` during the 2026-09-09 drain found it in the handoff and nowhere else - not in
 `e2e/AGENTS.md`, `docs/VERIFICATION.md` or `docs/CI_STABILITY.md`.
 
-The same family on the CI side is `docs/backlog/ci-plans-from-a-run-that-never-finished.md`: a run
-covering less than it appears to and reporting green. Different mechanism, same reason it survives -
-nothing compares what a run was asked to cover against what it actually got through.
+The same family on the CI side was a run covering less than it appears to and reporting green,
+because a follow-up push cancelled the run that owed the delta. That one closed on 2026-09-06 by
+moving the plan's base to the merge-base with `main`, and the closure was measured on 2026-09-16
+(`docs/VERIFICATION.md`, "A GREEN run is not a verdict either"). Worth reading for the shape of
+the fix: it did not build a comparison between what a run was asked to cover and what it got
+through. It removed the case where those two could differ.
