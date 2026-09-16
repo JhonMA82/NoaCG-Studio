@@ -178,6 +178,50 @@ sites, not total `applyTemplate` calls, and is reproduced by
 re-exporting them - wizard row 1 split the file by capability and left it under `components/`, so
 the hoist toward `blocks/`/`templates/` is still open).
 
+**The wizard's Import-graphic capability is a standing exception to the last sentence, and the
+reason is measured rather than historical.** `src/components/wizard/import/` holds four no-JSX
+files - `draft.ts`, `stageMeasure.ts`, `fieldAutoMap.ts` and the `index.ts` barrel - and they are
+2,886 of the 4,318 no-JSX lines under `components/`
+(`find src/components -name '*.ts' -not -name '*.d.ts' | xargs wc -l`). Moving them down a domain
+was tried on paper and refused, because it costs more than the rule buys:
+
+- **The affected-spec plan widens.** `scripts/e2e-affected.mjs` unions its rules rather than taking
+  the first match, so a file's plan is as wide as the widest rule it matches. Measured with the
+  tool itself - `node -e "console.log(require('./scripts/e2e-affected.mjs').planFor(['<path>']).specs.length)"`
+  - the plan is **13** specs where these files are, **48** under `templates/importedDesign/`, and
+  **15** under `blocks/`. The `templates/` move would undo, for the most-churned file in the
+  wizard, the narrowing wizard row 2 existed to make (38 down to 13). `blocks/` costs little here
+  and is refused on the two counts below instead - and on a third: the four `with*(template, draft)`
+  passes take a draft type, which `blocks/` may not import (§3 invariant 4, eslint Stage A), so
+  that move would not compile without dragging the whole draft record down with it.
+- **Two compiled invariants lose the code they govern.**
+  `contracts/rules/wizard/let-geometry-propose-followers-author-edit.md` and
+  `keep-prepare-erase-offer-never-applied.md` both carry `scope: src/components/wizard/import/**`
+  and both name symbols in these files. A file outside that scope stops loading them.
+- **The area contract says so.** `wizard/keep-whole-import-graphic-capability-inside` names the
+  draft slice as part of the capability, and `.dependency-cruiser.cjs`
+  (`wizard-import-through-its-index`) enforces its one door.
+
+What the rule is actually protecting - UI that cannot be reused from below and transforms hiding
+in the render tree - is answered instead by keeping the capability's boundary narrow, and by
+MEASURING that rather than asserting it. Of the 15 functions `import/draft.ts` exports, **six are
+named anywhere outside `import/`**: `svgDesignOptions` and `withSvgImportPasses` (the two build
+doors `draft/core.ts` takes), `proposeSvgBehaviour` and `proposeSvgExtras` (the drop-time
+proposals, run by `CreationWizard.tsx`), `armTimerClock` (the same, on a field-kind change), and
+`behaviourSummary` (read by `FinishStep.tsx`). Plus the `SvgImportDraft` shape `WizardDraft`
+extends. `stageMeasure.ts` and `fieldAutoMap.ts` cross out not at all - they measure and propose
+over the step's own render, which nothing below the UI could call anyway.
+
+**Six is the number to watch, and this is how to count it** - re-open the exception if it grows:
+
+```
+node -e "const fs=require('fs'),p='src/components/wizard/import/draft.ts';
+const v=[...fs.readFileSync(p,'utf8').matchAll(/^export function (\w+)/gm)].map(m=>m[1]);
+const w=(d,o=[])=>{for(const e of fs.readdirSync(d,{withFileTypes:true})){const q=d+'/'+e.name;
+e.isDirectory()?w(q,o):/\.tsx?$/.test(e.name)&&!q.includes('/import/')&&o.push(q)}return o};
+const f=w('src');console.log(v.filter(n=>f.some(x=>new RegExp('\\\\b'+n+'\\\\b').test(fs.readFileSync(x,'utf8')))).join(' '))"
+```
+
 ## 6. Known debts (grandfathered, shrink-only)
 
 Each entry is an accepted violation of §3. Fix it when already touching the file; a fix deletes
