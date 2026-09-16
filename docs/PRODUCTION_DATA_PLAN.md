@@ -10,8 +10,9 @@ says *"the home score is 4"* and never *"sb03 is on air"*.
 - **Phase 2 SHIPPED and APPLIED** - migration `0048` is pushed to the linked project, and
   `PATCH /api/data/patch` + `GET /api/data/state` are live on the existing catch-all. Authoring
   detail is **§13**; what applying it proved, and the live walk, is **§14**.
-- **Phase 3** (the client following the server tree, controller convergence, `liveData.ts`
-  retirement) is still design only - §4 and §14's "still open".
+- **Phase 3, the stepper half, SHIPPED 2026-09-16** - a ± press and an event's `adjust` on a bound
+  field move the shared value on both dashboards (§2.9, migration 0060). The rest of Phase 3 - bind
+  all by title, and `liveData.ts`'s retirement - is still open (§14's "still open").
 
 Read `docs/CLOUD_PLAYOUT.md` (§7 is the ingress doctrine), `docs/DATA_API.md` (the shipped
 first slice) and `docs/INTERACTIVE_PLAYOUT_PLAN.md` D3/D5 first - this plan is a thin layer
@@ -208,10 +209,41 @@ verified surface across **three** renderers (two React, one vanilla in
 **Phase 1:** data-scoped steppers live in the Data panel. The field-scoped stepper stays for
 unbound fields, unchanged. **Converge in Phase 3**, once bindings have run a real show.
 
-> **Phase 3 is scheduled, owner 2026-09-15**: `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5 rows 9 and 10
-> - a stepper or `adjust` on a bound field patches the tree on the in-app and hosted pages (the
-> exported controller carries no tree and keeps the field stepper), and a bind-all-by-title button
-> accepts every unambiguous suggestion the bindings table already computes.
+> **CONVERGED 2026-09-16** (`38277938`), which is the half of Phase 3 this section owns. On both
+> dashboards a ± press and an event's `adjust` on a bound field move the shared value; an unbound
+> field keeps the field stepper; the exported controller, which carries no tree, is untouched.
+> Row 10 of `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5 - bind all by title - is still open.
+
+**What converging actually needed, beyond the branch in the two press handlers.**
+
+- **The press boundary is a rule of its own, and it is the inverse of §2.4.** A press computes a
+  STRING, because that is what a field holds; the tree is JSON. `retypeLeaf` reads the string back
+  into the type the leaf already had, so an operator's bump cannot turn a feed's number into a
+  string or a `lines` array into one joined line. Guessing the type from the TEXT - which is what
+  `reparseLeaf` does for a value box, correctly - would make a jersey number `07` become 7.
+- **A binding may name an array element, and merge-patch cannot address one.** `patchForPath`
+  answers null for `drivers.0.gap` by design (§2.5), so a press building its patch that way would
+  silently do nothing on a legitimate binding. `withTreeWrites` walks the tree with `setPath` and
+  lets `replacementPatch` say the difference; an indexed binding costs a whole-array patch, which
+  is the RFC's limit and not a bug in the press.
+- **A bound field leaves the field road entirely.** It is off the event's payload, out of the cue
+  mirror and out of the hosted staging buffer - §2.7 with nowhere left to leak. A control whose
+  every moved field is bound fires BARE, and its figures arrive as the tree's own update rows.
+- **The two budgets were conflated and are not any more.** `control_data_patch` marks its rows
+  `src:'api'` and charges them to the 25-per-5-s ingest cap, whose whole purpose is that the
+  operator keeps the rest. An operator's press charged to it would let a saturated feed refuse the
+  operator's own score. Migration 0060 marks an operator's rows `src:'operator'`, which spend only
+  the production's ordinary 50-per-5-s allowance.
+- **The hosted page had no route to the tree at all.** It holds a control slug and no data key, and
+  `control_show_by_slug` returned neither `data` nor `bindings`. 0060 adds `control_data_by_slug`
+  and `control_data_patch_by_slug` on that slug, which widens nothing: the same slug already
+  appends `update` rows to any graphic through `control_send_many`, and a patch resolves to
+  exactly those rows. It also closed a §2.7 hole that surface had from the start - its ⟳ Take sent
+  the cue over the staging buffer with no bound overlay, so its own press was regressed by the
+  next Take.
+- **A page must follow ANY `src`, not `api` alone.** The in-app page re-read the tree when a FEED
+  wrote. A press on a phone writes `src:'operator'`, and missing it would leave the app airing a
+  stale figure on its next Take.
 
 ---
 

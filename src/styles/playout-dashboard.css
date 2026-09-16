@@ -566,6 +566,27 @@
 /* The mark drops the label row's uppercase tracking on purpose: read in the same letterforms
    as the field NAME it sits beside, a warning looks like part of the name. */
 .pd-field .field-over { color: var(--danger); font-weight: 700; text-transform: none; letter-spacing: 0; }
+/* THE BOUND-FIELD PATH, for the same reason and then two more. `.pd-field > span` is uppercase
+   and tracked, and a production-data path is neither: it is case-sensitive text an operator has
+   to be able to read back to whoever writes the feed, so `match.home.score` must not arrive as
+   MATCH.HOME.SCORE. It also takes the label's own 10px rather than the in-app chip's 11px,
+   because here it sits INSIDE the label line rather than in a meta row of its own.
+
+   AND THE LABEL LINE HAS TO BE ABLE TO WRAP. The chip is `nowrap` (a path broken across a line
+   is unreadable), so in a plain inline label a long one - `fixtures.0.home.scoreRunningTotal` is
+   not an unusual binding - ran straight out of the field box and painted over the field beside
+   it, while the field NAME broke in two behind it. That is the silent overlap the band's own
+   backstop comment above refuses. A flex line wraps the chip onto its own row instead, which is
+   what the in-app chip already gets from `.field-meta`'s wrap, and the ellipsis is the last
+   resort for a path longer than the whole field. */
+.pd-field-bound-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1px 6px;
+  min-width: 0;
+}
+.pd-field .pd-bound-mark { text-transform: none; letter-spacing: 0; font-size: 10px; max-width: 100%; }
 .pd-field-over input,
 .pd-field-over textarea,
 .pd-field-over select { border-color: var(--danger); }

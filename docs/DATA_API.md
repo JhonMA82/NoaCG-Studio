@@ -254,6 +254,13 @@ curl -X PATCH https://noacg.studio/api/data/patch \
 }
 ```
 
+**The operator writes this tree too, and not through this door.** A ± press or an ⚡ `+1` on a field
+the production has bound moves the same value, from the dashboard, on the control slug the operator
+already holds (`control_data_patch_by_slug`, migration 0060). Two things about that matter to you:
+those rows are marked `src:'operator'` and spend NONE of the ingest budget in the table above, which
+is yours alone; and the operator out-writes you by simply pressing later, which is the same
+"manual override" rule every other verb has. Nothing about your door changed.
+
 - **The body is any JSON object.** There is no schema: nest as deep as you like. `POST` is
   accepted as well as `PATCH`, for proxies that drop the latter.
 - **Merge semantics are RFC 7386 JSON Merge Patch**: objects merge, a `null` VALUE deletes its
