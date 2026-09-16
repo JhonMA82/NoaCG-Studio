@@ -162,7 +162,9 @@ hangs (below).
 
 **Two defects, both filed, both invisible to the specs that cover them.**
 
-- `docs/backlog/the-link-noacg-save-prints-does-not-open-the-graphic.md`. R2.4's beat says the link
+- The deep link (filed then as a backlog item, **closed 2026-09-16** - the boot now waits for the
+  pull and keeps the address when nobody is signed in; `docs/AGENT_SAVE.md` and
+  `e2e/configured/deep-link-boot.spec.ts` carry it). R2.4's beat says the link
   "opens at once", `save` prints "or at once on that link", and
   `e2e/configured/agent-access.spec.ts` asserts it and PASSES. On production the hash is `#/home`
   on the first sample and never becomes `#/graphic/<id>` - reproduced on a warm signed-in tab (25 s
@@ -309,8 +311,8 @@ challenge cost one queued job.
 
 None is this row's to start and all three have a file.
 
-1. `docs/backlog/the-link-noacg-save-prints-does-not-open-the-graphic.md` - §7 row 14, and the only
-   one of the three that a room will see happen.
+1. The deep link - **closed 2026-09-16**, `docs/AGENT_SAVE.md` - and the only one of the three
+   that a room will see happen.
 2. The terminal going silent after a login that worked, on the one step of R2.4 that needs a
    human. **Done on 2026-09-16**, in `@noacg/cli` 0.3.3, which is not published yet.
 3. `docs/backlog/a-stale-global-cli-wins-over-npx-silently.md` - and separately, somebody should

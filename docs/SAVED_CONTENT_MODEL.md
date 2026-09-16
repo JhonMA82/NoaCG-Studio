@@ -77,8 +77,8 @@ Back/Forward are real history):
 |---|---|
 | *(none)* | Advanced mode: the editor, whichever kind `docKind` persisted. Default studio: redirected on boot - the wizard on a first-ever visit, Home otherwise (docs/GOALS_ARCHIVE.md "Student release" step 4). |
 | `#/home` (+`#/home/<section>`) | Home — bare `#/home` is the dashboard (productions first, then top graphics + videos); sections: productions, graphics, videos, looks. Retired names (recent, controls) land on the dashboard. |
-| `#/graphic/<id>` | Open that library graphic in the SPX editor. |
-| `#/control/<graphicId>` | The graphic's control panel (fields + entries + event buttons + live preview). |
+| `#/graphic/<id>` | Open that library graphic in the SPX editor. An id this browser has not pulled yet is ASKED OF THE CLOUD and waited for (`backend/graphicWhenSynced.ts`) - the link an agent's `noacg save` printed is minutes old and the reader's studio has not synced since. Only a signed-in reader whose sync pass came back without it lands on Home; with no session at all the address is KEPT and a sign-in offered, because the record usually exists in an account this browser has never opened. |
+| `#/control/<graphicId>` | The graphic's control panel (fields + entries + event buttons + live preview). Same cloud lookup as the row above: "Opening…" while it is fetched, "Graphic not found" only once it is known to be gone. |
 | `#/production/<id>` | One production's page (pool, cues, links, publish, operating). |
 | `#/video` | The video editor shell. |
 | `#/new` (+`#/new/<designId>`) | The creation wizard's front page. A boot that LANDS here renders no under-surface at all — there is no Home to preserve, and mounting one under a full-screen opaque wizard can only ever flash. |
