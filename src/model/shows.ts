@@ -713,6 +713,18 @@ export function setShowSeedData(showId: string, data: JsonObject | undefined): S
   });
 }
 
+/** One field's binding write - a path to set, or `null` to unbind it. Shared by the single-field
+ *  setter below and the bulk one "Bind all by title" uses so both write through the same rule. */
+function applyFieldBinding(bindings: ProductionBindings, graphic: string, fieldId: string, path: string | null): ProductionBindings {
+  const forGraphic = { ...(bindings[graphic] ?? {}) };
+  if (path && path.trim() !== '') forGraphic[fieldId] = path.trim();
+  else delete forGraphic[fieldId];
+  const next = { ...bindings };
+  if (Object.keys(forGraphic).length > 0) next[graphic] = forGraphic;
+  else delete next[graphic];
+  return next;
+}
+
 /** Bind a field to a production-data path, or unbind it with `null` — the operator's one and
  *  only override gesture (docs/PRODUCTION_DATA_PLAN.md §2.7). */
 export function setFieldBinding(
@@ -722,12 +734,26 @@ export function setFieldBinding(
   path: string | null,
 ): Show[] {
   return patchShow(showId, (show) => {
-    const bindings: ProductionBindings = { ...(show.bindings ?? {}) };
-    const forGraphic = { ...(bindings[graphic] ?? {}) };
-    if (path && path.trim() !== '') forGraphic[fieldId] = path.trim();
-    else delete forGraphic[fieldId];
-    if (Object.keys(forGraphic).length > 0) bindings[graphic] = forGraphic;
-    else delete bindings[graphic];
+    const bindings = applyFieldBinding(show.bindings ?? {}, graphic, fieldId, path);
+    if (Object.keys(bindings).length > 0) show.bindings = bindings;
+    else delete show.bindings;
+    return true;
+  });
+}
+
+/** Bind several fields, possibly across several graphics, in ONE read-mutate-write cycle — what
+ *  "Bind all by title" presses (docs/CONTROL_PANEL_ANY_GRAPHIC.md §5 row 10). A press that
+ *  touches N fields must cost one write to the show record, not N: each `setFieldBinding` call
+ *  is its own full load/parse/save of the whole shows store, which is fine for one field typed
+ *  by hand but not for a bulk accept. */
+export function setFieldBindings(
+  showId: string,
+  entries: { graphic: string; fieldId: string; path: string }[],
+): Show[] {
+  return patchShow(showId, (show) => {
+    if (entries.length === 0) return false;
+    let bindings = show.bindings ?? {};
+    for (const { graphic, fieldId, path } of entries) bindings = applyFieldBinding(bindings, graphic, fieldId, path);
     if (Object.keys(bindings).length > 0) show.bindings = bindings;
     else delete show.bindings;
     return true;

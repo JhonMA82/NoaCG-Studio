@@ -12,7 +12,7 @@ import {
   type JsonObject,
   type ResolvedValues,
 } from '../../model/productionData';
-import { setFieldBinding, setShowSeedData, type Show } from '../../model/shows';
+import { setFieldBinding, setFieldBindings, setShowSeedData, type Show } from '../../model/shows';
 import { fieldDescriptors } from '../../control/controlModel';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { copyLink } from './copyLink';
@@ -359,6 +359,15 @@ function unambiguousSuggestions(
   return out;
 }
 
+/** Which "Bind all by title" button produced the last note - the whole production, or one
+ *  named graphic. A bare string would collide with a graphic actually named "production"
+ *  (nothing stops that rename), so the scope is tagged rather than compared by string equality. */
+type BindAllScope = { kind: 'production' } | { kind: 'graphic'; name: string };
+
+function scopesMatch(a: BindAllScope, b: BindAllScope): boolean {
+  return a.kind === 'production' ? b.kind === 'production' : b.kind === 'graphic' && b.name === a.name;
+}
+
 function BindingTable({
   show,
   setShows,
@@ -375,31 +384,28 @@ function BindingTable({
   /** The one ✕ whose second click unbinds, or null — the same one-slot arming as above. */
   const [armed, setArmed] = useState<string | null>(null);
   /** The last "Bind all by title" outcome, per button. Cleared by the next press of any. */
-  const [bindAllNote, setBindAllNote] = useState<{ scope: string; text: string } | null>(null);
+  const [bindAllNote, setBindAllNote] = useState<{ scope: BindAllScope; text: string } | null>(null);
 
   const graphicsWithFields = show.graphics
     .map((g) => ({ g, descriptors: fieldDescriptors(g.template.fields ?? [], { includeHidden: true }) }))
     .filter(({ descriptors }) => descriptors.length > 0);
 
-  /** Apply every unambiguous suggestion across one or more graphics in ONE state update. This is
-   *  the operator's press, never a load-time effect (the suggestion above is only ever offered). */
+  /** Apply every unambiguous suggestion across one or more graphics in ONE write to the show
+   *  record. This is the operator's press, never a load-time effect (the suggestion above is
+   *  only ever offered) - and one press writing N fields costs one write, not N. */
   const bindAllByTitle = (
-    scope: string,
+    scope: BindAllScope,
     targets: { g: Show['graphics'][number]; descriptors: FieldDescriptor[] }[],
   ) => {
-    let result: Show[] | null = null;
-    let bound = 0;
+    const entries: { graphic: string; fieldId: string; path: string }[] = [];
     for (const { g, descriptors } of targets) {
       const suggestions = unambiguousSuggestions(descriptors, bindings[g.name], leaves);
-      for (const fieldId of Object.keys(suggestions)) {
-        result = setFieldBinding(show.id, g.name, fieldId, suggestions[fieldId]);
-        bound += 1;
-      }
+      for (const fieldId of Object.keys(suggestions)) entries.push({ graphic: g.name, fieldId, path: suggestions[fieldId] });
     }
-    if (result) setShows(result);
+    if (entries.length > 0) setShows(setFieldBindings(show.id, entries));
     setBindAllNote({
       scope,
-      text: bound > 0 ? `✓ ${bound} field${bound === 1 ? '' : 's'} bound` : 'Nothing unambiguous to bind.',
+      text: entries.length > 0 ? `✓ ${entries.length} field${entries.length === 1 ? '' : 's'} bound` : 'Nothing unambiguous to bind.',
     });
   };
 
@@ -410,14 +416,14 @@ function BindingTable({
         {graphicsWithFields.length > 0 && (
           <button
             className="pd-bind-all"
-            onClick={() => bindAllByTitle('production', graphicsWithFields)}
+            onClick={() => bindAllByTitle({ kind: 'production' }, graphicsWithFields)}
             data-testid="bind-all-production"
           >
             Bind all by title
           </button>
         )}
       </div>
-      {bindAllNote?.scope === 'production' && (
+      {bindAllNote && scopesMatch(bindAllNote.scope, { kind: 'production' }) && (
         <p className="hint" data-testid="bind-all-note-production">
           {bindAllNote.text}
         </p>
@@ -432,13 +438,13 @@ function BindingTable({
               <h4>{g.name}</h4>
               <button
                 className="pd-bind-all"
-                onClick={() => bindAllByTitle(g.name, [{ g, descriptors }])}
+                onClick={() => bindAllByTitle({ kind: 'graphic', name: g.name }, [{ g, descriptors }])}
                 data-testid={`bind-all-${g.name}`}
               >
                 Bind all by title
               </button>
             </div>
-            {bindAllNote?.scope === g.name && (
+            {bindAllNote && scopesMatch(bindAllNote.scope, { kind: 'graphic', name: g.name }) && (
               <p className="hint" data-testid={`bind-all-note-${g.name}`}>
                 {bindAllNote.text}
               </p>
