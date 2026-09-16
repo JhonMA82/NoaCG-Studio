@@ -14,6 +14,9 @@
 #   3. A scheduled drift check compares the live commit against main independently of any
 #      event - the belt against the failure mode where no deployment (and so no event) is
 #      created at all.
+#   4. A browser opens the deployed app on a printed `#/graphic/<id>` link and checks it is
+#      still there a moment later. Curl can only ask whether a page answers; this asks what the
+#      app DOES with the URL, which is where the failure of 2026-09-10 lived.
 #
 # Alerting is the weekly-audit pattern: ONE rolling issue ("Production is not running the
 # latest main commit"), one comment per newly failing commit - the same commit never alerts
@@ -207,6 +210,49 @@ jobs:
           if [ -n "$EXISTING" ]; then
             gh issue close "$EXISTING" --comment "Production verified healthy at ${{ github.event.deployment.sha }}."
           fi
+
+  deep-link:
+    name: Deep link on the deployed bundle
+    # WHAT CURL CANNOT ASK. The two checks above prove production SERVES the right commit and
+    # that its pages answer. Neither can see what the app does with the URL once it runs, and
+    # that is where the beat a room follows on 25 September lives: `noacg save` prints
+    # `<origin>/app#/graphic/<id>` and the app used to replace that address with `#/home` a
+    # second after the click - measured on production 2026-09-16 at 846 ms, while the spec that
+    # asserts the opposite passed on a dev server (docs/DEMO_2026-09-25.md §7 row 14).
+    #
+    # It runs ANONYMOUSLY and writes nothing: playwright.production.config.ts admits only tests
+    # tagged `@production`, which is the whole reason this can run here at all - the configured
+    # suite's account belongs to a local Supabase stack, and no production credential exists in
+    # this repository or its secrets.
+    #
+    # A failure here is a red run on the commit and nothing more. The rolling issue beside it
+    # says "Production is not running the latest main commit", which this is not: the deployment
+    # took, and the app it deployed is wrong.
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'deployment_status' &&
+       github.event.deployment_status.state == 'success' &&
+       github.event.deployment_status.environment == 'Production' &&
+       (github.event.deployment_status.creator.login == 'vercel[bot]' ||
+        github.event.deployment_status.environment_url != ''))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: ./.github/actions/node-modules
+
+      - uses: ./.github/actions/playwright-chromium
+
+      # PRODUCTION_URL is the workflow-level env above, which is what the config reads.
+      - name: Open the printed link on the deployed app
+        run: npm run test:e2e:production
 
   drift:
     name: Drift check (live vs main)
