@@ -168,9 +168,11 @@ hangs (below).
   on the first sample and never becomes `#/graphic/<id>` - reproduced on a warm signed-in tab (25 s
   of polling) and a cold one (30 s, 61 s total). The graphic is there and renders correctly; only
   the routing promise is false. The spec passes because it drives a local dev server.
-- `docs/backlog/noacg-login-hangs-after-it-has-already-succeeded.md`. `login` minted and stored the
+- The login hang (the backlog file this row filed, since deleted). `login` minted and stored the
   key and then sat for **923 s** without exiting and without printing anything, including its own
-  300 s giving-up message. Killed by hand.
+  300 s giving-up message. Killed by hand. **Fixed on 2026-09-16 in `@noacg/cli` 0.3.3**: the
+  listener's sockets were not dropped when it closed, and both exits are pinned in
+  `cli/test/unit.test.mjs` (`docs/handoffs/2026-09-16-sb-cli-exits-and-r25.md`).
 
 **I got that second one wrong first, and the correction is the lesson.** I filed it as "the CLI
 never received the code", because the captured output ended on "Waiting for you to allow access…".
@@ -309,8 +311,8 @@ None is this row's to start and all three have a file.
 
 1. `docs/backlog/the-link-noacg-save-prints-does-not-open-the-graphic.md` - §7 row 14, and the only
    one of the three that a room will see happen.
-2. `docs/backlog/noacg-login-hangs-after-it-has-already-succeeded.md` - the terminal goes silent
-   after a login that worked, on the one step of R2.4 that needs a human.
+2. The terminal going silent after a login that worked, on the one step of R2.4 that needs a
+   human. **Done on 2026-09-16**, in `@noacg/cli` 0.3.3, which is not published yet.
 3. `docs/backlog/a-stale-global-cli-wins-over-npx-silently.md` - and separately, somebody should
    just run `npm i -g @noacg/cli@latest` on this laptop, checking
    `node scripts/e2e-runs.mjs` first.

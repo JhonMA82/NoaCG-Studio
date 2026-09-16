@@ -63,6 +63,24 @@ interface Handoff {
   code: string;
 }
 
+/**
+ * Stop the listener AND drop every socket on it, which is what lets the process exit.
+ *
+ * `server.close()` alone is not enough, and the way it falls short is easy to miss: it stops
+ * accepting and closes connections that are IDLE in the HTTP sense - one that finished a message
+ * and is waiting for the next. A browser also opens a speculative connection it never sends a
+ * request on, and that socket has no finished message, so it is not idle, survives the close and
+ * keeps the event loop alive. Nothing times it out either, because closing the server also stops
+ * the interval that enforces `headersTimeout` and `requestTimeout`. Measured on Node 24: a login
+ * that had already minted and stored the key sat there until the socket was released, and then
+ * exited within 100 ms - which is the 923 s hang of 2026-09-10, where the socket was held by the
+ * consent tab the person had just used.
+ */
+function shutdown(server: http.Server): void {
+  server.close();
+  server.closeAllConnections();
+}
+
 /** Listen on a loopback port and resolve with the code the consent page hands over. */
 function listenForCode(state: string, waitMs: number): Promise<{ port: number; handoff: Promise<Handoff> }> {
   return new Promise((resolvePort, rejectPort) => {
@@ -98,7 +116,8 @@ function listenForCode(state: string, waitMs: number): Promise<{ port: number; h
           res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
           res.end('ok');
           settle?.({ code });
-          setTimeout(() => server.close(), 200);
+          // 200 ms so the "ok" above reaches the page before its socket goes.
+          setTimeout(() => shutdown(server), 200);
         });
         return;
       }
@@ -109,7 +128,7 @@ function listenForCode(state: string, waitMs: number): Promise<{ port: number; h
     server.listen(0, '127.0.0.1', () => {
       const { port } = server.address() as AddressInfo;
       const timer = setTimeout(() => {
-        server.close();
+        shutdown(server);
         fail?.(new Error(`No reply from the browser within ${Math.round(waitMs / 1000)} s - run \`noacg login\` again.`));
       }, waitMs);
       handoff.finally(() => clearTimeout(timer)).catch(() => undefined);
