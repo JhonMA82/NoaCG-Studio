@@ -842,3 +842,48 @@ test('an adjust on a bound field patches the tree, and the event still fires', a
   await page.getByTestId('verb-take').click();
   await expect(strip.locator('#f1')).toHaveText('3');
 });
+
+// ── AC-8: "Bind all by title" accepts every unambiguous suggestion in one press ──────────────
+
+test('Bind all by title binds every unambiguous title in one press, and leaves the ambiguous one bound-empty with a reason', async ({ page }) => {
+  // Two graphics sharing a scoreboard family (both title f1 "Score A" and f0 "Team A" -
+  // src/templates/scoreboards/shared.ts), so their matching titles are meant to bind in one
+  // press rather than one field at a time.
+  await createProject(page, { name: 'House Score' });
+  await productionFor(page, 'Derby Bindings');
+  await addSecondGraphic(page, 'Club Scorebug', 'Derby Bindings');
+
+  const data = await openWorkspace(page, 'data');
+  await addValue(data, 'match.scoreA', '10');
+  // Two leaves end in "teamA" - an ambiguous title, on purpose - so the button must leave it
+  // unbound rather than guess.
+  await addValue(data, 'match.teamA', 'Home');
+  await addValue(data, 'results.teamA', 'Away');
+
+  // ── The per-graphic button: House Score's Score A binds, its Team A stays unbound and says
+  //    why, and the fields with no matching leaf at all (Team B, Score B) carry no note. ──
+  await data.getByTestId('bind-all-House Score').click();
+  await expect(data.getByTestId('bind-all-note-House Score')).toContainText('1 field bound');
+  await expect(data.getByTestId('bind-House Score-f1')).toHaveValue('match.scoreA');
+  await expect(data.getByTestId('bind-House Score-f0')).toHaveValue('');
+  const ambiguous = data.getByTestId('bind-ambiguous-House Score-f0');
+  await expect(ambiguous).toContainText('match.teamA');
+  await expect(ambiguous).toContainText('results.teamA');
+  await expect(data.getByTestId('bind-ambiguous-House Score-f2')).toHaveCount(0);
+  await expect(data.getByTestId('bind-ambiguous-House Score-f3')).toHaveCount(0);
+  // The second graphic is untouched by the first graphic's button.
+  await expect(data.getByTestId('bind-Club Scorebug-f1')).toHaveValue('');
+
+  // ── The whole-production button reaches every graphic at once, including the one whose
+  //    button was never pressed. ──
+  await data.getByTestId('bind-all-production').click();
+  await expect(data.getByTestId('bind-all-note-production')).toContainText('1 field bound');
+  await expect(data.getByTestId('bind-Club Scorebug-f1')).toHaveValue('match.scoreA');
+  await expect(data.getByTestId('bind-ambiguous-Club Scorebug-f0')).toContainText('match.teamA');
+
+  // A second press finds nothing left unbound and unambiguous: an already-bound field is never
+  // re-suggested, so the button is idempotent rather than something to press exactly once.
+  await data.getByTestId('bind-all-production').click();
+  await expect(data.getByTestId('bind-all-note-production')).toContainText('Nothing unambiguous to bind.');
+  await expect(data.getByTestId('bind-House Score-f1')).toHaveValue('match.scoreA');
+});

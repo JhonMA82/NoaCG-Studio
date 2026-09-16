@@ -102,8 +102,18 @@
 /* The bindings table: field on the left, path in the middle, what it is ACTUALLY showing on the
    right - so a mistyped path reads as a blank here instead of as a mystery on air. */
 .pd-bindings { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
-.pd-bindings h3 { margin: 0 0 10px; font-size: 14px; }
-.pd-bindings h4 { margin: 14px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.pd-bindings h3 { margin: 0; font-size: 14px; }
+.pd-bindings h4 { margin: 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+/* The two "Bind all by title" buttons (AC-8): one for the whole production, one per graphic.
+   Each sits beside the heading it applies to, so the scope it acts on is never ambiguous. */
+.pd-bind-head, .pd-bind-graphic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pd-bind-graphic-head { margin: 14px 0 6px; }
+.pd-bind-all { padding: 2px 8px; font-size: 11px; line-height: 1.5; }
 .pd-bind-row {
   display: grid;
   grid-template-columns: minmax(130px, 1fr) minmax(120px, 1.2fr) auto minmax(80px, 0.9fr) 28px;
@@ -117,6 +127,7 @@
 .pd-bind-suggest { padding: 2px 8px; font-size: 11px; line-height: 1.5; }
 .pd-bind-live { font-size: 12px; color: var(--accent); overflow-wrap: anywhere; }
 .pd-bind-miss { font-size: 11px; color: var(--muted); font-style: italic; }
+.pd-bind-ambiguous { font-size: 11px; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
 
 /* A BOUND cue field reads out instead of editing: its value comes from the live tree at Take,
    so an editable box here would show a number nothing will ever air (plan §2.7). It wears

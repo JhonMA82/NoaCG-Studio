@@ -316,22 +316,34 @@ export function diffResolved(previous: ResolvedValues, next: ResolvedValues): Re
 const normalize = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
 /**
- * The path a field TITLE probably means, or null.
+ * Every leaf path a field TITLE could mean.
  *
  * Matches the last segment of a leaf path, or the whole path with its dots ignored, so
- * "Score A" finds `match.home.scoreA` and "match.clock" finds itself. TWO matches return null
- * and bind nothing: this is the API's `ambiguous` doctrine (docs/DATA_API.md) - a guess that is
- * wrong half the time is worse than an empty row the operator fills in once.
+ * "Score A" finds `match.home.scoreA` and "match.clock" finds itself. `suggestPath` and the
+ * bindings table both need this list: the table also has to name what an ambiguous title
+ * matched, not just refuse to guess.
  */
-export function suggestPath(title: string, leaves: DataLeaf[]): string | null {
+export function matchTitle(title: string, leaves: DataLeaf[]): string[] {
   const want = normalize(title);
-  if (want === '') return null;
+  if (want === '') return [];
   const hits: string[] = [];
   for (const leaf of leaves) {
     const parts = leaf.path.split('.');
     const last = normalize(parts[parts.length - 1]);
     if (last === want || normalize(leaf.path) === want) hits.push(leaf.path);
   }
+  return hits;
+}
+
+/**
+ * The path a field TITLE probably means, or null.
+ *
+ * TWO matches return null and bind nothing: this is the API's `ambiguous` doctrine
+ * (docs/DATA_API.md) - a guess that is wrong half the time is worse than an empty row the
+ * operator fills in once.
+ */
+export function suggestPath(title: string, leaves: DataLeaf[]): string | null {
+  const hits = matchTitle(title, leaves);
   return hits.length === 1 ? hits[0] : null;
 }
 
