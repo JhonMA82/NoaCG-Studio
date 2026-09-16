@@ -115,18 +115,25 @@ async function wireHead(op: Page, slug: string): Promise<number> {
  *  Polling the WIRE rather than sleeping: a press is a round trip and a delayed step is a
  *  second one, and a fixed sleep would either race the first or outlast the evidence. */
 async function wireAfter(op: Page, slug: string, afterId: number, count: number): Promise<WireRow[]> {
+  let rows: WireRow[] = [];
   await expect
-    .poll(async () => (await wire(op, slug, afterId)).length, {
-      timeout: 30_000,
-      message: `the log should carry ${count} command row(s) after id ${afterId}`,
-    })
+    .poll(
+      async () => {
+        rows = await wire(op, slug, afterId);
+        return rows.length;
+      },
+      {
+        timeout: 30_000,
+        message: `the log should carry ${count} command row(s) after id ${afterId}`,
+      },
+    )
     .toBe(count);
-  return wire(op, slug, afterId);
+  return rows;
 }
 
 test('a published profile arranges, combines and moves the shared value on the hosted page', async ({
   page,
-  context,
+  browser,
 }) => {
   // A real stack, a publish, a delayed step and several wire settles. This suite's budget is
   // minutes and this walk is one of them.
@@ -169,7 +176,7 @@ test('a published profile arranges, combines and moves the shared value on the h
   // the composer is the in-app page's subject and is covered there, while what is unproven is
   // what the HOSTED page does with a PUBLISHED profile. A profile written through
   // `setShowProfile` is byte-identical to a composed one - it is the same canonical serializer.
-  await page.evaluate(
+  const refused = await page.evaluate(
     async ({ VOTES, TOTALS, COMBINED_ID, POINTS, NAME }) => {
       const { loadShows, setShowProfile, setFieldBindings } = await import('/src/model/shows.ts');
       const show = loadShows().find((s) => s.graphics.some((g) => g.name === VOTES))!;
@@ -183,7 +190,10 @@ test('a published profile arranges, combines and moves the shared value on the h
         { graphic: TOTALS, fieldId: 'f5', path: POINTS },
       ]);
 
-      setShowProfile(show.id, {
+      // The RETURN is read: `setShowProfile` writes nothing and answers `refused` when the stored
+      // profile reads as a newer version's. Dropped, that failure arrives 60 lines later as a
+      // combined section that never appears, with nothing saying the profile was never stored.
+      return setShowProfile(show.id, {
         v: 1,
         arrange: {
           // ARRANGE, both directions at once: one control pinned above the fold and one hidden
@@ -208,10 +218,11 @@ test('a published profile arranges, combines and moves the shared value on the h
             ],
           },
         ],
-      });
+      }).refused;
     },
     { VOTES, TOTALS, COMBINED_ID, POINTS, NAME },
   );
+  expect(refused, 'the profile must actually be stored on the show record').toBe(false);
 
   // ── PUBLISH ─────────────────────────────────────────────────────────────────────────────────
   const publishStarted = Date.now();
@@ -220,36 +231,55 @@ test('a published profile arranges, combines and moves the shared value on the h
   timings.push(`publish ${((Date.now() - publishStarted) / 1000).toFixed(1)}s`);
   await page.keyboard.press('Escape'); // publishing opens the links popover
 
-  const slug = (await page.evaluate(async (VOTES) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    return loadShows().find((s) => s.graphics.some((g) => g.name === VOTES))?.hostedSlug ?? null;
-  }, VOTES)) as string | null;
-  expect(slug, 'publishing must mint a hosted control slug').toBeTruthy();
-  const hosted = slug as string;
-
-  // ── THE TREE, seeded through the integrator's own door ──────────────────────────────────────
+  // WHAT PUBLISHING MINTED, and the TREE seeded behind it, in one pass over the show record.
   //
   // The publish deliberately does NOT send the live tree (`publishControlShow` says why: once
   // published, the server's column is its authority). So the production's starting values go in
   // the way a feed's would, with the owner's own data key - the road `production-data-key.spec.ts`
   // proves and the road the Data workspace itself takes.
-  const seeded = await page.evaluate(async (VOTES) => {
+  const published = await page.evaluate(async (VOTES) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const { productionDataKey, patchProductionData } = await import('/src/control/productionDataApi.ts');
-    const show = loadShows().find((s) => s.graphics.some((g) => g.name === VOTES))!;
+    const show = loadShows().find((s) => s.graphics.some((g) => g.name === VOTES));
+    if (!show?.hostedSlug) return { slug: null, seeded: null };
     const key = await productionDataKey(show.id);
-    if (!key) return null;
-    return patchProductionData(key, { panel: { katri: { name: 'Katri', points: 0 } } });
+    if (!key) return { slug: show.hostedSlug, seeded: null };
+    const seeded = await patchProductionData(key, { panel: { katri: { name: 'Katri', points: 0 } } });
+    return { slug: show.hostedSlug, seeded };
   }, VOTES);
-  expect(seeded, 'the owner must be able to seed the published tree with their own data key').toBeTruthy();
+  expect(published.slug, 'publishing must mint a hosted control slug').toBeTruthy();
+  expect(
+    published.seeded,
+    'the owner must be able to seed the published tree with their own data key',
+  ).toBeTruthy();
+  const hosted = published.slug as string;
 
   // ── THE OPERATOR'S SURFACE: signed out, on the capability URL ────────────────────────────────
-  const op = await context.newPage();
+  //
+  // A SEPARATE BROWSER CONTEXT, and that is the whole point rather than tidiness. The Supabase
+  // client persists its session in localStorage, so a page opened in the publisher's own context
+  // carries the OWNER's token - and then every RPC below succeeds on the owner's grants whatever
+  // `anon` holds. Drop `anon` from `control_data_patch_by_slug` or `control_tail` and a walk in
+  // the shared context still goes green while a real operator, holding nothing but the link, gets
+  // 42501 on every press. `e2e/configured/output-url-cannot-push.spec.ts` takes its own context
+  // for exactly this reason.
+  const opContext = await browser.newContext();
+  const op = await opContext.newPage();
   await op.goto(`/app?control=${encodeURIComponent(hosted)}`);
   await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
 
   const cues = op.getByTestId('hosted-cues').locator('.pd-cue');
   await expect(cues).toHaveCount(2);
+
+  // WHICH CUE IS WHICH, pinned where it can break rather than 150 lines later. The order comes
+  // from the fixture's graphic order and everything below indexes on it; read off the PUBLISHED
+  // payload rather than off a cue's label, which the pack is free to change.
+  const cueGraphics = await op.evaluate(async (slug) => {
+    const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+    const show = await controlShowBySlug(slug);
+    return (show?.output.cues ?? []).map((c) => c.graphic);
+  }, hosted);
+  expect(cueGraphics, 'the votes board is cue 1 and the totals board cue 2').toEqual([VOTES, TOTALS]);
 
   // ── AC-6, FIRST CLAUSE: the combined control renders here, and greys on its FIRST step ──────
   //
@@ -325,7 +355,10 @@ test('a published profile arranges, combines and moves the shared value on the h
   await expect(countdown).toBeVisible();
   await combined.click();
   await expect(countdown).toHaveCount(0);
-  await expect(op.locator('.prod-log-note')).toContainText(
+  // `.first()` because the feed's newest entry is its first, and because `prod-log-note` is the
+  // class on EVERY note the surface writes - a dropped step included. Resolving it strictly would
+  // fail with "2 elements" rather than naming the text that is wrong.
+  await expect(op.locator('.prod-log-note').first()).toContainText(
     '“Reveal, then the points” cancelled, 2 steps not sent',
   );
   await op.waitForTimeout(7_000); // past the whole 5 s the cancelled tail would have run
@@ -449,7 +482,25 @@ test('a published profile arranges, combines and moves the shared value on the h
   // read is not evidence.
   console.log(`hosted profile walk: ${timings.join(' | ')}`);
 
-  await op.close();
-  await clearPublishedShows(page);
-  await wipeMyGraphics(page);
+  await opContext.close();
+});
+
+/**
+ * PUBLISH NOTHING BEHIND US, whether or not the walk got to the end.
+ *
+ * The account is shared by all 24 specs in this suite and the runner gives them one worker, so a
+ * production left published keeps its reserved control and output addresses for whatever runs next
+ * (migration 0040). An inline teardown only runs when everything passed, which is precisely the
+ * case that does not need it.
+ *
+ * It is best-effort: on a failure the page may be anywhere, and a teardown that throws would
+ * replace the real failure with its own.
+ */
+test.afterEach(async ({ page }) => {
+  try {
+    await clearPublishedShows(page);
+    await wipeMyGraphics(page);
+  } catch {
+    /* the walk's own failure is the one worth reporting */
+  }
 });
