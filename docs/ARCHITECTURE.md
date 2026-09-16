@@ -170,11 +170,13 @@ When a change needs a transform that does not exist, write it as a named, export
 live under `components/`.
 
 Grandfathered offenders (hoist the inline assembly into `blocks/` **when you are already
-touching that code path** - never as a drive-by campaign): `CanvasInteraction.tsx` (13 inline
-`applyTemplate` sites), `StepTimeline.tsx:375` and `:388`, `Inspector.tsx:280`, and
-`components/wizard/draft/` (`core.ts`, `template.ts`, `format.ts`, with `draft.ts` re-exporting
-them - wizard row 1 split the file by capability and left it under `components/`, so the hoist
-toward `blocks/`/`templates/` is still open).
+touching that code path** - never as a drive-by campaign). Each count below is inline-assembly
+sites, not total `applyTemplate` calls, and is reproduced by
+`grep -c 'applyTemplate({ *\.\.\.template' <file>`: `src/components/canvas/CanvasInteraction.tsx`
+(5 sites), `src/components/timeline/StepTimeline.tsx` (6 sites), `src/components/timeline/Inspector.tsx`
+(4 sites), and `components/wizard/draft/` (`core.ts`, `template.ts`, `format.ts`, with `draft.ts`
+re-exporting them - wizard row 1 split the file by capability and left it under `components/`, so
+the hoist toward `blocks/`/`templates/` is still open).
 
 ## 6. Known debts (grandfathered, shrink-only)
 
