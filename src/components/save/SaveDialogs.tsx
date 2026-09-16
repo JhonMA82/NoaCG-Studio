@@ -7,6 +7,7 @@ import {
 } from '../../store/saveActions';
 import { useModalGate } from '../spaceKey';
 import { useAuthState } from '../auth/useAuthState';
+import { getSyncState, onSyncState } from '../../backend/syncController';
 
 /**
  * The two save-flow dialogs (docs/SAVED_CONTENT_MODEL.md §2), mounted ONCE in App.tsx - OUTSIDE
@@ -47,12 +48,21 @@ function SaveDialog() {
   // the account, or this computer only. A fact and no button - the door stays where it always
   // is. Offline there is no other place work could go, so the sentence stays as it was; and
   // while the stored session is still being read, claiming either would be a guess.
+  //
+  // The signed-in clause is a claim about SYNC, not about the session, so it reads the sync
+  // phase: a session whose sync is in error (a suspended account, a refused push) must not be
+  // told its work follows it anywhere. In that state the sentence falls back to the plain one
+  // and the topbar's "Sync error" chip is the thing that says why.
   const { backendConfigured, status } = useAuthState();
+  const [sync, setSync] = useState(getSyncState());
+  useEffect(() => onSyncState(setSync), []);
   const where = !backendConfigured || status === 'loading'
     ? ''
-    : status === 'signed-in'
-      ? ' and follow you to any computer you sign in on'
-      : ', on this computer only';
+    : status === 'signed-out'
+      ? ', on this computer only'
+      : sync.phase === 'synced' || sync.phase === 'syncing'
+        ? ' and follow you to any computer you sign in on'
+        : '';
 
   const [name, setName] = useState(dialog.mode === 'save-as' ? `${template.name} copy` : template.name);
   const [error, setError] = useState<string | null>(null);

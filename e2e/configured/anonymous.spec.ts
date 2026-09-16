@@ -88,18 +88,39 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
     await expect(page.locator('.auth-status')).toHaveCount(0);
 
-    // AI is an account feature in hosted mode: the panel shows the sign-in prompt, not controls.
+    // WHAT THE ACCOUNT IS FOR, said at the moment we ask (owner, 2026-09-04: "I don't have a
+    // really good reason for people to be logged in"). The reason is ONE sentence
+    // (src/components/auth/accountCopy.ts), derived from what a signed-in visitor actually gets,
+    // and it is asserted as words as well as as the constant: an emptied constant would still
+    // equal itself. From the topbar there is no door, so the sentence is the whole answer and the
+    // no-wall line sits under it.
+    expect(ACCOUNT_IS_FOR).toMatch(/free account/);
+    expect(ACCOUNT_IS_FOR).toMatch(/any computer/);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    const card = page.locator('.auth-card');
+    await expect(card.getByTestId('auth-reason')).toHaveText(ACCOUNT_IS_FOR);
+    await expect(card.getByTestId('auth-account-for')).toHaveText(NO_ACCOUNT_NEEDED);
+    await card.locator('.gallery-close').click();
+    await expect(card).toHaveCount(0);
+
+    // AI is an account feature in hosted mode: the panel shows the sign-in prompt, not controls,
+    // and the prompt carries the same sentence under its own reason.
     await page.getByRole('button', { name: 'AI', exact: true }).click();
     await expect(page.getByTestId('signin-prompt')).toBeVisible();
+    await expect(page.getByTestId('signin-prompt').getByTestId('signin-prompt-for')).toHaveText(ACCOUNT_IS_FOR);
 
-    // Community opens the sign-in dialog, not an empty gallery.
+    // Community opens the sign-in dialog, not an empty gallery. Through a door the door's own
+    // reason leads and the sentence follows it, so a reader who came for the gallery still
+    // learns what the account buys beyond the gallery.
     await page.getByRole('button', { name: /Community/ }).click();
-    await expect(page.locator('.auth-card')).toBeVisible();
-    await expect(page.locator('.auth-card')).toContainText('community');
+    await expect(card).toBeVisible();
+    await expect(card.getByTestId('auth-reason')).toContainText('community');
+    await expect(card.getByTestId('auth-account-for')).toContainText(ACCOUNT_IS_FOR);
+    await expect(card.getByTestId('auth-account-for')).toContainText(NO_ACCOUNT_NEEDED);
 
     // Esc closes the dialog — signing in is always optional.
     await page.keyboard.press('Escape');
-    await expect(page.locator('.auth-card')).toHaveCount(0);
+    await expect(card).toHaveCount(0);
   });
 
   test('the topbar says which account state it is in, not only what it offers', async ({ page }) => {
@@ -139,41 +160,6 @@ test.describe('anonymous visitor (open editor)', () => {
       expect(bar.rows, `signed-out topbar rows at ${width}px`).toBe(1);
       expect(bar.overflowPx, `signed-out topbar overflow at ${width}px`).toBeLessThanOrEqual(0);
     }
-  });
-
-  test('the moment NoaCG asks for an account, it says what the account is for', async ({ page }) => {
-    // Owner, 2026-09-04: "I don't have a really good reason for people to be logged in." The
-    // reason is ONE sentence now (src/components/auth/accountCopy.ts), derived from what a
-    // signed-in visitor actually gets, and it is said where the ask happens rather than on a
-    // page nobody is on at that moment. The words are asserted as well as the constant: a
-    // constant that was emptied would still equal itself.
-    expect(ACCOUNT_IS_FOR).toMatch(/free account/);
-    expect(ACCOUNT_IS_FOR).toMatch(/any computer/);
-    await enableAdvancedMode(page);
-    await page.goto('/app');
-    await dismissWizard(page);
-
-    // From the topbar there is no door, so the sentence is the whole answer, with the no-wall
-    // line under it.
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    const card = page.locator('.auth-card');
-    await expect(card.getByTestId('auth-reason')).toHaveText(ACCOUNT_IS_FOR);
-    await expect(card.getByTestId('auth-account-for')).toHaveText(NO_ACCOUNT_NEEDED);
-    await card.locator('.gallery-close').click();
-    await expect(card).toHaveCount(0);
-
-    // Through a door the door's own reason leads, and the sentence follows it: a reader who
-    // arrived for the gallery still learns what the account buys beyond the gallery.
-    await page.getByRole('button', { name: /Community/ }).click();
-    await expect(card.getByTestId('auth-reason')).toContainText('community');
-    await expect(card.getByTestId('auth-account-for')).toContainText(ACCOUNT_IS_FOR);
-    await expect(card.getByTestId('auth-account-for')).toContainText(NO_ACCOUNT_NEEDED);
-    await card.locator('.gallery-close').click();
-    await expect(card).toHaveCount(0);
-
-    // The inline gate, where the panel would have been, carries the same sentence.
-    await page.getByRole('button', { name: 'AI', exact: true }).click();
-    await expect(page.getByTestId('signin-prompt').getByTestId('signin-prompt-for')).toHaveText(ACCOUNT_IS_FOR);
   });
 
   test('signed out, the save dialog says the graphic stays on this computer', async ({ page }) => {

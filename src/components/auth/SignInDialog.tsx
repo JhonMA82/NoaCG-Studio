@@ -123,6 +123,10 @@ export default function SignInDialog() {
     setNote(null);
   };
 
+  // Whether a gate opened this dialog with a reason of its own. One test, read by both lines
+  // below, so the two shapes cannot drift apart.
+  const throughDoor = reason !== null;
+
   return (
     <div
       className="auth-gate auth-overlay"
@@ -146,9 +150,9 @@ export default function SignInDialog() {
             one; the account sentence then moves under it, so a reader who arrived through a door
             still learns what the account buys beyond that door. Opened from the topbar there is
             no door, and the sentence is the whole answer. The no-wall line closes both shapes. */}
-        <p className="auth-tag" data-testid="auth-reason">{reason ?? ACCOUNT_IS_FOR}</p>
+        <p className="auth-tag" data-testid="auth-reason">{throughDoor ? reason : ACCOUNT_IS_FOR}</p>
         <p className="muted auth-sub" data-testid="auth-account-for">
-          {reason ? `${ACCOUNT_IS_FOR} ${NO_ACCOUNT_NEEDED}` : NO_ACCOUNT_NEEDED}
+          {throughDoor ? `${ACCOUNT_IS_FOR} ${NO_ACCOUNT_NEEDED}` : NO_ACCOUNT_NEEDED}
         </p>
 
         {mode === 'signup' && (
