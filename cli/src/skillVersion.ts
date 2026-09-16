@@ -19,6 +19,9 @@
 // WHAT IT REFUSES TO DO. Never print a version it guessed. A version comes from a manifest lying
 // beside a real SKILL.md, never from a cache directory's name, never from the harness's index
 // alone. Anything unreadable, ambiguous or absent is silence.
+//
+// The reads are synchronous, unlike the rest of `src/` - a handful of local stats and two small
+// JSON files, where async would buy nothing and cost every caller an await.
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -42,8 +45,6 @@ interface Harness {
   name: string;
   /** The harness's config directory, honouring the env var it uses to relocate it. */
   home: () => string;
-  /** The manifest folder this harness reads, tried first when reading a version. */
-  manifestDir: string;
   update: (plugin: string, marketplace: string) => string;
 }
 
@@ -51,7 +52,6 @@ const HARNESSES: Harness[] = [
   {
     name: 'Claude Code',
     home: () => process.env.CLAUDE_CONFIG_DIR?.trim() || path.join(homedir(), '.claude'),
-    manifestDir: '.claude-plugin',
     // Two commands, because they do different halves: the first refreshes the marketplace checkout
     // (`claude plugin marketplace --help`: "Update marketplace(s) from their source"), the second
     // re-installs the plugin from it. Refreshing alone leaves the installed copy where it was.
@@ -61,7 +61,6 @@ const HARNESSES: Harness[] = [
   {
     name: 'Codex',
     home: () => process.env.CODEX_HOME?.trim() || path.join(homedir(), '.codex'),
-    manifestDir: '.codex-plugin',
     // Codex spells the same two steps differently and has no `update` verb - `add` re-installs.
     update: (plugin, marketplace) =>
       `codex plugin marketplace upgrade ${marketplace} && codex plugin add ${plugin}`,
@@ -70,6 +69,14 @@ const HARNESSES: Harness[] = [
 
 /** The skill folder a plugin must carry for any of this to be about the skill at all. */
 const SKILL_FILE = path.join('skills', 'noacg-graphic', 'SKILL.md');
+
+/**
+ * Where a plugin keeps its manifest. One plugin folder ships both (`cli/plugin/`), and which one
+ * an install was made by does not matter here: `cli/scripts/build-skill.mjs` stamps both from the
+ * package's single version, and its `--check` refuses a tree where they disagree. So the first one
+ * found answers, and the order is arbitrary rather than per-harness.
+ */
+const MANIFEST_DIRS = ['.claude-plugin', '.codex-plugin'];
 
 function readJson(file: string): Record<string, unknown> | null {
   try {
@@ -88,16 +95,10 @@ function dirNames(dir: string): string[] {
   }
 }
 
-/**
- * The version on the manifest beside the skill, or null. The harness's own manifest name is tried
- * first and the other second, because one plugin folder ships both (`cli/plugin/`) and an install
- * may have been made by either harness from the same source.
- */
-function manifestVersion(root: string, harness: Harness): string | null {
-  const dirs = [harness.manifestDir, ...HARNESSES.map((h) => h.manifestDir).filter((d) => d !== harness.manifestDir)];
-  for (const dir of dirs) {
-    const json = readJson(path.join(root, dir, 'plugin.json'));
-    const version = json?.version;
+/** The version on the manifest beside the skill, or null when no manifest there carries one. */
+function manifestVersion(root: string): string | null {
+  for (const dir of MANIFEST_DIRS) {
+    const version = readJson(path.join(root, dir, 'plugin.json'))?.version;
     if (typeof version === 'string' && version) return version;
   }
   return null;
@@ -119,9 +120,16 @@ function pluginRoots(home: string): { root: string; plugin: string }[] {
   const found: { root: string; plugin: string }[] = [];
   if (index && typeof index === 'object') {
     for (const [plugin, records] of Object.entries(index as Record<string, unknown>)) {
+      // The records are an ARRAY because one plugin can be recorded once per scope (user and
+      // project), and those records share one cache directory. Same folder, same manifest, same
+      // version - so keep the first and drop the rest, or `doctor` prints one identical stale
+      // block per scope.
+      const seen = new Set<string>();
       for (const record of Array.isArray(records) ? records : []) {
         const installPath = (record as { installPath?: unknown })?.installPath;
-        if (typeof installPath === 'string' && carriesSkill(installPath)) found.push({ root: installPath, plugin });
+        if (typeof installPath !== 'string' || seen.has(installPath)) continue;
+        seen.add(installPath);
+        if (carriesSkill(installPath)) found.push({ root: installPath, plugin });
       }
     }
   }
@@ -160,7 +168,7 @@ export function installedSkills(): InstalledSkill[] {
       continue; // no home directory to speak of (a service account) - not an error worth a word
     }
     for (const { root, plugin } of pluginRoots(home)) {
-      const version = manifestVersion(root, harness);
+      const version = manifestVersion(root);
       if (!version) continue; // no manifest, no claim - a hand-copied skill folder has no version
       const marketplace = plugin.includes('@') ? plugin.slice(plugin.lastIndexOf('@') + 1) : plugin;
       out.push({ harness: harness.name, plugin, version, path: root, update: harness.update(plugin, marketplace) });

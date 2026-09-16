@@ -26,8 +26,10 @@ import { isBehind } from '../dist/npmLatest.mjs';
 
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
-async function tempDir(name) {
+/** A scratch config directory, removed when the test that asked for it ends. */
+async function tempDir(t, name) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), `noacg-${name}-`));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
   return dir;
 }
 
@@ -64,16 +66,16 @@ async function withHomes(claudeHome, codexHome, fn) {
   }
 }
 
-test('no plugin installed is silence, not an error', async () => {
-  const empty = await tempDir('empty');
+test('no plugin installed is silence, not an error', async (t) => {
+  const empty = await tempDir(t, 'empty');
   const skills = await withHomes(path.join(empty, 'claude'), path.join(empty, 'codex'), installedSkills);
   assert.deepEqual(skills, [], 'a terminal user who never installed a plugin has nothing to report');
 });
 
-test('the version comes from the manifest beside the skill, never from the directory name', async () => {
+test('the version comes from the manifest beside the skill, never from the directory name', async (t) => {
   // The two disagree on purpose: a cache directory is named by whoever wrote it, and the whole
   // point of this command is that it states a measured version rather than a plausible one.
-  const home = await tempDir('claude');
+  const home = await tempDir(t, 'claude');
   const root = await plantPlugin(home, { dir: '9.9.9', manifest: '.claude-plugin', manifestVersion: '0.2.0' });
   await plantIndex(home, { 'noacg@noacg-studio': [{ scope: 'user', installPath: root, version: '9.9.9' }] });
 
@@ -85,17 +87,17 @@ test('the version comes from the manifest beside the skill, never from the direc
   assert.equal(skill.update, 'claude plugin marketplace update noacg-studio && claude plugin update noacg@noacg-studio');
 });
 
-test('a skill folder with no manifest beside it is reported as nothing', async () => {
+test('a skill folder with no manifest beside it is reported as nothing', async (t) => {
   // How a Codex user without `codex plugin` installs it: copy skills/noacg-graphic/ by hand
   // (cli/README.md). There is no version anywhere in those files, so there is nothing to say.
-  const home = await tempDir('manifestless');
+  const home = await tempDir(t, 'manifestless');
   await plantPlugin(home, { dir: '0.3.3' });
   const skills = await withHomes(home, path.join(home, 'no-codex'), installedSkills);
   assert.deepEqual(skills, []);
 });
 
-test('a plugin with two versions cached and no install record is ambiguous, so silent', async () => {
-  const home = await tempDir('codex');
+test('a plugin with two versions cached and no install record is ambiguous, so silent', async (t) => {
+  const home = await tempDir(t, 'codex');
   await plantPlugin(home, { dir: '0.2.0', manifest: '.codex-plugin', manifestVersion: '0.2.0' });
   const skills = await withHomes(path.join(home, 'no-claude'), home, installedSkills);
   assert.equal(skills.length, 1, 'one cached version is unambiguous - that one is the install');
@@ -120,8 +122,8 @@ test('isBehind orders releases and refuses everything it cannot order', () => {
   }
 });
 
-test('doctor names the stale install and the command that fixes it', async () => {
-  const home = await tempDir('doctor');
+test('doctor names the stale install and the command that fixes it', async (t) => {
+  const home = await tempDir(t, 'doctor');
   const root = await plantPlugin(home, { dir: '0.2.0', manifest: '.claude-plugin', manifestVersion: '0.2.0' });
   await plantIndex(home, { 'noacg@noacg-studio': [{ scope: 'user', installPath: root }] });
   // A planted registry cache keeps the run offline; `latest` equal to whatever this CLI is means
@@ -159,4 +161,12 @@ test('doctor names the stale install and the command that fixes it', async () =>
   const current = await run({});
   assert.doesNotMatch(current.stdout, /^skill /m, 'matching versions print nothing');
   assert.equal(current.code, stale.code, 'a version row never changes the exit code');
+
+  // The ordinary machine: the CLI and the plugin were installed on the same day and are equally
+  // old. Measured against the CLI alone they agree and nothing is said, and the user would hear
+  // about the skill only on the doctor run AFTER the one that told them to update the CLI.
+  await fs.writeFile(cache, JSON.stringify({ latest: '9.9.9', checkedAt: Date.now() }));
+  const bothOld = await run({});
+  assert.match(bothOld.stdout, new RegExp(`^skill {8}${version.replace(/\./g, '\\.')} in Claude Code, but npm's latest is 9\\.9\\.9`, 'm'));
+  assert.match(bothOld.stdout, /^update {7}npm's latest @noacg\/cli is 9\.9\.9 - run: npm i -g @noacg\/cli@latest$/m);
 });

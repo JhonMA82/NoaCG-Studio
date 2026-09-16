@@ -9,18 +9,27 @@
 
 import { browserLabel, launchBrowser } from '../browser.js';
 import { BridgeClient } from '../bridgeClient.js';
-import { cliVersion, configDir, noacgUrl } from '../config.js';
+import { cliVersion, configDir, noacgUrl, UNKNOWN_VERSION } from '../config.js';
 import { displayPrefix, resolveKey } from '../auth.js';
 import { fetchLatestVersion, isBehind } from '../npmLatest.mjs';
 import { installedSkills, type InstalledSkill } from '../skillVersion.js';
 import { EXIT_OK, EXIT_USAGE, refuseStrayArgs, type Out, type ParsedArgs } from '../output.js';
 
-/** The two lines one installed skill copy earns when it disagrees with the CLI running here. */
-function staleSkillLines(skill: InstalledSkill, cli: string): string[] | null {
-  if (skill.version === cli) return null;
-  if (isBehind(skill.version, cli)) {
+/** The two lines one installed skill copy earns when it is not the newest one that exists. */
+function staleSkillLines(skill: InstalledSkill, cli: string, latest: string | null): string[] | null {
+  // Measure against the newest version KNOWN to exist, which is this CLI unless npm is ahead of
+  // it. One release stamps the package, both plugin manifests and the marketplace entries from
+  // one number (cli/scripts/build-skill.mjs), so a published 0.3.3 means a 0.3.3 skill is
+  // installable. It matters on the ordinary machine, where the CLI and the plugin were installed
+  // on the same day and are equally old: comparing the skill against the CLI alone would find
+  // them in agreement and say nothing, and the user would learn about the skill only on the
+  // `doctor` run AFTER the one that told them to update the CLI.
+  const behindNpm = isBehind(cli, latest);
+  const newest = behindNpm ? (latest as string) : cli;
+  const source = behindNpm ? "npm's latest is" : 'this CLI ships';
+  if (isBehind(skill.version, newest)) {
     return [
-      `skill        ${skill.version} in ${skill.harness}, but this CLI ships ${cli} - an installed plugin never updates itself`,
+      `skill        ${skill.version} in ${skill.harness}, but ${source} ${newest} - an installed plugin never updates itself`,
       `             run: ${skill.update}`,
     ];
   }
@@ -39,7 +48,7 @@ export async function runDoctor(args: ParsedArgs, out: Out): Promise<number> {
   const cli = cliVersion();
   // Ask npm first and read the answer last: the browser launch below is seconds and this is a
   // cached read with a 1.5 s cap, so the check costs no wall clock at all. It never rejects.
-  const latest = fetchLatestVersion();
+  const asked = fetchLatestVersion();
   const report: Record<string, unknown> = { cli, url: noacgUrl(), configDir: configDir() };
   // Whether a key is HELD here, not whether it is still honoured - `noacg whoami` asks the
   // deployment; doctor stays a local report that works with no network at all.
@@ -66,7 +75,7 @@ export async function runDoctor(args: ParsedArgs, out: Out): Promise<number> {
       report.bridgeError = e instanceof Error ? e.message : String(e);
     }
   }
-  report.latest = await latest;
+  report.latest = await asked;
   out.result(report);
   out.say(`noacg ${report.cli}`);
   out.say(`deployment   ${report.url}`);
@@ -79,13 +88,20 @@ export async function runDoctor(args: ParsedArgs, out: Out): Promise<number> {
   }
   out.say(`config dir   ${report.configDir}`);
   out.say(`login        ${report.login}`);
-  // Silent when they match. Every installed copy that differs gets its own two lines, because the
-  // command that fixes one harness does nothing for the other.
-  for (const skill of skills) for (const line of staleSkillLines(skill, cli) ?? []) out.say(line);
-  // And this CLI against npm. `isBehind`, not `!==`, so a checkout built ahead of the published
-  // version - every developer of this repo between a bump and its release - is told nothing.
-  if (isBehind(cli, report.latest as string | null)) {
-    out.say(`update       npm's latest @noacg/cli is ${report.latest} - run: npm i -g @noacg/cli@latest`);
+  // Both version rows compare against the version of the CLI executing this, so a CLI that could
+  // not read its own package.json has nothing to compare with: `cliVersion()` answers a sentinel
+  // there, and instructing anybody from a fallback constant is the one thing these rows must not
+  // do. Silence, exactly as for an unreadable install.
+  const latest = report.latest as string | null;
+  if (cli !== UNKNOWN_VERSION) {
+    // Silent when they match. Every installed copy that differs gets its own two lines, because
+    // the command that fixes one harness does nothing for the other.
+    for (const skill of skills) for (const line of staleSkillLines(skill, cli, latest) ?? []) out.say(line);
+    // And this CLI against npm. `isBehind`, not `!==`, so a checkout built ahead of the published
+    // version - every developer of this repo between a bump and its release - is told nothing.
+    if (isBehind(cli, latest)) {
+      out.say(`update       npm's latest @noacg/cli is ${latest} - run: npm i -g @noacg/cli@latest`);
+    }
   }
   return report.browser && report.bridge ? EXIT_OK : EXIT_USAGE;
 }
