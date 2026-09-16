@@ -1,7 +1,9 @@
 # A suspended account can still rename its team and rotate its join code
 
 **Filed:** 2026-09-09. **Source:** measurement, while judging the six advisor findings the teams
-migrations added (`docs/backlog/advisor-gate-runs-nowhere.md`).
+migrations (0053, 0054) added to `npm run check:advisors`. That judgement is in the commit that
+re-recorded `supabase/advisor-baseline.json` at 106 on 2026-09-09; the gate itself is described in
+`docs/STACK_FRESHNESS.md`.
 
 ## Why
 
