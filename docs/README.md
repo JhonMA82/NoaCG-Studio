@@ -86,7 +86,7 @@ Layers of documentation, top to bottom:
 | `AI_LITE_PROMOTION.md` | Lite route promotion policy: eligibility gates (thresholds owner-TODO), ranking, the proposed-route output, and the manual broadcast verification checklist. |
 | `AI_LITE_PLAN.md` | ACTIVE PLAN: how Lite gets good and stays inside the ~€0.01 budget - what the 2026-08-07 switch-on and first real round measured, the route table with live prices, what the model decides vs the platform, why the judge stays off, and the build order. |
 | `ACCEPTANCE_SPX_CASPARCG.md` | OPEN manual checklist: the parts of acceptance only a real SPX/CasparCG stack can prove. Not yet run. |
-| `GOALS.md` | THE ONE ROADMAP: the north star, the business posture, and only what is NOT done. The ~200-line budget is stated in its own opening paragraph; a landed goal moves verbatim to `GOALS_ARCHIVE.md`. `## NOW` is the push and everything below it is parked, except to the extent an ACTIVE programme in `PROGRAMMES.md` states. |
+| `GOALS.md` | THE ONE ROADMAP: the north star, the business posture, and only what is NOT done. Its line budget is stated once, in its own opening paragraph, which `npm run check:goals-budget` reads; a landed goal moves verbatim to `GOALS_ARCHIVE.md`. `## NOW` is the push and everything below it is parked, except to the extent an ACTIVE programme in `PROGRAMMES.md` states. |
 | `PROGRAMMES.md` | THE REGISTER, ratified 2026-09-01: which long-running programmes the owner has authorized, each programme's state, entry conditions, scope edges and reopen triggers. Only the owner writes AUTHORIZED; the orchestrator advances ACTIVE programmes without per-step permission. The argument and claims are `NORTH_STAR_2027.md`. |
 | `VERIFICATION.md` | The full verification procedure behind root `AGENTS.md`'s rules: which suite to run, why the pre-merge gate lives in CI rather than the laptop, how a run is read job-by-job, and what each catalog gate measures. |
 | `WORKFLOW_ARCHITECTURE.md` | The development workflow for 12+ parallel sessions: the measured bottlenecks (landing on one laptop, the full suite per landing, contracts growing 8 KB a day, single-line registries), the target architecture (cloud landing queue, validation tiers, compiled contracts from `contracts/rules/`, the `learn` write path, the orchestrator's role), the source-modularity audit, the staged plan and the acceptance metrics. |
@@ -207,9 +207,10 @@ Layers of documentation, top to bottom:
 ## Where the roadmap lives
 
 `GOALS.md` is the ONE roadmap — never duplicate it into a second file. It holds only what is
-**not done**, inside the ~200-line budget its own opening paragraph states, so it can be read in
-one sitting. When a goal lands, move its entry verbatim into `GOALS_ARCHIVE.md` (the complete
-shipped record, with dates and rationale) and delete it from `GOALS.md`. When the direction
+**not done**, inside the line budget its own opening paragraph states — the one place that number
+lives, and the one `npm run check:goals-budget` reads — so it can be read in one sitting. When a
+goal lands, move its entry verbatim into `GOALS_ARCHIVE.md` (the complete shipped record, with
+dates and rationale) and delete it from `GOALS.md`. When the direction
 changes, rewrite `GOALS.md`; the archive keeps the history. Plans get their own doc only while
 they need design rationale; when they finish, they move to the historical table above.
 
