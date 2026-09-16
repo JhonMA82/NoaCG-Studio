@@ -199,10 +199,19 @@ export function alignmentState(root = REPO_ROOT) {
     // `source` already says which week won, and only the newest week's questions are still open -
     // an UNANSWERED row is never replaced by the tie-break above, so its source is the file the id
     // first appeared in, walking newest first.
-    if (!entry.answered) {
+    //
+    // THE RULINGS FILE WINS OVER "unanswered" TOO. A question the owner settled in chat, recorded
+    // straight into docs/OWNER_RULINGS.md, with the weekly file's own `**Answer:**` line left
+    // blank because nobody went back to fill it in, is a settled question - checking
+    // `entry.answered` first would carry it forward as OPEN at every weekly session even though
+    // there is nothing left for him to answer.
+    if (mentionsId(rulings, entry.id)) {
+      state.recorded.push(entry);
+    } else if (!entry.answered) {
       if (entry.source === state.source) state.open.push(entry);
-    } else if (mentionsId(rulings, entry.id)) state.recorded.push(entry);
-    else state.pending.push(entry);
+    } else {
+      state.pending.push(entry);
+    }
   }
   return state;
 }
