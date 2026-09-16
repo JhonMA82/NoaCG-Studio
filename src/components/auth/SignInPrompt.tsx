@@ -1,4 +1,5 @@
 import { useAuthUi } from './authUi';
+import { ACCOUNT_IS_FOR } from './accountCopy';
 
 /**
  * The inline gate shown where an account-only feature would render (AI panel, community, …):
@@ -26,6 +27,10 @@ export default function SignInPrompt({
     <div className="panel-section signin-prompt" data-testid="signin-prompt">
       <h3>{feature}</h3>
       <p className="hint">{reason}</p>
+      {/* The door's reason says what THIS door needs; this line says what the account is for
+          beyond it, because a student weighing "do I make an account" is weighing more than the
+          panel in front of them. One sentence, muted, the same one the dialog shows. */}
+      <p className="hint signin-prompt-for" data-testid="signin-prompt-for">{ACCOUNT_IS_FOR}</p>
       {offerSignUp ? (
         <div className="signin-prompt-actions">
           <button

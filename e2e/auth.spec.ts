@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { FAKE_JOIN_ROUTE, TEAM } from './_teams';
+import { createProject } from './_create';
 
 // Era 5.6: the editor is open to everyone — there is no login wall anywhere. And with no Supabase
 // backend configured (the default, and always the case in this test's env) the app must grow NO
@@ -58,6 +59,20 @@ test('offline / no-backend: Settings grows no Account section, and a session-exp
   // The expiry event exists for hosted builds; offline it must never conjure a sign-in dialog.
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('spx-session-expired')));
   await expect(page.locator('.auth-gate')).toHaveCount(0);
+});
+
+// The save dialog names WHERE a graphic goes when a backend is configured - "on this computer
+// only" signed out, "any computer you sign in on" signed in (e2e/configured/anonymous.spec.ts and
+// signed-in-ux.spec.ts). Offline there is no other place work could go, so the sentence must say
+// neither: a word about signing in, or about another computer, would be auth UI on a build that
+// has no accounts.
+test('offline / no-backend: the save dialog names no account and no other computer', async ({ page }) => {
+  await createProject(page, 'Hairline');
+  await page.getByTestId('save-graphic').click();
+  const where = page.getByTestId('save-where');
+  // The positive half first, so the absence below is not answering for a missing dialog.
+  await expect(where).toContainText('Saved graphics live in your library on Home.');
+  await expect(where).not.toContainText(/this computer|sign in|account/i);
 });
 
 // TEAMS (docs/TEAMS_PLAN.md §7 stage 3). A team is an ACCOUNT feature, so the same posture binds:

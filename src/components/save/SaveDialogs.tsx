@@ -6,6 +6,7 @@ import {
   useSaveUi,
 } from '../../store/saveActions';
 import { useModalGate } from '../spaceKey';
+import { useAuthState } from '../auth/useAuthState';
 
 /**
  * The two save-flow dialogs (docs/SAVED_CONTENT_MODEL.md §2), mounted ONCE in App.tsx - OUTSIDE
@@ -38,6 +39,20 @@ function SaveDialog() {
   const dialog = useSaveUi((s) => s.saveDialog)!;
   const close = useSaveUi((s) => s.closeSaveDialog);
   const template = useTemplateStore((s) => s.template);
+  // WHERE THE GRAPHIC GOES, said at the one moment the question has a consequence. The topbar
+  // states which account state the studio is in, and the owner's worry (2026-09-10: "we need to
+  // have a clear indication when we are logged in and when we are not") is the student who never
+  // reads it, works a session on a lab machine and finds nothing on the next one. A save is the
+  // moment that student is looking, so the sentence below names the destination in each state:
+  // the account, or this computer only. A fact and no button - the door stays where it always
+  // is. Offline there is no other place work could go, so the sentence stays as it was; and
+  // while the stored session is still being read, claiming either would be a guess.
+  const { backendConfigured, status } = useAuthState();
+  const where = !backendConfigured || status === 'loading'
+    ? ''
+    : status === 'signed-in'
+      ? ' and follow you to any computer you sign in on'
+      : ', on this computer only';
 
   const [name, setName] = useState(dialog.mode === 'save-as' ? `${template.name} copy` : template.name);
   const [error, setError] = useState<string | null>(null);
@@ -91,9 +106,9 @@ function SaveDialog() {
               data-testid="save-name"
             />
           </label>
-          <p className="hint">
-            Saved graphics live in your library on Home. To run several together on air, add
-            them to a <strong>production</strong> — its page holds the rundown and the links.
+          <p className="hint" data-testid="save-where">
+            Saved graphics live in your library on Home{where}. To run several together on air,
+            add them to a <strong>production</strong>. Its page holds the rundown and the links.
           </p>
           {error && <p className="status-bad">{error}</p>}
           <div className="dlg-foot dlg-foot--inline">

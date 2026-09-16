@@ -6,8 +6,8 @@ date: 2026-09-05
 
 Which of the name and the avatar survives a narrow bar is a design default and the item argues it:
 the avatar is the door. The half that was genuinely his - whether there is a good reason to sign
-in at all - is parked with his words on docs/backlog/signed-in-looks-identical-to-signed-out.md,
-which is where a parked ask belongs.
+in at all - was parked with his words on a backlog file, and landed on 2026-09-16 as
+`2026-09-16-si-what-an-account-is-for.md` in this directory, which closed that file.
 
 It stays here until an agent drives the route below and records what it saw. Its original
 text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.
@@ -49,5 +49,6 @@ instead. Say if you would rather have it the other way round on a 1440 laptop.
 **What is NOT done, and it is the half you actually raised:** *"I don't have a really good reason
 for people to be logged in."* The sign-in dialog does list cloud sync, community and AI. Whether
 those are worth an account to a student two weeks before a show is a call I did not make - and if
-the answer is no, the fix is to ask less often rather than to signal harder. Parked with your words
-on it in `docs/backlog/signed-in-looks-identical-to-signed-out.md`.
+the answer is no, the fix is to ask less often rather than to signal harder. It was parked with your
+words on it, and the 2026-09-16 item `2026-09-16-si-what-an-account-is-for.md` beside this one is
+the answer read off the code, which is the thing to judge there.

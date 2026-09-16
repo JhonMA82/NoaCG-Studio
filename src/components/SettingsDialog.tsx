@@ -17,6 +17,7 @@ import { useModalGate } from './spaceKey';
 import { useAdvancedMode } from './useAdvancedMode';
 import { useAuthState } from './auth/useAuthState';
 import { useAuthUi } from './auth/authUi';
+import { ACCOUNT_IS_FOR, NO_ACCOUNT_NEEDED } from './auth/accountCopy';
 import AiProviderSettings from './AiProviderSettings';
 import {
   ANALYTICS_CONSENT_EVENT,
@@ -74,7 +75,7 @@ function AccountSection({ onClose }: { onClose: () => void }) {
   if (status === 'signed-out') {
     return (
       <div data-testid="settings-account">
-        <p className="hint">Not signed in. An account adds cloud sync, publishing, and hosted control pages — creating and exporting never needs one.</p>
+        <p className="hint">Not signed in. {ACCOUNT_IS_FOR} {NO_ACCOUNT_NEEDED}</p>
         <button className="primary" onClick={() => { onClose(); openSignIn(); }}>Sign in</button>
       </div>
     );
