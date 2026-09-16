@@ -157,11 +157,7 @@ export default function SignInDialog() {
             no door, and the sentence is the whole answer. The no-wall line closes both shapes. */}
         <p className="auth-tag" data-testid="auth-reason">{throughDoor ? reason : ACCOUNT_IS_FOR}</p>
         <p className="muted auth-sub" data-testid="auth-account-for">
-          {isResume
-            ? NO_ACCOUNT_NEEDED
-            : throughDoor
-              ? `${ACCOUNT_IS_FOR} ${NO_ACCOUNT_NEEDED}`
-              : NO_ACCOUNT_NEEDED}
+          {throughDoor && !isResume ? `${ACCOUNT_IS_FOR} ${NO_ACCOUNT_NEEDED}` : NO_ACCOUNT_NEEDED}
         </p>
 
         {mode === 'signup' && (
@@ -224,9 +220,14 @@ export default function SignInDialog() {
             Forgot your password?
           </button>
         )}
-        <button className="auth-toggle" onClick={toggle} disabled={busy}>
-          {mode === 'signin' ? 'New here? Create a free account' : 'Already have an account? Sign in'}
-        </button>
+        {/* Resuming a dead session offers no way into signup: the reason this dialog opened is
+            getting the reader BACK into the account they already have, and an open toggle here
+            would let a mid-refresh reader spawn an unrelated second account instead. */}
+        {!isResume && (
+          <button className="auth-toggle" onClick={toggle} disabled={busy}>
+            {mode === 'signin' ? 'New here? Create a free account' : 'Already have an account? Sign in'}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -137,6 +137,9 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(card.getByTestId('auth-account-for')).toHaveText(NO_ACCOUNT_NEEDED);
     await expect(card.getByTestId('auth-account-for')).not.toContainText(ACCOUNT_IS_FOR);
     await expect(card.locator('.auth-submit')).toHaveText('Sign in');
+    // No door into signup either: this dialog's job is getting the reader back into the account
+    // they already have, not offering them a second one.
+    await expect(card.locator('.auth-toggle', { hasText: 'Create a free account' })).toHaveCount(0);
   });
 
   test('the topbar says which account state it is in, not only what it offers', async ({ page }) => {
