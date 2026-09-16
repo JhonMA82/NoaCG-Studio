@@ -50,5 +50,21 @@ Unknown/additive fields remain valid general ledger data where inspectWork permi
 are deliberately not exempted as bookkeeping. This is accidental-drift detection, not an
 attestation system, and receipt content still requires reviewer judgment.
 
-Landing is held until EQ actually lands, followed by fresh integration verification and
-this branch's own queue-merge declaration. No scheduler, provider or execution state changed.
+EQ landed PR 272 (merge d41fb749), confirmed by the coordinator. Implementation commit
+7992a1e0 then integrated origin/main 11adebce522ba6dde4819f50d6f6450c1c3e66bb cleanly.
+Contracts regenerated without a delta. Review scope remains exactly the six ET files.
+Fork-based integration plan fff13a0a includes upstream product work: 80 focused specs plus
+catalog. Job j-1117 runs npm run test:e2e:integration in this worktree (739 browser tests);
+combined build session 71162 completed with exact exit 0, recovered 2026-09-16 from
+node_modules/et-integration-build.exit and its complete log. All typecheck/lint/bundle gates
+passed; 1,695 tests passed, one skipped, zero failed (1,696 total).
+Job j-1117 is terminal done, exitCode 0: 739 browser tests passed (14.0 minutes), then
+35 catalog tests passed (2.8 minutes), no browser skips or failures. Reused these completed
+runs on recovery instead of repeating them. Configured authenticated live coverage remains
+outside this offline run, as the integration planner explicitly reports.
+
+Final review and simplification were inline against the six-file ET scope and base
+11adebce522ba6dde4819f50d6f6450c1c3e66bb. The copy/delete envelope avoids the lint finding;
+no further code changes were needed. Fresh origin/main merge-tree was conflict-free on
+2026-09-16. The branch is ready for its own checked queue declaration; parent acceptance
+still belongs to ES and is not asserted by this receipt. No scheduler, provider or execution state changed.
