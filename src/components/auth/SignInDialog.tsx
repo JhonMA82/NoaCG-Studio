@@ -37,7 +37,8 @@ export default function SignInDialog() {
   useModalGate(open && backendConfigured);
 
   // 'reset' = the forgot-password branch: email only, sends the reset link (docs/GOALS_ARCHIVE.md
-  // "Student release" step 9 — the link's return trip is PasswordRecoveryPage's job).
+  // "Student release" step 9 — the link's return trip is PasswordRecoveryPage's job). 'resume'
+  // is not a form mode of its own — it signs back in through the ordinary signin form.
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,7 +54,7 @@ export default function SignInDialog() {
   // render — a manual toggle inside an open dialog must stick.
   useEffect(() => {
     if (!open) return;
-    setMode(intent);
+    setMode(intent === 'resume' ? 'signin' : intent);
     setError(null);
     setNote(null);
   }, [open, intent]);
@@ -126,6 +127,13 @@ export default function SignInDialog() {
   // Whether a gate opened this dialog with a reason of its own. One test, read by both lines
   // below, so the two shapes cannot drift apart.
   const throughDoor = reason !== null;
+  // A session that merely needs a refresh belongs to someone who already has an account — the
+  // free-account sentence below is written for someone who has never signed in, so 'resume'
+  // skips it and shows only the reason and the no-wall line. Keyed on `mode`, not just `intent`:
+  // the reader can still toggle to "Create a free account" from this dialog (the button below is
+  // not hidden for 'resume'), and once they have, they ARE the someone the sentence is for - the
+  // suppression must track what is ON SCREEN, not only why the dialog first opened.
+  const isResumeSignIn = intent === 'resume' && mode !== 'signup';
 
   return (
     <div
@@ -152,7 +160,7 @@ export default function SignInDialog() {
             no door, and the sentence is the whole answer. The no-wall line closes both shapes. */}
         <p className="auth-tag" data-testid="auth-reason">{throughDoor ? reason : ACCOUNT_IS_FOR}</p>
         <p className="muted auth-sub" data-testid="auth-account-for">
-          {throughDoor ? `${ACCOUNT_IS_FOR} ${NO_ACCOUNT_NEEDED}` : NO_ACCOUNT_NEEDED}
+          {throughDoor && !isResumeSignIn ? `${ACCOUNT_IS_FOR} ${NO_ACCOUNT_NEEDED}` : NO_ACCOUNT_NEEDED}
         </p>
 
         {mode === 'signup' && (
