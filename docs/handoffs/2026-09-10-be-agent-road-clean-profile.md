@@ -174,7 +174,7 @@ hangs (below).
   key and then sat for **923 s** without exiting and without printing anything, including its own
   300 s giving-up message. Killed by hand. **Fixed on 2026-09-16 in `@noacg/cli` 0.3.3**: the
   listener's sockets were not dropped when it closed, and both exits are pinned in
-  `cli/test/unit.test.mjs` (`docs/handoffs/2026-09-16-sb-cli-exits-and-r25.md`).
+  `cli/test/unit.test.mjs` (`docs/AGENT_CLI.md`, the 0.3.3 entry in the version log).
 
 **I got that second one wrong first, and the correction is the lesson.** I filed it as "the CLI
 never received the code", because the captured output ended on "Waiting for you to allow access…".

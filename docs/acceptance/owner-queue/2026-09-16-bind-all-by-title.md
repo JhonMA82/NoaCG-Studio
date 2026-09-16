@@ -20,15 +20,15 @@ From this feature worktree with `npm run dev`:
    `Derby` -> **Create** -> **+ Add current** -> **Open production page**.
 2. New project -> **Scoreboards** -> **Club Scorebug** -> Create. Dock **Productions** -> pick
    `Derby` -> **+ Add current** -> **Open production page**.
-3. **DATA** tab. Under *Live values* add three paths: `match.scoreA` = `10`, `match.teamA` =
+3. **DATA** tab. Under *Production data* add three paths: `match.scoreA` = `10`, `match.teamA` =
    `Home`, `results.teamA` = `Away`.
-4. In the bindings table, click **Bind all by title** under **House Score**.
+4. In the bindings table, click **Bind this graphic by title** under **House Score**.
 
 ## What to look at
 
 - **F1 "Score A" binds itself** to `match.scoreA` - the only leaf whose name matches - with no
   typing.
-- **F0 "Team A" stays empty**, and its row now reads `ambiguous, matches match.teamA,
+- **F0 "Team A" stays empty**, and its row now reads `2 paths match, pick one: match.teamA,
   results.teamA`: two leaves match the title, so the button refuses to guess rather than picking
   one at random.
 - **F2 "Team B" and F3 "Score B" stay empty with no note at all** - nothing matched their titles,
@@ -36,8 +36,10 @@ From this feature worktree with `npm run dev`:
   problem.
 - **Click the production-wide "Bind all by title"** at the top of the table. Club Scorebug's own
   F1 now binds to `match.scoreA` too, in the same press, without opening its section first.
-- **Press either button again.** The note reads "Nothing unambiguous to bind": an already-bound
-  field is never re-suggested, so the button is safe to press more than once.
+- **Press either button again.** The note reads "Nothing left to bind. No empty field has exactly
+  one matching path.": an already-bound field is never re-suggested, so the button is safe to
+  press more than once. The line under the **Bindings** heading says the same rule before you
+  press (the Data-tab item of the same date covers that wording and the row layout).
 
 ## What this does not do
 
