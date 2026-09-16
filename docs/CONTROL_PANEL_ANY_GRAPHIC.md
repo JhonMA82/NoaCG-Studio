@@ -12,6 +12,14 @@ total of how many songs each person has guessed right. The owner wants to prompt
 Code, save it with the CLI, and run it from the playout dashboard within minutes, in front of the
 producer and director.
 
+**What 2026-10-20 is, answered 2026-09-16** (`docs/OWNER_RULINGS.md` ALIGN-2026-09-15-6): a
+DEMONSTRATION, not an air date. The programme's own graphics are made in post by its own people;
+what is wanted on the day is a graphic that updates so the host and the contestants can follow the
+score, the playout in the room is SPX, and the point is to show the producers and creators how
+easily the graphic is made. Nothing in this plan changes shape because of that - the profile was
+built on the general argument of ALIGN-2026-09-15-2 and never on the date being live - but §5a now
+says what the DAY needs, as opposed to what we build.
+
 Binding background, none of it repeated here: `docs/CONTROL_LAYER.md` (the one generator and its
 five renderers, and the 2026-09-03 clarification that there is no fixed control vocabulary),
 `docs/CONTROL_PANEL_ROAD.md` (the road, the production control profile in §3, the agent door in
@@ -193,6 +201,11 @@ on the totals cue press +1 under each person who was right. That is two presses 
 correct guess per song, and every one of them is in today's dashboard. The totals graphic stays up on its own layer for
 the whole show; the votes board is taken and cleared per song.
 
+Who that minute is for, since the 2026-09-16 answer: the host and the contestants reading the
+room's SPX output, with the programme's producers watching the operator. The presses are the same
+ones either way. What changes is that a mistake costs a retake in the room instead of going out, so
+the minute demonstrates how quickly the graphic was made rather than surviving a transmission.
+
 ### 3d. What the walk on paper found
 
 Three findings, none of them blocking, listed so the proof walk (§5 row 3) knows what to look
@@ -261,7 +274,8 @@ ALIGN-2026-09-15-4: "we don't have to wait until the 25th if we have everything 
 25th"). What the 25th still needs is its own list - `docs/DEMO_2026-09-25.md` §7 and the owner
 walks under `docs/GOALS.md` NOW - and none of the rows below touches a file or a surface that
 list depends on: the skill, the profile and the data tree are not on the day's beats. The
-early-October production needs only the scoreboards and quiz boards that already exist.
+early-October production needs only the scoreboards and quiz boards that already exist. **The rows
+below are what we BUILD; §5a is what the DAY needs**, and the two are not the same list.
 
 | # | What | Why it is on this side of the line | Cost | Who |
 |---|---|---|---|---|
@@ -287,6 +301,53 @@ that would pull it up:
 - **OGraf legality vendor block, GDD array shape, foreign packages in the dashboard** - the OGraf
   ladder in `docs/GOALS.md` NEXT, in its own order. A stranger's package already gets the honest
   panel through `ografContract.ts`; what it lacks is what the standard lacks.
+
+---
+
+### 5a. What 20 October actually needs
+
+**Answered 2026-09-16** (`docs/OWNER_RULINGS.md` ALIGN-2026-09-15-6). The day is a demonstration:
+a score that updates so the host and the contestants can follow along, running on SPX, in front of
+the programme's producers and creators, to show how easily the graphic was made. A dated event gets
+a clear list of what it needs and never the whole machine (owner, 2026-09-15), so here is the list
+and the evidence for each line. It is short because most of it is already standing.
+
+1. **A score that updates, readable as a follow-along.** EXISTS. Both graphics of §3a and §3b were
+   prompted through the agent road and walked end to end twice: in-app on 2026-09-16 (pull request
+   283, `docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md`), then
+   published and driven on the hosted control page in the configured suite the same day, where the
+   walk re-runs on every landing (`e2e/configured/hosted-control-profile.spec.ts`). The follow-along
+   IS the totals board sitting on its own layer for the whole show while +1 presses move it; the
+   day asks nothing of it that §3c does not already describe.
+
+2. **That score, playing out on SPX.** THE ONE GAP, and it is hardware rather than code. NoaCG has
+   two doors into SPX and they differ in what the operator keeps:
+   - the **output embed** (`src/export/outputEmbed.ts`) - one SPX-legal file whose body is the
+     production's own output URL, so SPX's Play and Stop move the frame while every cue, the
+     combined control and the shared data stay with the NoaCG operator. This is the door the day
+     wants. **It has never been run against a real SPX server**
+     (`docs/acceptance/owner-queue/2026-08-25-spx-output-embed-on-a-real-spx-server.md`, open since
+     2026-08-25, and the check needs a machine no session here has);
+   - the **SPX starter export** (`src/export/targets/spxStarter.ts`) - a self-contained folder that
+     is the strictest export gate we have and carries fields plus the default path, but by §6f no
+     combined controls and no production data tree. It is the honest offline fallback, and it costs
+     the profile.
+   Filed as `docs/backlog/spx-is-the-playout-on-20-october.md` so the choice is in the repository
+   rather than in a session.
+
+3. **An authoring story that looks effortless to people who make graphics for a living.** EXISTS
+   and is timed, with one honest hole. The skill teaches the contract (row 1), and the measured
+   road is 32.6 s of tool time for the seven authoring verbs on the second proof walk, 5.8 s to
+   import the pack and land on the production page, and 7.4 s from `noacg save` returning to a
+   readable frame on a public output URL (`docs/DEMO_2026-09-25.md` R2.5). None of those numbers
+   contains a human thinking, and nobody has yet done the minute with an audience watching - which
+   is the half the producers will actually judge.
+
+4. **Nothing else, and this is the part worth saying out loud.** The day needs no broadcast chain,
+   no compatibility with Yle's own playout, and none of the programme's graphics, which its own
+   people make in post. Named-seat voting from phones stays where §4 put it - build it when Yle
+   asks. The early-October production is a separate, earlier date and still needs only the
+   scoreboards and quiz boards that already exist.
 
 ---
 
