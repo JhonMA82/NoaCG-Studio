@@ -918,3 +918,134 @@ test('Bind all by title binds every unambiguous title in one press, and leaves t
   expect(new Set(edges.deleteRights).size, `delete buttons end at ${edges.deleteRights.join(', ')}`).toBe(1);
   await expect(data.getByTestId('bind-House Score-f1')).toHaveValue('match.scoreA');
 });
+
+// ── ONE EDIT, ONE WRITE ─────────────────────────────────────────────────────────────────────
+//
+// THE COUNT IS THE CLAIM. A value box used to call the tree writer on every `input` event, so a
+// twelve-character team name was twelve persists and twelve wire updates. Published, that is
+// twelve HTTP PATCHes against an ingest budget of 25 per 5 s: the run 429s, and the failure
+// handler answers by pulling the server's OLDER tree back in - which lands in the box the
+// operator is still typing into. Unpublished it is twelve read-modify-writes of every
+// production's tree, plus an update row per bound graphic each time.
+//
+// PERSISTS ARE THE ONE NUMBER WORTH COUNTING, because everything downstream hangs off them: the
+// wire update fires from `resolved`, which only moves when the tree moves, and on a published
+// production the persist IS the PATCH. Offline a persist is a `localStorage` write, so the probe
+// wraps `setItem` and counts the writes to the production-data key.
+
+/** Count every write to the production data key, in every page opened after this call. */
+async function countPersists(page: Page): Promise<void> {
+  await page.context().addInitScript(() => {
+    const w = window as unknown as { __dataPersists?: number };
+    w.__dataPersists = 0;
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (this: Storage, key: string, value: string) {
+      if (key === 'spx-gfx-production-data') w.__dataPersists = (w.__dataPersists ?? 0) + 1;
+      return setItem.call(this, key, value);
+    };
+  });
+}
+
+/** This page's count so far. */
+async function persists(page: Page): Promise<number> {
+  return await page.evaluate(() => (window as unknown as { __dataPersists?: number }).__dataPersists ?? 0);
+}
+
+/** Zero it, so the count is the gesture under test and not the setup that preceded it. */
+async function resetPersists(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    (window as unknown as { __dataPersists?: number }).__dataPersists = 0;
+  });
+}
+
+/** The value the persisted tree holds at `path`, or null - read from storage, not from the box,
+ *  so the assertion is about what LANDED rather than about what is on screen. */
+async function persistedValue(page: Page, path: string): Promise<unknown> {
+  return await page.evaluate((p: string) => {
+    const store = JSON.parse(localStorage.getItem('spx-gfx-production-data') ?? '{}') as Record<string, unknown>;
+    const tree = Object.values(store)[0];
+    let node: unknown = tree;
+    for (const key of p.split('.')) {
+      if (!node || typeof node !== 'object') return null;
+      node = (node as Record<string, unknown>)[key];
+    }
+    return node ?? null;
+  }, path);
+}
+
+test('typing a value costs ONE persist for the whole edit, not one per character', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Rate Budget');
+  await countPersists(page);
+  const data = await openWorkspace(page, 'data');
+  await addValue(data, 'match.home.name', 'Suomi');
+
+  // The gesture: select the whole value and retype it, character by character, the way an
+  // operator correcting a team name does. `pressSequentially` is the point - `fill` sets the
+  // value in one event and so cannot tell the two behaviours apart.
+  const box = data.getByTestId('data-value-match.home.name');
+  await resetPersists(data);
+  await box.click();
+  await box.press('ControlOrMeta+a');
+  await box.pressSequentially('Helsinki IFK');
+  await expect(box).toHaveValue('Helsinki IFK');
+  await box.blur();
+
+  // Waiting for the tree is what makes the count honest: poll until the edit has LANDED, then
+  // ask how many writes it took to get there.
+  await expect.poll(() => persistedValue(data, 'match.home.name')).toBe('Helsinki IFK');
+  expect(await persists(data), 'twelve characters must cost one persist').toBe(1);
+});
+
+test('an operator who types and walks away still has the value persisted', async ({ page }) => {
+  // THE TRAP THE DEBOUNCE MUST NOT SPRING. Committing on blur alone would leave a typed value in
+  // a box nobody ever leaves - the operator types the new clock and turns back to the desk - so
+  // the timer commits it unattended, and what it commits is the LAST keystroke.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Walk Away');
+  await countPersists(page);
+  const data = await openWorkspace(page, 'data');
+  await addValue(data, 'match.clock', '12:31');
+
+  const box = data.getByTestId('data-value-match.clock');
+  await resetPersists(data);
+  await box.click();
+  await box.press('ControlOrMeta+a');
+  await box.pressSequentially('20:00');
+  await expect(box, 'nothing may move the focus out of the box').toBeFocused();
+  await expect.poll(() => persistedValue(data, 'match.clock')).toBe('20:00');
+  expect(await persists(data), 'the unattended write is still ONE write').toBe(1);
+});
+
+test('a refresh arriving mid-word never overwrites the box under the cursor', async ({ page }) => {
+  // THE REVERT HAZARD. The tree moves under a box that is being typed into - a feed tick, a
+  // second operator, or this page's own recovery after a refused write - and the box is a
+  // CONTROLLED input, so whatever the tree now says lands in it mid-word. THE RULE: a box holding
+  // an uncommitted edit shows what was typed and nothing else, until that edit is committed.
+  //
+  // The probe is a second tab writing the same path, which offline is the same door a server
+  // refresh comes through (the `storage` listener on ProductionPage).
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Mid Word');
+  const dataOne = await openWorkspace(page, 'data');
+  await addValue(dataOne, 'match.home.name', 'Suomi');
+
+  const box = dataOne.getByTestId('data-value-match.home.name');
+  await box.click();
+  await box.press('ControlOrMeta+a');
+  await box.pressSequentially('Hels');
+  await expect(box, 'a box with an uncommitted edit says so').toHaveAttribute('data-dirty', 'true');
+
+  const dataTwo = await dataOne.context().newPage();
+  await dataTwo.goto(dataOne.url());
+  await expect(dataTwo.getByTestId('production-live-data')).toBeVisible();
+  await dataTwo.getByTestId('data-value-match.home.name').fill('Norge');
+  await expect.poll(() => persistedValue(dataTwo, 'match.home.name')).toBe('Norge');
+
+  // The box under the cursor is untouched, and finishing the word wins the path.
+  await expect(box).toHaveValue('Hels');
+  await box.pressSequentially('inki');
+  await box.blur();
+  await expect(box).toHaveValue('Helsinki');
+  await expect(dataTwo.getByTestId('data-value-match.home.name')).toHaveValue('Helsinki');
+});

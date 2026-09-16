@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   deletePath,
   flattenLeaves,
@@ -16,6 +16,101 @@ import { setFieldBinding, setFieldBindings, setShowSeedData, type Show } from '.
 import { fieldDescriptors } from '../../control/controlModel';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { copyLink } from './copyLink';
+
+/**
+ * ONE EDIT, ONE WRITE — where the text a person is typing lives until the edit is over.
+ *
+ * Every box on this panel is CONTROLLED by something that is persisted and shared: the value
+ * boxes by the production's live tree, the binding boxes by the show record. Writing on every
+ * keystroke made each of those cost one write per CHARACTER. On a published production that is
+ * one HTTP PATCH per character against an ingest budget of 25 per 5 s, so retyping an
+ * eleven-character team name spent half the budget and then started refusing - and the refusal
+ * handler pulls the server's older tree back in, which lands in the box still being typed into.
+ * A binding box was worse in kind: it persisted every PREFIX of the path as a real binding.
+ *
+ * So a keystroke stops here. An edit is committed when it is OVER, and it is over on blur, on
+ * Enter, after {@link EDIT_SETTLE_MS} of quiet, or when this panel goes away - the last two are
+ * what an operator who types the new score and turns back to the desk relies on.
+ *
+ * THE RULE FOR A BOX BEING TYPED INTO (the revert hazard): while a box holds an uncommitted
+ * edit, nothing the tree says changes what that box shows. A feed tick, a second operator and
+ * this page's own recovery after a refused write all move the tree, and all of them used to
+ * land mid-word. The edit wins its own path when it commits, and every other path keeps
+ * whatever arrived meanwhile - the commit writes one path, never the whole tree it was typed
+ * against. A box in this state carries `data-dirty`, so the state is visible on screen and
+ * assertable in a test rather than being a claim about internals.
+ *
+ * ONE edit at a time, deliberately: only one box can hold the caret, so a second key means the
+ * first edit is finished. Taking a new box over lands the old one rather than dropping it.
+ */
+const EDIT_SETTLE_MS = 500;
+
+type PendingEdit = { key: string; text: string };
+
+function useDeferredEdits(commit: (key: string, text: string) => void) {
+  const [edit, setEdit] = useState<PendingEdit | null>(null);
+  const editRef = useRef<PendingEdit | null>(null);
+  editRef.current = edit;
+  // The commit runs LATER than the keystroke that scheduled it, so it must never be the closure
+  // that keystroke captured: that one holds the tree as it was before whatever arrived in
+  // between, and writing it back is the very revert this exists to stop. A ref repointed on
+  // every render is how the commit stays the current one.
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stopTimer = () => {
+    if (timer.current !== null) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+  };
+
+  /** Land whatever is in the box now. Safe to call when there is nothing pending. */
+  const flush = useCallback(() => {
+    stopTimer();
+    const pending = editRef.current;
+    if (!pending) return;
+    // Cleared BEFORE the commit, so the box goes back to reading the tree in the same render
+    // the commit's write lands in and never blinks through the old value.
+    editRef.current = null;
+    setEdit(null);
+    commitRef.current(pending.key, pending.text);
+  }, []);
+
+  const type = useCallback(
+    (key: string, text: string) => {
+      // A different box: land the edit that one holds before this one takes over. Clicking away
+      // blurs first in practice; this is what makes it not matter if something ever does not.
+      if (editRef.current && editRef.current.key !== key) flush();
+      const next = { key, text };
+      editRef.current = next;
+      setEdit(next);
+      stopTimer();
+      timer.current = setTimeout(flush, EDIT_SETTLE_MS);
+    },
+    [flush],
+  );
+
+  useEffect(() => {
+    // Leaving with a box still dirty commits it: `pagehide` covers closing the tab, a reload and
+    // a navigation away, and the cleanup covers this panel being replaced by another tab's.
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, [flush]);
+
+  return {
+    /** What this box shows: its uncommitted edit if it has one, otherwise the stored text. */
+    text: (key: string, stored: string) => (edit && edit.key === key ? edit.text : stored),
+    /** Whether this box holds an edit nothing has been told about yet. */
+    dirty: (key: string) => !!edit && edit.key === key,
+    type,
+    flush,
+  };
+}
 
 /**
  * THE MANUAL DATA PLAYGROUND (docs/PRODUCTION_DATA_PLAN.md §3) — the production's live data
@@ -68,6 +163,22 @@ export default function ProductionDataPanel({
     setLiveData(next);
     setNote(message ?? null);
   };
+
+  /**
+   * The value boxes, deferred (see {@link useDeferredEdits}). The commit writes ONE path, from
+   * the tree as it stands at commit time - so an edit typed while a feed tick landed on some
+   * other path keeps that tick. An edit that ends where it started writes nothing at all, which
+   * is what makes clicking into a box, changing your mind and clicking out of it free.
+   *
+   * The steppers, Apply JSON, Reset, Clear and Move numbers stay IMMEDIATE: each is one
+   * deliberate press, already one write, and a press that did not move the figure would read as
+   * a broken button.
+   */
+  const edits = useDeferredEdits((path, text) => {
+    const leaf = leaves.find((l) => l.path === path);
+    if (!leaf || leaf.text === text) return;
+    write(setPath(liveData, path, reparseLeaf(leaf.value, text)));
+  });
 
   const addField = () => {
     const path = newPath.trim();
@@ -274,24 +385,39 @@ export default function ProductionDataPanel({
             deep as you like.
           </p>
         )}
-        {leaves.map((leaf) => (
+        {leaves.map((leaf) => {
+          // What the box shows, and whether it is holding an edit nobody has been told about.
+          const text = edits.text(leaf.path, leaf.text);
+          const dirty = edits.dirty(leaf.path);
+          return (
           <div className="pd-live-row" key={leaf.path} data-testid={`data-row-${leaf.path}`}>
             <code className="pd-live-path">{leaf.path}</code>
             {/* A LIST needs a textarea, not an input: `<input>` sanitises newlines out of its
                 own value, so a list rendered there would come back joined into one line and the
-                array would quietly become a string. `reparseLeaf` puts the list back together. */}
+                array would quietly become a string. `reparseLeaf` puts the list back together.
+                WHICH element to use is decided by the STORED text, never by what is being typed:
+                keying it on the edit would swap the element mid-word and take the caret with it. */}
             {leaf.text.includes('\n') ? (
               <textarea
                 className="pd-live-lines"
-                rows={Math.min(leaf.text.split('\n').length, 6)}
-                value={leaf.text}
-                onChange={(e) => write(setPath(liveData, leaf.path, reparseLeaf(leaf.value, e.target.value)))}
+                rows={Math.min(text.split('\n').length, 6)}
+                value={text}
+                data-dirty={dirty || undefined}
+                onChange={(e) => edits.type(leaf.path, e.target.value)}
+                onBlur={edits.flush}
                 data-testid={`data-value-${leaf.path}`}
               />
             ) : (
               <input
-                value={leaf.text}
-                onChange={(e) => write(setPath(liveData, leaf.path, reparseLeaf(leaf.value, e.target.value)))}
+                value={text}
+                data-dirty={dirty || undefined}
+                onChange={(e) => edits.type(leaf.path, e.target.value)}
+                onBlur={edits.flush}
+                // Enter ends the edit here. Not on the textarea above, where Enter is a line of
+                // the list and ending the edit with it would make a list impossible to type.
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') edits.flush();
+                }}
                 data-testid={`data-value-${leaf.path}`}
               />
             )}
@@ -334,7 +460,8 @@ export default function ProductionDataPanel({
               {armed === `leaf:${leaf.path}` ? '✓' : '✕'}
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="pd-live-add">
@@ -420,6 +547,22 @@ function BindingTable({
   const graphicsWithFields = show.graphics
     .map((g) => ({ g, descriptors: fieldDescriptors(g.template.fields ?? [], { includeHidden: true }) }))
     .filter(({ descriptors }) => descriptors.length > 0);
+
+  /**
+   * The path boxes, deferred for the same reason as the value boxes above and one of its own: a
+   * binding is persisted on the SHOW RECORD, so typing `match.home.name` used to save fifteen
+   * bindings, fourteen of them to paths that do not exist. Each of those is a synced document
+   * write, and each makes the field it belongs to resolve to nothing for a moment - on air.
+   *
+   * A graphic's name and a field id are two strings that both come from user data, so the key
+   * that identifies a box is their JSON pair rather than anything joined by a separator one of
+   * them could contain.
+   */
+  const bindEdits = useDeferredEdits((key, text) => {
+    const { graphic, fieldId } = JSON.parse(key) as { graphic: string; fieldId: string };
+    setShows(setFieldBinding(show.id, graphic, fieldId, text));
+  });
+  const bindKey = (graphic: string, fieldId: string) => JSON.stringify({ graphic, fieldId });
 
   /** Apply every unambiguous suggestion across one or more graphics in ONE write to the show
    *  record. This is the operator's press, never a load-time effect (the suggestion above is
@@ -509,10 +652,15 @@ function BindingTable({
                     <code>{d.key}</code> {d.label}
                   </span>
                   <input
-                    value={path}
+                    value={bindEdits.text(bindKey(g.name, d.key), path)}
+                    data-dirty={bindEdits.dirty(bindKey(g.name, d.key)) || undefined}
                     placeholder={suggestion ? `suggested: ${suggestion}` : 'pick or type a path'}
                     list="pd-data-paths"
-                    onChange={(e) => setShows(setFieldBinding(show.id, g.name, d.key, e.target.value))}
+                    onChange={(e) => bindEdits.type(bindKey(g.name, d.key), e.target.value)}
+                    onBlur={bindEdits.flush}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') bindEdits.flush();
+                    }}
                     data-testid={`bind-${g.name}-${d.key}`}
                   />
                   {suggestion && (
