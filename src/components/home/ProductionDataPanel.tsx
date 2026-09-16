@@ -26,8 +26,9 @@ import { copyLink } from './copyLink';
  * ingress API — the JSON shown here is exactly the shape that endpoint will accept.
  *
  * Nothing here is domain-specific. The steppers below are generated from whichever leaves
- * happen to be NUMBERS, so a scoreboard, a poll and a lap counter get the same affordance and
- * the word "score" appears nowhere in this file.
+ * happen to be NUMBERS, so a scoreboard, a poll and a lap counter get the same affordance, and
+ * the copy's example paths (`show.title`) name no dataset either: a quiz night reads the same
+ * explanation as a derby.
  */
 export default function ProductionDataPanel({
   show,
@@ -169,14 +170,14 @@ export default function ProductionDataPanel({
         <div className="pd-explain-body">
           <p>
             <strong>Production data</strong> is a list of values with a path and a value, like{' '}
-            <code>match.home.score</code> and <code>2</code>. Type a new value and every graphic
+            <code>show.title</code> and <code>Helsinki</code>. Type a new value and every graphic
             bound to that path shows it, also while it is on air. An outside system can write the
             same list over the data key.
           </p>
           <p>
             <strong>Bindings</strong> link one field of one graphic to one path. Click a field's
-            box to pick a path from the list, or type one. A bound field takes its value from here
-            at Take, not from what was typed in the cue.
+            box to pick a path from the list, or type one. A bound field shows the value from here,
+            in the preview and on air, and its box in the cue is locked.
           </p>
           <p>
             <strong>Tables</strong> are banks of rows, like a quiz bank or a line-up. They change
@@ -339,7 +340,7 @@ export default function ProductionDataPanel({
       <div className="pd-live-add">
         <input
           value={newPath}
-          placeholder="match.home.score"
+          placeholder="show.title"
           onChange={(e) => setNewPath(e.target.value)}
           data-testid="data-new-path"
         />
@@ -440,15 +441,16 @@ function BindingTable({
       text:
         entries.length > 0
           ? `✓ ${entries.length} field${entries.length === 1 ? '' : 's'} bound`
-          : 'Nothing left to bind: no empty field has exactly one matching path.',
+          : 'Nothing left to bind. No empty field has exactly one matching path.',
     });
   };
+  const hasFields = graphicsWithFields.length > 0;
 
   return (
     <div className="pd-bindings" data-testid="production-bindings">
       <div className="pd-bind-head">
         <h3>Bindings</h3>
-        {graphicsWithFields.length > 0 && (
+        {hasFields && (
           <button
             className="pd-bind-all"
             onClick={() => bindAllByTitle({ kind: 'production' }, graphicsWithFields)}
@@ -458,14 +460,12 @@ function BindingTable({
           </button>
         )}
       </div>
-      {/* What the button does, where the button is. This is `unambiguousSuggestions` in one
-          line: empty fields only, one match only, typed paths untouched - so a second press
-          finding nothing is the rule working, not the button breaking. */}
-      {graphicsWithFields.length > 0 && (
+      {/* `unambiguousSuggestions` and `matchTitle`, said where the button is. */}
+      {hasFields && (
         <p className="hint pd-bind-rule" data-testid="bind-all-rule">
-          Fills each empty field whose title matches the end of exactly one path above, like the
-          field "Score A" and the path <code>match.scoreA</code>. Paths you typed stay. Pressing
-          again changes nothing until the data or the fields change.
+          Fills each empty field whose title is the last part of exactly one path above, like the
+          field "Title" and the path <code>show.title</code>. Paths you typed stay. Pressing again
+          changes nothing until the data or the fields change.
         </p>
       )}
       {bindAllNote && scopesMatch(bindAllNote.scope, { kind: 'production' }) && (
@@ -496,10 +496,12 @@ function BindingTable({
             )}
             {descriptors.map((d) => {
               const path = bindings[g.name]?.[d.key] ?? '';
-              const suggestion = path ? null : suggestPath(d.label, leaves);
-              // An ambiguous title is never guessed (suggestPath returns null for it too), but
-              // the row still owes the operator a reason: name what it matched.
-              const ambiguous = path || suggestion ? [] : matchTitle(d.label, leaves);
+              // One scan of the leaves per unbound field, read two ways: exactly one hit is the
+              // suggestion (the same rule as `suggestPath`), and two or more are never guessed
+              // but still owe the operator a reason, so the row names what it matched.
+              const hits = path ? [] : matchTitle(d.label, leaves);
+              const suggestion = hits.length === 1 ? hits[0] : null;
+              const ambiguous = hits.length > 1 ? hits : [];
               const live = resolved[g.name]?.[d.key];
               return (
                 <div className="pd-bind-row" key={d.key}>

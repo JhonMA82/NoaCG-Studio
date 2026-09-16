@@ -1,32 +1,37 @@
-# The job queue admits two browser-driving jobs at once, and they wait on each other forever
+# A queued bench waits for every other browser run while every other run yields to it
 
 **Filed:** 2026-09-16. **Source:** measurement, while running the affected specs for the Data-tab
 row (`claude/ta-data-tab-explains-itself`).
 
 ## Why
 
-The queue's own invariant is that one browser-driving job runs per machine. Its admission
-arithmetic is a budget of 1 suite-equivalent, and two jobs at cost 0.5 fit, so it started a spec
-run and a bench in the same minute. Each then waited for the other, both counted as running,
-nothing timed out, and the session that owned the spec run lost 22 minutes before reading the logs
-and breaking the tie by hand. A queue whose "running" can mean "waiting on the other running job"
-gives a false picture to every session that reads it, which is the exact defect
+The queue admitted a spec run and a bench in the same minute, on purpose: `scripts/jobs-store.mjs`
+prices a walk at half a suite and says in its own comment that two walks may run by day where one
+suite could. That admission is not the defect. The defect is what the two did next: the bench sat
+in its own wait loop for 22 minutes while the spec run sat behind the bench, both counted as
+running, nothing timing out, and the session that owned the spec run lost the time before reading
+the logs and breaking the tie by hand. A queue whose "running" can mean "waiting on the other
+running job" gives a false picture to every session that reads it, which is the exact defect
 `docs/JOB_RUNNER_PLAN.md` says the queue was built to remove.
 
 ## What it would take
 
-Two mechanisms would each close it; pick one and pin it with a unit test.
+The mechanism, read from the code rather than guessed:
 
-1. `scripts/jobs-store.mjs`: admit at most one browser-driving job at a time regardless of the
-   cost sum. The cost budget can stay for the CPU-only jobs; the browser slot is a separate
-   count of one.
-2. `scripts/save-to-air-bench.mjs` (and `scripts/cli-bench.mjs`, same loop): do not register as
-   a holder until the wait loop at the top has ended. Today the bench is one of the runs
-   `scripts/e2e-runs.mjs` lists from the moment it starts, so every other run yields to it while
-   it waits for every other run.
+- `scripts/save-to-air-bench.mjs` (and `scripts/cli-bench.mjs`, the same loop) starts by waiting
+  until `activeRuns()` lists nobody but itself, with no cap. `scripts/e2e-runs.mjs` has
+  `WAIT_CAP_SECONDS`; this loop does not use it.
+- `scripts/command-match.mjs` lists the bench in `SWEEP_SCRIPTS`, and `blockingRuns()` in
+  `scripts/e2e-runs.mjs` yields to a sweep unconditionally, because "a sweep has no globalSetup and
+  never waits for anybody". The bench is the one sweep that DOES wait, so it is the one browser
+  holder that opts out of the total order while everybody else defers to it.
 
-Option 1 is the one that matches the stated invariant. The test belongs in
-`scripts/jobs-store.test.mjs`: two browser-driving jobs added together, only one starts.
+So the fix is in the bench, not in the queue's cost budget: either the bench must not register as a
+holder until its wait is over (start the wait before anything the detector can see), or it must
+not wait at all and take the same FIFO tiebreak as a run does, and either way its loop needs the
+same cap `e2e-runs.mjs` gives a run. Pin it with a unit test in `scripts/e2e-runs.test.mjs`: a
+sweep that is itself waiting is not a blocking run. Do not reinstate one-browser-job-at-a-time;
+the cost comment records why that stalled j-0888 for three hours.
 
 ## Evidence
 

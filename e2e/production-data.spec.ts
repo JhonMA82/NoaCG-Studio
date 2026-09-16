@@ -893,5 +893,28 @@ test('Bind all by title binds every unambiguous title in one press, and leaves t
   // re-suggested, so the button is idempotent rather than something to press exactly once.
   await data.getByTestId('bind-all-production').click();
   await expect(data.getByTestId('bind-all-note-production')).toContainText('Nothing left to bind');
+
+  // ── ONE GRID. The rows on this tab are each their own grid, and until 2026-09-16 their tracks
+  //    depended on the row's own content, so on a wide screen the path box started at a
+  //    different x on a row with a Suggest button, a row with an ambiguity note and a plain row.
+  //    Measured as geometry over the mixed shape this test has just built: value rows above
+  //    (text and number leaves, so with and without steppers), binding rows below (bound,
+  //    ambiguous and empty). Every box shares one left edge across BOTH blocks, and every
+  //    delete button one right edge. ──
+  await data.setViewportSize({ width: 1440, height: 900 });
+  const edges = await data.evaluate(() => {
+    const lefts = (selector: string) =>
+      Array.from(document.querySelectorAll(selector)).map((el) => Math.round(el.getBoundingClientRect().left));
+    const rights = (selector: string) =>
+      Array.from(document.querySelectorAll(selector)).map((el) => Math.round(el.getBoundingClientRect().right));
+    return {
+      boxLefts: [...lefts('.pd-live-row > input'), ...lefts('.pd-bind-row > input')],
+      deleteRights: [...rights('.pd-live-row > .pd-live-del'), ...rights('.pd-bind-row > .pd-live-del')],
+    };
+  });
+  expect(edges.boxLefts.length).toBeGreaterThan(6);
+  expect(new Set(edges.boxLefts).size, `path boxes start at ${edges.boxLefts.join(', ')}`).toBe(1);
+  expect(edges.deleteRights.length).toBeGreaterThan(3);
+  expect(new Set(edges.deleteRights).size, `delete buttons end at ${edges.deleteRights.join(', ')}`).toBe(1);
   await expect(data.getByTestId('bind-House Score-f1')).toHaveValue('match.scoreA');
 });

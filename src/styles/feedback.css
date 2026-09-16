@@ -42,15 +42,35 @@
    The production's live value tree and its field bindings, above the tables on the Data tab.
    Rows are a fixed grid rather than a flex run so the PATHS line up as a column - a nested
    tree read down its own left edge is the whole legibility argument for the surface. */
-/* CAPPED. The tab is full-bleed (a sub-page has no rail), and the rows below are grids of `fr`
-   tracks, so on a 2560px screen the block used to spread a 12px label and its input 800px apart
-   with nothing between them (measured 2026-09-16: label column 16-812, input from 820). A value
-   list is read down its left edge; 1120px is the widest that still reads as one thing. */
-.pd-live { max-width: 1200px; margin-bottom: 26px; padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+/* CAPPED, AND THE TWO ROW GRIDS SHARE THEIR COLUMNS. The tab is full-bleed (a sub-page has no
+   rail), and the rows used to be grids of `fr` tracks, so on a 2560px screen a 12px label and its
+   input sat 800px apart with nothing between them (measured 2026-09-16: label column 16-812,
+   input from 820). A value list is read down its left edge, so the block stops at 1200px, and
+   the label and path columns are custom properties here so the value rows and the binding rows
+   agree by construction rather than by two literals 70 lines apart staying equal. Both grids end
+   in a `minmax(0, 1fr)` track and a 28px delete track, so both delete columns sit on the block's
+   right edge. */
+.pd-live {
+  --pd-label-col: 220px;
+  --pd-path-col: minmax(200px, 460px);
+  max-width: 1200px;
+  margin-bottom: 26px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+/* PHONE (the dashboard's own breakpoint, playout-dashboard.css). The desktop columns add up to
+   more than a 480px phone has to give (598px for a value row where the content box is 448px),
+   so the pixel widths stand down for `fr` tracks with a ZERO minimum. Rows still agree with each
+   other, because no track depends on what its own row holds. */
+@media (max-width: 900px) {
+  .pd-live { --pd-label-col: minmax(0, 1fr); --pd-path-col: minmax(0, 1.4fr); }
+}
 /* THE DRAWER: what the three blocks of this tab are for, closed by default so it costs nothing
-   once learned. Worn like the other collapsed drawers on the dashboard (`.pd-actions-more`). */
+   once learned. Its summary copies `.pd-actions-more > summary` (playout-dashboard.css) rather
+   than sharing it: three drawers now wear this look and a shared `.pd-drawer` belongs in that
+   sheet, which this panel's row did not own. */
 .pd-explain { margin: 0 0 10px; }
-.pd-explain > summary { cursor: pointer; font-size: 11.5px; color: var(--text-dim, #9aa1ad); padding: 3px 0; }
+.pd-explain > summary { cursor: pointer; font-size: 11.5px; color: var(--text-dim); padding: 3px 0; }
 .pd-explain-body { max-width: 640px; padding: 4px 0 2px; }
 .pd-explain-body p { margin: 0 0 8px; font-size: 12.5px; line-height: 1.5; color: var(--text); }
 .pd-explain-body p.hint { margin: 0; }
@@ -59,24 +79,28 @@
    would answer that measurement instead. */
 .pd-live-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
 .pd-live-head h2 { margin: 0; font-size: 16px; }
-/* 480px, so the heading, this line and the five action buttons share one row inside the cap. */
-.pd-live-head .hint { max-width: 480px; margin: 0; }
+/* The line SHRINKS before the actions wrap: a published production shows six buttons (about
+   660px with the Data key toggle), and 120px of heading plus 480px of hint plus those buttons is
+   more than the 1200px cap, so the hint gives up width down to 320px first. */
+.pd-live-head .hint { flex: 1 1 320px; max-width: 480px; margin: 0; }
 .pd-live-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; flex: 0 0 auto; }
 .pd-live-rows { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
 /* FIXED TRACKS, not `fr`: every row is its own grid, so a track that depends on the row's own
-   content sits at a different x on every row. The path column is a hard 220px and the input a
-   bounded one, so the inputs line up whatever the row beside them holds. */
+   content sits at a different x on every row. Path, value, type, the steppers (numbers only, so
+   the delete button is PINNED to the last track rather than auto-placed - on a text row it used
+   to land in the stepper track and stretch to fill it), a spacer to the block's edge, delete. */
 .pd-live-row {
   display: grid;
-  grid-template-columns: 220px minmax(200px, 460px) 54px 64px 28px;
+  grid-template-columns: var(--pd-label-col) var(--pd-path-col) 54px minmax(0, 1fr) 28px;
   align-items: center;
   gap: 8px;
   padding: 3px 0;
 }
+.pd-live-row > .pd-live-del { grid-column: 5; }
 .pd-live-path { font-size: 12px; color: var(--text); opacity: 0.85; overflow-wrap: anywhere; }
 .pd-live-row input { width: 100%; min-width: 0; }
 .pd-live-type { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.pd-live-step { display: flex; gap: 4px; }
+.pd-live-step { display: flex; gap: 4px; justify-self: start; }
 .pd-live-step button { padding: 2px 8px; line-height: 1.4; font-size: 13px; }
 .pd-live-del { padding: 2px 7px; line-height: 1.4; color: var(--muted); }
 .pd-live-del:hover { color: var(--text); border-color: var(--accent); }
@@ -141,20 +165,12 @@
    is what stops a long note pushing the input left on its own row. */
 .pd-bind-row {
   display: grid;
-  grid-template-columns: 220px minmax(200px, 460px) minmax(0, 1fr) 28px;
+  grid-template-columns: var(--pd-label-col) var(--pd-path-col) minmax(0, 1fr) 28px;
   align-items: center;
   gap: 8px;
   padding: 2px 0;
 }
-/* PHONE (the dashboard's own breakpoint, playout-dashboard.css). The desktop tracks above add up
-   to 598px for a value row and 472px for a binding row, and a 480px phone has 448px to give, so
-   the pixel widths stand down here for `fr` tracks with a ZERO minimum. Rows still agree with
-   each other, because no track depends on what its own row holds; only the desktop's fixed
-   220px label column is given up. */
-@media (max-width: 900px) {
-  .pd-live-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 54px 64px 28px; }
-  .pd-bind-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr) 28px; }
-}
+.pd-bind-row > .pd-live-del { grid-column: 4; }
 .pd-bind-field { font-size: 12px; overflow-wrap: anywhere; }
 .pd-bind-field code { color: var(--muted); margin-right: 4px; }
 .pd-bind-row input { width: 100%; min-width: 0; font-family: var(--mono, ui-monospace, monospace); font-size: 12px; }
