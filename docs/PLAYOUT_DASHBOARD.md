@@ -555,6 +555,24 @@ cue, so a name reached air letter by letter, while the editor's own header promi
 push live on ✎ Update"), and a cue that is on both streams shows the STAGED version on PVW while
 PGM keeps what is aired.
 
+**A BOUND FIELD TAKES THE OTHER ROAD** (2026-09-16, `docs/PRODUCTION_DATA_PLAN.md` §2.9). When the
+production has bound a field to its data tree, the figure is not that graphic's to own: it is one
+shared value several graphics follow. So on the two REACT surfaces a ± press - and an ⚡ event's
+`adjust` on the same field - patches the tree instead of writing the field, and every graphic bound
+to that path follows through the diff production data already had. Three things follow:
+
+- the press counts from the TREE, never from the wire or the cue, because a feed may have moved the
+  value since either was written;
+- nothing is mirrored into the cue or into the hosted staging buffer, since a bound field is never a
+  cue value (§2.7) - which is also why the box reads out with its path instead of editing;
+- an event whose every moved field is bound fires BARE, and its figures arrive as the tree's own
+  update rows.
+
+**The EXPORTED controller is untouched by that**, and deliberately: it carries no tree and no
+bindings, so its field stepper is the field stepper described above
+(`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6f, the owner's 2026-09-15 boundary ruling). An unbound field
+is unchanged on all three.
+
 Pinned by `e2e/production-controls.spec.ts`: "± LIVE NUMBERS bumps a figure on air" for the
 React surfaces, and "± LIVE NUMBERS on the EXPORTED controller" for the package — that one reads
 the rows off the relay and asserts the PAYLOAD SHAPE, because what an exported surface puts on

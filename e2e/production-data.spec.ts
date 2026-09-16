@@ -721,3 +721,124 @@ test('the playout column stays hidden behind the Data workspace, rundown include
   // Still MOUNTED, which is the other half of the contract: hidden, never unmounted.
   expect(await data.locator('.pd-rail').count()).toBe(1);
 });
+
+// ── AC-7: a stepper on a BOUND field moves the shared value ──────────────────────────────────
+
+/** A second graphic into the production this page already holds, on its own layer. */
+async function addSecondGraphic(page: Page, variant: string, production: string): Promise<void> {
+  await createProject(page, { name: variant });
+  await page.getByTestId('dock-tab-control').click();
+  const section = page.locator('.panel-section', { hasText: 'Productions' });
+  // A fresh document remounts the panel, so the production has to be re-picked by name.
+  const value = await section.locator('select option', { hasText: production }).getAttribute('value');
+  await section.locator('select').selectOption(value!);
+  await section.getByRole('button', { name: '+ Add current' }).click();
+  await expect(section.locator('.status-ok')).toContainText('is in the production');
+  await section.getByTestId('open-production-page').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+}
+
+test('a ± press on a bound field moves the shared value, and every graphic bound to it follows', async ({ page }) => {
+  // THE BUG THIS CLOSES (docs/PRODUCTION_DATA_PLAN.md §2.9): the ± stepper wrote ONE field on ONE
+  // graphic, so on a production where two graphics show the same score the operator moved one of
+  // them and the next write of the shared value put it back. Phase 3 makes the press move the
+  // VALUE, and both graphics follow through the diff that already existed.
+  //
+  // A big score strip and a small bug, both showing the home score, is the shape the owner asked
+  // for on 2026-09-15: a score entered once shows everywhere. Both scoreboard families call the
+  // home score `f1` (src/templates/scoreboards/shared.ts), so one path binds the same slot twice.
+  await createProject(page, { name: 'House Score' });
+  await productionFor(page, 'Derby Data');
+  await addSecondGraphic(page, 'Club Scorebug', 'Derby Data');
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(2);
+
+  // ── ONE value, bound on BOTH graphics ──
+  const data = await openWorkspace(page, 'data');
+  await addValue(data, 'match.home.score', '0');
+  await data.getByTestId('bind-House Score-f1').fill('match.home.score');
+  await data.getByTestId('bind-Club Scorebug-f1').fill('match.home.score');
+  await expect(data.getByTestId('bind-value-House Score-f1')).toHaveText('0');
+  await expect(data.getByTestId('bind-value-Club Scorebug-f1')).toHaveText('0');
+  await settleDurableWrites(data);
+
+  // ── Both on air, each on its own layer ──
+  await page.getByTestId('verb-take').click();
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  const strip = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="20"]');
+  const bug = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="21"]');
+  await expect(strip.locator('#f1')).toHaveText('0');
+  await expect(bug.locator('#f1')).toHaveText('0');
+
+  // The bound field reads out rather than editing, on the cue whose ± is about to be pressed:
+  // there is no box to type a value into that nothing would ever air (§2.7).
+  await expect(page.getByTestId('cue-bound-f1')).toBeVisible();
+  await expect(page.getByTestId('cue-field-f1')).toHaveCount(0);
+
+  // ── THE PRESS. One ± on the bug, and the STRIP moves too. ──
+  await page.getByTestId('live-number-f1-up').click();
+  await expect(bug.locator('#f1')).toHaveText('1');
+  await expect(strip.locator('#f1')).toHaveText('1');
+  // It moved the VALUE, not the field: the tree is what both are reading.
+  await expect(data.getByTestId('data-value-match.home.score')).toHaveValue('1');
+  // …and it stayed a NUMBER, so a feed writing the same path does not find a string there.
+  await expect(data.getByTestId('data-row-match.home.score')).toContainText('number');
+
+  // ── An UNBOUND number field on the same graphic is exactly what it always was: one partial
+  //    update to this graphic alone, mirrored into its own cue. ──
+  const awayBefore = Number((await bug.locator('#f3').textContent()) ?? 0);
+  const stripAway = await strip.locator('#f3').textContent();
+  await page.getByTestId('live-number-f3-up').click();
+  await expect(bug.locator('#f3')).toHaveText(String(awayBefore + 1));
+  await expect(strip.locator('#f3')).toHaveText(stripAway ?? '');
+  await expect(page.getByTestId('cue-field-f3')).toHaveValue(String(awayBefore + 1));
+  // The shared value did not move for it.
+  await expect(data.getByTestId('data-value-match.home.score')).toHaveValue('1');
+});
+
+test('an adjust on a bound field patches the tree, and the event still fires', async ({ page }) => {
+  // The second half of AC-7. A scoreboard's GOAL carries `adjust: { f1: 1 }`, so the press used to
+  // ride the new figure as the event's payload and mirror it into the cue. With f1 bound, the
+  // figure is not this graphic's to carry: the event fires on its own and the score arrives as the
+  // tree's own update row, on every graphic bound to the path.
+  await createProject(page, { name: 'House Score' });
+  await productionFor(page, 'Goal Data');
+  await addSecondGraphic(page, 'Club Scorebug', 'Goal Data');
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+
+  const data = await openWorkspace(page, 'data');
+  await addValue(data, 'match.home.score', '2');
+  await data.getByTestId('bind-House Score-f1').fill('match.home.score');
+  await data.getByTestId('bind-Club Scorebug-f1').fill('match.home.score');
+  await settleDurableWrites(data);
+
+  await page.getByTestId('verb-take').click();
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await cues.nth(0).locator('.pd-cue-label').click();
+  const strip = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="20"]');
+  const bug = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="21"]');
+  await expect(strip.locator('#f1')).toHaveText('2');
+  await expect(bug.locator('#f1')).toHaveText('2');
+
+  // GOAL: the flag plays on the strip AND the shared figure moves on both.
+  await page.getByTestId('cue-action-goalA').click();
+  await expect(page.getByTestId('machine-state-chip')).toContainText('Flag');
+  await expect(strip.locator('#f1')).toHaveText('3');
+  await expect(bug.locator('#f1')).toHaveText('3');
+  await expect(data.getByTestId('data-value-match.home.score')).toHaveValue('3');
+
+  // The cue did NOT take the figure: a bound field is never a cue value, so taking this cue again
+  // airs the tree rather than re-airing whatever the press happened to leave behind.
+  const stored = await page.evaluate(() => {
+    const shows = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as {
+      name: string;
+      cues: { values: Record<string, string> }[];
+    }[];
+    return shows.find((s) => s.name === 'Goal Data')?.cues.map((c) => c.values.f1 ?? null) ?? [];
+  });
+  expect(stored).not.toContain('3');
+  await page.getByTestId('verb-take').click();
+  await expect(strip.locator('#f1')).toHaveText('3');
+});

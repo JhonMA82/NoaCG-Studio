@@ -68,9 +68,11 @@ export interface HostedCombineInput {
 }
 
 /** A user-named key, read safely: a graphic name and a control id are somebody's typed text, so a
- *  bare `map[name]` answers a function for one called `constructor`. */
-function own<T>(map: Record<string, T>, key: string): T | undefined {
-  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+ *  bare `map[name]` answers a function for one called `constructor`. A MISSING map reads as an
+ *  empty one, because a surface that has not resolved an optional half of its production yet
+ *  (the tree arrives one round trip after the panel) must behave as one with nothing there. */
+function own<T>(map: Record<string, T> | undefined, key: string): T | undefined {
+  return map && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
 }
 
 /** The bound values for one graphic, read safely off a user-named key. */

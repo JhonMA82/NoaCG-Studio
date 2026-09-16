@@ -694,6 +694,10 @@ test('the hosted page reads a delayed step off the WIRE, and reports the one the
       liveCue: { [VOTES]: cueOf(VOTES).id, [TOTALS]: cueOf(TOTALS).id },
       live: { [VOTES]: asState(ready), [TOTALS]: {} },
       aired: {} as Record<string, Record<string, string>>,
+      // This production binds nothing, which is the case every production is in until somebody
+      // uses the Data tab - and with nothing bound every rule below is the one it always was.
+      bindings: {},
+      resolved: {},
     };
     const [firstGroup, tailGroup] = planCombine(control, new Set<number>());
     const sendWith = (at: typeof base, groups: typeof firstGroup[]) =>
@@ -817,4 +821,135 @@ test('the hosted page reads a delayed step off the WIRE, and reports the one the
     'update+play+cue+update+play+cue',
     'update+play+cue',
   ]);
+});
+
+test('a bound field on the hosted page reads the tree, and a press moves the value rather than the field', async ({
+  page,
+}) => {
+  // AC-7's hosted half. This page cannot be mounted by an offline spec (it needs a configured
+  // backend), so what the merge gate can hold is its RESOLUTION over the bytes a slug can reach:
+  // the published panel and cues, plus the production tree and bindings `control_data_by_slug`
+  // hands it (migration 0060). Those are the four inputs `src/control/hostedCombine.ts` takes,
+  // and they are what the page hands the shared resolver - the same fence HG put the combined
+  // controls behind.
+  test.setTimeout(120_000);
+  await importProofCase(page);
+
+  const measured = await page.evaluate(async ({ VOTES, TOTALS }) => {
+    const shows = await import('/src/model/shows.ts');
+    const { buildPanelSpec, buildOutputPayload } = await import('/src/control/hostedControl.ts');
+    const { readPublishedProfile } = await import('/src/model/profile.ts');
+    const { hostedPoolMachines, hostedCombineNow, hostedCombineWorld, hostedCueValues, hostedResolved } =
+      await import('/src/control/hostedCombine.ts');
+    const { resolveCombineSend } = await import('/src/control/combineSend.ts');
+    const { planCombine } = await import('/src/control/combine.ts');
+
+    const show = shows.loadShows().find((s) => s.graphics.some((g) => g.name === VOTES))!;
+    const panel = buildPanelSpec(show);
+    const payload = await buildOutputPayload(show);
+    const machines = hostedPoolMachines(panel);
+    const cueOf = (graphic: string) => payload.cues.find((c) => c.graphic === graphic)!;
+
+    // ONE VALUE, TWO GRAPHICS. The totals board shows panelist 1's points as a number (`plus1`
+    // declares `adjust: { f5: 1 }`); the votes board carries the same panelist's slot. This is
+    // AC-7's scenario, through the bytes rather than through a show record.
+    const PATH = 'panel.katri.points';
+    const bindings = { [TOTALS]: { f5: PATH }, [VOTES]: { f5: PATH } };
+    const tree = { panel: { katri: { points: 4 } } };
+    const resolved = hostedResolved(tree, bindings);
+
+    const base = {
+      panel,
+      cues: payload.cues,
+      staged: {} as Record<string, Record<string, string>>,
+      profile: readPublishedProfile(null),
+      liveCue: { [VOTES]: cueOf(VOTES).id, [TOTALS]: cueOf(TOTALS).id },
+      live: { [VOTES]: {}, [TOTALS]: {} },
+      // The WIRE deliberately disagrees with the tree here. A bound field must count from the
+      // tree: the wire is only the tree's last resolution, and a value the operator has since
+      // moved on the Data tab would otherwise be counted from a stale row.
+      aired: { [TOTALS]: { f5: '99' } } as Record<string, Record<string, string>>,
+      bindings,
+      resolved,
+    };
+    const unbound = { ...base, bindings: {}, resolved: {} };
+
+    const plus = (n: number) => ({ kind: 'event' as const, graphic: TOTALS, control: `plus${n}` });
+    const send = (at: typeof base, steps: ReturnType<typeof plus>[]) =>
+      resolveCombineSend(
+        planCombine({ id: 'c', name: 'press', steps }, new Set<number>()),
+        hostedCombineNow(machines, at),
+        hostedCombineWorld(machines, at),
+      );
+
+    const boundPress = send(base, [plus(1)]);
+    const unboundPress = send(unbound, [plus(1)]);
+    // Two presses of the SAME shared value in one press. The chain is by PATH, so the second
+    // counts from what the first wrote rather than from the tree both started at.
+    const twice = send(base, [plus(1), plus(1)]);
+    // An unbound field on a graphic that has OTHER bound fields is untouched: `plus2` moves f6,
+    // which nothing binds.
+    const mixed = send(base, [{ kind: 'event' as const, graphic: TOTALS, control: 'plus2' }]);
+
+    const msgOf = (item: { msg: unknown }) => item.msg as { t: string; event?: string; payload?: Record<string, string> };
+    return {
+      // What the tree says every bound graphic is showing - one value, two graphics.
+      resolvedBoth: [resolved[TOTALS]?.f5, resolved[VOTES]?.f5],
+      boundAnswer: hostedCombineWorld(machines, base).bound(TOTALS, 'f5'),
+      unboundAnswer: hostedCombineWorld(machines, base).bound(TOTALS, 'f6'),
+      // A bound press: a bare event on the wire, and the figure as a TREE write.
+      boundWire: boundPress.steps.flat().map((i) => `${i.graphic}:${msgOf(i).event}:${JSON.stringify(msgOf(i).payload ?? null)}`),
+      boundTree: boundPress.tree,
+      boundMirrors: boundPress.mirrors.length,
+      // The same control with nothing bound is byte for byte what it always was.
+      unboundWire: unboundPress.steps.flat().map((i) => `${i.graphic}:${msgOf(i).event}:${JSON.stringify(msgOf(i).payload ?? null)}`),
+      unboundTree: unboundPress.tree.length,
+      unboundMirrors: unboundPress.mirrors.map((m) => `${m.cueId === cueOf(TOTALS).id ? 'its cue' : m.cueId}:${m.values.f5}`),
+      twiceTree: twice.tree.map((w) => w.text),
+      mixedTree: mixed.tree.length,
+      mixedWire: mixed.steps.flat().map((i) => JSON.stringify(msgOf(i).payload ?? null)),
+      // What a TAKE of the totals board would send, with the cue's own value, a staged edit and
+      // the tree all in play.
+      takeValues: hostedCueValues(cueOf(TOTALS), { [TOTALS]: { f5: '7', f0: 'Katri' } }, resolved).f5,
+      takeStaged: hostedCueValues(cueOf(TOTALS), { [TOTALS]: { f5: '7', f0: 'Katri' } }, resolved).f0,
+      cueF5: cueOf(TOTALS).values.f5 ?? '',
+    };
+  }, { VOTES: PROOF_VOTES, TOTALS: PROOF_TOTALS });
+
+  // ONE VALUE, EVERY GRAPHIC BOUND TO IT. This is the whole claim of AC-7, and it is answered
+  // before any press: both graphics resolve the same figure from the same path.
+  expect(measured.resolvedBoth).toEqual(['4', '4']);
+  expect(measured.boundAnswer).toEqual({ path: 'panel.katri.points', current: '4' });
+  expect(measured.unboundAnswer).toBe(null);
+
+  // THE PRESS MOVES THE VALUE, NOT THE FIELD. The event still fires - the machine's own arrow is
+  // what plays the point animation - but it rides bare, because the figure is not this graphic's
+  // to carry. It counts from the TREE (4), never from the wire (99) and never from the cue (0).
+  expect(measured.boundWire).toEqual(['Totals board:plus1:null']);
+  expect(measured.boundTree).toEqual([{ path: 'panel.katri.points', text: '5', verb: 'adjust' }]);
+  // Nothing is mirrored into a cue: a bound field is never a cue value (plan §2.7), so there is
+  // no stored figure left for the next Take to regress to.
+  expect(measured.boundMirrors).toBe(0);
+
+  // AN UNBOUND FIELD IS UNCHANGED, which is the other half of the acceptance: the figure rides as
+  // the event's payload, counted from the wire, and mirrored back at the cue on air.
+  expect(measured.cueF5).toBe('0');
+  expect(measured.unboundWire).toEqual(['Totals board:plus1:{"f5":"100"}']);
+  expect(measured.unboundTree).toBe(0);
+  expect(measured.unboundMirrors).toEqual(['its cue:100']);
+
+  // TWO PRESSES OF ONE SHARED VALUE CHAIN BY PATH. Two graphics bound to one figure are one
+  // figure: "+1 here, +1 there" in a single press has to land on 6, not twice on 5.
+  expect(measured.twiceTree).toEqual(['5', '6']);
+
+  // A control moving an UNBOUND field of a graphic that binds others is untouched.
+  expect(measured.mixedTree).toBe(0);
+  expect(measured.mixedWire).toEqual(['{"f6":"1"}']);
+
+  // AND THE TAKE CANNOT REGRESS IT. The cue says 0 and a second operator has staged 7; the tree
+  // says 4, and that is what a Take sends. Without this the page's own ± press was undone by the
+  // very next Take - the trap §2.7 exists to close, on the surface the show is run from.
+  expect(measured.takeValues).toBe('4');
+  // …and staging still wins for every field the production has NOT bound.
+  expect(measured.takeStaged).toBe('Katri');
 });
