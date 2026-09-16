@@ -5,7 +5,7 @@ import { awaitPreviewRebuild } from './_preview';
 import { elementPoint } from './_canvas';
 import { settleDurableWrites } from './_durable';
 import { previewFrame } from './_frame';
-import { dropSvg as dropSvg2, intoProduction, untickTextRow, QUIZ_SVG, SCOREBUG_SVG } from './_svg-import';
+import { boxGrow, boxGrows, dropSvg as dropSvg2, intoProduction, untickTextRow, QUIZ_SVG, SCOREBUG_SVG } from './_svg-import';
 
 // The SVG import road, door to export (docs/SVG_IMPORT_PLAN.md P1): a layered
 // Illustrator-shaped SVG dropped on the Import door becomes a playable template whose text
@@ -35,24 +35,6 @@ async function dropSvgMarkup(page: Page, markup: string, name = 'design.svg') {
     mimeType: 'image/svg+xml',
     buffer: Buffer.from(markup),
   });
-}
-
-/**
- * WHAT ONE BOX DOES WITH A LONG VALUE, on the checklist heading that names it
- * (docs/TEXT_BOX_BINDING.md, rung 4). Growth is chosen per box and the shape is never asked
- * for, because the row IS the shape - so this is where the graphic-wide picker used to be.
- *
- * BY POSITION IN THE CHECKLIST, which is the artwork's own order: the marker ids behind the
- * headings are the importer's business, and a spec that spelled them out would be testing the
- * inventory rather than the control.
- */
-function boxGrow(page: Page, n = 0) {
-  return page.getByTestId('map-svg-fields').locator('[data-testid^="map-svg-box-grow-"]').nth(n);
-}
-
-/** Every box's answer at once, for a file where the claim is about all of them. */
-function boxGrows(page: Page) {
-  return page.getByTestId('map-svg-fields').locator('[data-testid^="map-svg-box-grow-"]');
 }
 
 /** Create from wherever the walk stands and land in the editor. */

@@ -89,10 +89,13 @@ export interface DesignSvgGrowth {
    * as a fraction of the frame on this rule's own axis (docs/TEXT_BOX_BINDING.md, rung 4).
    *
    * Absent = the design's own margin mirrored, which is what every graphic emitted before this
-   * existed gets and what the wizard leaves untouched unless somebody drags the cap line. A
-   * declared cap is still floored at the rule's `safe` margin, so it can only ever bring the
-   * limit IN - "we cannot have templates outgrow the screen" stays structural rather than
-   * becoming a number an author could get wrong.
+   * existed gets and what the wizard leaves untouched unless somebody drags the cap line.
+   *
+   * A cap REPLACES that mirrored margin rather than tightening it, so it moves the limit either
+   * way - a plate drawn hard under something has almost no margin to mirror, and a smaller number
+   * here is how it is given room. It is still floored at the rule's `safe` margin, so "we cannot
+   * have templates outgrow the screen" stays structural rather than becoming a number an author
+   * could get wrong.
    *
    * ADDITIVE, so version 1 survives (`root/version-every-persisted-format-ship-breaking`): a
    * runtime from before this field simply never looks for it and derives the margin as it did.

@@ -381,6 +381,13 @@ stops at the frame and at the box"); without the clamp the same drag emitted a c
   control could not change the graphic in front of the reader
   (`wizard/offer-control-can-change-graphic-front`). An answer already set keeps its control, so
   unticking a row never loses a ladder choice.
+- **And one NARROWING, recorded because it is real.** A plate whose only editable text is a
+  replaced OUTLINE row has no heading in the Editable text list - those rows are their own
+  section - so it has no select, where the graphic-wide picker could name it. It is still
+  reachable by dragging the plate on the artwork, and the section's summary names it when it
+  grows, so the answer is never invisible; it just cannot be changed from a heading.
+  `illustrator-mixed-outlines` is the corpus case, and its sidecar expects `shrink`. Giving the
+  outline rows their own box headings is the honest fix and is rung 5's business, not this one's.
 - **No persisted shape moved.** `svgStretch.shapeId` is now simply the box that carries the
   DECLARED followers, which is the only thing the format attaches to a single rule, and every
   other box's answer rides `perPanel`, which has existed since 2026-09-03. The emitter is

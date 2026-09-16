@@ -959,12 +959,18 @@ export default function WizardPreview({
                     data-testid={`wz-preview-cap-grab-${cap.id}`}
                     role="slider"
                     tabIndex={0}
+                    aria-orientation="vertical"
                     aria-label={`How far ${cap.label} may grow`}
-                    /* Stated as the margin in percent of the frame, which is the number the line
-                       IS: bigger means the growth stops further from the edge. */
-                    aria-valuemin={Math.round(cap.min * 100)}
-                    aria-valuemax={Math.round(cap.max * 100)}
-                    aria-valuenow={Math.round(cap.margin * 100)}
+                    /* STATED AS WHERE THE LINE IS, measured down the frame in percent, rather
+                       than as the margin it keeps. The margin is measured from whichever edge
+                       the box grows towards, so announcing it would count UP on a box that grows
+                       down and DOWN on one that grows up - the same key doing opposite things to
+                       the number on two graphics. Down the frame is one direction for both, it
+                       is the direction the keys move the line, and `aria-valuetext` carries the
+                       sentence, which is the answer anybody actually wants. */
+                    aria-valuemin={Math.round((cap.dir > 0 ? 1 - cap.max : cap.min) * 100)}
+                    aria-valuemax={Math.round((cap.dir > 0 ? 1 - cap.min : cap.max) * 100)}
+                    aria-valuenow={Math.round(at * 100)}
                     aria-valuetext={cap.note}
                     style={{ height: Math.max(9, 14 / z), top: -Math.max(9, 14 / z) / 2 }}
                     onPointerDown={(ev) => {

@@ -2043,9 +2043,14 @@ function svgGrowCap(rule, el, frame, dir) {
 }
 
 /** THE MARGIN THE GROWING EDGE KEEPS, in screen px: the author's own cap where the table carries
- *  one, else the design's mirrored margin - and never tighter than the rule's safe margin either
- *  way. So a cap can only ever bring the limit IN, and a declared one can no more reach the
- *  screen's edge than a derived one can (docs/TEXT_BOX_BINDING.md, rung 4).
+ *  one, else the design's mirrored margin.
+ *
+ *  A CAP REPLACES THE MIRRORED MARGIN RATHER THAN TIGHTENING IT, so it moves the limit either
+ *  way: a smaller number than the design drew grants the element MORE room, which is the point -
+ *  a plate drawn hard under something has almost no mirrored margin, and the reader dragging the
+ *  line down is how it gets any. The one thing a cap cannot do is loosen the SAFE margin, so a
+ *  declared cap can no more reach the screen's edge than a derived one can
+ *  (docs/TEXT_BOX_BINDING.md, rung 4).
  *
  *  The span is the frame on this rule's axis, and the mirrored margin is the one the design left
  *  on the side the element is anchored to. A panel growing from its MIDDLE mirrors nothing -

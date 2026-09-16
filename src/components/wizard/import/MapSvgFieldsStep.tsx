@@ -39,6 +39,7 @@ import {
   nudgeOffered,
   nudgeWords,
   boxFitOf,
+  capClamped,
   capLines,
   growCapOf,
   type GrowCapFit,
@@ -630,6 +631,24 @@ export default function MapSvgFieldsStep({
     // ONLY A BOX THAT MAY GET TALLER CARRIES A LINE (see above).
     if (mode === 'grow-y' || mode === 'grow-xy') capBoxes.push(g.boxId);
   }
+  // AND ANY BOX THIS CHECKLIST CANNOT HEAD. A plate whose only editable text is a replaced
+  // OUTLINE row has no heading here - those rows are their own section - and a drag on the
+  // artwork still turns growth on for any shape. Naming it in the section's summary is what
+  // keeps the guardrail true ("a box that stays as drawn moves nothing" needs the list of the
+  // ones that do not), even where there is no heading to put its select on.
+  for (const boxId of [
+    ...Object.keys(perPanel),
+    ...(draft.svgStretch.on && draft.svgStretch.shapeId ? [draft.svgStretch.shapeId] : []),
+  ]) {
+    if (growingBoxes.some((b) => b.boxId === boxId)) continue;
+    const mode = modeOfBox(boxId);
+    if (mode === 'shrink') continue;
+    growingBoxes.push({
+      boxId,
+      label: svg?.shapes.find((s) => s.id === boxId)?.label ?? 'A shape',
+      mode,
+    });
+  }
   const capKey = capBoxes.join('|');
   // A LAYOUT effect, like every other measurement on this step: the sentence under the heading
   // carries a NUMBER, and measuring after paint would print one answer for a frame and correct
@@ -643,15 +662,32 @@ export default function MapSvgFieldsStep({
     const fits: Record<string, GrowCapFit> = {};
     for (const boxId of capKey.split('|')) {
       const lines = Object.keys(boxOfRow).filter((lineId) => boxOfRow[lineId] === boxId);
-      const fit = growCapOf(stage, boxId, lines);
+      const fit = growCapOf(stage, svg, boxId, lines);
       if (fit) fits[boxId] = fit;
     }
     setCapFits(fits);
   }, [svg, capKey, boxOfRow, fontKey]);
 
+  /** The layer's own name and its drawn size, for the heading's tooltip. The name shown is the
+   *  reader's ("Tan plate"), which is the right one to read and the wrong one to check a file
+   *  against; the SIZE is the one number that says the geometry was read where the shape is
+   *  PAINTED rather than off its attributes - the owner's question plate is a portrait rectangle
+   *  turned 88.68 degrees, drawn 231 x 1233 and painted 1238 x 259. */
+  const boxTitle = (boxId: string | null) => {
+    const shape = boxId ? svg?.shapes.find((s) => s.id === boxId) : null;
+    return shape
+      ? `${shape.label}, ${Math.round(shape.width)} × ${Math.round(shape.height)} px as drawn`
+      : undefined;
+  };
+
   /** WHERE THE LIMIT STANDS AND WHAT IT BUYS, in the reader's own words and the artwork's own px.
    *  Two pieces rather than one sentence, because the row under the heading and the chip on the
    *  preview say it at different lengths and must not be able to disagree about the FACTS. */
+  /** IS THE LINE SOMEWHERE THE DESIGN DID NOT PUT IT - because the reader moved it, or because
+   *  the design's own mirrored margin does not fit between the two ends and was clamped to one of
+   *  them. Either way "the same margin as the top" would be describing a line that is not there. */
+  const capMoved = (boxId: string, fit: GrowCapFit, margin: number) =>
+    capsSet?.[boxId]?.y != null || Math.abs(margin - fit.mirrored) > 0.0005;
   const capWords = (fit: GrowCapFit, margin: number, moved: boolean) => ({
     where: moved
       ? `${Math.round(margin * (svg?.height ?? 0))} px ${fit.dir > 0 ? 'above the bottom' : 'below the top'} of the frame`
@@ -663,19 +699,42 @@ export default function MapSvgFieldsStep({
    *  the design's. Clamped on the way out, so a cap stored against an artwork that has since
    *  been re-dropped can never draw a line outside the two ends. */
   const capMargin = (boxId: string, fit: GrowCapFit) =>
-    Math.min(fit.max, Math.max(fit.min, capsSet?.[boxId]?.y ?? fit.drawn));
+    capClamped(fit, capsSet?.[boxId]?.y ?? fit.drawn);
   // THE NAME THE CHECKLIST SHOWS, not the box's own: a board with two plates of one colour heads
   // them "Board 1" and "Board 2", and a line on the canvas calling itself "Board" would be a
   // limit the reader cannot match to a row.
-  const capLabels = growingBoxes.map((b) => `${b.boxId} ${b.label}`).join('|');
+  //
+  // As JSON rather than as a delimited string, which is not fussiness: written with a NUL between
+  // the two halves, git read the whole FILE as binary - `git ls-files --eol` said `i/-text`, grep
+  // answered "Binary file matches", and the diff a reviewer reads came out as 1819 added lines
+  // instead of the 343 that changed.
+  const capLabels = JSON.stringify(growingBoxes.map((b) => [b.boxId, b.label]));
+  /** HOW FAR THIS BOX MAY GET, said once under its heading in the same words the line on the
+   *  preview carries. The line is the control; this is what it says, for a reader whose eyes are
+   *  on the checklist. Null for a box with no limit to show, which is every box that stays as
+   *  drawn. */
+  const capSentence = (boxId: string | null, key: string) => {
+    const fit = boxId ? capFits[boxId] : undefined;
+    if (!boxId || !fit) return null;
+    const margin = capMargin(boxId, fit);
+    const w = capWords(fit, margin, capMoved(boxId, fit, margin));
+    return (
+      <p className="hint map-svg-box-cap" data-testid={`map-svg-box-cap-${key}`}>
+        Stops at {w.where}
+        {w.lines ? `, room for ${w.lines} line${w.lines === 1 ? '' : 's'} at the size you drew` : ''}.{' '}
+        <span className="map-svg-box-cap-how">Drag the line on the preview.</span>
+      </p>
+    );
+  };
+
   const growCaps = useMemo<PreviewGrowCap[]>(() => {
-    const labels = new Map(capLabels.split('|').map((p) => p.split(' ') as [string, string]));
+    const labels = new Map(JSON.parse(capLabels) as [string, string][]);
     const out: PreviewGrowCap[] = [];
     for (const boxId of capKey ? capKey.split('|') : []) {
       const fit = capFits[boxId];
       if (!fit) continue;
-      const margin = Math.min(fit.max, Math.max(fit.min, capsSet?.[boxId]?.y ?? fit.drawn));
-      const w = capWords(fit, margin, capsSet?.[boxId]?.y != null);
+      const margin = capClamped(fit, capsSet?.[boxId]?.y ?? fit.drawn);
+      const w = capWords(fit, margin, capMoved(boxId, fit, margin));
       const label = labels.get(boxId) ?? 'This box';
       out.push({
         id: boxId,
@@ -705,7 +764,7 @@ export default function MapSvgFieldsStep({
     (boxId: string, margin: number) => {
       const fit = capFits[boxId];
       if (!fit) return;
-      const m = Math.min(fit.max, Math.max(fit.min, margin));
+      const m = capClamped(fit, margin);
       const caps = { ...(draft.svgStretch.caps ?? {}) };
       // PUTTING THE LINE BACK WHERE THE DESIGN HAD IT TAKES THE CAP AWAY, so a reader who drags
       // it out and back emits exactly the bytes they started with rather than a rule saying in
@@ -1071,18 +1130,7 @@ export default function MapSvgFieldsStep({
               <p
                 className="map-svg-box-head"
                 data-testid={`map-svg-box-head-${group.fields[0].candidateId}`}
-                /* THE LAYER'S OWN NAME AND ITS DRAWN SIZE, on the heading that renamed it. The
-                   name shown is the reader's ("Tan plate"), which is the right one to read and
-                   the wrong one to check a file against - and the SIZE is the one number that
-                   says the geometry was read where the shape is PAINTED rather than off its
-                   attributes: the owner's question plate is a portrait rectangle turned 88.68
-                   degrees, drawn 231 x 1233 and painted 1238 x 259. */
-                title={(() => {
-                  const shape = group.boxId ? svg.shapes.find((s) => s.id === group.boxId) : null;
-                  return shape
-                    ? `${shape.label}, ${Math.round(shape.width)} × ${Math.round(shape.height)} px as drawn`
-                    : undefined;
-                })()}
+                title={boxTitle(group.boxId)}
               >
                 {group.boxId && (
                   <span
@@ -1136,21 +1184,7 @@ export default function MapSvgFieldsStep({
                 )}
               </p>
             )}
-            {/* AND HOW FAR IT MAY GET, said once under the heading in the same words the line on
-                the preview carries. The line itself is the control; this is what it says, for a
-                reader whose eyes are on the checklist. */}
-            {showBoxGroups && group.boxId && capFits[group.boxId] && (() => {
-              const fit = capFits[group.boxId!];
-              const margin = capMargin(group.boxId!, fit);
-              const w = capWords(fit, margin, capsSet?.[group.boxId!]?.y != null);
-              return (
-                <p className="hint map-svg-box-cap" data-testid={`map-svg-box-cap-${group.fields[0].candidateId}`}>
-                  Stops at {w.where}
-                  {w.lines ? `, room for ${w.lines} line${w.lines === 1 ? '' : 's'} at the size you drew` : ''}.{' '}
-                  <span className="map-svg-box-cap-how">Drag the line on the preview.</span>
-                </p>
-              );
-            })()}
+            {showBoxGroups && capSentence(group.boxId, group.fields[0].candidateId)}
             {group.fields.map((f) => {
             // A LAYER THE VOTE WRITES IS NOT A FIELD, so this row does not offer the two boxes
             // that would pretend it is (owner walk, 2026-09-03: he selected a percentage, watched
