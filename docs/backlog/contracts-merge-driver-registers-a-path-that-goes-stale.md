@@ -66,15 +66,22 @@ script is gone.
 
 ## What it would take
 
-An hour. Lift the three repairs across, and while both files are open, do what
+An hour. Lift the three repairs across, correct the comment they make stale, and while both files
+are open, do what
 `2026-09-16-qj-contracts-driver-cannot-rot.md` reported and did not fix: pull the registration into
 one shared `registerMergeDriver(name, command, description)` used by both drivers, so there is one
 story for "this file is merged by a program" rather than two that drift. Copy the value-comparing
 test from `scripts/contracts-merge-driver.test.mjs`, and add the doubled-key case, which is the one
 neither suite has.
 
-QJ did not do it because that row forbade editing QE's files while QE's branch was queued. Both are
-on `main` now, so that reason is spent.
+**The comment to correct** is in `scripts/package-merge-driver.mjs`'s `DRIVER_COMMAND` block,
+around line 86: "The sibling contracts driver registers an absolute path and in this very clone it
+already points at `agent-ae47713a44213dee3`, which no longer exists." That was true when it was
+written and `f1b90e55` made it false. It is the argument the relative path rests on, so leaving it
+there is how a future reader concludes the argument is out of date and the path is free to move.
+
+QJ did not do any of this because that row forbade editing QE's files while QE's branch was queued.
+Both are on `main` now, so that reason is spent.
 
 ## Evidence
 

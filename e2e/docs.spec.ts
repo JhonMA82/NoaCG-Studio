@@ -424,6 +424,16 @@ test('the session indexes carry their content, and each prints on its own', asyn
   await expect(page.locator('#claude-code')).toBeHidden();
   await expect(page.locator('.doc-nav')).toBeHidden();
 
+  // The printed addresses. A link is only its words on paper, so an in-page one carries the
+  // address it would have gone to, the one that leaves the site carries its own, and a link whose
+  // text already IS an address must not print it twice. That last rule is a specificity tie away
+  // from breaking and nothing else would show it.
+  const suffix = (selector: string) =>
+    page.locator(selector).first().evaluate((el) => getComputedStyle(el, '::after').content);
+  expect(await suffix('#session-student a[href="#svg-rules"]')).toContain('noacg.studio/docs#svg-rules');
+  expect(await suffix('#session-student a[href^="https://github.com"]')).toContain('github.com');
+  expect(await suffix('#session-student .two-urls a[href="/app"]')).toBe('none');
+
   await page.goto('/docs#session-owner');
   await expect(owner).toBeVisible();
   await expect(student).toBeHidden();

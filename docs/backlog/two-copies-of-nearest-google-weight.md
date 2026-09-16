@@ -42,4 +42,4 @@ unrelated diff is how a split stops being reviewable.
 
 Measured 2026-09-16: `src/model/googleFonts.ts` line 84 and
 `src/components/wizard/import/FontsSection.tsx` line 17. A repo-wide grep for `nearestWeight` finds
-the one definition and its two call sites in that component, and nothing else.
+two lines and nothing else: that definition and its one call site at `FontsSection.tsx:84`.
