@@ -2,16 +2,19 @@ import { useMemo, useState } from 'react';
 import {
   deletePath,
   flattenLeaves,
+  matchTitle,
   parseDataTree,
   parseLiteral,
   reparseLeaf,
   setPath,
   suggestPath,
+  type DataLeaf,
   type JsonObject,
   type ResolvedValues,
 } from '../../model/productionData';
 import { setFieldBinding, setShowSeedData, type Show } from '../../model/shows';
 import { fieldDescriptors } from '../../control/controlModel';
+import type { FieldDescriptor } from '../../model/fieldModel';
 import { copyLink } from './copyLink';
 
 /**
@@ -340,6 +343,22 @@ export default function ProductionDataPanel({
  * exactly ONE leaf matches the field's title, so an ambiguous name leaves an empty row for the
  * operator rather than a binding that is wrong half the time (the API's `ambiguous` doctrine).
  */
+/** Every unbound, unambiguous title-to-leaf suggestion the given descriptors would bind, keyed
+ *  by field id, the same computation the per-row suggestion and the two bulk buttons share. */
+function unambiguousSuggestions(
+  descriptors: FieldDescriptor[],
+  bound: Record<string, string> | undefined,
+  leaves: DataLeaf[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const d of descriptors) {
+    if (bound?.[d.key]) continue; // already bound, never overwritten by a bulk press
+    const suggestion = suggestPath(d.label, leaves);
+    if (suggestion) out[d.key] = suggestion;
+  }
+  return out;
+}
+
 function BindingTable({
   show,
   setShows,
@@ -355,22 +374,81 @@ function BindingTable({
   const bindings = show.bindings ?? {};
   /** The one ✕ whose second click unbinds, or null — the same one-slot arming as above. */
   const [armed, setArmed] = useState<string | null>(null);
+  /** The last "Bind all by title" outcome, per button. Cleared by the next press of any. */
+  const [bindAllNote, setBindAllNote] = useState<{ scope: string; text: string } | null>(null);
+
+  const graphicsWithFields = show.graphics
+    .map((g) => ({ g, descriptors: fieldDescriptors(g.template.fields ?? [], { includeHidden: true }) }))
+    .filter(({ descriptors }) => descriptors.length > 0);
+
+  /** Apply every unambiguous suggestion across one or more graphics in ONE state update. This is
+   *  the operator's press, never a load-time effect (the suggestion above is only ever offered). */
+  const bindAllByTitle = (
+    scope: string,
+    targets: { g: Show['graphics'][number]; descriptors: FieldDescriptor[] }[],
+  ) => {
+    let result: Show[] | null = null;
+    let bound = 0;
+    for (const { g, descriptors } of targets) {
+      const suggestions = unambiguousSuggestions(descriptors, bindings[g.name], leaves);
+      for (const fieldId of Object.keys(suggestions)) {
+        result = setFieldBinding(show.id, g.name, fieldId, suggestions[fieldId]);
+        bound += 1;
+      }
+    }
+    if (result) setShows(result);
+    setBindAllNote({
+      scope,
+      text: bound > 0 ? `✓ ${bound} field${bound === 1 ? '' : 's'} bound` : 'Nothing unambiguous to bind.',
+    });
+  };
 
   return (
     <div className="pd-bindings" data-testid="production-bindings">
-      <h3>Bindings</h3>
+      <div className="pd-bind-head">
+        <h3>Bindings</h3>
+        {graphicsWithFields.length > 0 && (
+          <button
+            className="pd-bind-all"
+            onClick={() => bindAllByTitle('production', graphicsWithFields)}
+            data-testid="bind-all-production"
+          >
+            Bind all by title
+          </button>
+        )}
+      </div>
+      {bindAllNote?.scope === 'production' && (
+        <p className="hint" data-testid="bind-all-note-production">
+          {bindAllNote.text}
+        </p>
+      )}
       {show.graphics.length === 0 && (
         <p className="hint">Add a graphic to this production and its fields appear here.</p>
       )}
-      {show.graphics.map((g) => {
-        const descriptors = fieldDescriptors(g.template.fields ?? [], { includeHidden: true });
-        if (descriptors.length === 0) return null;
+      {graphicsWithFields.map(({ g, descriptors }) => {
         return (
           <div className="pd-bind-graphic" key={g.id} data-testid={`bind-graphic-${g.name}`}>
-            <h4>{g.name}</h4>
+            <div className="pd-bind-graphic-head">
+              <h4>{g.name}</h4>
+              <button
+                className="pd-bind-all"
+                onClick={() => bindAllByTitle(g.name, [{ g, descriptors }])}
+                data-testid={`bind-all-${g.name}`}
+              >
+                Bind all by title
+              </button>
+            </div>
+            {bindAllNote?.scope === g.name && (
+              <p className="hint" data-testid={`bind-all-note-${g.name}`}>
+                {bindAllNote.text}
+              </p>
+            )}
             {descriptors.map((d) => {
               const path = bindings[g.name]?.[d.key] ?? '';
               const suggestion = path ? null : suggestPath(d.label, leaves);
+              // An ambiguous title is never guessed (suggestPath returns null for it too), but
+              // the row still owes the operator a reason: name what it matched.
+              const ambiguous = path || suggestion ? [] : matchTitle(d.label, leaves);
               const live = resolved[g.name]?.[d.key];
               return (
                 <div className="pd-bind-row" key={d.key}>
@@ -392,6 +470,11 @@ function BindingTable({
                     >
                       use {suggestion}
                     </button>
+                  )}
+                  {ambiguous.length > 1 && (
+                    <span className="pd-bind-ambiguous" data-testid={`bind-ambiguous-${g.name}-${d.key}`}>
+                      ambiguous, matches {ambiguous.join(', ')}
+                    </span>
                   )}
                   {/* What the field is ACTUALLY showing, so a typo in a path reads as a blank
                       here rather than as a mystery on air. */}
