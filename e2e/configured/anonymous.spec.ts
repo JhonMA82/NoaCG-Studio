@@ -130,6 +130,13 @@ test.describe('anonymous visitor (open editor)', () => {
     // even though the event supplies a reason and every OTHER door with a reason shows it (the
     // Community door above is the contrasting case: same shape, ACCOUNT_IS_FOR present).
     await page.goto('/app');
+    // `page.evaluate` runs in the page immediately - it does not wait for anything, unlike a
+    // locator action. Dispatched before React has mounted and App.tsx's effect has attached its
+    // `spx-session-expired` listener, the event fires into an empty page and is gone; nothing
+    // reopens the dialog later; the assertions below then time out waiting for it. Waiting for the
+    // wizard first (every other test in this file reaches it through a locator action, which
+    // carries its own actionability wait) is what makes the dispatch land on a listening app.
+    await expect(page.locator('.wz-modal')).toBeVisible();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('spx-session-expired')));
     const card = page.locator('.auth-card');
     await expect(card).toBeVisible();
