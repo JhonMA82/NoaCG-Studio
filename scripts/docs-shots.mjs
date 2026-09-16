@@ -111,8 +111,10 @@ async function openImportDoor(page) {
  * viewer preview and its inbox are siblings under the page. Capturing the wrapper publishes a
  * tall picture whose subject is a third of it; capturing one child leaves out the half that
  * makes it mean something. The clip is the honest middle.
+ *
+ * With one selector it is that element plus the padding its own box does not carry.
  */
-async function clipBetween(page, fromSelector, toSelector, { pad = 12, top = pad, bottom = pad } = {}) {
+async function clipBetween(page, fromSelector, toSelector = fromSelector, { pad = 12, top = pad, bottom = pad } = {}) {
   const box = await page.evaluate(
     ([from, to, p, topPad, bottomPad]) => {
       const first = document.querySelector(from);
@@ -129,13 +131,16 @@ async function clipBetween(page, fromSelector, toSelector, { pad = 12, top = pad
       // down the page stops mattering.
       const a = first.getBoundingClientRect();
       const b = last.getBoundingClientRect();
-      const x = Math.min(a.left, b.left) + window.scrollX;
-      const y = Math.min(a.top, b.top) + window.scrollY;
+      // The padded edges are clamped to the page FIRST and the size measured from them, so a
+      // panel sitting closer to the left edge than the pad gets a narrower clip rather than one
+      // whose right edge runs off the page by the difference.
+      const left = Math.max(0, Math.min(a.left, b.left) + window.scrollX - p);
+      const topEdge = Math.max(0, Math.min(a.top, b.top) + window.scrollY - topPad);
       return {
-        x: Math.max(0, x - p),
-        y: Math.max(0, y - topPad),
-        width: Math.max(a.right, b.right) + window.scrollX - x + p * 2,
-        height: Math.max(a.bottom, b.bottom) + window.scrollY - y + topPad + bottomPad,
+        x: left,
+        y: topEdge,
+        width: Math.max(a.right, b.right) + window.scrollX + p - left,
+        height: Math.max(a.bottom, b.bottom) + window.scrollY + bottomPad - topEdge,
       };
     },
     [fromSelector, toSelector, pad, top, bottom],
@@ -147,7 +152,9 @@ async function clipBetween(page, fromSelector, toSelector, { pad = 12, top = pad
  *  published picture of a form with one cell outlined reads as a state the reader has to
  *  explain to themselves. */
 async function blur(page) {
-  await page.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined));
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  });
 }
 
 /**
@@ -176,10 +183,10 @@ const HALL_CUP_TREE = {
 };
 
 /** The example production, with the graphics this shot needs. Returns its id. */
-async function hallCup(page, kinds) {
+async function hallCup(page, graphics) {
   await page.goto(`${base}/app`);
   await page.locator('.topbar').waitFor({ timeout: 60_000 });
-  return page.evaluate(async (wanted) => {
+  return page.evaluate(async (graphics) => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
     const { formatTemplate } = await import('/src/format/formatCode.ts');
@@ -187,7 +194,7 @@ async function hallCup(page, kinds) {
     const { commitDurableWrites } = await import('/src/model/durableStore.ts');
 
     const show = createShowNamed('Hall Cup');
-    for (const [categoryId, variantName] of wanted) {
+    for (const [categoryId, variantName] of graphics) {
       const variant = variantsFor(categoryId).find((v) => v.name === variantName);
       if (!variant) throw new Error(`no catalog variant "${variantName}" in ${categoryId}`);
       const draft = mergeDraft(initialDraft(), {
@@ -204,7 +211,7 @@ async function hallCup(page, kinds) {
     }
     await commitDurableWrites();
     return show.id;
-  }, kinds);
+  }, graphics);
 }
 
 /**
@@ -338,7 +345,7 @@ await shot('data-bindings', async (page) => {
   const showId = await hallCup(page, HALL_CUP_GRAPHICS);
   await fillTree(page, showId);
   await blur(page);
-  return clipBetween(page, '.pd-bindings', '.pd-bindings');
+  return clipBetween(page, '.pd-bindings');
 });
 
 // ── 6. What a bound field looks like on the Playout tab ──────────────────────
@@ -355,9 +362,10 @@ await shot('data-cue', async (page) => {
   // The cue editor mounts a preview iframe and measures it; let the page settle before the
   // shutter rather than photographing a half-laid-out dashboard.
   await page.waitForTimeout(1200);
-  // No top pad: the verbs row sits 12px above the editor card, and padding upward catches a
-  // slice of its last button. The card carries its own gutter, so it needs none.
-  return clipBetween(page, '[data-testid="cue-editor"]', '[data-testid="live-numbers"]', { top: 0 });
+  // No pad above or below: the verbs row sits 12px over the editor card and the next panel sits
+  // the same distance under the live-numbers one, so padding either way publishes a slice of a
+  // card that is not the subject. Both carry their own gutter.
+  return clipBetween(page, '[data-testid="cue-editor"]', '[data-testid="live-numbers"]', { top: 0, bottom: 0 });
 });
 
 // ── 7. A table, and the cue that loads a row out of it ───────────────────────
@@ -369,16 +377,27 @@ await shot('data-table', async (page) => {
   return clipBetween(page, '.pd-data-head', '.pd-dataset');
 });
 
-/** The Audience tab with the door open, three rehearsal arrivals in, and the viewer preview
- *  unfolded. Shared by the two shots below, which photograph different halves of it. */
-async function audienceInbox(page) {
-  const showId = await hallCup(page, [
-    ['audience', 'House Question'],
-    ['poll', 'House Vote'],
-  ]);
+/**
+ * The two graphics the audience half needs: somewhere for a moderated question to go, and a
+ * board for a vote's counts. Hall Cup grows them in the guide at the same point.
+ */
+const HALL_CUP_AUDIENCE = [
+  ['audience', 'House Question'],
+  ['poll', 'House Vote'],
+];
+
+/** The Audience tab of that production, with the door open. Everything below starts here. */
+async function openAudience(page) {
+  const showId = await hallCup(page, HALL_CUP_AUDIENCE);
   await page.goto(`${base}/app#/production/${showId}/audience`);
   await page.getByTestId('production-audience').waitFor();
   await page.getByTestId('audience-open').check();
+}
+
+/** ...and three rehearsal arrivals in, with the viewer preview unfolded. Shared by the two
+ *  shots below, which photograph different halves of the same screen. */
+async function audienceInbox(page) {
+  await openAudience(page);
   await page.getByTestId('audience-simulate').click();
   await page.getByTestId('audience-preview-details').locator('summary').click();
   // The preview mounts the join surface and loads its first view over the provider's own
@@ -419,13 +438,7 @@ await shot('audience-inbox', async (page) => {
 // The operator's side only. The viewer's ballot is in the shot above's preview frame, and this
 // one is about the counts - which exist HERE and nowhere a viewer can reach.
 await shot('audience-vote', async (page) => {
-  const showId = await hallCup(page, [
-    ['audience', 'House Question'],
-    ['poll', 'House Vote'],
-  ]);
-  await page.goto(`${base}/app#/production/${showId}/audience`);
-  await page.getByTestId('production-audience').waitFor();
-  await page.getByTestId('audience-open').check();
+  await openAudience(page);
   await page.getByTestId('audience-round-question').fill('Who takes the second half?');
   await page.getByTestId('audience-round-options').fill('Otava\nKarhut\nToo close to call');
   await page.getByTestId('audience-round-open').click();

@@ -285,8 +285,10 @@ test('the worked example carries one show a reader can copy exactly', async ({ p
   await page.goto('/docs');
   const example = page.locator('#data-example');
 
-  // (a) THE ADDRESSES. Both are linked from outside this page - the app's Data tab points at
-  // #data-example - so they survive a restructure even when their headings move.
+  // (a) THE ADDRESSES. `#data-example` and `#audience-no-chat` are what the Live data and
+  // Audience sections above hand off to, and the app's own Data tab is meant to point at the
+  // first (its panel already deep-links `/docs#data-api` the same way). Pinned here so they
+  // survive a restructure even when the headings around them move.
   await expect(page.locator('section[id="data-example"]')).toHaveCount(1);
   await expect(example.locator('[id="audience-no-chat"]')).toHaveCount(1);
   await expect(page.locator('.doc-nav a[href="#data-example"]')).toHaveCount(1);
@@ -331,9 +333,9 @@ test('the worked example carries one show a reader can copy exactly', async ({ p
 //
 // EVERY `.doc-shot` on the page, not just the SVG guide's. The guide was the only section with
 // pictures when this was written and the selector said so, which meant the worked example's
-// six shots (#data-example, 2026-09-16) shipped past the one gate that would have caught a
-// squashed or missing one. The count is asserted as a floor per section instead, so a shot
-// that is DELETED is caught while adding one costs no edit here.
+// shots (#data-example, 2026-09-16) would have shipped past the one gate that catches a
+// squashed or missing one. Each section's count is asserted too, so a shot that is quietly
+// DELETED fails here rather than leaving a paragraph pointing at nothing.
 test('every docs screenshot loads at the size the page reserved for it', async ({ page }) => {
   await page.goto('/docs');
   await expect(page.locator('#svg .doc-shot img')).toHaveCount(3);
