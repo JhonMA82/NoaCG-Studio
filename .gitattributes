@@ -84,3 +84,24 @@ contracts/index.md merge=noacg-contracts
 # safe-merge-preflight then call the tree not landable over zero changed lines.
 /AGENTS.md merge=noacg-contracts
 /AGENTS.md text eol=lf
+
+# MERGING THE TEXT OF package.json IS THE WRONG QUESTION, for the same reason as the block above:
+# the file is a JSON object, and two branches that each add a script line are not disagreeing about
+# anything - git simply cannot place two insertions in the same region of a 170-entry block. It was
+# the most hand-resolved file in the repository, 13 of the 60 resolutions in the 45 days to
+# 2026-09-16 and three times the next file, with no decision in any of them.
+#
+# `merge=noacg-package` (scripts/package-merge-driver.mjs, registered by `check:package-merge` in
+# `npm run build`) merges the two objects key by key, and merges a script BODY the same way when
+# both sides appended a step to it. It still conflicts, loudly, on a key the two sides changed to
+# two different values - a dependency range, a rewritten script body - because that one does need a
+# person. `scripts/fixtures/package-merge-corpus.json` replays every one of those 13 resolutions.
+#
+# No slash, so the four package.json files in this tree (root, cli/, player-host/, render-worker/)
+# are all merged the same way. package-lock.json is NOT here: a union of two lock files is not a
+# lock, and its conflicts are settled by regenerating it.
+package.json merge=noacg-package
+
+# The corpus is rewritten in place by `node scripts/package-merge-driver.mjs --record`, which
+# writes LF, so an autocrlf checkout must not report it phantom-dirty.
+scripts/fixtures/package-merge-corpus.json text eol=lf
