@@ -15,26 +15,21 @@
 // fresh user with no global install must still get a working server, and for them this stays
 // exactly as expensive as the plugin already was, never more.
 
-import { existsSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const BIN = 'noacg';
-const ENTRY = path.join('@noacg', 'cli', 'dist', 'index.js');
-
 // The staleness check (docs/backlog/a-stale-global-cli-wins-over-npx-silently.md): an installed
 // copy wins over npx silently, so a machine that ran `npm i -g @noacg/cli` once keeps that version
-// forever with nothing on screen saying so. One cached registry read fixes that.
-const REGISTRY_LATEST_URL = 'https://registry.npmjs.org/@noacg/cli/latest';
-// One path per machine by default, so every `noacg-mcp` process shares one cached read. An explicit
-// override exists solely so a diagnostic run (docs/acceptance/owner-queue/*-stale-global-cli-warns.md)
-// can plant a fake `latest` without touching the real cache every other session on the box reads.
-const VERSION_CACHE_FILE = process.env.NOACG_CLI_LATEST_CACHE_FILE
-  || path.join(os.tmpdir(), 'noacg-cli-latest-version.json');
-const VERSION_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // once a day is enough to catch a stale machine
-const REGISTRY_TIMEOUT_MS = 1500; // never let a slow network add real time to a session start
+// forever with nothing on screen saying so. One cached registry read fixes that. The read itself
+// lives in npm-latest.mjs, which `noacg doctor` runs too - a GENERATED copy of cli/src/npmLatest.mjs
+// (cli/scripts/build-skill.mjs writes it; its `--check` fails if the two drift). It is a copy and
+// not an import from the resolved CLI on purpose: the CLI being checked may predate the check.
+import { fetchLatestVersion } from './npm-latest.mjs';
+
+const BIN = 'noacg';
+const ENTRY = path.join('@noacg', 'cli', 'dist', 'index.js');
 
 /** Where npm puts a globally installed package, derived from the directory holding its shim:
  *  `<prefix>\node_modules\...` on Windows, `<prefix>/lib/node_modules/...` everywhere else. */
@@ -97,43 +92,6 @@ function readOwnVersion(entry) {
     return JSON.parse(readFileSync(pkgPath, 'utf8')).version ?? null;
   } catch {
     return null;
-  }
-}
-
-/** npm's current `latest` for `@noacg/cli`, cached on disk for a day so a version check costs a
- *  network round trip once per machine per day rather than once per session. Returns null on any
- *  failure (offline, slow, cache unreadable) - a version check must never block startup. */
-async function fetchLatestVersion() {
-  try {
-    const cached = JSON.parse(readFileSync(VERSION_CACHE_FILE, 'utf8'));
-    if (Date.now() - cached.checkedAt < VERSION_CACHE_TTL_MS) return cached.latest;
-  } catch {
-    // No cache yet, or it is unreadable - fetch below.
-  }
-
-  let timeout;
-  try {
-    const controller = new AbortController();
-    timeout = setTimeout(() => controller.abort(), REGISTRY_TIMEOUT_MS);
-    const res = await fetch(REGISTRY_LATEST_URL, { signal: controller.signal });
-    if (!res.ok) return null;
-    const { version } = await res.json();
-    try {
-      // Several concurrent `noacg-mcp` processes on one machine (a normal state in this repo's own
-      // multi-worktree workflow) can race past the TTL check together and all land here at once.
-      // Write-then-rename makes each write atomic, so a reader never sees a torn write from another
-      // process - only ever one writer's complete JSON or another's, never a mix of both.
-      const tmp = `${VERSION_CACHE_FILE}.${process.pid}.tmp`;
-      writeFileSync(tmp, JSON.stringify({ latest: version, checkedAt: Date.now() }));
-      renameSync(tmp, VERSION_CACHE_FILE);
-    } catch {
-      // A machine where the temp dir cannot be written still gets the warning, just every session.
-    }
-    return version ?? null;
-  } catch {
-    return null; // offline or slow - silence, not a stale-version warning that could be wrong.
-  } finally {
-    clearTimeout(timeout);
   }
 }
 

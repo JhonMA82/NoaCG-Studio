@@ -76,9 +76,6 @@
     "src/components/home/ProductionAudienceWorkspace.tsx": {
       "em-dash": 19
     },
-    "src/components/home/ProductionDataPanel.tsx": {
-      "em-dash": 4
-    },
     "src/components/home/ProductionDataWorkspace.tsx": {
       "em-dash": 5
     },

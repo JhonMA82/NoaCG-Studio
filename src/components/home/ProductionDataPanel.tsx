@@ -26,8 +26,9 @@ import { copyLink } from './copyLink';
  * ingress API — the JSON shown here is exactly the shape that endpoint will accept.
  *
  * Nothing here is domain-specific. The steppers below are generated from whichever leaves
- * happen to be NUMBERS, so a scoreboard, a poll and a lap counter get the same affordance and
- * the word "score" appears nowhere in this file.
+ * happen to be NUMBERS, so a scoreboard, a poll and a lap counter get the same affordance, and
+ * the copy's example paths (`show.title`) name no dataset either: a quiz night reads the same
+ * explanation as a derby.
  */
 export default function ProductionDataPanel({
   show,
@@ -114,9 +115,8 @@ export default function ProductionDataPanel({
       <div className="pd-live-head">
         <h2>Production data</h2>
         <p className="hint">
-          Live values this production owns. Graphics <em>bind</em> fields to them below, so one
-          change moves every graphic that uses it — no matter which one is on air. This is state,
-          not a command: nothing here plays, stops or takes anything.
+          The values this production knows right now. Change one here and every graphic bound to
+          it follows, on air too. Nothing here plays or stops a graphic.
         </p>
         <div className="pd-live-actions">
           <button
@@ -160,6 +160,37 @@ export default function ProductionDataPanel({
           )}
         </div>
       </div>
+
+      {/* WHAT THIS TAB IS FOR, in three short paragraphs, closed by default. The owner opened this
+          tab on 2026-09-15 and could not tell what the button did or how the boxes worked, and he
+          built the product; the students on 2026-09-25 get one look. A drawer costs nothing once
+          learned, and a paragraph that is always open is one more thing to scroll past on air. */}
+      <details className="pd-explain" data-testid="data-explain">
+        <summary>How this tab works</summary>
+        <div className="pd-explain-body">
+          <p>
+            <strong>Production data</strong> is a list of values with a path and a value, like{' '}
+            <code>show.title</code> and <code>Helsinki</code>. Type a new value and every graphic
+            bound to that path shows it, also while it is on air. An outside system can write the
+            same list over the data key.
+          </p>
+          <p>
+            <strong>Bindings</strong> link one field of one graphic to one path. Click a field's
+            box to pick a path from the list, or type one. A bound field shows the value from here,
+            in the preview and on air, and its box in the cue is locked.
+          </p>
+          <p>
+            <strong>Tables</strong> are banks of rows, like a quiz bank or a line-up. They change
+            nothing by themselves: on the Playout tab you load one row into a cue's preview, then
+            take it.
+          </p>
+          <p className="hint">
+            <a href="/docs#data-example" target="_blank" rel="noreferrer">
+              More about this, with a worked example
+            </a>
+          </p>
+        </div>
+      </details>
 
       {note && (
         <p className="status-ok pd-data-note" data-testid="data-note">
@@ -239,7 +270,7 @@ export default function ProductionDataPanel({
       <div className="pd-live-rows">
         {leaves.length === 0 && (
           <p className="hint" data-testid="data-empty-live">
-            No values yet. Add one below — or open Raw JSON and paste a whole payload, nested as
+            No values yet. Add one below, or open Raw JSON and paste a whole payload, nested as
             deep as you like.
           </p>
         )}
@@ -309,7 +340,7 @@ export default function ProductionDataPanel({
       <div className="pd-live-add">
         <input
           value={newPath}
-          placeholder="match.home.score"
+          placeholder="show.title"
           onChange={(e) => setNewPath(e.target.value)}
           data-testid="data-new-path"
         />
@@ -403,17 +434,23 @@ function BindingTable({
       for (const fieldId of Object.keys(suggestions)) entries.push({ graphic: g.name, fieldId, path: suggestions[fieldId] });
     }
     if (entries.length > 0) setShows(setFieldBindings(show.id, entries));
+    // The second press says WHY it did nothing, because the first press did something and the
+    // button looks the same: every field this could fill is already filled, or nothing matches.
     setBindAllNote({
       scope,
-      text: entries.length > 0 ? `✓ ${entries.length} field${entries.length === 1 ? '' : 's'} bound` : 'Nothing unambiguous to bind.',
+      text:
+        entries.length > 0
+          ? `✓ ${entries.length} field${entries.length === 1 ? '' : 's'} bound`
+          : 'Nothing left to bind. No empty field has exactly one matching path.',
     });
   };
+  const hasFields = graphicsWithFields.length > 0;
 
   return (
     <div className="pd-bindings" data-testid="production-bindings">
       <div className="pd-bind-head">
         <h3>Bindings</h3>
-        {graphicsWithFields.length > 0 && (
+        {hasFields && (
           <button
             className="pd-bind-all"
             onClick={() => bindAllByTitle({ kind: 'production' }, graphicsWithFields)}
@@ -423,6 +460,14 @@ function BindingTable({
           </button>
         )}
       </div>
+      {/* `unambiguousSuggestions` and `matchTitle`, said where the button is. */}
+      {hasFields && (
+        <p className="hint pd-bind-rule" data-testid="bind-all-rule">
+          Fills each empty field whose title is the last part of exactly one path above, like the
+          field "Title" and the path <code>show.title</code>. Paths you typed stay. Pressing again
+          changes nothing until the data or the fields change.
+        </p>
+      )}
       {bindAllNote && scopesMatch(bindAllNote.scope, { kind: 'production' }) && (
         <p className="hint" data-testid="bind-all-note-production">
           {bindAllNote.text}
@@ -441,7 +486,7 @@ function BindingTable({
                 onClick={() => bindAllByTitle({ kind: 'graphic', name: g.name }, [{ g, descriptors }])}
                 data-testid={`bind-all-${g.name}`}
               >
-                Bind all by title
+                Bind this graphic by title
               </button>
             </div>
             {bindAllNote && scopesMatch(bindAllNote.scope, { kind: 'graphic', name: g.name }) && (
@@ -451,10 +496,12 @@ function BindingTable({
             )}
             {descriptors.map((d) => {
               const path = bindings[g.name]?.[d.key] ?? '';
-              const suggestion = path ? null : suggestPath(d.label, leaves);
-              // An ambiguous title is never guessed (suggestPath returns null for it too), but
-              // the row still owes the operator a reason: name what it matched.
-              const ambiguous = path || suggestion ? [] : matchTitle(d.label, leaves);
+              // One scan of the leaves per unbound field, read two ways: exactly one hit is the
+              // suggestion (the same rule as `suggestPath`), and two or more are never guessed
+              // but still owe the operator a reason, so the row names what it matched.
+              const hits = path ? [] : matchTitle(d.label, leaves);
+              const suggestion = hits.length === 1 ? hits[0] : null;
+              const ambiguous = hits.length > 1 ? hits : [];
               const live = resolved[g.name]?.[d.key];
               return (
                 <div className="pd-bind-row" key={d.key}>
@@ -463,7 +510,7 @@ function BindingTable({
                   </span>
                   <input
                     value={path}
-                    placeholder={suggestion ? `suggested: ${suggestion}` : 'not bound'}
+                    placeholder={suggestion ? `suggested: ${suggestion}` : 'pick or type a path'}
                     list="pd-data-paths"
                     onChange={(e) => setShows(setFieldBinding(show.id, g.name, d.key, e.target.value))}
                     data-testid={`bind-${g.name}-${d.key}`}
@@ -479,7 +526,7 @@ function BindingTable({
                   )}
                   {ambiguous.length > 1 && (
                     <span className="pd-bind-ambiguous" data-testid={`bind-ambiguous-${g.name}-${d.key}`}>
-                      ambiguous, matches {ambiguous.join(', ')}
+                      {ambiguous.length} paths match, pick one: {ambiguous.join(', ')}
                     </span>
                   )}
                   {/* What the field is ACTUALLY showing, so a typo in a path reads as a blank
@@ -489,7 +536,7 @@ function BindingTable({
                       className={live === undefined ? 'pd-bind-miss' : 'pd-bind-live'}
                       data-testid={`bind-value-${g.name}-${d.key}`}
                     >
-                      {live === undefined ? 'no value — field left alone' : live}
+                      {live === undefined ? 'no value at this path, field left alone' : live}
                     </span>
                   )}
                   {path && (
@@ -501,7 +548,7 @@ function BindingTable({
                       title={
                         armed === `bind:${g.name}:${d.key}`
                           ? `Click again to unbind ${d.key} from ${path}`
-                          : "Unbind — the field goes back to the cue's own value"
+                          : "Unbind. The field goes back to the cue's own value"
                       }
                       onClick={() => {
                         if (armed === `bind:${g.name}:${d.key}`) {

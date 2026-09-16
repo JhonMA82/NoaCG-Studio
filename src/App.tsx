@@ -354,7 +354,10 @@ export default function App() {
   useEffect(() => {
     if (!isBackendConfigured()) return;
     const onExpired = () =>
-      useAuthUi.getState().openSignIn('Your session expired — sign in again to keep syncing. Everything you made is safe on this device.');
+      useAuthUi.getState().openSignIn(
+        'Your session expired — sign in again to keep syncing. Everything you made is safe on this device.',
+        'resume',
+      );
     window.addEventListener('spx-session-expired', onExpired);
     return () => window.removeEventListener('spx-session-expired', onExpired);
   }, []);
