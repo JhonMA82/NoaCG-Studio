@@ -884,6 +884,6 @@ test('Bind all by title binds every unambiguous title in one press, and leaves t
   // A second press finds nothing left unbound and unambiguous: an already-bound field is never
   // re-suggested, so the button is idempotent rather than something to press exactly once.
   await data.getByTestId('bind-all-production').click();
-  await expect(data.getByTestId('bind-all-note-production')).toContainText('Nothing unambiguous to bind.');
+  await expect(data.getByTestId('bind-all-note-production')).toContainText('Nothing left to bind');
   await expect(data.getByTestId('bind-House Score-f1')).toHaveValue('match.scoreA');
 });
