@@ -12,12 +12,16 @@
 // of two renderings, it is the rendering of the merged store. Two branches that each recorded a
 // rule produce a textual conflict in a file whose correct content neither side contains.
 //
-// WHAT IT DOES NOT PROMISE. Git merges files in its own order, so the store may not be merged yet
-// when this runs. Then the regeneration is made from whatever the store currently says, which can
-// be one side of it - and that is caught immediately, because `contracts:compile --check` runs in
-// `npm run build`, which is the CI gate. The driver removes a conflict nobody can resolve by hand;
-// the check is what makes the result true. If regeneration fails outright the driver keeps the
-// file git already wrote and exits 0, because a merge that stops dead on a generated file is
+// WHAT IT DOES NOT PROMISE. Git merges files in byte order of their paths, and every file this
+// driver owns sorts BEFORE the store: `.claude/rules/…` and `AGENTS.md` before `contracts/…`. So
+// when both sides touched the store the regeneration is made from OUR side of it, every time -
+// measured 2026-09-16, and written up in
+// docs/backlog/contracts-merge-driver-regenerates-before-the-store-is-merged.md. That is caught,
+// because `contracts:compile --check` runs in `npm run build`, which is the CI gate: the merge
+// lands clean and the build then says the generated tree is stale, and one
+// `npm run contracts:compile` settles it. The driver removes a conflict nobody can resolve by
+// hand; the check is what makes the result true. If regeneration fails outright the driver keeps
+// the file git already wrote and exits 0, because a merge that stops dead on a generated file is
 // worse than one that stops at the build.
 
 import { copyFileSync, existsSync } from 'node:fs';
