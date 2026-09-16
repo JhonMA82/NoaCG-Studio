@@ -1,83 +1,90 @@
 # Split `MapSvgFieldsStep.tsx`, which quadrupled in three weeks and is edited by every SVG-import row
 
 **Filed:** 2026-09-15. **Source:** weekly quality review (measurement).
+**Largely done 2026-09-16** on `claude/qc-mapping-step-out-of-components`; what is left is named
+under "What is still open".
 
 ## Why
 
-`src/components/wizard/import/MapSvgFieldsStep.tsx` is the largest file in `src/` at **3,827
-lines**, and nothing else in the tree is growing as fast. It was 1,008 lines on 2026-08-25 (then
+`src/components/wizard/import/MapSvgFieldsStep.tsx` was the largest file in `src/` at **3,827
+lines**, and nothing else in the tree was growing as fast. It was 1,008 lines on 2026-08-25 (then
 under `steps/`), 1,719 on 2026-09-01, 3,187 on 2026-09-08 after it moved into `import/`, and
-3,827 today. The last week alone added 640 lines.
+3,827 on 2026-09-15. The last week alone added 640 lines.
 
-The size sits in one place. The file has a single export, and the default component starts at
-line 1,115 and runs **2,714 lines**, with 48 hook calls and 17 `useState`. That one function body
-is larger than all of `ProductionPage.tsx`'s component, which already has its own extraction item
-on this shelf. Around the component sit 47 more top-level declarations, and **913 lines of them
-contain no JSX**: `panelOfEachLine` (90), `measureOutline` (86), `boxFitOf` (71),
-`proposeBannerGrowth` (69), `repeatsWithNewContent` (67), `proposeFollowers` (50),
-`panelsHoldingText` (41) and their constant tables. That is measurement and proposal logic, and
-`docs/ARCHITECTURE.md` §5 says logic without JSX does not live under `components/`.
+The size sat in one place. The file had a single export, and the default component started at
+line 1,115 and ran **2,714 lines**, with 48 hook calls and 17 `useState`. Around the component sat
+47 more top-level declarations, **913 lines of which contained no JSX**.
 
-The cost is paid per edit, and the edits are many. It had 11 commits in the week to 2026-09-15 and
-49 first-parent landings in the month (counting its old path). Edits times lines this week is
-42,097, twice the next file (`src/templates/importedDesign/svg.ts` at 20,356). Five different
-branches landed into it in seven days. Merge latency is the owner's stated bottleneck, and a file
-that every SVG-import row has to open is where parallel rows collide.
+The cost was paid per edit, and the edits were many: 11 commits in the week to 2026-09-15 and 49
+first-parent landings in the month. Edits times lines that week was 42,097, twice the next file.
+Five different branches landed into it in seven days. Merge latency is the owner's stated
+bottleneck, and a file that every SVG-import row has to open is where parallel rows collide.
 
-More rows are already waiting on this file. Eight other entries on this shelf name code inside it:
-`one-rule-for-what-a-backplate-is`, `growth-target-defaults-to-the-frame`,
-`pick-the-behaviour-before-typing-into-the-fields`, `decorative-numerals-arrive-as-fields`,
-`import-step-copy-a-kid-can-read`, `a-vote-board-loses-and-distorts-its-bars`,
-`svg-growth-default-across-exporters` and `svg-import-sweep-findings`. Each becomes a branch
-editing the same 2,714-line function unless the file is split first.
+## What was done
 
-## What it would take
+The step is **1,750 lines** with **36 hook calls** and one export. Four files now hold what was
+one, and the cut ran along a seam that already existed: every hook in the step sits above its
+`if (!svg) return null`, and everything below is derivation, handlers and JSX. **No hook moved and
+no hook order changed**, which is what made a 2,000-line extraction safe to do in one branch.
 
-About a day, and it may want two branches.
+| File | Lines | What it holds |
+|---|---|---|
+| `MapSvgFieldsStep.tsx` | 1,750 | the field-row checklist, the drawn fields, growth, images, outlines, the off-screen stage, and the hooks every section's measurements come from |
+| `BehaviourSection.tsx` | 1,225 | the five recipe shapes, the fill-them-in guess and its Undo, the switches and choices. Owns the `fill` explanation, which nothing else reads |
+| `stageMeasure.ts` | 796 | every question the step asks its own rendered artwork. Nine of its 27 declarations are now module-private |
+| `FontsSection.tsx` | 202 | the typeface rows, owning all four pieces of state behind them |
 
-1. **Move the no-JSX logic out first.** It carries no hook order and no render risk. Where it goes
-   is the session's call, under two constraints. Several helpers read live DOM geometry
-   (`measureOutline`, `boxFitOf`), so they stay browser-side. And `.dependency-cruiser.cjs` rule
-   `wizard-import-through-its-index` requires the import capability to be reached through
-   `import/index.ts`. The pure proposal functions (`proposeBannerGrowth`, `proposeFollowers`) sit
-   naturally beside `import/draft.ts` and `import/fieldAutoMap.ts`.
-2. **Split the component along the sections it already renders**: the field rows, the text box and
-   alignment panel, the stretch and growth controls, the recipe and behaviour options, and the
-   preview overlay. Lift only the state each one needs.
+Two things the original item got wrong, both corrected by measuring:
 
-Do this together with `draft-ts-out-of-components.md` or straight after it, because
-`import/draft.ts` (1,298 lines, no JSX) sits in the same folder and the two moves pick the same
-destination. No worktree was editing the file on 2026-09-15, so it could start now without a
-collision.
+- **`proposeBannerGrowth` and `proposeFollowers` are not "the pure proposal functions".** Both take
+  `stage: HTMLElement` and read `getBoundingClientRect` / `getComputedStyle`. So does every other
+  helper the item counted: all 913 no-JSX lines are one DOM-measurement layer, which is why they
+  went to `stageMeasure.ts` together rather than beside the transform layer.
+- **"Move the no-JSX logic out of `components/`" was refused**, on measurement rather than taste:
+  `scripts/e2e-affected.mjs planFor` returns 13 specs where these files are and 48 under
+  `templates/importedDesign/`, and the move would orphan two compiled invariants from the code
+  they name by symbol. The verdict and its evidence are in `docs/ARCHITECTURE.md` §5 and
+  `docs/backlog/draft-ts-out-of-components.md`.
 
-**What could break:** hook order, and state the field rows and the preview overlay share. The
-mapping step is the only door from an SVG to a playable template, so a regression here is a
-regression in the import road.
+## What is still open
 
-**Proof it did not break:** `npm run build` catches a bad edge (eslint Stage A plus `depcruise`
-default-deny). The road has 7,763 lines of specs: `e2e/import-svg.spec.ts`,
-`e2e/import-svg-behaviour.spec.ts` and `e2e/import-svg-corpus.spec.ts`. Queue them as the affected
-plan with `npm run queue`. The file carries no `eslint-disable` today, and the split should keep
-it that way. `react-hooks/exhaustive-deps` is the rule all 23 disables in `src/` suppress.
+The step is a third of its old size and no longer the largest file in `src/`, so the collision
+argument is largely answered. Three sections were left in it deliberately, and none is urgent:
+
+1. **The field-row checklist** (~325 lines of JSX) is the step's subject. It reads `panelIds`,
+   `boxLooks`, `boxOfRow`, `fieldGroups` and the hover state, which are the same measurements the
+   growth section reads, so extracting it means passing most of the step's state back down. Worth
+   doing when one of those measurements next changes, not before.
+2. **The stretch and growth section** (~300 lines) is the same case, one degree worse: it reads
+   `proposed`, `perPanelOpen`, `followArmed`, `growOptions`, `perPanelRows` and `stretchMode`.
+3. **The images and outlines sections** (~115 lines together) are small enough that moving them
+   buys a file rather than a boundary.
+
+The eight shelf items that named code inside this file can now proceed: six of them
+(`one-rule-for-what-a-backplate-is`, `growth-target-defaults-to-the-frame`,
+`a-vote-board-loses-and-distorts-its-bars`, `svg-growth-default-across-exporters`,
+`decorative-numerals-arrive-as-fields`, `svg-import-sweep-findings`) now land in `stageMeasure.ts`
+or `BehaviourSection.tsx` rather than in one shared 3,800-line file.
 
 ## Evidence
 
-Measured on `main` at `7e4b50aa`, 2026-09-15:
+Measured on `main` at `7e4b50aa`, 2026-09-15, and re-measured on
+`claude/qc-mapping-step-out-of-components` on 2026-09-16:
 
-- `wc -l` gives 3,827. `grep -c '^export'` gives 1. Occurrences of `useState` 17, of all six
-  React hooks 48.
-- Size history is `git show $(git rev-list -1 --before=<date> main):<path> | wc -l` at
-  2026-08-25, 09-01, 09-08 and 09-12, reading `steps/MapSvgFieldsStep.tsx` before the move.
+- `wc -l` gave 3,827, now 1,750. `grep -c '^export'` gives 1 either way. All six React hooks:
+  48, now 36.
+- Size history is `git show $(git rev-list -1 --before=<date> main):<path> | wc -l`, reading
+  `steps/MapSvgFieldsStep.tsx` before the move.
 - Top-level declaration spans came from a line scan for `function|const` at column 0. A span counts
   as JSX when its text contains an element tag.
-- `git log --since="1 week ago" --no-merges --name-only`, crossed with `wc -l`, gives the
-  edits-times-lines ranking.
-- `git log --first-parent main --since="1 week ago" -- <path>` lists the five landings:
+- `git log --first-parent main --since="1 week ago" -- <path>` listed the five landings:
   `text-box-alignment-control`, `text-box-preview-overlay`, `agents-refs-text-box`,
   `c-vote-notice-plates` and `m-wizard-says-it-itself`.
-- `npm run rules -- <path>` returns no rule that argues for keeping the step in one file.
+- The file still carries no `eslint-disable`, which the split kept true.
 
 ## Trend
 
-- 2026-09-15: 3,827 lines (3,187 on 09-08), 1 export, component body 2,714 lines, 48 hooks
-  (17 `useState`), 913 lines of no-JSX logic, 11 commits in the week.
+- 2026-09-15: 3,827 lines, component body 2,714, 48 hooks, 913 lines of no-JSX logic, 11 commits
+  in the week.
+- 2026-09-16: **1,750 lines, 36 hooks**, split into four files; no hook order changed. The no-JSX
+  measurement layer stays under `components/` deliberately, with the reason recorded in §5.
