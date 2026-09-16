@@ -8,10 +8,14 @@
 //   because only one notice can be delivered per call (`warn` exits) and lost content outranks a
 //   pin that refuses loudly on its own.
 //
-//   A PUSH NARROWED THE CI PLAN PAST A RUN THAT NEVER FINISHED: the branch already had a run for
-//   its previous tip, that run was cancelled or still going, and the run for this push plans from
-//   that tip only. The reasoning sits with the rule below; it costs one `gh run list`, only on a
-//   push that updated a remote branch.
+//   A PUSH REPLACED A RUN THAT NEVER FINISHED: the branch already had a run for its previous tip
+//   and that run was cancelled or still going. This one is BELT-AND-BRACES since 2026-09-06, when
+//   ci.yml started measuring every branch push from the merge-base with main: the replacement run
+//   now covers the cancelled one's delta by construction, so the plan is no longer narrowed and
+//   the notice no longer points at a hole. What it still says is true and worth saying - the run
+//   you were watching is gone, here is its replacement, and the house rule is to read WHICH JOBS
+//   RAN rather than the colour. The reasoning sits with the rule below; it costs one
+//   `gh run list`, only on a push that updated a remote branch.
 //
 // WHY THIS IS A NOTICE AND NOT A REFUSAL. Queueing pins the branch at its current commit, because
 // queueing IS the declaration that the work is finished (`.agent-workflows/queue-merge.md` §1).
@@ -125,14 +129,19 @@ if (destroyed.length > 0) {
 
 // --- A push that narrowed the CI plan past a run that never finished -------------------------
 //
-// `ci.yml` plans an ordinary push from `github.event.before` - the PREVIOUS push - and its
-// concurrency group cancels the run still going for that previous push. So a follow-up push while
-// the earlier run is unfinished leaves the earlier delta covered by nothing that finished, and the
-// new run reports green having skipped every shard the earlier one owed. Sixteen handoffs between
-// 2026-09-01 and 2026-09-05 carry this trap and the root AGENTS.md names it, which is the proof
-// that prose does not fire here: the moment is the push, and the fact that decides it - was the
-// earlier run still going - is one `gh run list` away, on the one command per session that moves
-// a remote branch.
+// `ci.yml`'s concurrency group cancels the run still going for a branch's previous tip whenever a
+// follow-up push arrives. That USED TO leave the earlier delta covered by nothing, because the
+// plan was measured from `github.event.before`: sixteen handoffs between 2026-09-01 and
+// 2026-09-05 carry a run that reported green having skipped every shard the cancelled one owed.
+//
+// THE HOLE IS CLOSED IN THE WORKFLOW. Since 2026-09-06 ci.yml measures every branch push from
+// `git merge-base origin/main HEAD`, which is an ancestor of the cancelled tip whatever it was,
+// so the replacement run plans the branch's whole work and cannot plan less than the run it
+// cancelled. Re-measured 2026-09-16 over 158 branch push runs: 12 green-after-cancelled, 4 of
+// them shard-free, all 4 planning `mode: none` off the merge-base over paths that cannot reach
+// the E2E surface. So this notice is belt-and-braces, and it is kept for two reasons that survive
+// the fix: it is the one place a session is told the run it was watching is gone and which run
+// replaced it, and it would speak again if the workflow ever regressed to a narrow base.
 //
 // EXACT, so it cannot cry wolf: silent when the earlier run had FINISHED, because then the
 // incremental plan is right by design; silent on a first push, a no-op and a rejection, because
@@ -158,13 +167,16 @@ for (const { branch, from, to } of pushed.slice(0, 3)) {
   notices.push(
     `Heads up: this push moved ${branch} from ${from.slice(0, 8)} to ${to.slice(0, 8)}, and CI run ` +
       `${earlier.databaseId} for ${from.slice(0, 8)} never finished (${earlier.conclusion || earlier.status}). ` +
-      'The concurrency group cancels that run, and the run for this push plans from ' +
-      `${from.slice(0, 8)} only (github.event.before) - so nothing that FINISHED covers the earlier ` +
-      'delta, and the new run can report green having skipped every shard the cancelled one owed.\n' +
-      'Read WHICH JOBS RAN before believing the colour:\n' +
+      'The concurrency group cancelled it. The run for THIS push covers the delta it owed: since ' +
+      '2026-09-06 ci.yml measures a branch push from the merge-base with main, which is an ' +
+      'ancestor of both tips, so the new plan is this branch\'s whole work and cannot be narrower ' +
+      'than the run it replaced.\n' +
+      'Still read WHICH JOBS RAN before believing the colour - a skipped shard now means the plan ' +
+      'found nothing that reaches the E2E surface, and it is worth knowing which:\n' +
       `  gh run list --branch ${branch} --limit 3\n` +
       `  gh run view <id> --json jobs -q '.jobs[] | "\\(.conclusion)\\t\\(.name)"'\n` +
-      'and if the plan was narrow, ask for the full suite as its OWN command once the push run is listed:\n' +
+      'A full suite is no longer the answer to a cancelled predecessor. Ask for one only to ' +
+      'override the plan itself, as its OWN command once the push run is listed:\n' +
       `  gh workflow run ci.yml --ref ${branch}\n` +
       '(pushed and dispatched in one breath, one of the two is cancelled and which one is not stable; ' +
       'the shell guard refuses that pairing).',

@@ -681,7 +681,9 @@ function isDryRun(git) {
  *
  * Only an UPDATE of a branch the remote already had is listed - `<old>..<new> local -> remote` -
  * because that is the only push that leaves a run behind: the run for `<old>`, which this push
- * cancels if it is still going, and which the new run then plans from (`github.event.before`).
+ * cancels if it is still going. (The new run does NOT plan from `<old>`; since 2026-09-06 ci.yml
+ * measures a branch push from the merge-base with main. That is why the notice this feeds is
+ * belt-and-braces rather than a hole - see `hooks/warn-command.mjs`.)
  * A first push (`[new branch]`) had nothing in flight; `Everything up-to-date` moved nothing; a
  * rejected push moved nothing either. A forced update (`+ <old>...<new>`) is still an update.
  *
