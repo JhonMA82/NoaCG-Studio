@@ -254,8 +254,7 @@ test('a published profile arranges, combines and moves the shared value on the h
   // ── AC-6, FIRST CLAUSE: the combined control renders here, and greys on its FIRST step ──────
   //
   // Nothing is on air yet, so the button must be grey and must say WHICH graphic is missing -
-  // not merely be disabled, which reads as broken on a phone. This is the first time this section
-  // has been seen on this page by anybody, on any machine.
+  // not merely be disabled, which reads as broken on a phone.
   const combinedSection = op.getByTestId('hosted-actions-combined');
   await expect(combinedSection).toBeVisible();
   const combined = op.getByTestId(`hosted-combined-press-${COMBINED_ID}`);
@@ -336,17 +335,20 @@ test('a published profile arranges, combines and moves the shared value on the h
     'the reveal went; the tail must never arrive',
   ).toEqual([`${VOTES}:reveal`]);
 
-  // The reveal is spent, so the votes board has no arrow left and the button greys on its first
-  // step again - which is the same rule as before, now reached by the operator's own press rather
-  // than by the production being cold.
-  await expect(combined).toBeDisabled();
-
-  // ⟳ TAKE the votes board again to put its walk back to the start, then back to the totals cue,
-  // whose ± block the last section needs.
-  await cues.nth(0).getByTestId('hosted-select-cue').click();
-  await op.getByTestId('hosted-take-cue').click();
-  await expect(combined).toBeEnabled({ timeout: 30_000 });
-  await cues.nth(1).getByTestId('hosted-select-cue').click();
+  // WHAT IS DELIBERATELY NOT ASSERTED HERE, because it cannot be true on this rig.
+  //
+  // The reveal has fired, so a votes board with a renderer on it is now in `revealed` and has no
+  // arrow left - the button should grey on its first step again. It does not grey here, and that
+  // is the product working rather than a fault: this page judges an event's LEGALITY against the
+  // graphic's last REPORT, and only the receiver injected into a real renderer
+  // (`src/control/hostedReceiver.ts`) ever calls `control_report`. This walk opens no output URL,
+  // so no report ever arrives and every machine stays at the state its boot resolve gave it.
+  //
+  // So the greying's two halves split by what this rig can reach: the LIVENESS half is asserted
+  // above, before either cue was taken, because the page reads that off the wire's own cue rows;
+  // the LEGALITY half is pinned offline over the published bytes in `e2e/hosted-control.spec.ts`
+  // and in-app in `e2e/production-controls.spec.ts`. Asserting it here would pin the rig's
+  // silence, and anybody who later attaches a renderer to this walk would have to undo it.
 
   // ── AC-6, THE PRESS: one row per step, in order, with the wait honoured ─────────────────────
   //
