@@ -267,9 +267,9 @@ export function specFilesOnDisk() {
   return readdirSync(E2E_DIR).filter((f) => f.endsWith('.spec.ts')).sort();
 }
 
-/** Every measured minute in a table, added up. */
-function totalOf(table) {
-  return Object.values(table.minutes).reduce((a, b) => a + b, 0);
+/** Every measured minute in a table's `minutes` map, added up - the suite total, in test-minutes. */
+function totalOf(minutes) {
+  return Object.values(minutes).reduce((a, b) => a + b, 0);
 }
 
 /**
@@ -357,8 +357,8 @@ export async function shardBalance(before, after, suite = specFilesOnDisk()) {
  * @param {{ before: object, after: object }} balance from `shardBalance`
  */
 export function refreshVerdict(before, after, suite, balance) {
-  const beforeTotal = totalOf(before);
-  const afterTotal = totalOf(after);
+  const beforeTotal = totalOf(before.minutes);
+  const afterTotal = totalOf(after.minutes);
   const { unmeasured } = drift(before.minutes, suite);
   const totalFraction = beforeTotal > 0 ? Math.abs(afterTotal - beforeTotal) / beforeTotal : 1;
   const budgetMove = budgetMinutes(after) - budgetMinutes(before);
@@ -410,10 +410,33 @@ export const REFRESH_BRANCH = 'bot/e2e-durations';
 /** The headline, in one line - the commit message's second paragraph, and the log's own summary. */
 export function refreshSummary(before, after, balance) {
   return (
-    `${Object.keys(after.minutes).length} spec files, ${totalOf(after).toFixed(1)} min of tests ` +
-    `(${Object.keys(before.minutes).length} and ${totalOf(before).toFixed(1)} before); the slowest of ` +
+    `${Object.keys(after.minutes).length} spec files, ${totalOf(after.minutes).toFixed(1)} min of tests ` +
+    `(${Object.keys(before.minutes).length} and ${totalOf(before.minutes).toFixed(1)} before); the slowest of ` +
     `${balance.after.shards} shards carries ${balance.after.slowest.toFixed(1)} table-minutes repacked, ` +
     `against ${balance.before.slowest.toFixed(1)} under the weights CI packs with today.`
+  );
+}
+
+/**
+ * What a quiet week says, in one paragraph - the numbers that were NOT enough, and what they were
+ * measured against.
+ *
+ * It goes where the loud week's pull request body would have gone, including the job summary the
+ * acceptance route sends a person to read. Printing the body there instead would open a quiet run
+ * with "# The E2E durations table, re-recorded from run N" over an empty "why it is worth landing"
+ * section, which reads as a refresh that lost its own argument.
+ */
+export function quietBody({ facts }) {
+  return (
+    'The table on main still describes this suite - nothing proposed. Suite total ' +
+    `${facts.beforeTotal.toFixed(1)} -> ${facts.afterTotal.toFixed(1)} min ` +
+    `(${(facts.totalFraction * 100).toFixed(1)}%), the shard budget moves ` +
+    `${facts.budgetMove >= 0 ? '+' : ''}${facts.budgetMove.toFixed(2)} min, repacking would take ` +
+    `${facts.slowestGain.toFixed(2)} table-minutes off the slowest shard, and ${facts.unmeasured.length} ` +
+    'spec file(s) have never been measured. It takes ' +
+    `${REFRESH_THRESHOLDS.totalFraction * 100}%, ${REFRESH_THRESHOLDS.budgetMinutes} minute, ` +
+    `${REFRESH_THRESHOLDS.slowestShardMinutes} table-minutes, or one unmeasured spec to be worth a ` +
+    'pull request.'
   );
 }
 
@@ -466,7 +489,13 @@ export function refreshBody(before, after, verdict, balance) {
     'Once `/queue-merge` has posted the stamp, ask for the run that reads it:',
     '',
     '```',
-    `gh workflow run ci.yml --ref ${REFRESH_BRANCH} -f require_review=true`,
+    // `diff_base` matters as much as the flag beside it: a dispatch with an EMPTY one plans the
+    // whole suite (ci.yml's input docs), which is nine runners and a quarter of an hour for a JSON
+    // file no spec can observe. The sha is the main commit this table was measured on, so the plan
+    // covers everything between it and this branch; a table that somehow carries no sha falls back
+    // to a substitution that is correct wherever it is pasted, rather than to an empty flag.
+    `gh workflow run ci.yml --ref ${REFRESH_BRANCH} -f require_review=true ` +
+      `-f diff_base=${after.source.sha || '$(git rev-parse origin/main)'}`,
     '```',
     '',
     'Auto-merge takes it from there.',
@@ -495,7 +524,7 @@ function writeTable(minutes, source, overhead) {
     minutes,
   };
   writeFileSync(TABLE, `${JSON.stringify(written, null, 2)}\n`);
-  const total = Object.values(minutes).reduce((a, b) => a + b, 0);
+  const total = totalOf(minutes);
   console.log(`e2e-durations: wrote ${Object.keys(minutes).length} specs, ${total.toFixed(1)} min total.`);
   return Object.keys(minutes).length;
 }
@@ -582,7 +611,7 @@ function record(runId) {
     // The per-job OVERHEAD, from the same run. `gh run view --json jobs` does not carry step
     // timings, so this asks the REST endpoint that does; a failure here is not fatal, because a
     // refreshed per-spec table with last week's overhead is strictly better than no refresh.
-    const totalMinutes = Object.values(minutes).reduce((a, b) => a + b, 0);
+    const totalMinutes = totalOf(minutes);
     let overhead = null;
     try {
       // `per_page=100` rather than `--paginate`: this endpoint answers with an OBJECT, and
@@ -638,55 +667,69 @@ async function refresh(runId, bodyPath) {
   // and `writeTable` stamps a fresh `recordedAt` that would be one on its own.
   const held = readFileSync(TABLE, 'utf8');
   const before = readTable();
-  let recorded;
+  // ONE RESTORE PATH FOR EVERY WAY OUT BUT THE GOOD ONE. A recording that died half way - expired
+  // artifacts, a `gh` outage, a packer that threw over a malformed entry - must not leave the table
+  // in whatever state it reached: the contract above is that this leaves one of two files on disk,
+  // and a failure that leaves a third is the one nobody would think to look for.
   try {
-    recorded = record(runId);
+    const recorded = record(runId);
+    if (recorded !== 0) {
+      writeFileSync(TABLE, held);
+      return recorded;
+    }
+
+    const after = readTable();
+    const suite = specFilesOnDisk();
+    const balance = await shardBalance(before, after, suite);
+    const verdict = refreshVerdict(before, after, suite, balance);
+    // What gets written wherever a person will read it: the whole case when there is one, and the
+    // numbers that were NOT enough when there is not.
+    const body = verdict.material ? refreshBody(before, after, verdict, balance) : quietBody(verdict);
+
+    if (verdict.material) {
+      console.log(`e2e-durations: the refresh is worth a pull request - ${verdict.reasons.length} reason(s).`);
+      for (const reason of verdict.reasons) console.log(`  - ${reason}`);
+      if (bodyPath) writeFileSync(bodyPath, `${body}\n`);
+    } else {
+      writeFileSync(TABLE, held);
+      console.log('e2e-durations: nothing material moved, so the table is left exactly as it was.');
+      console.log(`  ${body}`);
+    }
+
+    if (process.env.GITHUB_OUTPUT) {
+      // One line each, and `summary` is deliberately one line: the workflow puts it in the commit
+      // message, and a multi-line output needs a heredoc delimiter that a reader has to get right.
+      appendFileSync(
+        process.env.GITHUB_OUTPUT,
+        `material=${verdict.material}\nrun=${after.source.run ?? ''}\nsummary=${refreshSummary(before, after, balance)}\n`,
+      );
+    }
+    // The job summary is where the acceptance route sends a person, so a quiet week must not open
+    // with a pull request body whose "why it is worth landing" section is empty.
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${body}\n`);
+    return 0;
   } catch (error) {
-    // A recording that died half way - expired artifacts, a `gh` outage - must not leave the table
-    // in whatever state it reached. Put the file back, then let the failure reach the job, which is
-    // what raises the alarm.
     writeFileSync(TABLE, held);
     throw error;
   }
-  if (recorded !== 0) {
-    writeFileSync(TABLE, held);
-    return recorded;
-  }
+}
 
-  const after = readTable();
-  const suite = specFilesOnDisk();
-  const balance = await shardBalance(before, after, suite);
-  const verdict = refreshVerdict(before, after, suite, balance);
-  const body = refreshBody(before, after, verdict, balance);
-
-  if (verdict.material) {
-    console.log(`e2e-durations: the refresh is worth a pull request - ${verdict.reasons.length} reason(s).`);
-    for (const reason of verdict.reasons) console.log(`  - ${reason}`);
-    if (bodyPath) writeFileSync(bodyPath, `${body}\n`);
-  } else {
-    writeFileSync(TABLE, held);
-    console.log(
-      'e2e-durations: nothing material moved - the table on main still describes this suite, so it ' +
-        'is left exactly as it was.',
-    );
-    console.log(
-      `  suite total ${verdict.facts.beforeTotal.toFixed(1)} -> ${verdict.facts.afterTotal.toFixed(1)} min ` +
-        `(${(verdict.facts.totalFraction * 100).toFixed(1)}%), budget ${verdict.facts.budgetMove >= 0 ? '+' : ''}` +
-        `${verdict.facts.budgetMove.toFixed(2)} min, slowest shard ${verdict.facts.slowestGain >= 0 ? '-' : '+'}` +
-        `${Math.abs(verdict.facts.slowestGain).toFixed(2)} min, ${verdict.facts.unmeasured.length} unmeasured spec(s).`,
-    );
-  }
-
-  if (process.env.GITHUB_OUTPUT) {
-    // One line each, and `summary` is deliberately one line: the workflow puts it in the commit
-    // message, and a multi-line output needs a heredoc delimiter that a reader has to get right.
-    appendFileSync(
-      process.env.GITHUB_OUTPUT,
-      `material=${verdict.material}\nrun=${after.source.run ?? ''}\nsummary=${refreshSummary(before, after, balance)}\n`,
-    );
-  }
-  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${body}\n`);
-  return 0;
+/**
+ * THE RUN ID AND THE BODY PATH OUT OF A COMMAND LINE.
+ *
+ * `--body <path>` takes the next argument, so that argument must not also be read as the run id.
+ * The `bodyAt === -1` guard is load-bearing and is why this is a function with a test: with no
+ * `--body` at all, `indexOf` returns -1 and a bare `bodyAt + 1` excludes ARGUMENT ZERO - which is
+ * the report path in `e2e-durations.mjs <merged-report.json>`, the one mode whose positional is not
+ * preceded by a flag. Written that way first, it turned that whole mode into the usage error, with
+ * nothing failing anywhere.
+ */
+export function parseArgs(args) {
+  const bodyAt = args.indexOf('--body');
+  return {
+    bodyPath: bodyAt === -1 ? undefined : args[bodyAt + 1],
+    positional: args.find((a, i) => !a.startsWith('--') && (bodyAt === -1 || i !== bodyAt + 1)),
+  };
 }
 
 async function main() {
@@ -700,7 +743,7 @@ async function main() {
     // report; saying the count out loud turns that into a refusal instead.
     measured(files.length, 'e2e spec files');
     const { unmeasured, stale } = drift(table.minutes, files);
-    const total = Object.values(table.minutes).reduce((a, b) => a + b, 0);
+    const total = totalOf(table.minutes);
     console.log(
       `e2e-durations: ${Object.keys(table.minutes).length} specs, ${total.toFixed(1)} min total, ` +
         `recorded ${table.source.recordedAt ?? '?'} from run ${table.source.run ?? '?'}.`,
@@ -733,10 +776,7 @@ async function main() {
     return 0;
   }
 
-  // `--body <path>` takes the next argument, so it must not be read as the run id too.
-  const bodyAt = args.indexOf('--body');
-  const bodyPath = bodyAt === -1 ? undefined : args[bodyAt + 1];
-  const positional = args.find((a, i) => !a.startsWith('--') && i !== bodyAt + 1);
+  const { positional, bodyPath } = parseArgs(args);
 
   if (args.includes('--refresh')) return refresh(positional, bodyPath);
 

@@ -14,10 +14,10 @@
 # for, and `shardsFor` caps at nine, so a full run asked for nine either way. Since `packShards`
 # began bin-packing spec files by measured duration, the table decides shard BALANCE - and an
 # unbalanced shard set is what killed four of thirty `main` runs at the cap on 2026-09-03/04. The
-# nine bins were packed to a 1.005 spread when the table was recorded; measured over the 25 newest
-# green full runs on 2026-09-16 the shard means spread 2.20 minutes, about 1.2 minutes on every
-# full run. The overhead term drifts with it, so a stale table also gives the wrong answer to
-# "does this plan FIT the cap", which is a verdict rather than a delay.
+# nine bins were packed to within 0.03 minutes of each other when the table was recorded; measured
+# over the 25 newest green full runs on 2026-09-16 the shard means spread 2.20 minutes, about 1.2
+# minutes on every full run. The overhead term drifts with it, so a stale table also gives the
+# wrong answer to "does this plan FIT the cap", which is a verdict rather than a delay.
 #
 # IT OPENS A PULL REQUEST AND NEVER PUSHES. This table sets the budget every E2E plan is judged
 # against; a job that both measures the budget and commits the measurement is a gate editing its
@@ -142,6 +142,11 @@ jobs:
             # The body is rewritten too: a week-old body over this week's diff describes numbers
             # that are no longer the ones in it.
             gh pr edit "$EXISTING" --title "Re-record the E2E shard durations from run $RUN_ID" --body-file "$RUNNER_TEMP/pr-body.md"
+            # SAY THAT THE TIP MOVED. `noacg/reviewed` is a status on one sha, so a force-push over
+            # a pull request somebody already stamped leaves auto-merge waiting on a check that can
+            # never arrive, with nothing on the page explaining why. The comment is the explanation;
+            # the stamp is re-posted by whoever reviews the new numbers.
+            gh pr comment "$EXISTING" --body "Re-recorded from run $RUN_ID, so this branch's tip has moved. Any \`noacg/reviewed\` stamp on the previous commit no longer applies to it - review the new numbers and stamp again."
             echo "Updated $GITHUB_SERVER_URL/$GH_REPO/pull/$EXISTING" >> "$GITHUB_STEP_SUMMARY"
           else
             URL="$(gh pr create --base main --head "$BRANCH" --title "Re-record the E2E shard durations from run $RUN_ID" --body-file "$RUNNER_TEMP/pr-body.md")"

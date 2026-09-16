@@ -20,7 +20,9 @@ import {
   fullRunRefusal,
   minutesByFile,
   overheadFrom,
+  parseArgs,
   predictShardMinutes,
+  quietBody,
   refreshBody,
   refreshVerdict,
   REFRESH_BRANCH,
@@ -317,7 +319,7 @@ test('the balance is measured in this recording s minutes, under both tables', a
 
 test('the pull request body carries the case, the run, and the review it does not claim', () => {
   const before = tableOf({ 'a.spec.ts': 100 }, { jobMinutes: 0.5, testFactor: 1.01 }, { run: '111', recordedAt: '2026-09-04' });
-  const after = tableOf({ 'a.spec.ts': 120 }, { jobMinutes: 0.5, testFactor: 1.01 }, { run: '222', recordedAt: '2026-09-16' });
+  const after = tableOf({ 'a.spec.ts': 120 }, { jobMinutes: 0.5, testFactor: 1.01 }, { run: '222', recordedAt: '2026-09-16', sha: 'abc1234' });
   const balance = balanceOf(14.7, 12.2);
   const verdict = refreshVerdict(before, after, ['a.spec.ts'], balance);
   const body = refreshBody(before, after, verdict, balance);
@@ -329,8 +331,41 @@ test('the pull request body carries the case, the run, and the review it does no
   assert.match(body, /noacg\/reviewed/);
   assert.match(body, /queue-merge/);
   // And the one command a person cannot guess: a token-pushed branch gets no pull request event,
-  // so the `Reviewed` check never runs until somebody asks for it by dispatch.
-  assert.match(body, /gh workflow run ci\.yml --ref bot\/e2e-durations -f require_review=true/);
+  // so the `Reviewed` check never runs until somebody asks for it by dispatch. It carries
+  // `diff_base` because ci.yml reads an empty one as "run the whole suite" - nine runners and a
+  // quarter of an hour, for a JSON file no spec can observe.
+  assert.match(body, /gh workflow run ci\.yml --ref bot\/e2e-durations -f require_review=true -f diff_base=abc1234/);
+  // And never an EMPTY diff_base, which is how ci.yml spells "run everything".
+  const noSha = refreshBody(before, tableOf(after.minutes, after.overhead, { run: '222' }), verdict, balance);
+  assert.match(noSha, /-f diff_base=\$\(git rev-parse origin\/main\)/);
+});
+
+// A quiet week is read in the same places a loud one is - the job summary the owner-queue item
+// routes to, and the step log. Printing the pull request body there would open it with a "why it is
+// worth landing" heading over no reasons at all.
+test('a quiet week says what did not move, and what it would have taken', () => {
+  const before = tableOf({ 'a.spec.ts': 100 });
+  const after = tableOf({ 'a.spec.ts': 104 });
+  const verdict = refreshVerdict(before, after, ['a.spec.ts'], balanceOf(12.6, 12.2));
+  assert.equal(verdict.material, false);
+  const body = quietBody(verdict);
+  assert.match(body, /nothing proposed/);
+  assert.match(body, /4\.0%/);
+  assert.match(body, /0\.40 table-minutes off the slowest shard/);
+  assert.match(body, new RegExp(`${REFRESH_THRESHOLDS.slowestShardMinutes} table-minutes`));
+});
+
+// `--body <path>` eats the argument after it, and the guard against reading that argument as a run
+// id ALSO has to leave argument zero alone - `e2e-durations.mjs <merged-report.json>` is the one
+// mode whose positional comes first. Written without the -1 check, that mode answered the usage
+// error instead of rewriting the table, and no test anywhere noticed.
+test('the report path is a positional argument, with or without --body', () => {
+  assert.deepEqual(parseArgs(['report.json']), { bodyPath: undefined, positional: 'report.json' });
+  assert.deepEqual(parseArgs(['--refresh', '123']), { bodyPath: undefined, positional: '123' });
+  assert.deepEqual(parseArgs(['--refresh', '--body', 'out.md']), { bodyPath: 'out.md', positional: undefined });
+  assert.deepEqual(parseArgs(['--refresh', '123', '--body', 'out.md']), { bodyPath: 'out.md', positional: '123' });
+  assert.deepEqual(parseArgs(['--refresh', '--body', 'out.md', '123']), { bodyPath: 'out.md', positional: '123' });
+  assert.deepEqual(parseArgs(['--check']), { bodyPath: undefined, positional: undefined });
 });
 
 // THE BRANCH NAME LIVES IN TWO PLACES, because a workflow cannot read a constant out of a module -
