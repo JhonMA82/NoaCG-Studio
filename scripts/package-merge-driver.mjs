@@ -36,8 +36,16 @@
 // an order that cannot be merged falls back (ours, then the keys only theirs has) rather than
 // stopping the merge over a cosmetic disagreement.
 //
-// WHAT IT DOES NOT PROMISE. `package-lock.json` is not merged here. Its conflicts are resolved by
-// regenerating it, which is a different mechanism, and a union of two lock files is not a lock.
+// WHAT IT DOES NOT PROMISE. Two sides that add the SAME step at DIFFERENT points in one chain get
+// both copies: base `a && b`, ours `a && x && b`, theirs `a && b && x`, and the merge runs `x`
+// twice. That is the honest cost of a union - the two edits are disjoint by every test that does
+// not already know what `x` means - and telling it apart needs a real diff of each side against
+// the base rather than the three-way merge git already does. It is left alone because a step that
+// runs twice is a slow build somebody notices, not a quiet wrong answer, and because the rule that
+// would catch it ("both sides added the same token") fires on every `&&` and every `node`.
+//
+// `package-lock.json` is not merged here either. Its conflicts are resolved by regenerating it,
+// which is a different mechanism, and a union of two lock files is not a lock.
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -69,14 +77,34 @@ export function isInstalled(cwd = ROOT) {
 }
 
 /**
- * Register the driver. Idempotent, and safe to call on every build: git config is per clone and is
- * not committed, so a fresh checkout has it MISSING rather than wrong - and a clone without it
- * silently goes back to hand-resolving the file this exists to stop hand-resolving.
+ * What git is told to run. A RELATIVE path, and that is the whole point.
+ *
+ * Git runs a merge driver from the top of the working tree being merged - measured, including a
+ * `git merge` started from a subdirectory - so this one command serves every worktree of this
+ * clone. An ABSOLUTE path would not: worktrees share one `.git/config`, so the first checkout to
+ * register would own the entry forever, and this repository creates and deletes a worktree per
+ * session. The sibling contracts driver registers an absolute path and in this very clone it
+ * already points at `agent-ae47713a44213dee3`, which no longer exists.
+ *
+ * That matters more here than it would anywhere else, because of what git does when the command
+ * cannot run: it reports `CONFLICT (content)`, marks the file `UU`, and leaves OUR VERSION in the
+ * working tree with no conflict markers in it. The person opens a conflicted file, sees clean
+ * JSON, stages it, and every change the other side made to package.json is gone. A stale path
+ * would turn this driver into the silent data loss it exists to prevent.
+ *
+ * The path is present exactly when it is needed: `.gitattributes` names the driver and this script
+ * landed in the same commit, and git reads that attribute from the working tree it is merging into.
+ */
+export const DRIVER_COMMAND = 'node "scripts/package-merge-driver.mjs" %O %A %B %P';
+
+/**
+ * Register the driver, or correct it. Cheap enough to call on every build, and it must be: git
+ * config is per clone and is not committed, so a fresh checkout has it missing, and a clone where
+ * it is WRONG is worse than one where it is missing.
  */
 export function install(cwd = ROOT) {
-  const command = `node "${path.join(ROOT, 'scripts', 'package-merge-driver.mjs')}" %O %A %B %P`;
   git(['config', `merge.${DRIVER_NAME}.name`, 'Merge package.json as JSON, key by key'], cwd);
-  return git(['config', `merge.${DRIVER_NAME}.driver`, command], cwd).status === 0;
+  return git(['config', `merge.${DRIVER_NAME}.driver`, DRIVER_COMMAND], cwd).status === 0;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -85,32 +113,34 @@ export function install(cwd = ROOT) {
 
 const isPlainObject = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-/** Value identity for merge purposes: two sides agree when they serialize the same, order and all. */
-const same = (a, b) => (a === ABSENT || b === ABSENT ? a === b : stableText(a) === stableText(b));
-
 /** Exactly what `JSON.stringify(v, null, 2)` writes, which is also exactly what npm writes. */
 const stableText = (v) => JSON.stringify(v, null, 2);
+
+/** Value identity for merge purposes: two sides agree when they serialize the same, order and all. */
+const same = (a, b) => (a === ABSENT || b === ABSENT ? a === b : stableText(a) === stableText(b));
 
 /**
  * A scratch directory for `git merge-file`, created on first use and removed when the merge ends.
  * One per process: a merge touches a handful of values, and three temp files each is cheaper than
  * reimplementing diff3.
  */
+let scratchDir = null;
+
 function scratch() {
-  scratch.dir ??= mkdtempSync(path.join(os.tmpdir(), 'noacg-package-merge-'));
-  return scratch.dir;
+  scratchDir ??= mkdtempSync(path.join(os.tmpdir(), 'noacg-package-merge-'));
+  return scratchDir;
 }
 
 function releaseScratch() {
-  if (scratch.dir) rmSync(scratch.dir, { recursive: true, force: true });
-  scratch.dir = undefined;
+  if (scratchDir) rmSync(scratchDir, { recursive: true, force: true });
+  scratchDir = null;
 }
 
 /**
  * Three-way merge of three lists of lines, by git's own diff3, with ONE class of conflict resolved
  * afterwards - see `settleInsertions`. Lines must not contain newlines; every caller below encodes
  * its units so that they cannot.
- * @returns {{ merged: string[]|null }} null when the two sides disagree inside one region
+ * @returns {string[]|null} null when the two sides disagree inside one region
  */
 function mergeLines(base, ours, theirs) {
   const dir = scratch();
@@ -126,11 +156,14 @@ function mergeLines(base, ours, theirs) {
     '-L', 'ours', '-L', 'base', '-L', 'theirs',
     write('ours', ours), write('base', base), write('theirs', theirs),
   ], { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
-  // A negative status is git failing to run at all, which is not a verdict about the content.
-  if (res.status === null || res.status < 0) return { merged: null };
+  // GIT FAILING TO RUN IS NOT A VERDICT ABOUT THE CONTENT, and telling the two apart is only
+  // possible because `git merge-file` caps its conflict count at 127 and reports any error as 255.
+  // Read it as a conflict count and an unwritable temp directory becomes "merged to nothing":
+  // empty stdout, no conflicts, and `"build": ""` committed without a word.
+  if (res.error || res.status === null || res.status < 0 || res.status > 127) return null;
   const text = res.stdout.replace(/\n$/, '');
   const lines = text === '' ? [] : text.split('\n');
-  return res.status === 0 ? { merged: lines } : settleInsertions(lines);
+  return res.status === 0 ? lines : settleInsertions(lines);
 }
 
 /**
@@ -146,7 +179,7 @@ function mergeLines(base, ours, theirs) {
  * one side deleted and the other side edited - every one of those has base text under it, so every
  * one of them still stops the merge and still gets a person. This rule can only ever ADD, never
  * choose between two texts, so the outcome it is incapable of producing is the silent one.
- * @returns {{ merged: string[]|null }}
+ * @returns {string[]|null}
  */
 function settleInsertions(lines) {
   const out = [];
@@ -158,22 +191,26 @@ function settleInsertions(lines) {
     const baseAt = lines.indexOf('||||||| base', i);
     const sepAt = lines.indexOf('=======', baseAt);
     const endAt = lines.indexOf('>>>>>>> theirs', sepAt);
-    if (baseAt < 0 || sepAt < 0 || endAt < 0) return { merged: null };
+    if (baseAt < 0 || sepAt < 0 || endAt < 0) return null;
     // Non-empty base region: one of the two sides changed text the other side also changed.
-    if (sepAt - baseAt > 1) return { merged: null };
+    if (sepAt - baseAt > 1) return null;
     out.push(...lines.slice(i + 1, baseAt), ...lines.slice(sepAt + 1, endAt));
     i = endAt;
   }
-  return { merged: out };
+  return out;
 }
 
 /**
- * Split a string into merge units. A single-line value (every script body, every version range) is
- * split on whitespace, each token carrying the whitespace that precedes it, so rejoining is plain
- * concatenation and no spacing is invented. A value that already has newlines is merged by line.
+ * How one string is cut into merge units and put back together. A single-line value (every script
+ * body, every version range) is split on whitespace, each token carrying the whitespace that
+ * precedes it, so rejoining is plain concatenation and no spacing is invented. A value with
+ * newlines in it is merged by line instead.
+ *
+ * `multiline` is decided once for all three sides by the caller rather than per string: three
+ * values cut two different ways cannot be compared against each other at all.
  */
-function unitsOf(text) {
-  if (text.includes('\n')) return { units: text.split('\n'), join: (u) => u.join('\n') };
+function unitsOf(text, multiline) {
+  if (multiline) return { units: text.split('\n'), join: (u) => u.join('\n') };
   const units = text.match(/\s*\S+/g) ?? [];
   const tail = text.slice(units.join('').length); // trailing whitespace, kept verbatim
   return { units, join: (u) => u.join('') + tail };
@@ -197,15 +234,23 @@ function onlyAdds(base, side) {
   return i === base.length;
 }
 
+/**
+ * The whole merge rule, over units somebody else encoded: refuse unless BOTH sides only added, and
+ * otherwise let diff3 interleave the additions. A string value and an array value are the same
+ * problem once they are lists of lines, so they ask the same question here.
+ * @returns {string[]|null}
+ */
+function mergeUnits(base, ours, theirs) {
+  if (!onlyAdds(base, ours) || !onlyAdds(base, theirs)) return null;
+  return mergeLines(base, ours, theirs);
+}
+
 /** Merge two edits of the same string. Both sides appending to an `&&` chain is the common case. */
 function mergeStrings(base, ours, theirs) {
   const multiline = [base, ours, theirs].some((s) => s.includes('\n'));
-  const split = (s) => (multiline ? s.split('\n') : (s.match(/\s*\S+/g) ?? []));
-  const [b, o, t] = [split(base), split(ours), split(theirs)];
-  if (!onlyAdds(b, o) || !onlyAdds(b, t)) return { ok: false };
-  const { merged } = mergeLines(b, o, t);
-  if (merged === null) return { ok: false };
-  return { ok: true, value: multiline ? merged.join('\n') : unitsOf(ours).join(merged) };
+  const [b, o, t] = [base, ours, theirs].map((s) => unitsOf(s, multiline));
+  const merged = mergeUnits(b.units, o.units, t.units);
+  return merged === null ? { ok: false } : { ok: true, value: o.join(merged) };
 }
 
 /**
@@ -218,8 +263,7 @@ function mergeStrings(base, ours, theirs) {
  * with theirs' additions after it, which is deterministic and keeps every key.
  */
 function mergeKeyOrder(base, ours, theirs) {
-  const { merged } = mergeLines(base, ours, theirs);
-  const ordered = merged ?? [...ours, ...theirs.filter((k) => !ours.includes(k))];
+  const ordered = mergeLines(base, ours, theirs) ?? [...ours, ...theirs.filter((k) => !ours.includes(k))];
   // diff3 works on lines, so a key deleted on one side and re-added on the other could in
   // principle appear twice. De-duplicate rather than emit a JSON object with a repeated key.
   return [...new Set(ordered)];
@@ -245,18 +289,17 @@ function mergeValue(base, ours, theirs, where) {
     // needs no base to merge against, unlike a string: splicing two version ranges together makes
     // something that is not a version, while splicing two lists together is still a list.
     const line = (v) => JSON.stringify(v);
-    const [b, o, t] = [(Array.isArray(base) ? base : []).map(line), ours.map(line), theirs.map(line)];
-    if (!onlyAdds(b, o) || !onlyAdds(b, t)) return { value: ours, conflicts: [where] };
-    const { merged } = mergeLines(b, o, t);
+    const merged = mergeUnits((Array.isArray(base) ? base : []).map(line), ours.map(line), theirs.map(line));
     if (merged === null) return { value: ours, conflicts: [where] };
     return { value: merged.map((l) => JSON.parse(l)), conflicts: [] };
   }
-  // A STRING IS ONLY MERGEABLE AGAINST A REAL ONE. With no base text - the key is new on both
-  // sides, or the base value was empty - every token on both sides reads as an insertion, and the
+  // A STRING IS ONLY MERGEABLE AGAINST A REAL ONE. With no base TEXT - the key is new on both
+  // sides, or the base value was blank - every token on both sides reads as an insertion, and the
   // insertion rule would happily "merge" the ranges `^5.1.0` and `^5.2.0` into `^5.1.0 ^5.2.0`.
   // That is the silent corruption this driver must not be capable of, so an add/add of a string
-  // goes to a person however small the two values are.
-  if (typeof ours === 'string' && typeof theirs === 'string' && typeof base === 'string' && base !== '') {
+  // goes to a person however small the two values are. The test is on the base's CONTENT and not
+  // on its length, because a base of one space has no tokens either and read the same way.
+  if (typeof ours === 'string' && typeof theirs === 'string' && typeof base === 'string' && base.trim() !== '') {
     const merged = mergeStrings(base, ours, theirs);
     if (!merged.ok) return { value: ours, conflicts: [where] };
     return { value: merged.value, conflicts: [] };
@@ -348,20 +391,35 @@ function renderConflicted(merged, conflicts, base, ours, theirs) {
     if (!isPlainObject(node)) return JSON.stringify(node);
     const keys = Object.keys(node);
     if (keys.length === 0) return '{}';
-    const lines = keys.map((key, i) => {
+    const lines = [];
+    keys.forEach((key, i) => {
       const here = [...trail, key];
-      const comma = i === keys.length - 1 ? '' : ',';
-      const dotted = here.join('.');
-      if (!conflicted.has(dotted)) {
-        return `${pad}${JSON.stringify(key)}: ${render(node[key], here, depth + 1)}${comma}`;
+      const last = i === keys.length - 1;
+      const comma = last ? '' : ',';
+      if (!conflicted.has(here.join('.'))) {
+        lines.push(`${pad}${JSON.stringify(key)}: ${render(node[key], here, depth + 1)}${comma}`);
+        return;
       }
-      // A side that does not have the key at all shows an empty section rather than a made-up
+      // A side that does not have the key at all shows an EMPTY section rather than a made-up
       // value, so "delete it" is one of the answers the person can pick by deleting lines.
+      //
+      // Which is only true if the comma comes with it. A conflicted key that is LAST in its object
+      // is separated from the key before it by a comma that belongs to IT, so an empty section
+      // leaves `"build": "b",` in front of a `}` - a resolution that looks finished and no longer
+      // parses. Git solves this by absorbing the neighbouring line into the block, and so does
+      // this: the preceding entry is pulled into every side, with its comma only where the key
+      // actually follows. Not when that entry is itself a conflict block, because nesting two
+      // disagreements inside one another helps nobody.
+      const absorbs = last && lines.length > 0 && !lines.at(-1).startsWith('<<<<<<< ')
+        && [ours, base, theirs].some((obj) => at(obj, here) === undefined);
+      const previous = absorbs ? lines.pop() : null;
       const side = (obj) => {
         const v = at(obj, here);
-        return v === undefined ? [] : [`${pad}${JSON.stringify(key)}: ${stableIndented(v, depth + 1)}${comma}`];
+        const own = v === undefined ? [] : [`${pad}${JSON.stringify(key)}: ${stableIndented(v, depth + 1)}${comma}`];
+        if (!absorbs) return own;
+        return [own.length > 0 ? previous : previous.replace(/,$/, ''), ...own];
       };
-      return ['<<<<<<< ours', ...side(ours), '||||||| base', ...side(base), '=======', ...side(theirs), '>>>>>>> theirs'].join('\n');
+      lines.push(['<<<<<<< ours', ...side(ours), '||||||| base', ...side(base), '=======', ...side(theirs), '>>>>>>> theirs'].join('\n'));
     });
     // Each line already carries its own separating comma, because a conflict block needs one on
     // every side of the markers rather than one after the block.
@@ -381,6 +439,16 @@ function stableIndented(value, depth) {
 
 export function loadCorpus(root = ROOT) {
   return JSON.parse(readFileSync(path.join(root, CORPUS_FILE), 'utf8'));
+}
+
+/**
+ * Does `.gitattributes` actually hand package.json to this driver? Registering the driver in git
+ * config achieves precisely nothing without that line, so both the build gate and the test ask
+ * here rather than each carrying its own copy of the pattern.
+ */
+export function namedInAttributes(root = ROOT) {
+  const attributes = readFileSync(path.join(root, '.gitattributes'), 'utf8');
+  return new RegExp(`^/?package\\.json\\s+merge=${DRIVER_NAME}\\b`, 'm').test(attributes);
 }
 
 /**
@@ -471,16 +539,17 @@ function check() {
     for (const f of failures) console.error(`  - ${f.merge.slice(0, 8)} ${f.subject}\n    ${f.detail}`);
     return 1;
   }
-  const attributes = readFileSync(path.join(ROOT, '.gitattributes'), 'utf8');
-  if (!new RegExp(`^/?package\\.json\\s+merge=${DRIVER_NAME}\\b`, 'm').test(attributes)) {
+  if (!namedInAttributes()) {
     console.error(`${LABEL} .gitattributes does not give package.json merge=${DRIVER_NAME}, so nothing would call this driver.`);
     return 1;
   }
   // Registering here rather than in a setup step nobody runs: `npm run build` is the command every
   // session already runs, git config is per clone so a fresh checkout has it missing, and writing
-  // it twice costs one `git config`. Reported, never failed - a runner that never resolves a
-  // conflict loses nothing by not having it, and a read-only git dir must not fail the build.
-  if (!isInstalled() && !install()) console.log(`${LABEL} note: could not register merge.${DRIVER_NAME}.driver in this clone.`);
+  // it costs one `git config`. UNCONDITIONALLY, not only when it is missing - an entry left over
+  // from an older version of this script would otherwise stand forever, and `DRIVER_COMMAND` says
+  // what a wrong one costs. Reported, never failed: a runner that never resolves a conflict loses
+  // nothing by not having it, and a read-only git dir must not fail the build.
+  if (!install()) console.log(`${LABEL} note: could not register merge.${DRIVER_NAME}.driver in this clone.`);
   console.log(`${LABEL} OK - ${cases} recorded resolution(s) reproduced, package.json merged by ${DRIVER_NAME}`);
   return 0;
 }

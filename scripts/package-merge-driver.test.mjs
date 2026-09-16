@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DRIVER_NAME, install, isInstalled, loadCorpus, mergePackageText, replayCorpus } from './package-merge-driver.mjs';
+import { DRIVER_COMMAND, DRIVER_NAME, install, isInstalled, loadCorpus, mergePackageText, namedInAttributes, replayCorpus } from './package-merge-driver.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DRIVER = path.join(ROOT, 'scripts', 'package-merge-driver.mjs');
@@ -168,25 +168,84 @@ test('a CRLF working copy comes back CRLF, because that is what the checkout had
   assert.equal(merged.replaceAll('\r\n', '\n'), text(JSON.parse(merged)));
 });
 
-test('installing registers a command with the four placeholders git passes, and is idempotent', () => {
+test('a dependency whose base value is blank conflicts, because blank is not a base', () => {
+  // `base !== ''` was not enough: a single space has no tokens either, so both sides read as pure
+  // insertions and the two ranges were spliced into "^5.1.0^5.2.0" with no conflict at all.
+  const blank = text({ ...BASE, dependencies: { ai: ' ' } });
+  const { text: merged, conflicts } = merge(
+    text({ ...BASE, dependencies: { ai: '^5.1.0' } }),
+    text({ ...BASE, dependencies: { ai: '^5.2.0' } }),
+    blank,
+  );
+  assert.deepEqual(conflicts, ['dependencies.ai']);
+  assert.ok(!merged.includes('^5.1.0^5.2.0'), 'two version ranges were spliced into one string');
+});
+
+test('a conflict on the LAST key of an object still parses once the person picks a side', () => {
+  // The deleting side shows an empty section, so taking it means deleting lines - and the comma
+  // that separated the key before it has to go with them, or the finished file no longer parses.
+  const base = text({ name: 'demo', scripts: { build: 'node b.mjs', lint: 'eslint .' } });
+  const { text: merged, conflicts } = merge(
+    text({ name: 'demo', scripts: { build: 'node b.mjs' } }),
+    text({ name: 'demo', scripts: { build: 'node b.mjs', lint: 'eslint . --fix' } }),
+    base,
+  );
+  assert.deepEqual(conflicts, ['scripts.lint']);
+  // Resolve it the way a person does: keep one side's lines and delete the markers and the rest.
+  const lines = merged.split('\n');
+  const marker = (name) => lines.indexOf(name);
+  const resolve = (from, to) => [...lines.slice(0, marker('<<<<<<< ours')), ...lines.slice(from + 1, to), ...lines.slice(marker('>>>>>>> theirs') + 1)].join('\n');
+  const ours = resolve(marker('<<<<<<< ours'), marker('||||||| base'));
+  const theirs = resolve(marker('======='), marker('>>>>>>> theirs'));
+  assert.deepEqual(JSON.parse(ours), { name: 'demo', scripts: { build: 'node b.mjs' } }, 'taking ours, which deletes the key');
+  assert.deepEqual(JSON.parse(theirs), { name: 'demo', scripts: { build: 'node b.mjs', lint: 'eslint . --fix' } }, 'taking theirs');
+});
+
+test('installing registers a worktree-independent command, and corrects a stale one', () => {
   // A disposable repository: the checkout running the suite may expose its git metadata read-only,
   // and a test of the installer must not rewrite the developer's real config.
   const dir = mkdtempSync(path.join(tmpdir(), 'package-merge-install-'));
   try {
     execFileSync('git', ['init'], { cwd: dir, encoding: 'utf8' });
+    const configured = () => execFileSync('git', ['config', '--get', `merge.${DRIVER_NAME}.driver`], { cwd: dir, encoding: 'utf8' }).trim();
     assert.equal(install(dir), true);
-    const configured = execFileSync('git', ['config', '--get', `merge.${DRIVER_NAME}.driver`], { cwd: dir, encoding: 'utf8' }).trim();
-    assert.match(configured, /package-merge-driver\.mjs" %O %A %B %P$/);
+    assert.equal(configured(), DRIVER_COMMAND);
+    assert.match(configured(), /package-merge-driver\.mjs" %O %A %B %P$/);
+    // Worktrees share one config, and this repository makes and deletes one per session, so an
+    // absolute path would go stale - and a driver git cannot run leaves OUR version in place with
+    // no markers, which is the silent loss the whole file is built to be incapable of.
+    assert.ok(!path.isAbsolute(DRIVER_COMMAND.split('"')[1]), 'the registered path is relative to the worktree git runs it in');
     assert.equal(isInstalled(dir), true);
-    assert.equal(install(dir), true, 'registering twice is a no-op, so every build can do it');
+
+    execFileSync('git', ['config', `merge.${DRIVER_NAME}.driver`, 'node "C:/gone/package-merge-driver.mjs" %O %A %B %P'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(install(dir), true, 'registering again is what corrects it, so every build can do it');
+    assert.equal(configured(), DRIVER_COMMAND, 'a stale command left by an older version is rewritten');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('git merge-file still reports an error ABOVE its conflict cap, which is what the guard reads', () => {
+  // The driver reads merge-file's exit status as a conflict count, and a count of 0 as a clean
+  // merge. An error exits 255 with empty output, so reading it as a count turns an unwritable
+  // temp directory into "merged to nothing" - empty stdout, no conflicts, `"build": ""` committed
+  // in silence. The guard is `status > 127`, and this is the fact it rests on.
+  const dir = mkdtempSync(path.join(tmpdir(), 'package-merge-status-'));
+  try {
+    const real = path.join(dir, 'real.txt');
+    writeFileSync(real, 'a\n', 'utf8');
+    const failed = spawnSync('git', ['merge-file', '--diff3', '-q', '-p', path.join(dir, 'no-such-file.txt'), real, real], { cwd: dir, encoding: 'utf8', windowsHide: true });
+    assert.ok(failed.status > 127, `merge-file reported ${failed.status} for a missing file, which is inside the conflict-count range`);
+    assert.equal(failed.stdout, '', 'and it wrote nothing, which is what made the misread look like an empty merge');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test('.gitattributes hands package.json to this driver', () => {
-  const attributes = readFileSync(path.join(ROOT, '.gitattributes'), 'utf8');
-  assert.match(attributes, new RegExp(`^/?package\\.json\\s+merge=${DRIVER_NAME}$`, 'm'));
+  // Registering the driver in git config achieves nothing without this line, and the two halves
+  // live in different files - so this is the assertion that catches one of them going missing.
+  assert.equal(namedInAttributes(ROOT), true);
 });
 
 test('run as git runs it, it writes the merged file and exits 0', () => {
