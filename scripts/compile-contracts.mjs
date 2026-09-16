@@ -210,9 +210,11 @@ function main() {
     const { changed, stale } = drift(outputs, ROOT, owned);
     if (changed.length === 0 && stale.length === 0) {
       console.log(`${LABEL} OK - ${rules.length} rule(s), ${outputs.size - 1} generated file(s) current`);
-      // Reported, never failed. A missing merge driver costs nothing on a runner that never
-      // resolves a conflict; it costs a person their next merge of a generated contract.
-      if (!isInstalled()) console.log(`${LABEL} note: the ${DRIVER_NAME} merge driver is not registered in this clone - run \`npm run contracts:compile\` to register it.`);
+      // Reported, never failed. A merge driver that is missing or stale costs nothing on a runner
+      // that never resolves a conflict; it costs a person their next merge of a generated
+      // contract. `isInstalled` compares the command, not just the key, so this also catches the
+      // absolute path an older version of the driver left behind.
+      if (!isInstalled()) console.log(`${LABEL} note: the ${DRIVER_NAME} merge driver is not registered in this clone, or is registered with a stale command - run \`npm run contracts:compile\` to set it.`);
       return;
     }
     console.error(`${LABEL} the generated contracts are stale. Run \`npm run contracts:compile\` and commit the result.`);
@@ -223,8 +225,12 @@ function main() {
   write(outputs, ROOT, owned);
   // Registered here rather than by a setup step nobody runs: this is the command every session
   // already runs after touching a rule, git config is per clone so a fresh checkout has it
-  // missing, and registering it twice costs one `git config` write.
-  if (!isInstalled()) installMergeDriver();
+  // missing, and registering it again costs two `git config` writes.
+  //
+  // Unconditionally, and that is the point. The previous version asked `isInstalled()` first,
+  // which read presence alone, so the absolute worktree path an early checkout registered stood
+  // untouched after that worktree was deleted - dead for weeks with nothing said.
+  if (!installMergeDriver()) console.log(`${LABEL} note: could not register merge.${DRIVER_NAME}.driver in this clone.`);
   console.log(`${LABEL} wrote ${outputs.size} file(s) from ${rules.length} rule(s)`);
 }
 

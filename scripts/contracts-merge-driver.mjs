@@ -31,19 +31,49 @@ export const DRIVER_NAME = 'noacg-contracts';
 
 const git = (args, cwd = ROOT) => spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
 
-/** Is the driver registered in this clone? A worktree shares the common dir's config. */
-export function isInstalled(cwd = ROOT) {
-  return git(['config', '--get', `merge.${DRIVER_NAME}.driver`], cwd).status === 0;
+/**
+ * The command git is told to run, with the script named RELATIVELY.
+ *
+ * Git runs a merge driver from the TOP of the working tree it is merging into, including when the
+ * merge was started from a subdirectory - measured on 2026-09-16 and pinned by this script's test.
+ * So one relative command is correct in every worktree of the clone at once, which matters because
+ * `git config` is per clone and every worktree shares it, while this repository makes and deletes
+ * a worktree per session. An absolute path is correct only until the worktree that wrote it goes.
+ *
+ * It had already gone. On 2026-09-16 this clone's registration named
+ * `.claude/worktrees/agent-ae47713a44213dee3`, a directory that no longer existed, and what git
+ * does with a driver it cannot run is worse than doing nothing: it reports `CONFLICT (content)`,
+ * marks the file `UU`, and leaves OUR version in the working tree WITH NO CONFLICT MARKERS IN IT.
+ * Measured the same day, both when the two sides touched different lines - a merge plain git
+ * settles cleanly - and when they touched the same one. A person opens the file git called
+ * conflicted, sees clean text, stages it, and the merge commit records ours alone; `git merge`
+ * then answers "Already up to date" and the other side's change is never offered again.
+ */
+export const DRIVER_COMMAND = 'node "scripts/contracts-merge-driver.mjs" %O %A %B %P';
+
+/** What git would actually run for this driver in `cwd`'s clone, or null when nothing is set. */
+export function registeredCommand(cwd = ROOT) {
+  const got = git(['config', '--get', `merge.${DRIVER_NAME}.driver`], cwd);
+  return got.status === 0 ? got.stdout.trim() : null;
 }
 
 /**
- * Register the driver. Idempotent, and safe to call on every compile: git config is per clone and
- * is not committed, so a fresh checkout has it missing rather than wrong.
+ * Is this clone registered with the command we would write? Presence is not enough: a clone
+ * carrying an older version's absolute path has the key and no working driver, and reading only
+ * presence is how that survived. A worktree shares the common dir's config, so this is per clone.
+ */
+export function isInstalled(cwd = ROOT) {
+  return registeredCommand(cwd) === DRIVER_COMMAND;
+}
+
+/**
+ * Register the driver, or correct it. Unconditional and cheap - two `git config` writes - and it
+ * must be unconditional, because a clone where the entry is WRONG is worse than one where it is
+ * missing and only a write can tell those apart.
  */
 export function install(cwd = ROOT) {
-  const command = `node "${path.join(ROOT, 'scripts', 'contracts-merge-driver.mjs')}" %O %A %B %P`;
   git(['config', `merge.${DRIVER_NAME}.name`, 'Regenerate a compiled contract from the rule store'], cwd);
-  return git(['config', `merge.${DRIVER_NAME}.driver`, command], cwd).status === 0;
+  return git(['config', `merge.${DRIVER_NAME}.driver`, DRIVER_COMMAND], cwd).status === 0;
 }
 
 /**
