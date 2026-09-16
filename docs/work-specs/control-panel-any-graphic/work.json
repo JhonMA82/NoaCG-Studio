@@ -6,12 +6,12 @@
     "source": "docs/OWNER_RULINGS.md ALIGN-2026-09-14-3 and ALIGN-2026-09-15-1 to -4 (2026-09-15)"
   },
   "review": {
-    "revision": "1ecf34d8a64b80da90348e812592eb2ce0cfbd1c",
+    "revision": "3ae9388b0e8b5bd083d9fbb5161c118196a7977e",
     "specSha256": "c8b1ea4b966db1efcee1dd636a238d9cb05bd8bfba347d25455deb30a7443620",
     "evidence": [
       {
         "path": "docs/work-specs/control-panel-any-graphic/evidence/review.md",
-        "sha256": "4e7b624412a89caf56e7b68b389482eeba948e476bbfa98be072308d0a904a3e"
+        "sha256": "7336c2afe8a2f8bab953468766343f3f0c9431083e195358dfb3278267e10843"
       }
     ],
     "criteria": [
@@ -81,7 +81,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-7-bound-field-stepper.md",
-            "sha256": "e35eef77953bbfce72fd4a8c86255ef3f5ff14bb09fe4f8c2b336a508be8d4ee"
+            "sha256": "62ec6e8e3be22c06c1f33469c7d76a020f3186142712f40cf509b1ff479ada89"
           }
         ]
       },

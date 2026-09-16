@@ -78,6 +78,40 @@ reader does not mistake it for editing an applied migration. `control_data_apply
 `select key, value` shape and is fine - it returns a scalar and declares no such out parameter -
 and that is the only other site in the file.
 
+## Two more defects, found by this branch's own review of the same file
+
+Reading the migration for the ambiguity turned up two ways for a slug holder - signed out, holding
+nothing but a shared operating link - to destroy a production's authored tree, which is the exact
+thing the door's header argues it prevents. Both were reproduced against the live Postgres 17
+instance in `pg_temp`, using the self-check's own bindings
+(`match.home.score`, `drivers.0.gap`), before and after the change:
+
+| the press | before | after |
+|---|---|---|
+| `{"match":{"home":{"score":5}}}` | allowed | allowed |
+| `{"drivers":[{"gap":"+1.204"}]}` | allowed | allowed |
+| `{"match":null}` / `{"match":"gone"}` | refused | refused |
+| `{"weather":{"temp":4}}` | refused | refused |
+| **`{"match":[]}`** | **allowed** | refused |
+| **`{"%":[1]}`** | **allowed** | refused |
+| **`{"matc_":[1]}`** | **allowed** | refused |
+
+The array carve-out accepted an array at any path a binding descends into, by NAME as well as by
+index, so `{"panel":[]}` against a binding of `panel.katri.points` replaced the whole branch - and
+silently, because the bound leaves are then gone from the resolve, no `update` row is appended and
+the activity feed says nothing. And the prefix test was a `like` pattern built from the caller's own
+JSON key, so `%` and `_` in a key were wildcards. It is a `starts_with` comparison now and the
+segment after the prefix must be numeric, which is the only shape merge-patch cannot address
+element-wise and so the only one the exception is for.
+
+A third, smaller one: a patch resolving to no change still took the row lock and rewrote the row,
+uncapped, on a door granted to `anon` - both rate gates sit behind the pending-row count. It writes
+nothing now when the tree did not move.
+
+The migration's self-check gains the two refusals and `scripts/production-data-migration.test.mjs`
+pins all three conditions of the carve-out separately (14/14 green). None of this changes the
+verdict above: the door still cannot work anywhere until 0060 applies.
+
 ## What is still unexecuted
 
 **The fix does not make this criterion pass, and the ledger should not say it does.** Statements
