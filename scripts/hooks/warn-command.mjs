@@ -51,7 +51,7 @@ import { readHookInput, warn, gitOutput } from './lib.mjs';
 // modules that answer the rest are loaded LAZILY, after it passes: `command-target.mjs` and
 // `jobs-store.mjs` each pull in a chain (git plumbing, the port registry, the worktree lister)
 // that is pure overhead on the `ls` this hook mostly sees.
-import { commitCheckouts, pushedUpdates, unfinishedRun } from '../command-match.mjs';
+import { commitCheckouts, pushedUpdates, unfinishedRun, pushReplacedNotice } from '../command-match.mjs';
 // Pure, and imports only node:fs and node:path, so naming the handoff rule's one shared predicate
 // here costs nothing on the `ls` this hook mostly sees.
 import { isHandoff } from '../handoff-trace.mjs';
@@ -127,7 +127,7 @@ if (destroyed.length > 0) {
   notices.push(...(await handoffNotices(root, destroyed)));
 }
 
-// --- A push that narrowed the CI plan past a run that never finished -------------------------
+// --- A push that replaced a run that never finished -------------------------------------------
 //
 // `ci.yml`'s concurrency group cancels the run still going for a branch's previous tip whenever a
 // follow-up push arrives. That USED TO leave the earlier delta covered by nothing, because the
@@ -136,12 +136,17 @@ if (destroyed.length > 0) {
 //
 // THE HOLE IS CLOSED IN THE WORKFLOW. Since 2026-09-06 ci.yml measures every branch push from
 // `git merge-base origin/main HEAD`, which is an ancestor of the cancelled tip whatever it was,
-// so the replacement run plans the branch's whole work and cannot plan less than the run it
+// so the replacement run plans the branch's whole work and cannot plan less than the PUSH run it
 // cancelled. Re-measured 2026-09-16 over 158 branch push runs: 12 green-after-cancelled, 4 of
 // them shard-free, all 4 planning `mode: none` off the merge-base over paths that cannot reach
-// the E2E surface. So this notice is belt-and-braces, and it is kept for two reasons that survive
-// the fix: it is the one place a session is told the run it was watching is gone and which run
-// replaced it, and it would speak again if the workflow ever regressed to a narrow base.
+// the E2E surface. So this notice is belt-and-braces for a cancelled PUSH run, and it is kept for
+// two reasons that survive the fix: it is the one place a session is told the run it was watching
+// is gone and which run replaced it, and it would speak again if the workflow ever regressed.
+//
+// A CANCELLED DISPATCH IS STILL A REAL LOSS, and the notice says the opposite thing about it -
+// which is why the runs are fetched with their `event`. `pushReplacedNotice` owns that split and
+// explains it. The underlying defect, one concurrency group across two event types, is filed as
+// `docs/backlog/ci-concurrency-group-per-event.md`.
 //
 // EXACT, so it cannot cry wolf: silent when the earlier run had FINISHED, because then the
 // incremental plan is right by design; silent on a first push, a no-op and a rejection, because
@@ -150,10 +155,12 @@ if (destroyed.length > 0) {
 // push, so a run still `in_progress` or `queued` for the old tip counts the same as one already
 // `cancelled` - it is about to be.
 //
-// The decision itself is `unfinishedRun` in command-match.mjs, pure and pinned in its tests with
-// the two real run sets it was measured on: the first real event this was fed (sha 43c9d60b, one
-// cancelled push run beside one green dispatch) must stay silent, and the real 2026-09-04
-// follow-up push (sha a8ce0d1b, one cancelled run and nothing else) must speak.
+// The decision and the message both live in command-match.mjs, pure and pinned in its tests.
+// `unfinishedRun` carries the two real run sets it was measured on: the first real event this was
+// fed (sha 43c9d60b, one cancelled push run beside one green dispatch) must stay silent, and the
+// real 2026-09-04 follow-up push (sha a8ce0d1b, one cancelled run and nothing else) must speak.
+// `pushReplacedNotice` is there for the same reason this hook cannot be imported - it reads stdin
+// at module top level - and because the claim that went wrong here was prose nothing checked.
 //
 // THE OLD TIP IS LOOKED UP EXACTLY. Git's report abbreviates it, and an abbreviated sha given to
 // `gh run list --commit` returns [] with exit 0, so it is resolved to the full sha first - this
@@ -164,23 +171,7 @@ if (destroyed.length > 0) {
 for (const { branch, from, to } of pushed.slice(0, 3)) {
   const earlier = unfinishedRun(ciRuns(root, branch, git(root, ['rev-parse', '--verify', `${from}^{commit}`])), from);
   if (!earlier) continue;
-  notices.push(
-    `Heads up: this push moved ${branch} from ${from.slice(0, 8)} to ${to.slice(0, 8)}, and CI run ` +
-      `${earlier.databaseId} for ${from.slice(0, 8)} never finished (${earlier.conclusion || earlier.status}). ` +
-      'The concurrency group cancelled it. The run for THIS push covers the delta it owed: since ' +
-      '2026-09-06 ci.yml measures a branch push from the merge-base with main, which is an ' +
-      'ancestor of both tips, so the new plan is this branch\'s whole work and cannot be narrower ' +
-      'than the run it replaced.\n' +
-      'Still read WHICH JOBS RAN before believing the colour - a skipped shard now means the plan ' +
-      'found nothing that reaches the E2E surface, and it is worth knowing which:\n' +
-      `  gh run list --branch ${branch} --limit 3\n` +
-      `  gh run view <id> --json jobs -q '.jobs[] | "\\(.conclusion)\\t\\(.name)"'\n` +
-      'A full suite is no longer the answer to a cancelled predecessor. Ask for one only to ' +
-      'override the plan itself, as its OWN command once the push run is listed:\n' +
-      `  gh workflow run ci.yml --ref ${branch}\n` +
-      '(pushed and dispatched in one breath, one of the two is cancelled and which one is not stable; ' +
-      'the shell guard refuses that pairing).',
-  );
+  notices.push(pushReplacedNotice({ branch, from, to, run: earlier }));
 }
 
 // --- A commit that staled a queued landing pin ------------------------------------------------
@@ -254,7 +245,10 @@ function ciRuns(cwd, branch, sha) {
   const scope = sha ? ['--commit', sha] : ['--branch', branch, '--limit', '10'];
   const res = spawnSync(
     'gh',
-    ['run', 'list', ...scope, '--workflow', 'ci.yml', '--json', 'databaseId,status,conclusion,headSha'],
+    // `event` is fetched because a cancelled DISPATCH and a cancelled PUSH owe opposite advice:
+    // the push run that replaced them covers the first and is deliberately narrower than the
+    // second. The notice below branches on it.
+    ['run', 'list', ...scope, '--workflow', 'ci.yml', '--json', 'databaseId,status,conclusion,headSha,event'],
     { cwd, encoding: 'utf8', windowsHide: true, timeout: 8_000 },
   );
   if (res.status !== 0 || typeof res.stdout !== 'string') return null;

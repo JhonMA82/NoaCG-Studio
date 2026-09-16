@@ -725,6 +725,62 @@ export function unfinishedRun(runs, from) {
 }
 
 /**
+ * What to tell a session whose push replaced the unfinished run `unfinishedRun` just found.
+ *
+ * THE TWO CASES OWE OPPOSITE ADVICE, which is the whole reason this is a function rather than one
+ * string. A cancelled PUSH run is covered by its replacement: since 2026-09-06 `ci.yml` measures a
+ * branch push from the merge-base with `main`, an ancestor of both tips, so the new plan is the
+ * branch's whole work and cannot be narrower. A cancelled DISPATCH is a real loss - a dispatch has
+ * no diff base and runs the full suite, and the concurrency group keys on the ref with no event in
+ * it (`ci-${github.ref}`), so a push cancels one and the narrower push plan replaces it. Telling
+ * that session not to re-dispatch would throw away the override it had just bought.
+ *
+ * IT LIVES HERE SO IT CAN BE TESTED. `hooks/warn-command.mjs` reads stdin at module top level and
+ * cannot be imported, exactly as this file's header says of `guard-command.mjs`. The claim that
+ * went wrong before - a message asserting the plan had been narrowed, ten days after the workflow
+ * stopped narrowing it - was wrong in prose that nothing checked.
+ *
+ * @param {object} input
+ * @param {string} input.branch the branch this push moved
+ * @param {string} input.from the tip the remote held before the push
+ * @param {string} input.to the tip it holds now
+ * @param {{ databaseId: number|string, conclusion?: string, status?: string, event?: string }} input.run
+ *   the unfinished run for `from`, as `unfinishedRun` returned it
+ */
+export function pushReplacedNotice({ branch, from, to, run }) {
+  const wasDispatch = run?.event === 'workflow_dispatch';
+  const head =
+    `Heads up: this push moved ${branch} from ${from.slice(0, 8)} to ${to.slice(0, 8)}, and CI run ` +
+    `${run.databaseId} for ${from.slice(0, 8)} never finished (${run.conclusion || run.status}). ` +
+    'The concurrency group cancelled it.';
+  const situation = wasDispatch
+    ? 'That run was a DISPATCH, which has no diff base and so runs the FULL suite; the run for ' +
+      'this push plans from the merge-base with main instead, which is narrower on purpose and ' +
+      'is not what the dispatch was bought for. The override is gone, not the coverage of your ' +
+      'own change.'
+    : 'The run for THIS push covers the delta it owed: since 2026-09-06 ci.yml measures a branch ' +
+      'push from the merge-base with main, which is an ancestor of both tips, so the new plan is ' +
+      "this branch's whole work and cannot be narrower than the push run it replaced.";
+  const suite = wasDispatch
+    ? 'Ask for the full suite again as its OWN command once the push run is listed:'
+    : 'A full suite is no longer the answer to a cancelled push run. Ask for one only to ' +
+      'override the plan itself, as its OWN command once the push run is listed:';
+  // Both cases say the same four things in the same order - what happened, what it means for
+  // coverage, whether to buy a full suite, and how to check - so they differ only in the two
+  // middle strings rather than in the shape of the message.
+  return [
+    `${head} ${situation}`,
+    `${suite}\n  gh workflow run ci.yml --ref ${branch}`,
+    '(pushed and dispatched in one breath, one of the two is cancelled and which one is not ' +
+      'stable; the shell guard refuses that pairing).',
+    'Read WHICH JOBS RAN before believing the colour - a skipped shard means the plan found ' +
+      'nothing that reaches the E2E surface, and it is worth knowing which:\n' +
+      `  gh run list --branch ${branch} --limit 3\n` +
+      `  gh run view <id> --json jobs -q '.jobs[] | "\\(.conclusion)\\t\\(.name)"'`,
+  ].join('\n');
+}
+
+/**
  * The text of a tool response, whatever shape it arrives in. A PostToolUse event carries the
  * shell tool's response as an object (`stdout`, `stderr`, `interrupted`, `exit_code`); a string
  * is accepted too, and anything else reads as empty, which every caller treats as nothing to say.

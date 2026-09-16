@@ -47,7 +47,7 @@ There is a cliff, not a curve: a root-level file, `package.json` or the sprint-f
 
 **Why small changes escalate.** Not one bug; a stack of individually defensible rules whose union is nearly everything:
 
-1. `main` runs `--all` unconditionally (`ci.yml:293-295`), so the selector's whole savings are thrown away at the moment that matters least: the code was already green on the integrated sha.
+1. `main` runs `--all` unconditionally (the `refs/heads/main` arm of `ci.yml`'s plan step), so the selector's whole savings are thrown away at the moment that matters least: the code was already green on the integrated sha.
 2. The `CORE` list (`scripts/e2e-affected.mjs:462-497`) contains `package.json`, `package-lock.json`, `src/styles`, `src/model/`, `src/store/`, `app.html` and the e2e helpers. `package.json` alone escalated 18 of the last 150 landings; under sprint focus an escalation is 57 specs on 9 runners, 48 runner-minutes, for a one-line script edit.
 3. The `MAP` rules are wide and union: `src/templates/` names 46 specs plus the catalog gate, `src/components/wizard/` names 37. A change touching a template, a wizard step and one core file plans 105 of 149 files.
 4. The diff base for a branch push is the merge-base with `main` (since 2026-09-06; `--integration` then walks a merge commit back to the same place), so the "changed set" is the branch's whole work plus everything `main` brought in since the fork. That is deliberate and it is what retired the "a follow-up push cancels the run and plans past a delta nothing covered" bug class - the cost is that a one-line edit on a long-lived branch is planned as though it were the branch.

@@ -275,10 +275,20 @@ the one thing `e2e/catalog-baseline.spec.ts` only ever checks in CI.
 Since 2026-09-06 `ci.yml` measures EVERY branch push from `git merge-base origin/main HEAD`. That
 commit is an ancestor of the cancelled tip whatever the sequence was, so a replacement run plans
 the branch's whole work plus whatever `main` brought in since the fork, and it cannot plan less
-than the run it cancelled. Re-measured 2026-09-16 over the 158 branch push runs of the preceding
-week: 12 were green straight after a cancelled run on the same branch, 4 of those ran no E2E
+than the PUSH run it cancelled. Measured 2026-09-15 over 434 branch runs: 28 green runs came
+straight after a cancelled one and 8 of those ran no shard. Re-measured 2026-09-16 over the 158
+branch push runs of the preceding week, this time reading each one's plan rather than counting
+them: 12 were green straight after a cancelled run on the same branch, 4 of those ran no E2E
 shard, and all 4 planned `mode: none` from the merge-base over docs, handoffs, `.gitignore` and
-scripts the application never loads. No false green among them.
+scripts the application never loads. No false green among them - which is what turns the earlier
+count from an upper bound into an answer.
+
+**The exception is a cancelled DISPATCH, and it is a real loss.** The concurrency group keys on
+the ref with no event in the key, so a push cancels an in-flight `gh workflow run` on the same
+branch. A dispatch has no diff base and runs everything; the push run that replaces it plans from
+the merge-base, which is narrower than what you had just bought. Nothing is uncovered - your own
+change is planned honestly - but the override is gone, so ask for it again. The defect itself is
+`docs/backlog/ci-concurrency-group-per-event.md`.
 
 **So read the job list for what it now tells you, which is the PLAN and not a hole.** A skipped
 shard means the classifier found nothing in the branch's whole diff against `main` that reaches

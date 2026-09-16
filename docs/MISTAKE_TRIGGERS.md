@@ -172,11 +172,11 @@ it: most of what recurs is not a hook, and saying which home it has is the answe
 
 | Recurring mistake | Handoffs | Home | Why there |
 |---|---|---|---|
-| A follow-up push cancels the earlier CI run and plans only its own delta; the new run reports green having skipped every shard | 16 | **hook, warn** (`warn-command.mjs`) | the moment is the push and the fact is whether the old tip's run finished, one `gh run list` away; what the remote held BEFORE the push is in the tool's own response, so a first push, a no-op and a rejection are silent by construction, and so is gh failing |
+| A follow-up push cancels the earlier CI run and plans only its own delta; the new run reports green having skipped every shard | 16 | **RETIRED 2026-09-06 in the workflow** - `ci.yml` plans every branch push from the merge-base with `main`, so the replacement covers what the cancelled push run owed. The warn hook stayed, belt-and-braces, and now carries the cancelled-DISPATCH case instead | routed here as a hook because a workflow fix looked out of reach, and it was not; see the 2026-09-16 note below the table |
 | Push and dispatch in one command, a coin flip over which run survives | 4 | **hook, deny** (`guard-command.mjs`) | exact in the command text, and the sanctioned shape is two commands |
 | `preview_start` from a linked worktree serves a sibling checkout's page | 4 | **hook, deny** (`guard-preview.mjs`) | one stat decides it, the wrong page renders fine, and the shell guard's message never reaches a session that is not typing a shell command |
 | A wave prompt naming a path that does not exist | 2 | **hook, deny** (`guard-agent-launch.mjs`) | exact, and the second half of the plan gate: the prompt a session is handed is a different file from the plan that was checked |
-| "A green run is not a verdict until you read WHICH JOBS RAN" | 19 | contract | whether the colour was believed is invisible to any call; the push notice now names the command at the one moment the plan was narrowed, which is as close as a mechanism gets |
+| "A green run is not a verdict until you read WHICH JOBS RAN" | 19 | contract | whether the colour was believed is invisible to any call; the push notice names the command at the moment a run is replaced, which is as close as a mechanism gets. Since 2026-09-06 a skipped shard is the plan being believed rather than a hole, so the job list is read to check the plan, not to catch a cancellation |
 | A local full suite from a worktree before landing | 8 | hook-shaped, unbuilt (above) | needs the matcher measured; today a memory entry, the wrong home |
 | An edit to a file another live row holds, or beyond the row's `TOUCHES` | 12 | queue-time gate (`merge-order.mjs`) + contract | a per-edit hook fails test 2: the fact is every other worktree's diff, and a git call across all of them on every `Edit` is the cost the doc forbids |
 | A new spec that is not in `FOCUS` or the map never runs on the gate it was written for | 3 | build gate, unbuilt - `docs/backlog/unmapped-spec-never-runs-on-its-gate.md` | the fact is the state of two files against a directory, which is a tree, not a call |
@@ -209,9 +209,10 @@ merge-base only when no finished run existed for `before`. The row that catches 
 that reproduces first, which is why that step is a contract line and not advice. The routing
 lesson is the harder one: **a mistake's entry in this table records where the answer went, and the
 answer can move.** When a fix lands upstream of a hook, the hook's header, the contract prose and
-the backlog file are all now wrong, and nothing in this repository fails when they are. That is the
-tenth handoff on the table's "the row's premise was wrong" line, and the first where the premise
-came from the repository's own documentation rather than from a misreading.
+the backlog file are all now wrong, and nothing in this repository fails when they are. The table's
+"the row's premise was wrong" line counts nine handoffs to 2026-09-05; this is another, and the
+first where the premise came from the repository's own documentation rather than from a misreading
+of the code. That is the worse kind, because the documentation is what a planner reads.
 
 ## What cannot be hooked
 
