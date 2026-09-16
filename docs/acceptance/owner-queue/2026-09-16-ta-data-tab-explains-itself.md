@@ -22,8 +22,9 @@ Production data panel and the Bindings table under it.
 3. **The rows are one grid.** Every binding row is field, path box, status, unbind, at the same
    four x positions, and the whole panel stops growing at 1200px. Before: on a 2560px screen the
    label column ran from x=16 to x=812 and the path box started at 820 on plain rows, 726 on rows
-   with a "matches" note, 833 on the row with a Suggest button. After: label 16-236 and box
-   244-704 on every row, at 2560 and at 1440.
+   with a "matches" note, about 788 on the row with a Suggest button. After: label 16-236 and
+   box 244-704 on every row, at 2560 and at 1440. Under 900px the rows fall back to flexible
+   tracks that still agree with each other, so a phone is not asked to scroll sideways.
 4. **Words a student can read.** The unbound box says "pick or type a path" instead of "not
    bound". An ambiguous field says "2 paths match, pick one: match.home.name, match.away.name"
    instead of "ambiguous, matches ...". A bound path with no value says "no value at this path,

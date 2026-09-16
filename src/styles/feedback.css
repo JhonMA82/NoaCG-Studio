@@ -54,7 +54,6 @@
 .pd-explain-body { max-width: 640px; padding: 4px 0 2px; }
 .pd-explain-body p { margin: 0 0 8px; font-size: 12.5px; line-height: 1.5; color: var(--text); }
 .pd-explain-body p.hint { margin: 0; }
-.pd-explain-body code { font-family: var(--mono, ui-monospace, monospace); font-size: 12px; }
 /* Its own head/actions classes, NOT the tables section's: `.pd-data-head .pd-data-actions` is
    measured by geometry in e2e/production-data.spec.ts, and a second element wearing those names
    would answer that measurement instead. */
@@ -84,7 +83,8 @@
 .pd-live-add { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .pd-live-add input { width: 190px; }
 .pd-live-add .hint { margin: 0; }
-.pd-live-add code, .pd-live-path { font-family: var(--mono, ui-monospace, monospace); }
+/* Every path or literal quoted in this panel's prose is mono, in one rule. */
+.pd-live-add code, .pd-live-path, .pd-bind-rule code, .pd-explain-body code { font-family: var(--mono, ui-monospace, monospace); }
 /* THE DATA KEY block: a credential on a screen other people can see, so it reads as its own
    boxed aside rather than as one more row of the tree. */
 .pd-datakey {
@@ -132,12 +132,11 @@
 .pd-bind-all { padding: 2px 8px; font-size: 11px; line-height: 1.5; }
 /* The one line that says what the button does, under the heading it sits beside. */
 .pd-bind-rule { margin: 6px 0 4px; max-width: 760px; }
-.pd-bind-rule code { font-family: var(--mono, ui-monospace, monospace); }
 /* FOUR TRACKS, the same on every row: field, path, status, unbind. The status track carries
    whichever ONE of the row's right-hand pieces applies (the Suggest button, the "n paths match"
    note, or the live value - the component renders at most one), so no row needs a track the
    others lack. The old template gave the Suggest button its own `auto` track and let the label
-   and status tracks share `fr` space, so the input started at 726, 820 or 833 depending on what
+   and status tracks share `fr` space, so the input started at 726, 788 or 820 depending on what
    the row beside it held (measured at 2560px, 2026-09-16). `minmax(0, 1fr)` on the status track
    is what stops a long note pushing the input left on its own row. */
 .pd-bind-row {
@@ -146,6 +145,15 @@
   align-items: center;
   gap: 8px;
   padding: 2px 0;
+}
+/* PHONE (the dashboard's own breakpoint, playout-dashboard.css). The desktop tracks above add up
+   to 598px for a value row and 472px for a binding row, and a 480px phone has 448px to give, so
+   the pixel widths stand down here for `fr` tracks with a ZERO minimum. Rows still agree with
+   each other, because no track depends on what its own row holds; only the desktop's fixed
+   220px label column is given up. */
+@media (max-width: 900px) {
+  .pd-live-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 54px 64px 28px; }
+  .pd-bind-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr) 28px; }
 }
 .pd-bind-field { font-size: 12px; overflow-wrap: anywhere; }
 .pd-bind-field code { color: var(--muted); margin-right: 4px; }

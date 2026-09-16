@@ -854,6 +854,14 @@ test('Bind all by title binds every unambiguous title in one press, and leaves t
   await addSecondGraphic(page, 'Club Scorebug', 'Derby Bindings');
 
   const data = await openWorkspace(page, 'data');
+  // The tab explains itself before anything is pressed: a closed drawer for the three blocks,
+  // and the button's rule on the line under the heading it sits beside. Both are copy a student
+  // reads once, so the spec pins that they are there and what they claim, not their wording.
+  const explain = data.getByTestId('data-explain');
+  await expect(explain).toBeVisible();
+  await expect(explain).not.toHaveAttribute('open');
+  await expect(explain.locator('a')).toHaveAttribute('href', '/docs#data-example');
+  await expect(data.getByTestId('bind-all-rule')).toContainText('exactly one path');
   await addValue(data, 'match.scoreA', '10');
   // Two leaves end in "teamA" - an ambiguous title, on purpose - so the button must leave it
   // unbound rather than guess.
