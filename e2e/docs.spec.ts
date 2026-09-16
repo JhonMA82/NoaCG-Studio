@@ -285,10 +285,10 @@ test('the worked example carries one show a reader can copy exactly', async ({ p
   await page.goto('/docs');
   const example = page.locator('#data-example');
 
-  // (a) THE ADDRESSES. `#data-example` and `#audience-no-chat` are what the Live data and
-  // Audience sections above hand off to, and the app's own Data tab is meant to point at the
-  // first (its panel already deep-links `/docs#data-api` the same way). Pinned here so they
-  // survive a restructure even when the headings around them move.
+  // (a) THE ADDRESSES, and `#data-example` is load-bearing OUTSIDE this page: the Data tab's
+  // "How this tab works" drawer ends with a link to it (ProductionDataPanel.tsx), so renaming
+  // the section breaks a link inside the product. `#audience-no-chat` is what the Audience
+  // section above hands off to. Pinned here so both survive a restructure of the headings.
   await expect(page.locator('section[id="data-example"]')).toHaveCount(1);
   await expect(example.locator('[id="audience-no-chat"]')).toHaveCount(1);
   await expect(page.locator('.doc-nav a[href="#data-example"]')).toHaveCount(1);

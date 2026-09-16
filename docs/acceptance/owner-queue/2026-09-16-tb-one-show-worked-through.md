@@ -52,10 +52,16 @@ a ballot, in both providers, with no operator control anywhere to change it:
 `docs/backlog/the-join-page-prompt-never-follows-the-mode.md`. I kept that frame out of the docs
 rather than photographing it.
 
-## One repair on the way past
+## Two rows found the same defect on the same night
 
-The bindings rows on the Data tab were laid out by a five-column grid that a bound row only ever
-filled four of, so the unbind ✕ landed in a 0.9fr track and drew as a 336px slab instead of a 28px
-button, and every row sized its own columns from its own content so the path boxes sat a few
-pixels apart all the way down the list. Both are fixed in `src/styles/feedback.css`. It is visible
-in the bindings screenshot, which is how it was found.
+Photographing the Data tab showed its rows were laid out by grids that the rows themselves only
+ever half filled, so the delete ✕ drew as a wide slab on some rows and a small square on others,
+and the path boxes never lined up down the list. The Data-tab row found it independently and
+landed first with the better repair, so that one is what is in the tree and this row's was dropped
+whole at the merge. Worth knowing only because nothing in the test suite measures either row's
+geometry: it took two people looking at the screen on one night, and it would have survived every
+green build otherwise.
+
+The two rows meet on screen. The Data tab's own **How this tab works** drawer says what production
+data, bindings and tables are in three short paragraphs, and its last line links here for the
+worked example.

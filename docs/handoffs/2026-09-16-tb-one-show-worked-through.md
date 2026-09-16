@@ -32,21 +32,35 @@ to 10. The script gained a `clipBetween` helper for the strips no single element
 before the shutter, and it now prints each PNG's pixel size because `docs.html` hard-codes
 width/height and the spec fails when the two disagree.
 
-## What I found by driving it, and did not write around
+## The collision with row TA, and what I dropped
 
-**The Bindings rows were laid out by a five-column grid that a bound row only ever filled four
-of** (commit 1, `src/styles/feedback.css`). The unbind ✕ landed in a `0.9fr` track and drew 336px
-wide; and because each row is its own grid with an `auto` track in it, every row sized its columns
-from its own content, so the path inputs sat up to nine pixels apart down the list. Measured
-373/381px first columns and a 336px button before, 386/386 and 28px after.
+**Row TA landed changes to `src/styles/feedback.css` before me** (`0e49eeec`, `524d9b96`,
+`70b878a6`, merged as `9b74eb5c`), and we had found the SAME defect from opposite directions on
+the same night. Both `.pd-bind-row` and `.pd-live-row` were five-track grids that their own rows
+only ever filled four of - a bound binding row renders no suggestion, a text leaf renders no ±
+stepper - so in each case the delete ✕ fell into a wide `fr` track and drew as a slab tens of
+pixels left of the ✕ above it, and every row sized its columns from its own content so the path
+inputs never lined up. I measured 373/381px first columns and a 336px button before my fix.
 
-**`.pd-live-row` had the identical defect** and I had photographed it before the review caught it:
-the ± stepper renders only for a NUMBER leaf, so a string or list row has four children, the ✕ fell
-into the 64px stepper track and drew twice its size 40px left of its neighbours. Same repair,
-measured: every row's ✕ is now 28px at the same x whatever the leaf type. **Both are in
-`src/styles/feedback.css` and neither is touched by any e2e assertion** - I grepped. That is why
-they survived: nothing in the repo measures either row's geometry, and the only thing that caught
-them was publishing a picture.
+**TA's repair is better and mine was dropped whole at the merge**, not reconciled. Theirs pins the
+delete button to the last track on both rules AND lifts the label and path columns into
+`--pd-label-col` / `--pd-path-col` on `.pd-live`, so the tree and the bindings agree with EACH
+OTHER rather than each being internally straight, with an `fr` fallback under 900px for phones.
+Mine only made the rows within one table agree. The conflict was resolved by taking `origin/main`'s
+version of that file entire, and `git diff origin/main -- src/styles/feedback.css` is empty. My
+two CSS commits stay in the branch's history and contribute nothing to the tree; that is the
+honest record of what happened rather than a rewrite of it.
+
+**Nothing in `e2e/` measures either rule's geometry** - I grepped, and so did TA. That is why a
+defect this visible survived: it took two rows looking at the screen on one night, and every green
+build would have shipped it otherwise. If a third row touches those rules, that gap is still open.
+
+**The two rows meet on screen.** TA's new "How this tab works" drawer on the Data tab explains
+production data, bindings and tables in three short paragraphs and ends with a link to
+`/docs#data-example`, which is this section. The anchor is now load-bearing inside the product,
+and `e2e/docs.spec.ts` says so where it pins it. TA also filed
+`docs/backlog/app-links-into-the-docs-page-have-no-gate.md`, which is the gate neither of us
+built: nothing checks that an in-app link into `/docs` still resolves.
 
 **Two backlog items, both real and both filed rather than worked around:**
 
