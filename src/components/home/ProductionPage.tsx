@@ -714,6 +714,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     void refreshServerData();
   }, [refreshServerData]);
 
+  /**
+   * ONE CALL, ONE WRITE. This charges a persist - and, published, an HTTP PATCH against the
+   * production's ingest budget - every time it is called, and it deliberately does not coalesce:
+   * every caller it has is one deliberate gesture (a stepper, Apply JSON, Reset, Clear, Move
+   * numbers, a finished edit). A CALLER THAT FIRES AT KEYSTROKE RATE IS THE BUG, not this
+   * function's missing debounce. Deferring belongs at the box, because only the box knows which
+   * text a person currently owns - the three paths that replace `liveData` (the cross-tab
+   * `storage` listener, a PATCH answer, the failure handler's refresh) would otherwise land in
+   * whatever is being typed. `components/home/useDeferredEdits.ts` is that mechanism.
+   */
   const setLiveData = useCallback(
     (next: JsonObject) => {
       // Optimistic either way, so typing stays immediate.

@@ -3,6 +3,7 @@ import { createProject } from './_create';
 import { openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
 import { parkFocusOffControls } from './_keys';
+import { PRODUCTION_DATA_KEY } from '../src/model/productionState';
 
 // The production DATA workspace (docs/INTERACTIVE_PLAYOUT_PLAN.md D3/D6): the show's own
 // tables, edited on the Data tab, loaded into CUES on the Playout tab by deliberate operator
@@ -935,20 +936,22 @@ test('Bind all by title binds every unambiguous title in one press, and leaves t
 
 /** Count every write to the production data key, in every page opened after this call. */
 async function countPersists(page: Page): Promise<void> {
-  await page.context().addInitScript(() => {
-    const w = window as unknown as { __dataPersists?: number };
-    w.__dataPersists = 0;
-    const setItem = Storage.prototype.setItem;
-    Storage.prototype.setItem = function (this: Storage, key: string, value: string) {
-      if (key === 'spx-gfx-production-data') w.__dataPersists = (w.__dataPersists ?? 0) + 1;
-      return setItem.call(this, key, value);
-    };
-  });
-}
-
-/** This page's count so far. */
-async function persists(page: Page): Promise<number> {
-  return await page.evaluate(() => (window as unknown as { __dataPersists?: number }).__dataPersists ?? 0);
+  await page.context().addInitScript((key: string) => {
+    // GUARDED WHOLE, the way e2e/_storage.ts explains: an init script runs inside the sandboxed
+    // preview iframes too, where touching a storage API can throw, and an uncaught error there
+    // lands in the page-error listeners other specs assert empty.
+    try {
+      const w = window as unknown as { __dataPersists?: number };
+      w.__dataPersists = 0;
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (this: Storage, k: string, value: string) {
+        if (k === key) w.__dataPersists = (w.__dataPersists ?? 0) + 1;
+        return setItem.call(this, k, value);
+      };
+    } catch {
+      /* no storage to wrap here */
+    }
+  }, PRODUCTION_DATA_KEY);
 }
 
 /** Zero it, so the count is the gesture under test and not the setup that preceded it. */
@@ -958,19 +961,51 @@ async function resetPersists(page: Page): Promise<void> {
   });
 }
 
+/**
+ * The panel commits an edit after this long without a keystroke (`EDIT_SETTLE_MS` in
+ * src/components/home/useDeferredEdits.ts). The tests need it for one reason only: to say what a
+ * SLOW machine is allowed to cost. See `expectOneEditOneWrite`.
+ */
+const SETTLE_MS = 500;
+
+/**
+ * Assert what ONE edit cost, without pinning how fast the machine running the test is.
+ *
+ * The claim is one write per edit rather than one per character, and on any healthy run `allowed`
+ * is 1, which is that claim exactly. A runner that stalls mid-word genuinely made two edits - the
+ * settle timer fired between two keystrokes, exactly as an operator pausing would make it - so
+ * the budget grows by one per settle window the typing actually spanned, and never comes anywhere
+ * near the one-per-character count these tests exist to refuse (twelve, and five, before this).
+ */
+async function expectOneEditOneWrite(page: Page, typedMs: number): Promise<void> {
+  const count = await page.evaluate(() => (window as unknown as { __dataPersists?: number }).__dataPersists ?? 0);
+  const allowed = 1 + Math.floor(typedMs / SETTLE_MS);
+  expect(
+    count,
+    `one edit must cost one write; typing took ${typedMs}ms, so at most ${allowed} settle${allowed === 1 ? '' : 's'} could have fired`,
+  ).toBeLessThanOrEqual(allowed);
+}
+
+/** Type into a focused box and say how long it took, so the count above can be judged. */
+async function typeAndTime(type: () => Promise<void>): Promise<number> {
+  const started = Date.now();
+  await type();
+  return Date.now() - started;
+}
+
 /** The value the persisted tree holds at `path`, or null - read from storage, not from the box,
  *  so the assertion is about what LANDED rather than about what is on screen. */
 async function persistedValue(page: Page, path: string): Promise<unknown> {
-  return await page.evaluate((p: string) => {
-    const store = JSON.parse(localStorage.getItem('spx-gfx-production-data') ?? '{}') as Record<string, unknown>;
+  return await page.evaluate(([key, p]: [string, string]) => {
+    const store = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown>;
     const tree = Object.values(store)[0];
     let node: unknown = tree;
-    for (const key of p.split('.')) {
+    for (const step of p.split('.')) {
       if (!node || typeof node !== 'object') return null;
-      node = (node as Record<string, unknown>)[key];
+      node = (node as Record<string, unknown>)[step];
     }
     return node ?? null;
-  }, path);
+  }, [PRODUCTION_DATA_KEY, path] as [string, string]);
 }
 
 test('typing a value costs ONE persist for the whole edit, not one per character', async ({ page }) => {
@@ -987,14 +1022,14 @@ test('typing a value costs ONE persist for the whole edit, not one per character
   await resetPersists(data);
   await box.click();
   await box.press('ControlOrMeta+a');
-  await box.pressSequentially('Helsinki IFK');
+  const typedMs = await typeAndTime(() => box.pressSequentially('Helsinki IFK'));
   await expect(box).toHaveValue('Helsinki IFK');
   await box.blur();
 
   // Waiting for the tree is what makes the count honest: poll until the edit has LANDED, then
   // ask how many writes it took to get there.
   await expect.poll(() => persistedValue(data, 'match.home.name')).toBe('Helsinki IFK');
-  expect(await persists(data), 'twelve characters must cost one persist').toBe(1);
+  await expectOneEditOneWrite(data, typedMs);
 });
 
 test('an operator who types and walks away still has the value persisted', async ({ page }) => {
@@ -1011,10 +1046,10 @@ test('an operator who types and walks away still has the value persisted', async
   await resetPersists(data);
   await box.click();
   await box.press('ControlOrMeta+a');
-  await box.pressSequentially('20:00');
+  const typedMs = await typeAndTime(() => box.pressSequentially('20:00'));
   await expect(box, 'nothing may move the focus out of the box').toBeFocused();
   await expect.poll(() => persistedValue(data, 'match.clock')).toBe('20:00');
-  expect(await persists(data), 'the unattended write is still ONE write').toBe(1);
+  await expectOneEditOneWrite(data, typedMs);
 });
 
 test('a refresh arriving mid-word never overwrites the box under the cursor', async ({ page }) => {
@@ -1039,20 +1074,22 @@ test('a refresh arriving mid-word never overwrites the box under the cursor', as
   await box.click();
   await box.press('ControlOrMeta+a');
   await box.pressSequentially('Hels');
-  await expect(box, 'a box with an uncommitted edit says so').toHaveAttribute('data-dirty', 'true');
+  await expect(
+    box,
+    `a box with an uncommitted edit says so - unless the machine stalled past the ${SETTLE_MS}ms settle window between the last keystroke and this assertion`,
+  ).toHaveAttribute('data-dirty', 'true');
 
   await Promise.all([
-    page.evaluate(() => {
-      const KEY = 'spx-gfx-production-data';
-      const store = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<
+    page.evaluate((key: string) => {
+      const store = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<
         string,
         { match?: { home?: { name?: string } } }
       >;
       const tree = store[Object.keys(store)[0]];
       if (!tree?.match?.home) throw new Error('the production tree is not where this probe expects it');
       tree.match.home.name = 'Norge';
-      localStorage.setItem(KEY, JSON.stringify(store));
-    }),
+      localStorage.setItem(key, JSON.stringify(store));
+    }, PRODUCTION_DATA_KEY),
     box.pressSequentially('inki', { delay: 100 }),
   ]);
 

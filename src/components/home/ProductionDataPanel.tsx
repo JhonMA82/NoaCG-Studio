@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   deletePath,
   flattenLeaves,
+  formatValue,
+  getPath,
   matchTitle,
   parseDataTree,
   parseLiteral,
@@ -16,101 +18,7 @@ import { setFieldBinding, setFieldBindings, setShowSeedData, type Show } from '.
 import { fieldDescriptors } from '../../control/controlModel';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { copyLink } from './copyLink';
-
-/**
- * ONE EDIT, ONE WRITE — where the text a person is typing lives until the edit is over.
- *
- * Every box on this panel is CONTROLLED by something that is persisted and shared: the value
- * boxes by the production's live tree, the binding boxes by the show record. Writing on every
- * keystroke made each of those cost one write per CHARACTER. On a published production that is
- * one HTTP PATCH per character against an ingest budget of 25 per 5 s, so retyping an
- * eleven-character team name spent half the budget and then started refusing - and the refusal
- * handler pulls the server's older tree back in, which lands in the box still being typed into.
- * A binding box was worse in kind: it persisted every PREFIX of the path as a real binding.
- *
- * So a keystroke stops here. An edit is committed when it is OVER, and it is over on blur, on
- * Enter, after {@link EDIT_SETTLE_MS} of quiet, or when this panel goes away - the last two are
- * what an operator who types the new score and turns back to the desk relies on.
- *
- * THE RULE FOR A BOX BEING TYPED INTO (the revert hazard): while a box holds an uncommitted
- * edit, nothing the tree says changes what that box shows. A feed tick, a second operator and
- * this page's own recovery after a refused write all move the tree, and all of them used to
- * land mid-word. The edit wins its own path when it commits, and every other path keeps
- * whatever arrived meanwhile - the commit writes one path, never the whole tree it was typed
- * against. A box in this state carries `data-dirty`, so the state is visible on screen and
- * assertable in a test rather than being a claim about internals.
- *
- * ONE edit at a time, deliberately: only one box can hold the caret, so a second key means the
- * first edit is finished. Taking a new box over lands the old one rather than dropping it.
- */
-const EDIT_SETTLE_MS = 500;
-
-type PendingEdit = { key: string; text: string };
-
-function useDeferredEdits(commit: (key: string, text: string) => void) {
-  const [edit, setEdit] = useState<PendingEdit | null>(null);
-  const editRef = useRef<PendingEdit | null>(null);
-  editRef.current = edit;
-  // The commit runs LATER than the keystroke that scheduled it, so it must never be the closure
-  // that keystroke captured: that one holds the tree as it was before whatever arrived in
-  // between, and writing it back is the very revert this exists to stop. A ref repointed on
-  // every render is how the commit stays the current one.
-  const commitRef = useRef(commit);
-  commitRef.current = commit;
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const stopTimer = () => {
-    if (timer.current !== null) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
-  };
-
-  /** Land whatever is in the box now. Safe to call when there is nothing pending. */
-  const flush = useCallback(() => {
-    stopTimer();
-    const pending = editRef.current;
-    if (!pending) return;
-    // Cleared BEFORE the commit, so the box goes back to reading the tree in the same render
-    // the commit's write lands in and never blinks through the old value.
-    editRef.current = null;
-    setEdit(null);
-    commitRef.current(pending.key, pending.text);
-  }, []);
-
-  const type = useCallback(
-    (key: string, text: string) => {
-      // A different box: land the edit that one holds before this one takes over. Clicking away
-      // blurs first in practice; this is what makes it not matter if something ever does not.
-      if (editRef.current && editRef.current.key !== key) flush();
-      const next = { key, text };
-      editRef.current = next;
-      setEdit(next);
-      stopTimer();
-      timer.current = setTimeout(flush, EDIT_SETTLE_MS);
-    },
-    [flush],
-  );
-
-  useEffect(() => {
-    // Leaving with a box still dirty commits it: `pagehide` covers closing the tab, a reload and
-    // a navigation away, and the cleanup covers this panel being replaced by another tab's.
-    window.addEventListener('pagehide', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      flush();
-    };
-  }, [flush]);
-
-  return {
-    /** What this box shows: its uncommitted edit if it has one, otherwise the stored text. */
-    text: (key: string, stored: string) => (edit && edit.key === key ? edit.text : stored),
-    /** Whether this box holds an edit nothing has been told about yet. */
-    dirty: (key: string) => !!edit && edit.key === key,
-    type,
-    flush,
-  };
-}
+import { useDeferredEdits } from './useDeferredEdits';
 
 /**
  * THE MANUAL DATA PLAYGROUND (docs/PRODUCTION_DATA_PLAN.md §3) — the production's live data
@@ -147,7 +55,11 @@ export default function ProductionDataPanel({
   const [rawOpen, setRawOpen] = useState(false);
   const [rawText, setRawText] = useState('');
   const [rawError, setRawError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  /** The one line this panel says back, and whether it is good news. ONE state rather than two,
+   *  so a red line and a green one can never be on screen together - which they were, the moment
+   *  any note was set outside `write()`. */
+  const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
+  const say = (text: string) => setNote({ text, ok: true });
   /** The data key is hidden until asked for: it is a credential, and this page is often on a
    *  screen somebody else is looking at. */
   const [keyOpen, setKeyOpen] = useState(false);
@@ -161,7 +73,7 @@ export default function ProductionDataPanel({
 
   const write = (next: JsonObject, message?: string) => {
     setLiveData(next);
-    setNote(message ?? null);
+    setNote(message ? { text: message, ok: true } : null);
   };
 
   /**
@@ -175,9 +87,21 @@ export default function ProductionDataPanel({
    * a broken button.
    */
   const edits = useDeferredEdits((path, text) => {
-    const leaf = leaves.find((l) => l.path === path);
-    if (!leaf || leaf.text === text) return;
-    write(setPath(liveData, path, reparseLeaf(leaf.value, text)));
+    // Read through the model rather than scanning the rows this render happens to hold: `getPath`
+    // and `formatValue` are the same pair `flattenLeaves` used to build them, so "is this path
+    // still a leaf, and what does it say" cannot drift from what the rest of the app believes.
+    const previous = getPath(liveData, path);
+    const stored = formatValue(previous);
+    // THE ROW WENT AWAY while it was being typed into - a second operator deleted the path, or a
+    // feed's tree no longer carries it. Writing the text back would resurrect a value somebody
+    // deliberately removed, so the edit is dropped - but never in silence, because the operator
+    // has typed something and is entitled to know it went nowhere.
+    if (stored === null) {
+      setNote({ text: `${path} was removed while you were typing it, so what you typed was not saved.`, ok: false });
+      return;
+    }
+    if (stored === text) return;
+    write(setPath(liveData, path, reparseLeaf(previous, text)));
   });
 
   const addField = () => {
@@ -244,7 +168,7 @@ export default function ProductionDataPanel({
           <button
             onClick={() => {
               setShows(setShowSeedData(show.id, liveData));
-              setNote('✓ Saved as this production’s seed');
+              say('✓ Saved as this production’s seed');
             }}
             data-testid="data-save-seed"
           >
@@ -303,9 +227,11 @@ export default function ProductionDataPanel({
         </div>
       </details>
 
+      {/* ONE line, in the colour its own news deserves: a value that went nowhere must not arrive
+          wearing the style this panel uses for "done". */}
       {note && (
-        <p className="status-ok pd-data-note" data-testid="data-note">
-          {note}
+        <p className={`${note.ok ? 'status-ok' : 'status-bad'} pd-data-note`} data-testid="data-note">
+          {note.text}
         </p>
       )}
 
@@ -334,7 +260,11 @@ export default function ProductionDataPanel({
             <button
               onClick={() => {
                 void copyLink(dataKey).then((ok) => {
-                  setNote(ok ? '✓ Data key copied' : 'The key could not be copied. Reveal it and copy by hand.');
+                  setNote(
+                    ok
+                      ? { text: '✓ Data key copied', ok: true }
+                      : { text: 'The key could not be copied. Reveal it and copy by hand.', ok: false },
+                  );
                 });
               }}
               data-testid="data-key-copy"
@@ -390,76 +320,83 @@ export default function ProductionDataPanel({
           const text = edits.text(leaf.path, leaf.text);
           const dirty = edits.dirty(leaf.path);
           return (
-          <div className="pd-live-row" key={leaf.path} data-testid={`data-row-${leaf.path}`}>
-            <code className="pd-live-path">{leaf.path}</code>
-            {/* A LIST needs a textarea, not an input: `<input>` sanitises newlines out of its
-                own value, so a list rendered there would come back joined into one line and the
-                array would quietly become a string. `reparseLeaf` puts the list back together.
-                WHICH element to use is decided by the STORED text, never by what is being typed:
-                keying it on the edit would swap the element mid-word and take the caret with it. */}
-            {leaf.text.includes('\n') ? (
-              <textarea
-                className="pd-live-lines"
-                rows={Math.min(text.split('\n').length, 6)}
-                value={text}
-                data-dirty={dirty || undefined}
-                onChange={(e) => edits.type(leaf.path, e.target.value)}
-                onBlur={edits.flush}
-                data-testid={`data-value-${leaf.path}`}
-              />
-            ) : (
-              <input
-                value={text}
-                data-dirty={dirty || undefined}
-                onChange={(e) => edits.type(leaf.path, e.target.value)}
-                onBlur={edits.flush}
-                // Enter ends the edit here. Not on the textarea above, where Enter is a line of
-                // the list and ending the edit with it would make a list impossible to type.
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') edits.flush();
+            <div className="pd-live-row" key={leaf.path} data-testid={`data-row-${leaf.path}`}>
+              <code className="pd-live-path">{leaf.path}</code>
+              {/* A LIST needs a textarea, not an input: `<input>` sanitises newlines out of its
+                  own value, so a list rendered there would come back joined into one line and the
+                  array would quietly become a string. `reparseLeaf` puts the list back together.
+
+                  IT IS THE VALUE'S TYPE THAT DECIDES, not how many lines the text happens to have.
+                  A list stays a list through `reparseLeaf` however few lines are left in it, so a
+                  textarea stays a textarea - whereas the line count changes as somebody types, and
+                  on a two-line list edited down to one the settle timer would swap the element
+                  under an idle caret, unmounting the box mid-edit and sending focus to the body.
+                  A multi-line STRING still reads its line count, because nothing about a string
+                  says it wants more than one line; it can still swap, and only when a person has
+                  deleted every newline in it. */}
+              {Array.isArray(leaf.value) || leaf.text.includes('\n') ? (
+                <textarea
+                  className="pd-live-lines"
+                  rows={Math.min(text.split('\n').length, 6)}
+                  value={text}
+                  data-dirty={dirty || undefined}
+                  onChange={(e) => edits.type(leaf.path, e.target.value)}
+                  onBlur={edits.flush}
+                  data-testid={`data-value-${leaf.path}`}
+                />
+              ) : (
+                <input
+                  value={text}
+                  data-dirty={dirty || undefined}
+                  onChange={(e) => edits.type(leaf.path, e.target.value)}
+                  onBlur={edits.flush}
+                  // Enter ends the edit here. Not on the textarea above, where Enter is a line of
+                  // the list and ending the edit with it would make a list impossible to type.
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') edits.flush();
+                  }}
+                  data-testid={`data-value-${leaf.path}`}
+                />
+              )}
+              <span className="pd-live-type">{Array.isArray(leaf.value) ? 'list' : typeof leaf.value}</span>
+              {typeof leaf.value === 'number' && (
+                <span className="pd-live-step">
+                  <button
+                    onClick={() => write(setPath(liveData, leaf.path, (leaf.value as number) - 1))}
+                    data-testid={`data-down-${leaf.path}`}
+                  >
+                    −
+                  </button>
+                  <button
+                    onClick={() => write(setPath(liveData, leaf.path, (leaf.value as number) + 1))}
+                    data-testid={`data-up-${leaf.path}`}
+                  >
+                    +
+                  </button>
+                </span>
+              )}
+              {/* ARMED, like the entry delete on the graphic control page. This is typed-in data
+                  with no undo behind it, on a row someone drives live, and a stray click took it
+                  with no way back - "if I close one of those, how can I reopen it?" (owner,
+                  2026-08-21). The answer used to be: retype the path and the value from memory. */}
+              <button
+                className={`pd-live-del${armed === `leaf:${leaf.path}` ? ' reset-armed' : ''}`}
+                title={armed === `leaf:${leaf.path}` ? `Click again to delete ${leaf.path}` : 'Delete this value'}
+                onClick={() => {
+                  if (armed === `leaf:${leaf.path}`) {
+                    setArmed(null);
+                    write(deletePath(liveData, leaf.path));
+                  } else setArmed(`leaf:${leaf.path}`);
                 }}
-                data-testid={`data-value-${leaf.path}`}
-              />
-            )}
-            <span className="pd-live-type">{Array.isArray(leaf.value) ? 'list' : typeof leaf.value}</span>
-            {typeof leaf.value === 'number' && (
-              <span className="pd-live-step">
-                <button
-                  onClick={() => write(setPath(liveData, leaf.path, (leaf.value as number) - 1))}
-                  data-testid={`data-down-${leaf.path}`}
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => write(setPath(liveData, leaf.path, (leaf.value as number) + 1))}
-                  data-testid={`data-up-${leaf.path}`}
-                >
-                  +
-                </button>
-              </span>
-            )}
-            {/* ARMED, like the entry delete on the graphic control page. This is typed-in data
-                with no undo behind it, on a row someone drives live, and a stray click took it
-                with no way back - "if I close one of those, how can I reopen it?" (owner,
-                2026-08-21). The answer used to be: retype the path and the value from memory. */}
-            <button
-              className={`pd-live-del${armed === `leaf:${leaf.path}` ? ' reset-armed' : ''}`}
-              title={armed === `leaf:${leaf.path}` ? `Click again to delete ${leaf.path}` : 'Delete this value'}
-              onClick={() => {
-                if (armed === `leaf:${leaf.path}`) {
-                  setArmed(null);
-                  write(deletePath(liveData, leaf.path));
-                } else setArmed(`leaf:${leaf.path}`);
-              }}
-              data-testid={`data-delete-${leaf.path}`}
-            >
-              {/* A GLYPH, not the word the other armed buttons use: this row's last grid column
-                  is a fixed 28px, so "Delete?" would overflow its own track - the defect §2d of
-                  docs/PLAYOUT_DASHBOARD.md is about, one panel over. The amber and the tooltip
-                  carry the meaning instead. */}
-              {armed === `leaf:${leaf.path}` ? '✓' : '✕'}
-            </button>
-          </div>
+                data-testid={`data-delete-${leaf.path}`}
+              >
+                {/* A GLYPH, not the word the other armed buttons use: this row's last grid column
+                    is a fixed 28px, so "Delete?" would overflow its own track - the defect §2d of
+                    docs/PLAYOUT_DASHBOARD.md is about, one panel over. The amber and the tooltip
+                    carry the meaning instead. */}
+                {armed === `leaf:${leaf.path}` ? '✓' : '✕'}
+              </button>
+            </div>
           );
         })}
       </div>
@@ -560,6 +497,10 @@ function BindingTable({
    */
   const bindEdits = useDeferredEdits((key, text) => {
     const { graphic, fieldId } = JSON.parse(key) as { graphic: string; fieldId: string };
+    // Same rule as the value boxes: an edit that ends where it started writes nothing. Here that
+    // is worth a line of its own, because the write is a whole load-mutate-save of the shows
+    // store and a synced show-record write - an expensive way to store the string already there.
+    if ((bindings[graphic]?.[fieldId] ?? '') === text) return;
     setShows(setFieldBinding(show.id, graphic, fieldId, text));
   });
   const bindKey = (graphic: string, fieldId: string) => JSON.stringify({ graphic, fieldId });
@@ -646,17 +587,18 @@ function BindingTable({
               const suggestion = hits.length === 1 ? hits[0] : null;
               const ambiguous = hits.length > 1 ? hits : [];
               const live = resolved[g.name]?.[d.key];
+              const key = bindKey(g.name, d.key);
               return (
                 <div className="pd-bind-row" key={d.key}>
                   <span className="pd-bind-field">
                     <code>{d.key}</code> {d.label}
                   </span>
                   <input
-                    value={bindEdits.text(bindKey(g.name, d.key), path)}
-                    data-dirty={bindEdits.dirty(bindKey(g.name, d.key)) || undefined}
+                    value={bindEdits.text(key, path)}
+                    data-dirty={bindEdits.dirty(key) || undefined}
                     placeholder={suggestion ? `suggested: ${suggestion}` : 'pick or type a path'}
                     list="pd-data-paths"
-                    onChange={(e) => bindEdits.type(bindKey(g.name, d.key), e.target.value)}
+                    onChange={(e) => bindEdits.type(key, e.target.value)}
                     onBlur={bindEdits.flush}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') bindEdits.flush();
