@@ -37,7 +37,8 @@ export default function SignInDialog() {
   useModalGate(open && backendConfigured);
 
   // 'reset' = the forgot-password branch: email only, sends the reset link (docs/GOALS_ARCHIVE.md
-  // "Student release" step 9 — the link's return trip is PasswordRecoveryPage's job).
+  // "Student release" step 9 — the link's return trip is PasswordRecoveryPage's job). 'resume'
+  // is not a form mode of its own — it signs back in through the ordinary signin form.
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,7 +54,7 @@ export default function SignInDialog() {
   // render — a manual toggle inside an open dialog must stick.
   useEffect(() => {
     if (!open) return;
-    setMode(intent);
+    setMode(intent === 'resume' ? 'signin' : intent);
     setError(null);
     setNote(null);
   }, [open, intent]);
@@ -126,6 +127,10 @@ export default function SignInDialog() {
   // Whether a gate opened this dialog with a reason of its own. One test, read by both lines
   // below, so the two shapes cannot drift apart.
   const throughDoor = reason !== null;
+  // A session that merely needs a refresh belongs to someone who already has an account — the
+  // free-account sentence below is written for someone who has never signed in, so 'resume'
+  // skips it and shows only the reason and the no-wall line.
+  const isResume = intent === 'resume';
 
   return (
     <div
@@ -152,7 +157,11 @@ export default function SignInDialog() {
             no door, and the sentence is the whole answer. The no-wall line closes both shapes. */}
         <p className="auth-tag" data-testid="auth-reason">{throughDoor ? reason : ACCOUNT_IS_FOR}</p>
         <p className="muted auth-sub" data-testid="auth-account-for">
-          {throughDoor ? `${ACCOUNT_IS_FOR} ${NO_ACCOUNT_NEEDED}` : NO_ACCOUNT_NEEDED}
+          {isResume
+            ? NO_ACCOUNT_NEEDED
+            : throughDoor
+              ? `${ACCOUNT_IS_FOR} ${NO_ACCOUNT_NEEDED}`
+              : NO_ACCOUNT_NEEDED}
         </p>
 
         {mode === 'signup' && (

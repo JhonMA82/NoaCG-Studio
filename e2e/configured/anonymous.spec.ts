@@ -123,6 +123,22 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(card).toHaveCount(0);
   });
 
+  test('a session-expiry reopen says the reason and the no-wall line, not the free-account sentence', async ({ page }) => {
+    // docs/backlog/session-expired-reopen-shows-the-free-account-line.md. The dialog this event
+    // opens is answering a token refresh, not "why sign in at all" - the reader already has an
+    // account, so the sentence written for someone who has never signed in must not appear here,
+    // even though the event supplies a reason and every OTHER door with a reason shows it (the
+    // Community door above is the contrasting case: same shape, ACCOUNT_IS_FOR present).
+    await page.goto('/app');
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('spx-session-expired')));
+    const card = page.locator('.auth-card');
+    await expect(card).toBeVisible();
+    await expect(card.getByTestId('auth-reason')).toContainText('Your session expired');
+    await expect(card.getByTestId('auth-account-for')).toHaveText(NO_ACCOUNT_NEEDED);
+    await expect(card.getByTestId('auth-account-for')).not.toContainText(ACCOUNT_IS_FOR);
+    await expect(card.locator('.auth-submit')).toHaveText('Sign in');
+  });
+
   test('the topbar says which account state it is in, not only what it offers', async ({ page }) => {
     // Owner, 2026-09-04: "there's no difference between being logged in or not". Signed out, the
     // topbar used to carry a small Sign in button and nothing else - SyncStatus renders NOTHING

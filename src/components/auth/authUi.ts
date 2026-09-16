@@ -12,10 +12,13 @@ interface AuthUiStore {
   /**
    * Which half of the dialog the caller asked for. A gate whose answer is "make a free account"
    * (the AI door for a student who has none) opens on 'signup', so the account it just described
-   * is one form away rather than one toggle plus one form. Everything else keeps 'signin'.
+   * is one form away rather than one toggle plus one form. 'resume' is the token-refresh case: the
+   * person already has an account, so the dialog answers with the reason and the no-wall line
+   * only, never the free-account sentence written for someone who has never signed in. Everything
+   * else keeps 'signin'.
    */
-  intent: 'signin' | 'signup';
-  openSignIn: (reason?: string, intent?: 'signin' | 'signup') => void;
+  intent: 'signin' | 'signup' | 'resume';
+  openSignIn: (reason?: string, intent?: 'signin' | 'signup' | 'resume') => void;
   closeSignIn: () => void;
 }
 
