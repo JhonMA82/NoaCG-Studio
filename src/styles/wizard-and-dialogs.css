@@ -616,6 +616,55 @@
   font-size: 9px;
   line-height: 0.9;
 }
+/* HOW FAR A BOX MAY GROW (docs/TEXT_BOX_BINDING.md, rung 4): a dashed rule across the artwork at
+   the limit, with the reader's own sentence on a chip at its left end. Dashed for the reason the
+   room's inside line is: nothing was drawn on it, it says where an edge may get to.
+   Square to the frame, never turned with the plate - the runtime's cap is a distance from the
+   frame's own edge, so a limit wearing the plate's rotation would describe a boundary the growth
+   does not have. */
+.wz-stage-cap {
+  position: absolute;
+  height: 0;
+  border-top-style: dashed;
+  border-top-color: rgba(246, 166, 35, 0.9);
+  /* The same dark ring the inside line carries: amber over pale artwork is nearly invisible. */
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5));
+}
+/* Solid while it is being moved, so the line the hand is on is the one that reads as live. */
+.wz-stage-cap.grabbed {
+  border-top-style: solid;
+}
+/* The strip that takes the pointer back from the pick layer under it. Its height comes from
+   WizardPreview, which divides the stage's zoom back out so the target stays about a finger
+   wide at any fit. */
+.wz-stage-cap-grab {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: auto;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.wz-stage-cap-grab:focus-visible {
+  outline: 2px solid var(--accent, #f6a623);
+  outline-offset: 0;
+}
+/* Level and the same size at any zoom, like the room's two figures - a sentence turned or
+   shrunk with the artwork is a sentence nobody reads. Its bottom-left corner sits on the line's
+   left end, so the chip hangs above the rule it belongs to. */
+.wz-stage-cap-note {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  padding: 0 4px 1px;
+  border-radius: 3px;
+  background: rgba(12, 14, 18, 0.78);
+  color: var(--accent, #f6a623);
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
 /* Drawing a NEW field on the artwork (WizardPreview's `drawIn`). The layer takes pointer
    events back from the overlay above — it is the one thing on this stage meant to be dragged
    on — and covers the whole canvas so a field may be drawn anywhere on it. */
