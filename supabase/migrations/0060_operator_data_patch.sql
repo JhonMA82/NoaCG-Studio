@@ -3,13 +3,19 @@
 -- docs/CONTROL_PANEL_ANY_GRAPHIC.md §5 row 9). 0048 built the tree and the feed's door into it;
 -- this file adds the two things a DASHBOARD needs and nothing else.
 --
--- THIS FILE WAS CORRECTED AFTER ITS OWN BRANCH LANDED, and that is allowed here for one reason:
--- it has never applied anywhere. Its self-check raised on the post-land push for pull request
--- 280 and again for 281, the whole migration rolled back in one transaction, and
--- `list_migrations` on the project carries no 0060 row - so there is no applied text to disagree
--- with and supabase/README.md's "a new migration, never by editing an applied one" does not
--- bite. The correction is one qualification in `production_data_patch_paths`, explained where it
--- sits. If this file ever DOES apply somewhere, the next correction is 0061.
+-- THIS FILE HAS APPLIED AND IS NOW FROZEN. ANY FURTHER CORRECTION IS 0061.
+-- It was corrected twice after its own branch landed, and that was allowed for one reason: it had
+-- never applied anywhere. Its self-check raised on the post-land pushes for pull requests 280 and
+-- 281, rolling the whole migration back in one transaction each time, so there was no applied
+-- text to disagree with. THAT WINDOW IS CLOSED. Post-land run 35055657854 applied 0060 to
+-- production and to staging on 2026-09-16 at 04:27 UTC, and both projects hold exactly the five
+-- function bodies below - re-derived on 2026-09-16 by comparing `md5(pg_proc.prosrc)` on each
+-- project against this file. `db push` keys the remote ledger on the four-digit version alone and
+-- will never re-run this file, so an edit to the SQL below would live in git and in neither
+-- database. The two corrections that did land were a qualification in
+-- `production_data_patch_paths` and a narrowing of the array carve-out, each explained where it
+-- sits; this header is the only text touched since the apply, and it sits outside every `$$` body
+-- so the md5 comparison above still holds.
 --
 -- WHY THE HOSTED CONTROL PAGE COULD NOT DO THIS BEFORE. That page is capability-addressed by an
 -- unguessable control slug and signed out. It has no data key and must never be given one -
