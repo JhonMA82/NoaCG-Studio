@@ -20,16 +20,16 @@ layers of every ancestor, and accepts one as a backing only when it paints opaqu
 negative layer behind the text, and its painted quad - its own 2D transform included - covers the
 whole text rect. The function's header states each condition and what it refuses.
 
-## The route, under a minute - witness it on screen
+## The route, under a minute
 
-Everything below is measured through the instrument, in a real browser, on the real composed
-document. What nobody has yet SEEN is the export panel with the row gone.
+1. Open the app and start a **Scoreboard**; pick **Match Strip**. Finish, then **Export it**.
+2. The warnings list used to carry two rows reading *"HOME" sits straight over the picture with no
+   panel, shadow or outline behind it*, and the same for *"AWAY"*. Expect neither - just
+   *"Template is valid and ready to export."*
+3. The control, worth thirty seconds: the same route with **Frost Score**, a scoreboard that has
+   no slab. Both rows are there, in amber. That is the check still working, not gone quiet.
 
-1. Open the app and start a **Scoreboard**; pick **Match Strip**.
-2. Open the **Export** panel.
-3. The warnings list used to carry two rows reading *"HOME" sits straight over the picture with no
-   panel, shadow or outline behind it*, and the same for *"AWAY"*. Expect neither, and expect the
-   panel's other warnings unchanged.
+Both were walked in the running app on 2026-09-17 and looked at, not only measured.
 
 ## The numbers behind it
 
@@ -47,3 +47,16 @@ designs clear it. 138 designs across 17 categories still carry the warning hones
 Both surfaces were measured separately, because they are different documents - the export panel
 composes the graphic and leaves it alone, the runtime bench behind `noacg validate` settles it
 first. On the panel's document those 22 designs drop from 75 warnings to 3.
+
+## One thing found on the way, and fixed here
+
+Walking that route is what turned it up: the export panel showed NO legibility warnings at all,
+for Match Strip and for Frost Score alike. `checkTemplateLegibility` waited on a double
+`requestAnimationFrame` with no timeout beside it, and a hidden or backgrounded page throttles
+that to never - so the panel silently rendered an empty warnings list, indistinguishable from a
+graphic with nothing wrong. The font wait one line above it already had a cap; this one now has
+the same, as does the identical recipe in `markLegibility.ts`. It is the reason step 3 above is
+worth doing: a quiet panel used to be ambiguous.
+
+Nothing in this item needs you. It is a defect fix with its own test and a walked route, filed
+here because the warning was visible in the product and is now not.

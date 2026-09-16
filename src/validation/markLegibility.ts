@@ -178,7 +178,14 @@ export async function checkMarkLegibility(template: SpxTemplate): Promise<MarkLe
       doc.fonts.ready.then(() => undefined),
       new Promise<void>((resolve) => { setTimeout(resolve, 1200); }),
     ]);
-    await new Promise<void>((resolve) => { requestAnimationFrame(() => requestAnimationFrame(() => resolve())); });
+    // Capped for the same reason the font wait above is, and against a different hazard: a
+    // hidden or background page throttles requestAnimationFrame to never, so an uncapped wait
+    // here hangs the caller and reports "no findings" (designRulesWarnings.ts carries the
+    // measurement that caught it on its own copy of this recipe).
+    await Promise.race([
+      new Promise<void>((resolve) => { requestAnimationFrame(() => requestAnimationFrame(() => resolve())); }),
+      new Promise<void>((resolve) => { setTimeout(resolve, 300); }),
+    ]);
     return markLegibilityFindings(doc, win);
   } catch {
     return [];
