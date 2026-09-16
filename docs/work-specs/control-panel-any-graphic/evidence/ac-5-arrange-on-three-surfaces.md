@@ -1,7 +1,7 @@
 # AC-5 - ARRANGE renders on all three dashboard deployments, and the generated panel returns on delete
 
 **Verdict: pass, against the amended criterion.** First reviewed at
-`dfac5b9cf230532565f57d6988517bb25cdbf94d` on 2026-09-16; **re-reviewed at `66b000808a1547695a6cc07ae5fc2ed1315713df` the same
+`dfac5b9cf230532565f57d6988517bb25cdbf94d` on 2026-09-16; **re-reviewed at `0079711f8557a3d9db8cd956c7b54533a395ffd1` the same
 day, when the third deployment stopped being an inference.**
 
 The criterion was amended on 2026-09-15 (`3876df11`, pull request 277) to say that ARRANGE applies
@@ -42,7 +42,7 @@ The first reading of this criterion passed it with the hosted page's rendering r
 inference: the arrangement would travel, because the column returns it, but nobody had seen the
 buttons. `e2e/configured/hosted-control-profile.spec.ts` now publishes a production whose ARRANGE
 pins `plus2` and hides `newGame` under the name "Reset the board", opens the capability URL signed
-out, and reads the block. In `configured-suite` run `35059312926` (43 passed, 0 skipped):
+out, and reads the block. In `configured-suite` run `35062005497` (43 passed, 0 skipped):
 
 - `hosted-actions-pinned` holds exactly one button, `⚡ +1`, above the section headings;
 - the "Panelist 2" section is left holding only its `⚡ −1`, which is what pinning MEANS rather

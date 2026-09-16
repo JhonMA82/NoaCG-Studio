@@ -17,9 +17,9 @@ neither.
 
 ## The evidence, if you only want one line
 
-`configured-suite` run 35059312926 on `claude/hk-hosted-half-configured`:
+`configured-suite` run 35062005497 on `claude/hk-hosted-half-configured`:
 **43 tests, 43 passed, 0 failed, 0 flaky, 0 skipped**, and the
-profile walk inside it took 19.9 seconds.
+profile walk inside it took 19.2 seconds.
 
 ## Route, about three minutes, and it needs the cloud
 
@@ -78,9 +78,9 @@ measured as the gap between the two rows rather than from a browser clock. Rows 
 ABOUT a press rather than the press itself - another operator's staging, a renderer reporting its
 state - are dropped first, or "one row per step" would mean nothing.
 
-The walk's own wall clocks, from that run: publish **0.3 s**, both cues on air **1.1 s**, the
+The walk's own wall clocks, from that run: publish **0.3 s**, both cues on air **0.4 s**, the
 combined press to its last row **6.0 s** of which **5.0 s is the wait you asked for**, and the
-bound **+1** to its row **0.2 s**. Read them as a floor: the runner's database answers in about
+bound **+1** to its row **0.1 s**. Read them as a floor: the runner's database answers in about
 a millisecond where your cloud answers in about two hundred, which is why publishing reads at a
 fifth of a second here and took about five in the in-app walk. What they do establish is that
 nothing in the profile road adds a wait of its own - the only delay in the minute is the one the

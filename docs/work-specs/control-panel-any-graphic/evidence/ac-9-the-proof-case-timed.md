@@ -3,7 +3,7 @@
 **Verdict: pass, across two walks.** The authoring, the composition and the in-app minute were
 walked by hand on 2026-09-16 and timed; the publish and the operator's minute on the HOSTED control
 page - the half that failed this criterion - ran in CI on the same day, timed on the server's own
-clock. Re-reviewed at `66b000808a1547695a6cc07ae5fc2ed1315713df`.
+clock. Re-reviewed at `0079711f8557a3d9db8cd956c7b54533a395ffd1`.
 
 ## Why this took two walks, and what the second one is
 
@@ -34,14 +34,14 @@ therefore cannot see.
 
 ## Walk 2's numbers
 
-`configured-suite` run `35059312926` on `claude/hk-hosted-half-configured`: **43 tests, 43 passed, 0
-failed, 0 flaky, 0 skipped.** The walk itself took 19.9 s end to end, of which:
+`configured-suite` run `35062005497` on `claude/hk-hosted-half-configured`: **43 tests, 43 passed, 0
+failed, 0 flaky, 0 skipped.** The walk itself took 19.2 s end to end, of which:
 
 - **publish 0.3 s** - the press to the production reading SHOW;
-- **both cues on air 1.1 s** - two selects and two Takes on the hosted page;
+- **both cues on air 0.4 s** - two selects and two Takes on the hosted page;
 - **combined press to its last row 6.0 s**, of which **5.0 s is the wait the production
   asked for**;
-- **bound +1 to its row 0.2 s** - the press to the tree's own update row coming back.
+- **bound +1 to its row 0.1 s** - the press to the tree's own update row coming back.
 
 Read these as a floor rather than as a prediction. The local stack answers in about a millisecond
 where a hosted project answers in about two hundred from a runner, which is why the publish reads

@@ -2,7 +2,7 @@
 
 **Verdict: pass.** The two things that failed this criterion are both answered: migration 0060 has
 applied to production and staging, and a ± press on a bound field has now been made on the HOSTED
-control page and the resulting rows read off the wire. Re-reviewed at `66b000808a1547695a6cc07ae5fc2ed1315713df` on 2026-09-16.
+control page and the resulting rows read off the wire. Re-reviewed at `0079711f8557a3d9db8cd956c7b54533a395ffd1` on 2026-09-16.
 
 ## What failed before, and what settled it
 
@@ -27,13 +27,13 @@ on `kprolrchuldgfrzspthy` (production) and again on `garafohbzmsybtysxphb` (stag
 That is the first execution of every statement past 15, including the two refusals this chain added
 for the array carve-out and the LIKE-pattern key.
 
-The configured suite applies the same 51 migrations to a fresh local Postgres on every run and
-asserts the count matches the repository before any spec runs, so 0060 is now executed on three
-databases rather than none.
+The configured suite applies all 60 of the repository's migrations to a fresh local Postgres on
+every run, and asserts the applied count matches the repository's before any spec runs - so 0060
+is now executed on three databases rather than on none.
 
 ## What the run observed, on the hosted page
 
-`configured-suite` run `35059312926` on `claude/hk-hosted-half-configured`: **43 passed, 0 skipped.**
+`configured-suite` run `35062005497` on `claude/hk-hosted-half-configured`: **43 passed, 0 skipped.**
 
 The production binds three fields across the two proof-case boards: the votes board's
 "Panelist 1" (f5) and the totals board's "Name 1" (f0) to `panel.katri.name`, and the totals

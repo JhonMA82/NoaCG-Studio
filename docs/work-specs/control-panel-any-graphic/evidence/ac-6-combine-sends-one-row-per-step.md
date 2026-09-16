@@ -3,7 +3,7 @@
 **Verdict: pass.** The gap that held this at `unverified` is closed: a combined control has now
 been rendered, greyed, ticked, pressed, counted down and cancelled on the HOSTED control page,
 against a real backend, and every claim about what a press sent was read off the durable log with
-the server's own timestamps. Re-reviewed at `66b000808a1547695a6cc07ae5fc2ed1315713df` on 2026-09-16.
+the server's own timestamps. Re-reviewed at `0079711f8557a3d9db8cd956c7b54533a395ffd1` on 2026-09-16.
 
 ## What changed since the previous reading
 
@@ -19,8 +19,8 @@ capability URL is opened signed out, as an operator would.
 
 ## What the run observed, on the hosted page
 
-`configured-suite` run `35059312926` on `claude/hk-hosted-half-configured`: **43 tests, 43 passed, 0
-failed, 0 flaky, 0 skipped**, the walk itself in 19.9 s.
+`configured-suite` run `35062005497` on `claude/hk-hosted-half-configured`: **43 tests, 43 passed, 0
+failed, 0 flaky, 0 skipped**, the walk itself in 19.2 s.
 
 The control: `reveal` on the votes board, then `Panelist 2 +1` on the totals board marked
 `after 5 s` and `ask` ticked, then `Panelist 3 +1` marked `ask` ticked.

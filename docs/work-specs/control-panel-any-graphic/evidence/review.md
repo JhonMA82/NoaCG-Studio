@@ -1,6 +1,6 @@
 # The review itself - who ran it, against what, and what it did not do
 
-**Reviewed revision:** `66b000808a1547695a6cc07ae5fc2ed1315713df` - the branch commit that carries
+**Reviewed revision:** `0079711f8557a3d9db8cd956c7b54533a395ffd1` - the branch commit that carries
 the walk this review turns on, on a base of `9463e9e57b710dba1cbc3a5d4dc27d4b1b39ad8b`, which is
 `main` carrying every pull request of the chain, 270 to 283. The ledger's own `revision` is the
 commit that carries these receipts, one later: the freshness rule anchors a record at the tree it
@@ -30,11 +30,19 @@ to do next, and it is done.
 
 | What | Where | Result |
 |---|---|---|
-| `npm run build` | this worktree, three times | exit 0 each |
+| `npm run build` | this worktree, after every change | exit 0 each time |
 | `e2e/hosted-control.spec.ts` | queue `j-1147` | 12 passed, 58.4 s |
-| `configured-suite`, the whole 43-test suite | CI, `35059312926` on this branch | 43 passed, 0 failed, 0 flaky, 0 skipped |
+| `configured-suite`, the whole 43-test suite | CI, `35062005497` on this branch | 43 passed, 0 failed, 0 flaky, 0 skipped |
 | `post-land.yml` after pull request 283 | CI, `35055657854` | green; 0060 applied on both projects, 8 function grants each |
 | `ci.yml` on this branch's push | CI, `35057295179` | green |
+| `node scripts/work-spec.mjs converge` | this worktree | `evidence-complete`, 0 problems, 0 gaps, 0 open criteria |
+
+Three configured runs, not one. The first (`35057360476`) proved the walk; the second
+(`35058398961`) went red on an assertion the rig cannot satisfy and is described in `ac-6-…`; the
+third is the one above, after the branch's own `/check` found that the "signed out" operator page
+was in fact carrying the owner's session. **That last one matters to every hosted claim here**: the
+capability URL is the whole point, and until it was fixed the walk would have passed with `anon`
+holding no grants at all. Every figure quoted in these receipts is read off `35062005497`.
 
 ## The verdict
 
