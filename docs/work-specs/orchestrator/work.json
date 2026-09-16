@@ -6,12 +6,16 @@
     "source": "docs/work-specs/orchestrator/owner-clarifications.md"
   },
   "review": {
-    "revision": "ea86e65ffa39438953b7798392873f450e071501",
+    "revision": "c8f1a0a81374b8c502d85642ea7ed69cca8ba4c6",
     "specSha256": "9d85c1061ce6ff9d86c5c85cd081a17d0558737220c57f09ae6c6643f0ad73d7",
     "evidence": [
       {
-        "path": "docs/work-specs/orchestrator/evidence/acceptance-v2.md",
-        "sha256": "104b3f8b7b27c448e745f37fee9237287ba9a3d786300b83817f4fa6f5751624"
+        "path": "docs/work-specs/orchestrator/evidence/es-independent-review.md",
+        "sha256": "44ef403ab24c557117101d832ebe33cdce0c495666cbd6f0158ac87ea37eec9c"
+      },
+      {
+        "path": "docs/work-specs/orchestrator/evidence/es-pre-review-ledger.json",
+        "sha256": "a468b8dd3a118566840e91eeb2f88da0357da38322d6c6c2d9f5b06baef21aca"
       }
     ],
     "criteria": [
@@ -20,8 +24,8 @@
         "status": "pass",
         "evidence": [
           {
-            "path": "docs/work-specs/orchestrator/evidence/acceptance-v2.md",
-            "sha256": "104b3f8b7b27c448e745f37fee9237287ba9a3d786300b83817f4fa6f5751624"
+            "path": "docs/work-specs/orchestrator/evidence/es-independent-review.md",
+            "sha256": "44ef403ab24c557117101d832ebe33cdce0c495666cbd6f0158ac87ea37eec9c"
           }
         ]
       },
@@ -30,18 +34,18 @@
         "status": "pass",
         "evidence": [
           {
-            "path": "docs/work-specs/orchestrator/evidence/acceptance-v2.md",
-            "sha256": "104b3f8b7b27c448e745f37fee9237287ba9a3d786300b83817f4fa6f5751624"
+            "path": "docs/work-specs/orchestrator/evidence/es-independent-review.md",
+            "sha256": "44ef403ab24c557117101d832ebe33cdce0c495666cbd6f0158ac87ea37eec9c"
           }
         ]
       },
       {
         "id": "AC-3",
-        "status": "unverified",
+        "status": "pass",
         "evidence": [
           {
-            "path": "docs/work-specs/orchestrator/evidence/acceptance-v2.md",
-            "sha256": "104b3f8b7b27c448e745f37fee9237287ba9a3d786300b83817f4fa6f5751624"
+            "path": "docs/work-specs/orchestrator/evidence/es-independent-review.md",
+            "sha256": "44ef403ab24c557117101d832ebe33cdce0c495666cbd6f0158ac87ea37eec9c"
           }
         ]
       },
@@ -50,8 +54,8 @@
         "status": "pass",
         "evidence": [
           {
-            "path": "docs/work-specs/orchestrator/evidence/acceptance-v2.md",
-            "sha256": "104b3f8b7b27c448e745f37fee9237287ba9a3d786300b83817f4fa6f5751624"
+            "path": "docs/work-specs/orchestrator/evidence/es-independent-review.md",
+            "sha256": "44ef403ab24c557117101d832ebe33cdce0c495666cbd6f0158ac87ea37eec9c"
           }
         ]
       },
@@ -60,18 +64,18 @@
         "status": "pass",
         "evidence": [
           {
-            "path": "docs/work-specs/orchestrator/evidence/acceptance-v2.md",
-            "sha256": "104b3f8b7b27c448e745f37fee9237287ba9a3d786300b83817f4fa6f5751624"
+            "path": "docs/work-specs/orchestrator/evidence/es-independent-review.md",
+            "sha256": "44ef403ab24c557117101d832ebe33cdce0c495666cbd6f0158ac87ea37eec9c"
           }
         ]
       },
       {
         "id": "AC-6",
-        "status": "unverified",
+        "status": "pass",
         "evidence": [
           {
-            "path": "docs/work-specs/orchestrator/evidence/acceptance-v2.md",
-            "sha256": "104b3f8b7b27c448e745f37fee9237287ba9a3d786300b83817f4fa6f5751624"
+            "path": "docs/work-specs/orchestrator/evidence/es-independent-review.md",
+            "sha256": "44ef403ab24c557117101d832ebe33cdce0c495666cbd6f0158ac87ea37eec9c"
           }
         ]
       }
