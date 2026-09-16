@@ -142,6 +142,15 @@ Left, both LOW and both named where they live:
   doing a map lookup on every library write). The fix is an `AbortSignal` on `graphicWhenSynced`
   and a disposer in the two effects.
 
+## One gate only fires once the file is COMMITTED
+
+`check:tree-shape` refused `playwright.production.config.ts` as an unexpected top-level entry -
+but only on the build AFTER the commit, because it reads `git ls-files` and the file was untracked
+through every earlier green build. A new root entry needs a line in `ALLOWED_ROOT_ENTRIES`
+(`scripts/check-tree-shape.mjs`), which this branch adds with the reason beside it. Worth knowing
+for any row that adds a root file late: the pre-commit builds are all green and the one after the
+commit is not.
+
 ## Traps that exist in no repo file
 
 - **A worktree carries no `.env`, so `playwright.live.config.ts` runs the "configured" suite
