@@ -1,9 +1,12 @@
 # The review itself - who ran it, against what, and what it did not do
 
-**Reviewed revision:** `66b000808a1547695a6cc07ae5fc2ed1315713df`, the tip of this review's own branch, whose base is
-`9463e9e57b710dba1cbc3a5d4dc27d4b1b39ad8b` - `main` carrying every pull request of the chain, 270
-to 283. **Spec:** `spec.md` at `c8b1ea4b966db1efcee1dd636a238d9cb05bd8bfba347d25455deb30a7443620`,
-the amended text (AC-5 narrowed to controls on 2026-09-15). **Date:** 2026-09-16.
+**Reviewed revision:** `66b000808a1547695a6cc07ae5fc2ed1315713df` - the branch commit that carries
+the walk this review turns on, on a base of `9463e9e57b710dba1cbc3a5d4dc27d4b1b39ad8b`, which is
+`main` carrying every pull request of the chain, 270 to 283. The ledger's own `revision` is the
+commit that carries these receipts, one later: the freshness rule anchors a record at the tree it
+was written against, and a receipt naming its own commit cannot exist before that commit does.
+**Spec:** `spec.md` at `c8b1ea4b966db1efcee1dd636a238d9cb05bd8bfba347d25455deb30a7443620`, the
+amended text (AC-5 narrowed to controls on 2026-09-15). **Date:** 2026-09-16.
 
 **This is the second review of the same ten rows**, and it exists to close one gap the first one
 found: no profile had ever been seen on the hosted control page, on any machine. That gap wore
