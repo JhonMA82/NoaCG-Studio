@@ -37,13 +37,14 @@ does not degrade; the written surface does - stale docs teach wrong things, cont
 the big picture smears across files until no session can hold it. The standing defences are
 structural (the instruction-chain byte RATCHET that only tightens, handoffs consumed not
 collected, backlog items that graduate or die, memory entries with exit conditions, and this
-system's own 200-line gate) - but defences that only fire locally miss global drift. GOALS.md's
-~200-line budget and its archive belong in that list only in INTENTION: nothing measures the
-budget, so the file drifts over and is pulled back by hand whenever a coherence round happens to
-look. It was 419 lines when `docs/backlog/goals-over-its-own-budget.md` was filed, 261 after the
-2026-08-30 round cut it, and over budget in both readings. **Quote the measurement, never the
-number** - a line count written into prose is stale within days, which this sentence proved by
-carrying 419 into 2026-09-02.
+system's own 200-line gate, and since 2026-09-16 `check:goals-budget`, which reads GOALS.md's cap
+out of GOALS.md's own opening sentence) - but defences that only fire locally miss global drift.
+GOALS.md's budget belonged in that list only in INTENTION for three rounds: nothing measured it, so
+the file drifted over and was pulled back by hand whenever a coherence round happened to look, four
+times in six weeks. The gate is what closed it; the ROUNDS did not, and a coherence round is the
+wrong instrument for a rule that can be counted. **Quote the measurement, never the number** - a
+line count written into prose is stale within days, which this sentence proved by carrying 419 into
+2026-09-02.
 
 So roughly **weekly, one wave carries a COHERENCE SESSION** - fresh context, no other task:
 

@@ -22,6 +22,7 @@
     "check:contract-citations": "node scripts/check-contract-citations.mjs",
     "check:workflows": "node scripts/check-workflows.mjs",
     "check:docs-index": "node scripts/check-docs-index.mjs",
+    "check:goals-budget": "node scripts/check-goals-budget.mjs",
     "check:client-secrets": "node scripts/check-client-secrets.mjs",
     "check:skill": "node cli/scripts/build-skill.mjs --check",
     "check:gate-coverage": "node scripts/check-gate-coverage.mjs",

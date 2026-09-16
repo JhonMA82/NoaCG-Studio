@@ -439,6 +439,21 @@ gate. The frames come from `scripts/taste-frame-review.mjs` (`--affected` reads 
 `scripts/svg-import-sweep.mjs --shots`), which is browser work and goes through the queue. It
 fires in `/check` phase 4, and the report says `taste: answered` or `taste: not applicable`.
 
+## The live suite runs by hand, so nothing reports the rot it finds
+
+Moved here verbatim from `docs/GOALS.md` on 2026-09-16: it is a standing verification bar rather
+than a goal, and the roadmap holds only what is not done.
+
+> ## Quality bar (always-on)
+>
+> The full procedure is `docs/VERIFICATION.md`; what this file adds is the one bar nothing there
+> enforces: **the live suite runs against the real project before a class, and again after any
+> change to publish, output or the topbar.** It only ever runs by hand, so nothing reports the rot
+> it finds - the 2026-08-08 run went 7 of 18 before repair.
+
+That bar is now this file's. Nothing automates it, which is the point of writing it down: a suite
+that only a person starts reports nothing at all between the times a person starts it.
+
 ## The five catalog quality gates
 
 ### Start by asking WHICH designs the change can move

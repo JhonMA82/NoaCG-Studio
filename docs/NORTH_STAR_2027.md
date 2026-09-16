@@ -89,9 +89,10 @@ orchestrator contract, the verification machinery and GitHub. Corrections, in or
     (~1 GB each), one browser-driving job, one orchestrator (soft rule after the 28-stranded-commit
     collision), and merge cost is the measured bottleneck. Two to three ACTIVE programmes beside
     the owner's NOW push is the realistic ceiling; eight is not.
-11. **Prerequisite housekeeping.** GOALS.md stands at 419 lines against its own ~200 budget and
-    the fix is already filed (`docs/backlog/goals-over-its-own-budget.md`). Slimming it (archive
-    the landed prose, restate the budget once) should land before the register adds any lines to
+11. **Prerequisite housekeeping.** GOALS.md ran over its own budget for three rounds; DONE
+    2026-09-16, condensed and gated by `npm run check:goals-budget`, which reads the cap from the
+    file's own opening sentence. Slimming it (archive the landed prose, state the budget once)
+    should land before the register adds any lines to
     the planning surface.
 12. **Two live sequencing facts the brief could not know.** Yle expects to try NoaCG inside one of
     their productions roughly a month out, and the owner ruled playout-before-any-outreach - so
@@ -418,11 +419,11 @@ ratification record, not the state:
 
 1. **`docs/PROGRAMMES.md`** - the register: DONE. One table plus one short section per programme;
    the argument and the claims stay HERE so the register stays cheap to grep at wave grounding.
-2. **`docs/GOALS.md`**: DONE - the carve-out sentence added to the gate rule (§3), and
-   `docs/backlog/goals-over-its-own-budget.md` steps 1-2 executed (landed/duplicated prose moved
-   to the archive and the docs that already carry it; the ~200 budget confirmed by the owner).
-   Step 3 (the build-gate check on the line count) remains open in that backlog file. The
-   NEXT-OGraf ladder body moved nowhere - the P6 register row points at it.
+2. **`docs/GOALS.md`**: DONE - the carve-out sentence added to the gate rule (§3), landed and
+   duplicated prose moved to the archive and the docs that already carry it, and the budget
+   confirmed by the owner. The build gate on the line count, the step that had never been tried,
+   landed 2026-09-16 as `scripts/check-goals-budget.mjs`; the file went 310 -> 190 in the same
+   commit. The NEXT-OGraf ladder body moved nowhere - the P6 register row points at it.
 3. **`docs/README.md`**: DONE - rows for this doc and the register.
 4. **Issue #48**: DONE - body replaced with a pointer at this document and the register; kept
    open as the single external North Star reference; state is never tracked there (the tracker is
@@ -454,8 +455,9 @@ ratification record, not the state:
    stays dissolved.
 6. **Owner-held claims limited to the eight major promises** (§4); subclaims advance on
    machine/scenario evidence.
-7. **GOALS.md stays ~200 lines** as a readability discipline - concise immediate steering;
-   PROGRAMMES.md and programme docs carry the durable long-range detail.
+7. **GOALS.md stays inside the budget it states** as a readability discipline, gated by
+   `check:goals-budget` since 2026-09-16 - concise immediate steering, while PROGRAMMES.md and the
+   programme docs carry the durable long-range detail.
 8. **Year table: Q1 ratified; later quarters are evidence-driven hypotheses**, re-cut as
    programmes prove or invalidate assumptions.
 
