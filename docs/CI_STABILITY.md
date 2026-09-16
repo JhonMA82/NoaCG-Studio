@@ -222,6 +222,57 @@ a verdict from 2026-08-05, and two landings (rows F and D) died at the queue's 4
 a cancelled run escalated them to a full suite. Full account:
 `git show ba427e57:docs/handoffs/2026-09-04-t-shard-cap-poisons-every-gate.md`.
 
+#### The balance came back, because the table was still refreshed by hand (2026-09-16)
+
+Bin-packing fixed the split and nothing kept the WEIGHTS it packs by current. Twelve days after
+the table was recorded, `import-svg.spec.ts` had grown from 4.60 to 6.71 measured minutes and
+`import-svg-behaviour.spec.ts` from 1.19 to 3.75, four spec files on disk had never been measured
+at all, and the suite total had moved 102.8 -> 113.9 minutes. The packer divided the suite using
+the old numbers, so the nine bins it planned to a 0.03 spread were really carrying:
+
+```
+14.26  13.86  14.95  11.80  10.28  12.02  10.45  14.30  11.95   (table-minutes, scored fresh)
+```
+
+4.67 table-minutes between the heaviest bin and the lightest, and the heaviest runner carrying
+14.95 where a balanced set would carry 12.66.
+
+**Measured against the runners, 25 newest green full `ci.yml` runs on `main`, 2026-09-15 09:12 to
+2026-09-16 08:56.** This is the BEFORE reading for the refresh mechanism below; repeat it with
+`node scripts/e2e-durations.mjs --refresh` for the planned figures, or by averaging the `E2E i/9
+(full)` job wall clocks of the newest green full runs for these:
+
+| shard | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+|---|---|---|---|---|---|---|---|---|---|
+| mean min | 13.5 | **14.2** | **14.2** | 12.5 | 12.1 | 12.0 | 12.4 | **14.1** | 12.4 |
+| worst green | 15.9 | 15.8 | 15.9 | 15.3 | 13.3 | 13.1 | 14.0 | 14.9 | 14.2 |
+
+117.3 shard-minutes over nine runners, so a balanced set would run 13.0 each; the stage waited on
+14.2. **The wall clock spread is smaller than the bin spread and that is not a contradiction** - a
+runner also pays a fixed cost per job (0.33 min measured here) and per spec file, and the
+per-index means average over several different packings, because every spec file added to the suite
+reshuffles the bins. The heavy end is what matters and the two agree there: 14.95 table-minutes
+carried by the heaviest bin against a 14.2-minute mean on the slowest shard index.
+
+**How much of a difference between two recordings means nothing.** Recorded twice from two green
+full runs an hour apart (35076557657 and 35077595313) over the same 151 spec files, the two
+disagreed by **4.0% on the suite total** and **0.6 table-minutes on the slowest shard**. Runner
+speed moves every entry in the table at once, and the repacked figure is an in-sample optimum -
+`packShards` minimises the heaviest bin for the numbers it was just given, so a fresh recording
+always looks slightly better than the one CI is packing with, even when it has learned nothing.
+Any threshold on either number has to sit above that, which is why they sit at 10% and 1.5.
+
+**The mechanism.** `.github/workflows/e2e-durations-refresh.yml` re-records the table weekly from
+the newest green full run on `main` and opens a PULL REQUEST when the recording clears a threshold
+tied to a real cost (`REFRESH_THRESHOLDS`, `scripts/e2e-durations.mjs`). A pull request and never a
+push: this table sets the budget every E2E plan is judged against, so a job that commits its own
+measurement is a gate editing its own budget. Making `check:e2e-durations` a hard build gate was
+refused instead - a gate on per-file coverage makes ADDING a spec fail the build until somebody
+re-records from a green full run's artifacts, which expire in 7 days and cannot be reached offline.
+Printing the drift in the plan job's own output stays available and was not built: with the table
+refreshed weekly it would print "no drift" on every run, and `ci.yml`'s plan step is a file two
+other lines of work were changing the same day.
+
 ### 5. FLAKY-SPEC - one proven flake (already fixed) and one regression wearing a flake's name
 
 Proven means: red, then green on the **same SHA** after a re-run. Anything without that re-run is

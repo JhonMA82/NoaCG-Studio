@@ -92,18 +92,31 @@ test('the OPERATOR door may only move values the production has BOUND', () => {
   const body = /create or replace function public\.control_data_patch_by_slug\([\s\S]*?\$\$;/i.exec(sql60)[0];
   assert.match(body, /production_data_patch_paths\(/, 'the door must read what the patch names');
   assert.match(body, /not a bound path/, 'the door must refuse a path nothing binds');
+  // The carve-out has THREE conditions and every one of them is a hole if it goes. The type, or a
+  // scalar replaces a whole branch. The prefix comparison, or the caller's own key is run as a
+  // LIKE pattern and `{"%": [1]}` matches every dotted binding there is. The numeric segment, or
+  // an array over a branch a binding descends into BY NAME empties it - the same destruction as
+  // `{"match": null}`, and silent, because the bound leaves are then gone from the resolve and no
+  // `update` row says anything happened.
+  assert.match(body, /jsonb_typeof\(p\.value\) = 'array'/, "the carve-out must be the array's alone");
   assert.match(
     body,
-    /jsonb_typeof\(p\.value\) = 'array' and f\.value like p\.path \|\| '\.%'/,
-    "the array exception must be the array's alone, or a scalar could replace a whole branch",
+    /starts_with\(f\.value, p\.path \|\| '\.'\)/,
+    'the carve-out must compare prefixes, never run the caller\'s key as a LIKE pattern',
   );
+  assert.match(
+    body,
+    /split_part\(substr\(f\.value, length\(p\.path\) \+ 2\), '\.', 1\) ~ '\^\[0-9\]\+\$'/,
+    'the carve-out belongs to a binding that reaches through an INDEX and to no other',
+  );
+  assert.doesNotMatch(body, /f\.value like /, 'a LIKE here takes the caller\'s key as a pattern');
   // The FEED's door keeps no such restriction: a data key is the owner's own and says "write this
   // production's state". Asserting the absence is what stops the two doors being levelled by a
   // later edit in either direction.
   const feed = /create or replace function public\.control_data_patch\(p_key[\s\S]*?\$\$;/i.exec(sql60)[0];
   assert.doesNotMatch(feed, /not a bound path/);
   const check = sql60.slice(sql60.lastIndexOf('do $$'));
-  for (const refused of ['{"match":null}', '{"match":"gone"}', '{"weather":{"temp":4}}']) {
+  for (const refused of ['{"match":null}', '{"match":"gone"}', '{"weather":{"temp":4}}', '{"match":[]}', '{"%":[1]}']) {
     assert.ok(check.includes(refused), `the self-check never tries ${refused} against the operator door`);
   }
   assert.match(check, /\{"drivers":\[\{"gap":"\+1\.204"\}\]\}/, 'the self-check must prove an indexed binding still writes');

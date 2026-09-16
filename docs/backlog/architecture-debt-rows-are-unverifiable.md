@@ -2,6 +2,13 @@
 
 **Filed:** 2026-09-08. **Source:** weekly quality review (measurement).
 
+**Fixed 2026-09-16** (steps 1 and 2 below): §5 now states the counting rule
+(`grep -c 'applyTemplate({ *\.\.\.template' <file>`) beside the three counts, records the current
+numbers (5, 6, 4), and gives full paths instead of stale line-number anchors. Step 3, a build gate
+that fails when a recorded count drifts from the measured one, is still open - it lands on its own
+branch, not folded into a doc fix. The history below is kept as the record of how the doc went
+wrong; treat the "What it would take" section's step 3 as the remaining work.
+
 ## Why
 
 §5 "UI thinness" carries the grandfathered offenders a session is meant to consult before deciding

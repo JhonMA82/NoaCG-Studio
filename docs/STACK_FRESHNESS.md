@@ -5,13 +5,19 @@ things it cannot. The second group is the dangerous one, because nothing in the 
 development loop ever mentions it. This document is the register of both, and it names the
 check that watches each — a list nobody runs is a list that goes stale itself.
 
-The whole time-driven half runs in **`.github/workflows/weekly-audit.yml`** (Mondays 06:00
+Most of the time-driven half runs in **`.github/workflows/weekly-audit.yml`** (Mondays 06:00
 UTC, `workflow_dispatch` for an on-demand run) and files ONE rolling, self-closing issue.
 Run it locally with:
 
 ```bash
 npm run check:freshness
 ```
+
+The one time-driven job that is not in that file is
+**`.github/workflows/e2e-durations-refresh.yml`** (Mondays 05:30 UTC), because it is the only one
+that PROPOSES a change instead of reporting one — it opens a pull request against the measured
+shard table. It is kept separate so the audit job stays read-only, and its own section is at the
+end of Group 2.
 
 **A third kind of staleness lives outside this document: harness capability observations.**
 `scripts/harness-capabilities.json` records what Claude Code, Codex and Antigravity were each
@@ -286,12 +292,19 @@ members. A finding that *disappears* is reported but never fails — good news m
 alarm — though it should be re-recorded, or the baseline decays into a list of things that no
 longer exist.
 
-Exit codes are three-valued: `0` clean, `1` new findings, **`2` could not check** (no token, or
-no baseline yet). "Could not check" is deliberately not "clean".
+Exit codes are four-valued, and the split between the two "could not check" codes is whose defect
+it is: `0` clean, `1` new findings, **`2` could not check and the fault is ours** (no token, no
+project ref, no baseline, a baseline whose shape changed, a bug in the script), **`3` could not
+check and the fault is upstream** (the Management API would not answer, or answered something that
+could not be compared). "Could not check" is deliberately not "clean", and neither is `1` —
+post-land reds on `1` and `2` and only warns on `3`, so an outage must not borrow the code that
+means "somebody shipped something new", and a deleted baseline must not quietly switch the alarm
+off while every landing stays green.
 
-The baseline is recorded: **70 findings** as of 2026-08-03 — 49 security (19 authenticated and 13
-anon `SECURITY DEFINER` functions, 16 deny-all tables, leaked-password protection) and 21
-performance (11 unindexed foreign keys, 8 unused indexes, 2 overlapping policies).
+The baseline holds **110 findings** as of 2026-09-16. The last full breakdown was taken at 70 on
+2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
+tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
+indexes, 2 overlapping policies) — and the growth since is the same two classes.
 
 **The token comes from `.env` or the environment.** `SUPABASE_ACCESS_TOKEN=<token>` in the
 checkout's `.env` is enough — the script reads it through `scripts/read-dotenv.mjs`, the same
@@ -320,9 +333,74 @@ Errors in a baseline fail in the safe direction, which is why hand-assembling on
 a missing entry makes its finding read as NEW and turns the run red, and a key that does not exist
 shows up as "gone". Neither can silently accept something.
 
-**Not in CI.** It needs a Management API personal access token and `weekly-audit.yml` is
-secret-free on purpose. Whether it ever joins is a decision about putting a Supabase token in
-Actions, and should be made deliberately rather than drifted into.
+**It runs in `post-land.yml`, after the step that pushes migrations, and a new finding turns that
+run red (2026-09-16).** That is the only moment it can run: it reads the live project, so a new
+definer function is there to be found only once the migration creating it has applied, which
+happens after the merge. Post-land already holds the token, inside the `production` environment.
+
+It is not in `weekly-audit.yml`, which stays secret-free. That workflow has `workflow_dispatch`
+and no environment, so a token there would be readable by YAML on whatever branch someone
+dispatches it from — post-land's is scoped to an environment — and it would answer a week late
+about a database that changes on landings.
+
+**Failing the job is deliberate, and the alternative was a `::warning` on a green run.** Post-land
+runs after the merge, so this is an alarm and can never be a gate. But the defect it replaces was
+a gate nothing ran, which sat red for thirteen days unnoticed; a warning inside a run that
+concludes `success` is that same defect with a paper trail. A red conclusion is the channel this
+repo already reads — `scripts/ci-watch.mjs` polls every run and logs each red one — and it is
+what a failed `db-push` in the same job already uses to say the same kind of thing.
+
+**When it fires**, read the finding in the run log. Either it is a real mistake, and the fix is a
+migration; or it is another member of a class `ACCEPTED_CLASSES` already accepts for a reason that
+holds for this occurrence too, and the fix is to re-record the baseline with the judgement written
+down. Check the live database rather than the migration text — the migration is a claim, and the
+advisors report on what is actually there.
+
+**The finding is not always the landing's own.** The step runs on a failed push too, so a landing
+that only broke the staging half can still surface production's news; and when Supabase ships a
+new advisor lint, every existing object matching it reads as new on whatever lands next. So read
+what the finding names before assuming the author caused it — and when you re-record, say in the
+commit which migration actually introduced it.
+
+**The decay this was written to stop, measured once: 2026-09-16.** The gate had been green on
+2026-09-09 and ran nowhere. Seven days later it was red at 110 live against a 106 baseline — four
+findings from migration 0060's two slug-addressed functions — and nothing had said a word. The
+four were read against the live database and accepted: `anon` holds no privilege at all on
+`control_shows`, so those functions are the only door, and the one that writes the column
+wholesale (`control_data_apply`) is `service_role` only. Baseline re-recorded at 110.
+
+Accepting that reachability is not a claim that the door's own guard is tight, and on this
+occasion it is not — `docs/backlog/the-operator-door-guards-a-branch-and-not-a-leaf.md` measured
+the hole the same day, and migration 0061 is the fix. The two judgements are separate on purpose:
+the advisors ask who can call a function, and a bug inside the function is not answered by
+revoking a grant the product needs.
+
+### The measured E2E shard table — `.github/workflows/e2e-durations-refresh.yml`
+
+`scripts/e2e-durations.json` says how long each spec file takes and what a shard costs besides its
+tests. CI divides the suite by those numbers (`packShards`) and judges whether a shard fits its
+20-minute cap by them, so they are not documentation — they are an input to a gate.
+
+**They can only be measured on CI's hardware, from a green FULL run on `main`,** and blob artifacts
+expire after 7 days. That is what makes this a freshness problem rather than a test: no laptop can
+produce the number, and no commit makes it wrong on its own. The suite simply grows, specs get
+slower, and the table describes a suite that no longer exists — 15 days of it in August, 12 more in
+September, both while `npm run check:e2e-durations` said so correctly inside the weekly report.
+
+So the refresh is a job now. Weekly, it re-records from the newest green full run and opens a pull
+request when the recording clears a threshold tied to a real cost: a spec file nobody has measured,
+10% on the suite total, a minute on a shard's budget, or 1.5 table-minutes off the slowest shard
+(`REFRESH_THRESHOLDS`). Below those it throws the recording away and stays quiet. The two that could
+fire on noise sit above a measured floor - two green full runs an hour apart, recorded over the same
+151 spec files, disagreed by 4.0% on the total and 0.6 table-minutes on the slowest shard.
+
+**It proposes; it never pushes.** A job that both measures the shard budget and commits the
+measurement is a gate editing its own budget, so the pull request carries no `noacg/reviewed`
+stamp, no `land` label and no auto-merge, and a person takes it through the queue. Read the diff
+the way you would read a re-recorded advisor baseline: recording accepts whatever the run reported.
+
+By hand, the same thing: `npm run record:e2e-durations`, or `node scripts/e2e-durations.mjs
+--refresh` for the recording plus the verdict on whether it was worth having.
 
 ## Standing upgrade debt
 

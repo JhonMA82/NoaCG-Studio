@@ -89,10 +89,11 @@ orchestrator contract, the verification machinery and GitHub. Corrections, in or
     (~1 GB each), one browser-driving job, one orchestrator (soft rule after the 28-stranded-commit
     collision), and merge cost is the measured bottleneck. Two to three ACTIVE programmes beside
     the owner's NOW push is the realistic ceiling; eight is not.
-11. **Prerequisite housekeeping.** GOALS.md stands at 419 lines against its own ~200 budget and
-    the fix is already filed (`docs/backlog/goals-over-its-own-budget.md`). Slimming it (archive
-    the landed prose, restate the budget once) should land before the register adds any lines to
-    the planning surface.
+11. **Prerequisite housekeeping.** GOALS.md ran over its own budget for three rounds, and the
+    slimming was supposed to land before the register added any lines to the planning surface.
+    DONE 2026-09-16: the landed prose is in the archive, the budget is stated once, and
+    `npm run check:goals-budget` reads the cap from the file's own opening sentence and fails the
+    build above it, so the drift that undid the two previous condenses now reddens a branch.
 12. **Two live sequencing facts the brief could not know.** Yle expects to try NoaCG inside one of
     their productions roughly a month out, and the owner ruled playout-before-any-outreach - so
     OGraf activates early (its design cost is already paid), not sixth. And the class that needs
@@ -257,6 +258,18 @@ contexts, the named hole); simple-by-default UX - a solo user never sees team ma
 becomes urgent with real multi-account classes); the three-student walk.
 
 ### P2 Behaviour & Control
+**The core question - what NoaCG is actually trying to solve** (owner, 2026-08-22). Drawing a
+graphic without code is the easier half; the hard half is **giving it LOGIC, and then CHANGING that
+logic**, without code. A quiz that locks an answer and then reveals it is one set of rules - and the
+next producer wants no lock at all, just an immediate reveal. Two surfaces have been tried at this
+and neither landed as a way a non-programmer authors logic: the **canvas editor** and the **node
+editor**. The question stays open, it gets attacked from several angles rather than one, and it has
+no hard date. It is also the thing that decides whether NoaCG is usable by productions bigger than
+one school, so nothing here is a side quest. (Moved here verbatim from `docs/GOALS.md` on
+2026-09-16, when the roadmap was condensed back inside its line budget. It landed here rather than
+in the register because the register's own contract puts the argument in this file; `GOALS.md` now
+names the question in one sentence and calls it P2.)
+
 **Claims:** (a) a non-programmer takes a graphic they did not make, gives it the behaviour their
 show needs - states, operator actions, timers, independent groups - receives a generated control
 surface, and operates it live without code; (b) the next producer CHANGES that behaviour (remove
@@ -418,11 +431,11 @@ ratification record, not the state:
 
 1. **`docs/PROGRAMMES.md`** - the register: DONE. One table plus one short section per programme;
    the argument and the claims stay HERE so the register stays cheap to grep at wave grounding.
-2. **`docs/GOALS.md`**: DONE - the carve-out sentence added to the gate rule (§3), and
-   `docs/backlog/goals-over-its-own-budget.md` steps 1-2 executed (landed/duplicated prose moved
-   to the archive and the docs that already carry it; the ~200 budget confirmed by the owner).
-   Step 3 (the build-gate check on the line count) remains open in that backlog file. The
-   NEXT-OGraf ladder body moved nowhere - the P6 register row points at it.
+2. **`docs/GOALS.md`**: DONE - the carve-out sentence added to the gate rule (§3), landed and
+   duplicated prose moved to the archive and the docs that already carry it, and the budget
+   confirmed by the owner. The build gate on the line count, the step that had never been tried,
+   landed 2026-09-16 as `scripts/check-goals-budget.mjs`; the file went 310 -> 190 in the same
+   commit. The NEXT-OGraf ladder body moved nowhere - the P6 register row points at it.
 3. **`docs/README.md`**: DONE - rows for this doc and the register.
 4. **Issue #48**: DONE - body replaced with a pointer at this document and the register; kept
    open as the single external North Star reference; state is never tracked there (the tracker is
@@ -454,8 +467,9 @@ ratification record, not the state:
    stays dissolved.
 6. **Owner-held claims limited to the eight major promises** (§4); subclaims advance on
    machine/scenario evidence.
-7. **GOALS.md stays ~200 lines** as a readability discipline - concise immediate steering;
-   PROGRAMMES.md and programme docs carry the durable long-range detail.
+7. **GOALS.md stays inside the budget it states** as a readability discipline, gated by
+   `check:goals-budget` since 2026-09-16 - concise immediate steering, while PROGRAMMES.md and the
+   programme docs carry the durable long-range detail.
 8. **Year table: Q1 ratified; later quarters are evidence-driven hypotheses**, re-cut as
    programmes prove or invalidate assumptions.
 
