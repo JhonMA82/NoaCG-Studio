@@ -1,7 +1,8 @@
 # AC-5 - ARRANGE renders on all three dashboard deployments, and the generated panel returns on delete
 
-**Verdict: pass, against the amended criterion.** Reviewed at
-`dfac5b9cf230532565f57d6988517bb25cdbf94d` on 2026-09-16.
+**Verdict: pass, against the amended criterion.** First reviewed at
+`dfac5b9cf230532565f57d6988517bb25cdbf94d` on 2026-09-16; **re-reviewed at `0079711f8557a3d9db8cd956c7b54533a395ffd1` the same
+day, when the third deployment stopped being an inference.**
 
 The criterion was amended on 2026-09-15 (`3876df11`, pull request 277) to say that ARRANGE applies
 to the ⚡ actions block and never to the cue editor's field bands. HE built the ⚡ half and refused
@@ -35,14 +36,34 @@ bucketing loop rather than three restatements of it.
   (`j-1141`) **8 passed**, `e2e/exports.spec.ts` (`j-1140`) 15 passed and one load flake that
   passed alone on re-run (`j-1143`, 3.4 s). All exit 0.
 
+## The third deployment, observed rather than inferred
+
+The first reading of this criterion passed it with the hosted page's rendering recorded as
+inference: the arrangement would travel, because the column returns it, but nobody had seen the
+buttons. `e2e/configured/hosted-control-profile.spec.ts` now publishes a production whose ARRANGE
+pins `plus2` and hides `newGame` under the name "Reset the board", opens the capability URL signed
+out, and reads the block. In `configured-suite` run `35062005497` (43 passed, 0 skipped):
+
+- `hosted-actions-pinned` holds exactly one button, `⚡ +1`, above the section headings;
+- the "Panelist 2" section is left holding only its `⚡ −1`, which is what pinning MEANS rather
+  than a copy of the button in two places;
+- `hosted-actions-more` reads `More (1)` and opens on `⚡ Reset the board` - the production's word
+  on the machine's own control - and that button is ENABLED, so a hidden control is still declared
+  and still guarded rather than decorative.
+
+Step 9 of the live-verify checklist in `docs/CONTROL_LAYER.md` is therefore walked, by a spec, on
+every run of that suite.
+
 ## Limitations
 
-- **The hosted page's own DOM is still not gated.** `src/components/HostedControlPage.tsx` is on
-  `e2e-lists.mjs`'s configured-only list and cannot be mounted by the offline suite, so what the
-  merge gate pins is the RESOLUTION over the published bytes, not the buttons. Step 9 of the
-  live-verify checklist in `docs/CONTROL_LAYER.md` is the walk nobody has done. The live project
-  does return the `profile` column from `control_show_by_slug`, so the arrangement would travel;
-  that it renders there is inference, not observation.
+- **Nobody has LOOKED at it.** "Above the fold" is a claim about a phone screen; what is asserted
+  is that the pinned block precedes the sections in the document. The owner-queue item
+  `2026-09-16-a-profile-driven-where-the-show-is-run.md` is the route for the eye that can judge
+  the rest.
+- **Delete-and-republish was not re-walked on the hosted page.** The delete is one action and its
+  in-app effect is observed above; that the hosted page then renders the generated panel follows
+  from the same `arrangeFor` gate the three deployments share, and from the offline case that
+  passes a null profile through it.
 - **`hidden` is a collapsed "More", not absence.** HE's call, made against the format's own first
   wording, for the phone-operated surface. If the owner meant gone, the change is three
   `more.length > 0` blocks. Recorded here because the criterion's word is "hidden" and the product's

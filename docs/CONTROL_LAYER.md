@@ -288,6 +288,15 @@ stub). All local-first; cloud mirrors for signed-in users.
 
 ## Live-verify checklist (maintainer, real Supabase — a green build never counts)
 
+**Steps 8, 9 and the single-operator half of 10 are now driven on every run of the configured
+suite** (`e2e/configured/hosted-control-profile.spec.ts`, from 2026-09-16): it publishes a
+production carrying an ARRANGE, a combined control with a delayed step and two ticks, and three
+bound fields, then drives the capability URL signed out and reads every claim back off the durable
+log. That does not retire them from this list - a spec asserts structure and cannot judge how the
+surface LOOKS on a phone - but it does mean a hand-walk is now confirming an eye's judgement rather
+than discovering whether the mechanism works at all. What the spec still cannot reach is named
+inside step 10: **two operators, and the batch cap.**
+
 1. `supabase db push` applies 0008 cleanly on the project.
 2. Signed in: Shows section → publish a 2-graphic show → URL appears; `control_shows` row
    has slug/panel; Unpublish deletes it and the link 404s honestly.

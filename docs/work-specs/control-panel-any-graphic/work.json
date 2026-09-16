@@ -6,12 +6,12 @@
     "source": "docs/OWNER_RULINGS.md ALIGN-2026-09-14-3 and ALIGN-2026-09-15-1 to -4 (2026-09-15)"
   },
   "review": {
-    "revision": "3ae9388b0e8b5bd083d9fbb5161c118196a7977e",
+    "revision": "2cf1aaab763ac53676203056bb172b9bf5963457",
     "specSha256": "c8b1ea4b966db1efcee1dd636a238d9cb05bd8bfba347d25455deb30a7443620",
     "evidence": [
       {
         "path": "docs/work-specs/control-panel-any-graphic/evidence/review.md",
-        "sha256": "7336c2afe8a2f8bab953468766343f3f0c9431083e195358dfb3278267e10843"
+        "sha256": "1056cae4d3a3fecdd433d3c4b4d5efa16bb60387073b87641902cb8e2f0bc9e0"
       }
     ],
     "criteria": [
@@ -61,27 +61,27 @@
         "evidence": [
           {
             "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-5-arrange-on-three-surfaces.md",
-            "sha256": "05b0a3ccf62b7a325d8229faa5143510ce69b37bf24a9580d2ef0067d8daaabb"
+            "sha256": "0ee4d33724900ccaa2f689923a1179465954799e563fa24eb03def0ac3314cde"
           }
         ]
       },
       {
         "id": "AC-6",
-        "status": "unverified",
+        "status": "pass",
         "evidence": [
           {
             "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-6-combine-sends-one-row-per-step.md",
-            "sha256": "ef4c975d46c013b8f8c6b3c40fde1b52c6d3f083e7f67aef932a835c9c396d52"
+            "sha256": "8a51b27ed326be40b010d00ccd44710365a3ee19d808b4c7e80bda93ba59cdc7"
           }
         ]
       },
       {
         "id": "AC-7",
-        "status": "fail",
+        "status": "pass",
         "evidence": [
           {
             "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-7-bound-field-stepper.md",
-            "sha256": "62ec6e8e3be22c06c1f33469c7d76a020f3186142712f40cf509b1ff479ada89"
+            "sha256": "91ffbd770b254e56dd058bc8faf8042c56b9c513b57cd9c22e9caaf05e08e955"
           }
         ]
       },
@@ -97,11 +97,11 @@
       },
       {
         "id": "AC-9",
-        "status": "fail",
+        "status": "pass",
         "evidence": [
           {
             "path": "docs/work-specs/control-panel-any-graphic/evidence/ac-9-the-proof-case-timed.md",
-            "sha256": "acff470e20ff57ec4cd6b24bec91f2d100a293ccdf89e826855833a92d950e95"
+            "sha256": "583cb9a8005ea9bb0d7b57fffa553f378c20799ae145c8b7d7263b01b4f468cd"
           }
         ]
       },
