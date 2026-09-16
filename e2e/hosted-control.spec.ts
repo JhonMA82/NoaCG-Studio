@@ -954,3 +954,30 @@ test('a bound field on the hosted page reads the tree, and a press moves the val
   // …and staging still wins for every field the production has NOT bound.
   expect(measured.takeStaged).toBe('Katri');
 });
+
+test('the hosted page reads the SPACE mode the in-app page stores: one key per browser, the default when unset', async ({
+  page,
+}) => {
+  // The two SPACE modes (docs/PLAYOUT_DASHBOARD.md §2f) are one setting on one machine: the
+  // hosted page and the in-app page share the browser's prefs, so an operator who ticked the box
+  // on one finds it ticked when the other next opens. This page cannot be mounted offline, so
+  // what the merge gate holds is the CONTRACT it reads - a device-level preference beside the
+  // other workflow defaults, the two words, and that an unknown value is the default rather than
+  // a crash. The hosted page's own keys in both modes are walked with a real backend in
+  // e2e/configured/hosted-space-modes.spec.ts.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const read = await page.evaluate(async () => {
+    const { loadPrefs, savePrefs } = await import('/src/model/prefs.ts');
+    const { asSpaceMode } = await import('/src/control/spaceMode.ts');
+    const unset = asSpaceMode(loadPrefs().spaceMode);
+    savePrefs({ spaceMode: 'preview-then-take' });
+    const set = asSpaceMode(loadPrefs().spaceMode);
+    // A value from an older or newer build than this one: the default, never a crash.
+    savePrefs({ spaceMode: 'something-older-or-newer' as never });
+    const unknown = asSpaceMode(loadPrefs().spaceMode);
+    savePrefs({ spaceMode: 'take' });
+    return { unset, set, unknown };
+  });
+  expect(read).toEqual({ unset: 'take', set: 'preview-then-take', unknown: 'take' });
+});

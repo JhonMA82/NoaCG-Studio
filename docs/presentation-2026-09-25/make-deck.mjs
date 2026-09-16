@@ -9,15 +9,17 @@
  *
  * Content of record: `docs/DEMO_2026-09-25.md`. Every sentence on a slide traces to that file's
  * evidence column, and the speaker notes name the beat, its status on the date each note gives
- * (2026-09-10 for slides 1, 4, 6 and 7, 2026-09-09 for the rest) and the file that proves it.
+ * (2026-09-16 for slide 5, 2026-09-10 for slides 1, 4, 6 and 7, 2026-09-09 for the rest) and the
+ * file that proves it.
  *
  * THIS SCRIPT IS ALLOWED TO DRIFT FROM THE DECK, AND NOTHING CHECKS THAT IT HAS NOT. The deck
- * was built from this script on 2026-09-09 and rebuilt from it on 2026-09-10, with nobody's hand
- * edit in between, and the two matched on that day. From the first hand edit on,
- * the deck is the one that is true, and this file is the record of how it started. No gate
- * lints it (`eslint .` scopes its rules to src/, scripts/, e2e/, api/ and render-worker/) and no
- * gate runs it (`pptxgenjs` is not a project dependency), so a broken generator stays green.
- * That is accepted on purpose: the alternative is a generator that rewrites the owner's slides.
+ * was built from this script on 2026-09-09 and rebuilt from it on 2026-09-10 and again on
+ * 2026-09-16, with nobody's hand edit in between, and the two matched on each of those days.
+ * From the first hand edit on, the deck is the one that is true, and this file is the record of
+ * how it started. No gate lints it (`eslint .` scopes its rules to src/, scripts/, e2e/, api/ and
+ * render-worker/) and no gate runs it (`pptxgenjs` is not a project dependency), so a broken
+ * generator stays green. That is accepted on purpose: the alternative is a generator that
+ * rewrites the owner's slides.
  *
  * Run it once, from the repository root, with pptxgenjs installed ad hoc (it is not a project
  * dependency and never becomes one for a one-off deck):
@@ -404,13 +406,14 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
     cmd('npx -y @noacg/cli scaffold --type scoreboard --design neutral --out ./sb'), nl,
     cmd('npx -y @noacg/cli validate ./sb --screenshots ./shots'), nl,
     // NOT "prints a link that opens at once", which R2.4 measured false on noacg.studio: the link
-    // lands on Home, with the graphic in Recent graphics. And `login` goes quiet after Allow
-    // although the key is already stored. §7 row 14 carries both, and both workarounds are here.
-    cmd('npx -y @noacg/cli login          '), note('# once; quiet after Allow? Ctrl-C is safe'), nl,
+    // lands on Home, with the graphic in Recent graphics (§7 row 14, and the workaround is here).
+    // The login half of that row is fixed in 0.3.3: it exits about a third of a second after
+    // Allow, with the consent tab still open. It used to hang, and the note used to say so.
+    cmd('npx -y @noacg/cli login          '), note('# once; the prompt comes back after Allow'), nl,
     cmd('npx -y @noacg/cli save ./sb      '), note('# then open it from Home, Recent graphics'),
   ], { x: M + 0.3, y: codeY + 0.22, w: CW - 0.6, h: codeH - 0.4, fontFace: MONO, fontSize: 14, lineSpacingMultiple: 1.25 });
 
-  // The measured number, and the honest sentence about the leg nobody has timed.
+  // The measured numbers, each said as its own run.
   const lw = 5.4;
   text(s, '24.8 s', { x: M, y: 4.0, w: lw, h: 0.95, fontFace: DISPLAY, fontSize: 60, bold: true, color: AMBER, charSpacing: -2 });
   text(s, [
@@ -419,9 +422,9 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
     // the studio through BridgeClient.connect(), which launches one (cli/src/bridgeClient.ts:158).
     // validate is the slow one for what it does INSIDE that browser. The slide says "they all"
     // about the four verbs printed above it, which are four of those seven.
-    // TWO NUMBERS, SAID AS TWO (R2.5): two runs, on two days, under different conditions. Adding
-    // them into one clock would claim a single walk that nobody made.
-    { text: ', measured by hand on 2026-09-09. They all start a browser to reach the studio; validate is 10.7 s of it. Then save put a graphic in the live library in 9.3 s, on 2026-09-10. The hop from the library to air is still untimed.', options: {} },
+    // THREE NUMBERS, SAID AS THREE (R2.5): three runs, on three days, under different conditions.
+    // Adding them into one clock would claim a single walk that nobody made.
+    { text: ', measured by hand on 2026-09-09. They all start a browser to reach the studio; validate is 10.7 s of it. Then save put a graphic in the live library in 9.3 s, on 2026-09-10. From there to the graphic readable on a production\'s output URL: 7.8 s, on 2026-09-16.', options: {} },
   ], { x: M, y: 5.0, w: lw, h: 1.7, fontSize: 14.5, color: MID, lineSpacingMultiple: 1.2 });
 
   // With an agent: the three steps.
@@ -435,10 +438,10 @@ function arrow(slide, x, y, w, h, color, flipV = false) {
   s.addNotes(
     '§4. R2.1 is for everyone, subscription or not. R2.3: you drive one agent on the screen; the evidence is the 2026-08-22 round, 25 of 25 cells validator-clean and every one airable in your own blind read (benchmarks/agent/rounds/2026-08-22/VERDICT.md).\n\n' +
     'THE NUMBER. docs/AGENT_CLI.md, "Time to air, measured": one walk, one machine, 2026-09-09, against a dev server on the branch\'s own build (not 0.3.0 from npm), from an empty folder. 24.8 s is doctor + types + scaffold + validate + inspect + screenshot + pack. Setup once per machine is another 8.7 s.\n\n' +
-    'R2.5: TWO NUMBERS, AND THE LAST HOP IS UNTIMED. 24.8 s is the seven local verbs, a local build against a dev server on 2026-09-09. 9.3 s is save into the live library, the published 0.3.0 against noacg.studio on 2026-09-10. About thirty-five seconds of tool time from an empty folder to a graphic in your library, said as the two numbers. The hop from the library to a production\'s output URL has not been timed (§7 row 15). Do not round up to a minute and do not say "minutes to air".\n\n' +
-    'R2.4, THE TWO DEFECTS THE LIVE SAVE FOUND (§7 row 14). The link save prints lands on Home, not on the graphic; the graphic is in Recent graphics 5 s later, so say "it is in your library" and open it from there. And login stores the key and then hangs instead of exiting: warn the room that the terminal goes quiet after they press Allow, and that Ctrl-C is safe. The two comments in the code panel say both.\n\n' +
+    'R2.5: THREE NUMBERS, EACH FROM ITS OWN RUN. 24.8 s is the seven local verbs, a local build against a dev server on 2026-09-09. 9.3 s is save into the live library, the published 0.3.0 against noacg.studio on 2026-09-10. And the last hop, measured 2026-09-16 against noacg.studio on two runs, 7.4 s and 7.8 s: from save returning to the graphic READABLE on a production\'s output URL. The slide shows the slower one. Of that, the take itself is 0.7 s to a readable frame and 0.2 s to the entrance, on a warm output page. Say "about thirty-five seconds of tool time from an empty folder to a graphic in your library, and about eight more onto the output URL", and say each number as its own run. Do not round up to a minute and do not say "minutes to air".\n\n' +
+    'R2.4, THE DEFECT THE LIVE SAVE FOUND (§7 row 14). The link save prints lands on Home, not on the graphic; the graphic is in Recent graphics 5 s later, so say "it is in your library" and open it from there. The second defect of that walk, login storing the key and then hanging instead of exiting, is FIXED in @noacg/cli 0.3.3 - do not warn the room about it, unless 0.3.3 is still unpublished on the day, because the route above runs npx and takes the published version.\n\n' +
     'ON THIS LAPTOP, BEFORE THE DAY (§7 row 16). The global @noacg/cli here is 0.2.0 and the MCP server prefers it over npx, so R2.3 would run a year of fixes behind with nothing on screen saying so. One command: npm i -g @noacg/cli@latest.\n\n' +
-    'Source: docs/DEMO_2026-09-25.md §4 R2.1 to R2.5, §7 rows 14, 15 and 16; docs/AGENT_CLI.md "Time to air, measured".',
+    'Source: docs/DEMO_2026-09-25.md §4 R2.1 to R2.5, §7 rows 14 and 16; docs/AGENT_CLI.md "Time to air, measured".',
   );
 }
 

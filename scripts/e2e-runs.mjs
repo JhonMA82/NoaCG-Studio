@@ -542,7 +542,8 @@ export function orphanedDevServers(processes, root = repoRoot) {
 // it. Measured that evening on this laptop: 47 node.exe holding 2.3 GB, of which 30 belonged to
 // three delegations that had finished 6, 8 and 13 hours earlier. One family is a broker, a
 // `codex.js app-server`, a `codex.exe`, and the MCP servers that codex.exe starts - about 450 MB,
-// resident forever, on a 16 GB machine whose job queue refuses to start work below a 4 GB floor.
+// resident forever, on a 16 GB machine whose job queue refuses to start work below a free-RAM
+// floor of 3.0 to 4.0 GB, depending on whether anybody is at the machine.
 //
 // WHY THE PARENT CHAIN CANNOT BE THE ANSWER, and this is the whole reason the record exists. Half
 // of every family is ALREADY severed: the broker spawns its app-server through a shell, that

@@ -193,6 +193,13 @@ the compaction ships in the same commit.** Waiting for the answer is the failure
   brief cites is only the fallback in `check-shared-instructions.mjs`. The enforced limits are the
   110,000-byte chain budget with its 4,096-byte reserve, 25 lines per wrapper, and the two
   orchestrator line caps.
+- 2026-09-16, `docs/GOALS.md`: condensed to **190 of its own 200-line cap** and given a gate,
+  `npm run check:goals-budget`, which reads the number out of the file's first paragraph rather
+  than holding a second copy of it. **190 and not 199 on purpose**: `codex/ograf-studio-architecture-research`
+  is in flight and inserts seven lines under `## NEXT - OGraf-first`, so the reserved headroom
+  lands it at 197. Anyone filling the file back up to 196 before that branch lands reds the build
+  rather than losing anything, which is the gate working, but the ten lines are spoken for.
+  Recorded here on 2026-09-16 when row QG's handoff was drained; it was that handoff's only home.
 - 2026-09-16: the core is at **168 of 200** lines and the common path at **634 of 640**, with a
   sixth every-plan module (`orchestrator/wave-state.md`). Everything that left the core moved into
   a module, most of it verbatim and the rest paraphrased into a sentence the module already had;

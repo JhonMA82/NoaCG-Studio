@@ -151,6 +151,29 @@ through every earlier green build. A new root entry needs a line in `ALLOWED_ROO
 for any row that adds a root file late: the pre-commit builds are all green and the one after the
 commit is not.
 
+## Taking main in, and what §7 row 14 says now
+
+Row SB landed while this was queued, and pull request 301 went DIRTY on
+`docs/DEMO_2026-09-25.md`: row 14 named both defects in one cell, SB dropped the login half and
+left the link half, this branch did the opposite, and git refused to guess. That is the collision
+working, not a mistake.
+
+**Row 14 survives, narrowed to one sentence: the login fix is written and not published.** Deleting
+it was the other defensible answer and I decided against it after reading both cells. Both defects
+are now closed in the repository - the deep link here, the login hang in `@noacg/cli` 0.3.3 the
+same day - but R2.1's route is literally `npx -y @noacg/cli login`, which takes whatever npm holds,
+and R2.1's own cell says so: "the route above still serves the hang until 0.3.3 is on npm". The
+table's rule at the head of §7 is that every beat which is not WORKS has exactly one row, and R2.1
+and R2.4 are both still PARTLY for that one reason. A row that says "one publish" is true and
+closes itself the moment the publish lands; no row at all would have left two PARTLY beats with
+nothing pointing at what is missing. **Whoever publishes 0.3.3 deletes row 14 and flips both
+cells.**
+
+Everything else in that table is `main`'s and was taken verbatim: R2.5 with SB's 7.4 s and 7.8 s,
+row 15 gone with it, row 16, and the R2.1 and R2.3 cells. The only two lines this branch changes
+against `main` are row 14 and the last sentence of R2.4's status cell, which now points at 0.3.3
+and the publish instead of at a defect that is fixed.
+
 ## Traps that exist in no repo file
 
 - **A worktree carries no `.env`, so `playwright.live.config.ts` runs the "configured" suite

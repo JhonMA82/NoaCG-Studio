@@ -24,7 +24,16 @@ export interface UserPrefs {
    *  Per device and remembered, because which one is right depends on the library's size and
    *  on the screen, not on the graphic (re-design/handoff.md §5b/§5c). */
   libraryView: 'grid' | 'list';
+  /** What SPACE does on the playout dashboard (docs/PLAYOUT_DASHBOARD.md §2f). 'take' is the
+   *  toggle the dashboard has always had; 'preview-then-take' previews first. An operator's
+   *  habit, so it lives here with the other device-level defaults, never on the production.
+   *  Read live via components/playoutKeys useSpaceMode; the exported controller keeps its own
+   *  copy on the relay's origin. */
+  spaceMode: SpaceMode;
 }
+
+/** The two SPACE modes. One word with a safe default; `control/spaceMode.ts` normalises it. */
+export type SpaceMode = 'take' | 'preview-then-take';
 
 const DEFAULTS: UserPrefs = {
   defaultExportTarget: '', // empty = the registry's first target
@@ -35,6 +44,7 @@ const DEFAULTS: UserPrefs = {
   // Grid by default: a graphic is a picture, and the thing that identifies it is what it
   // looks like, not its name.
   libraryView: 'grid',
+  spaceMode: 'take',
 };
 
 export function loadPrefs(): UserPrefs {

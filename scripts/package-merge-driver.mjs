@@ -54,6 +54,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { measured } from './measured.mjs';
+import {
+  install as registerMergeDriver,
+  isInstalled as mergeDriverIsInstalled,
+  registeredCommand as mergeDriverRegisteredCommand,
+} from './merge-driver-registration.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LABEL = '[package-merge-driver]';
@@ -71,9 +76,19 @@ const git = (args, cwd = ROOT) => spawnSync('git', args, { cwd, encoding: 'utf8'
 // "this file is merged by a program" rather than two.
 // ---------------------------------------------------------------------------------------------
 
-/** Is the driver registered in this clone? A worktree shares the common dir's config. */
+/** What git would actually run for this driver in `cwd`'s clone, or null when nothing is set. */
+export function registeredCommand(cwd = ROOT) {
+  return mergeDriverRegisteredCommand(DRIVER_NAME, cwd);
+}
+
+/**
+ * Is this clone registered with exactly the command below? Presence of the key is not enough: a
+ * clone carrying an older command, or one pointing at a worktree since deleted, has the key and no
+ * working driver - see scripts/merge-driver-registration.mjs for the shape this shares with
+ * scripts/contracts-merge-driver.mjs, which hit the same bug first.
+ */
 export function isInstalled(cwd = ROOT) {
-  return git(['config', '--get', `merge.${DRIVER_NAME}.driver`], cwd).status === 0;
+  return mergeDriverIsInstalled(DRIVER_NAME, DRIVER_COMMAND, cwd);
 }
 
 /**
@@ -83,8 +98,9 @@ export function isInstalled(cwd = ROOT) {
  * `git merge` started from a subdirectory - so this one command serves every worktree of this
  * clone. An ABSOLUTE path would not: worktrees share one `.git/config`, so the first checkout to
  * register would own the entry forever, and this repository creates and deletes a worktree per
- * session. The sibling contracts driver registers an absolute path and in this very clone it
- * already points at `agent-ae47713a44213dee3`, which no longer exists.
+ * session. The sibling contracts driver registered an absolute path until 2026-09-16, and in this
+ * very clone it pointed at `agent-ae47713a44213dee3`, which no longer existed - f1b90e55 fixed it
+ * to a relative path for exactly this reason.
  *
  * That matters more here than it would anywhere else, because of what git does when the command
  * cannot run: it reports `CONFLICT (content)`, marks the file `UU`, and leaves OUR VERSION in the
@@ -101,10 +117,13 @@ export const DRIVER_COMMAND = 'node "scripts/package-merge-driver.mjs" %O %A %B 
  * Register the driver, or correct it. Cheap enough to call on every build, and it must be: git
  * config is per clone and is not committed, so a fresh checkout has it missing, and a clone where
  * it is WRONG is worse than one where it is missing.
+ *
+ * Writes with `--replace-all` (inside the shared helper), because a plain `git config <key>
+ * <value>` refuses a key that already carries more than one value, and returns what is actually
+ * REGISTERED afterwards rather than whether this call's own write is the one that put it there.
  */
 export function install(cwd = ROOT) {
-  git(['config', `merge.${DRIVER_NAME}.name`, 'Merge package.json as JSON, key by key'], cwd);
-  return git(['config', `merge.${DRIVER_NAME}.driver`, DRIVER_COMMAND], cwd).status === 0;
+  return registerMergeDriver(DRIVER_NAME, DRIVER_COMMAND, 'Merge package.json as JSON, key by key', cwd);
 }
 
 // ---------------------------------------------------------------------------------------------
