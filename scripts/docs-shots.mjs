@@ -2,9 +2,10 @@
 //
 //   node scripts/docs-shots.mjs [--only=<name,name>]   (dev server up)
 //
-// The SVG guide is the one page a designer reads before they have ever used the product, so it
-// is the page where a picture earns its place: "your layers become fields" is a sentence until
-// somebody sees the layer names sitting in the field list.
+// A picture earns its place where a sentence cannot land. "Your layers become fields" is words
+// until somebody sees the layer names sitting in the field list (the SVG guide, shots 1 to 3),
+// and "one value moves every graphic that reads it" is words until somebody sees two scoreboards
+// bound to the same four paths (the worked example, shots 4 to 10).
 //
 // Every one of those pictures is produced HERE, by driving the real app the way the e2e suite
 // does, and never hand-captured. A checked-in hand screenshot goes stale the moment the surface
@@ -25,7 +26,7 @@
 // the Entry step offers).
 
 import { chromium } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,19 +56,35 @@ const SCALE = 1.5;
 
 const browser = await chromium.launch();
 
-/** One shot = one fresh context. `run(page)` returns the locator to capture, or null for the
- *  whole viewport. */
-async function shot(name, run, size = VIEWPORT) {
+/**
+ * One shot = one fresh context. `run(page)` returns what to capture:
+ *   - a LOCATOR, for a surface that is one element;
+ *   - `{ clip }` from `clipBetween`, for a strip of the page that no single element wraps;
+ *   - null, for the whole viewport.
+ */
+async function shot(name, run, size = VIEWPORT, scale = SCALE) {
   if (wanted && !wanted.has(name)) return;
-  const context = await browser.newContext({ viewport: size, deviceScaleFactor: SCALE });
+  const context = await browser.newContext({ viewport: size, deviceScaleFactor: scale });
   const page = await context.newPage();
   page.setDefaultTimeout(30_000);
   try {
     const target = await run(page);
+    const clipping = target && typeof target.clip === 'object';
     // `animations: 'disabled'` parks CSS/Web animations at their end state, which is what a
-    // settled product surface looks like.
-    await (target ?? page).screenshot({ path: join(outDir, `${name}.png`), animations: 'disabled' });
-    console.log(`✓ ${name}.png`);
+    // settled product surface looks like. `fullPage` with a clip is what makes the clip's
+    // numbers PAGE coordinates rather than viewport ones, so a region below the fold is
+    // captured where it is instead of being scrolled at.
+    await (clipping ? page : (target ?? page)).screenshot({
+      path: join(outDir, `${name}.png`),
+      animations: 'disabled',
+      ...(clipping ? { clip: target.clip, fullPage: true } : {}),
+    });
+    // The SIZE, printed, because `docs.html` hard-codes width/height on every frame so the page
+    // reserves the right box before a lazy image arrives - and `e2e/docs.spec.ts` fails when the
+    // two disagree. A regenerated shot of a different shape needs those two numbers updated in
+    // the same commit, and reading them off a PNG by hand is how that step gets skipped.
+    const png = readFileSync(join(outDir, `${name}.png`));
+    console.log(`✓ ${name}.png  width="${png.readUInt32BE(16)}" height="${png.readUInt32BE(20)}"`);
   } catch (e) {
     console.error(`✗ ${name}.png - ${(e ?? '').message ?? e}`);
     process.exitCode = 1;
@@ -84,6 +101,167 @@ async function openImportDoor(page) {
   await modal(page).waitFor();
   await page.evaluate(() => document.fonts.ready);
   await page.locator('[data-entry="import-graphic"]').click();
+}
+
+/**
+ * A screenshot of the strip between two elements, top of the first to bottom of the second.
+ *
+ * Some of the surfaces below are one long panel with no wrapper around the part that earns a
+ * picture: the Data tab's live tree and its bindings share `.pd-live`, and the Audience tab's
+ * viewer preview and its inbox are siblings under the page. Capturing the wrapper publishes a
+ * tall picture whose subject is a third of it; capturing one child leaves out the half that
+ * makes it mean something. The clip is the honest middle.
+ */
+async function clipBetween(page, fromSelector, toSelector, { pad = 12, top = pad, bottom = pad } = {}) {
+  const box = await page.evaluate(
+    ([from, to, p, topPad, bottomPad]) => {
+      const first = document.querySelector(from);
+      const last = document.querySelector(to);
+      if (!first || !last) throw new Error(`clipBetween: ${first ? to : from} is not on the page`);
+      // DOCUMENT coordinates, and the shot is taken with `fullPage`, so nothing here scrolls.
+      //
+      // The first attempt scrolled the region to the top of the pane and clipped against the
+      // viewport, and it failed twice over. The dashboard's topbar is sticky, so scrollIntoView
+      // parked the live tree's own heading underneath it; and a region near the BOTTOM of a long
+      // page cannot be scrolled to the top at all once the pane is 1400px tall, which is how the
+      // Tables shot came back demanding a viewport it already had. Page coordinates have neither
+      // problem: a sticky bar sits at its own resting place far above, and how far something is
+      // down the page stops mattering.
+      const a = first.getBoundingClientRect();
+      const b = last.getBoundingClientRect();
+      const x = Math.min(a.left, b.left) + window.scrollX;
+      const y = Math.min(a.top, b.top) + window.scrollY;
+      return {
+        x: Math.max(0, x - p),
+        y: Math.max(0, y - topPad),
+        width: Math.max(a.right, b.right) + window.scrollX - x + p * 2,
+        height: Math.max(a.bottom, b.bottom) + window.scrollY - y + topPad + bottomPad,
+      };
+    },
+    [fromSelector, toSelector, pad, top, bottom],
+  );
+  return { clip: box };
+}
+
+/** Drop focus before the shutter. A box the script typed into keeps its focus ring, and a
+ *  published picture of a form with one cell outlined reads as a state the reader has to
+ *  explain to themselves. */
+async function blur(page) {
+  await page.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined));
+}
+
+/**
+ * THE WORKED EXAMPLE (`/docs#data-example`): one small imaginary show, built the way the guide
+ * tells a reader to build it.
+ *
+ * "Hall Cup" is a school sports night with four graphics that are not all the same shape - two
+ * scoreboards reading the same score, a ticker whose lines are one list, and a name strap the
+ * operator fills per guest. It exists so the three screens the guide describes (the live tree,
+ * the bindings, the tables) can be photographed carrying the SAME show, which is the one thing
+ * a reader cannot get from three separate reference sections.
+ *
+ * The graphics are CATALOG VARIANTS by name, and the tree and the table are the ones printed in
+ * the guide, so a reader who follows the steps lands on these screens rather than on something
+ * that looks like them. It is built through the model the way e2e/_create.ts builds a project -
+ * the wizard walk is covered by the wizard's own specs, and repeating it here would only add
+ * ways for a screenshot run to fail.
+ */
+const HALL_CUP_TREE = {
+  match: { teamA: 'Otava', scoreA: 2, teamB: 'Karhut', scoreB: 1 },
+  tickerItems: [
+    'Junior final starts at 19:30',
+    'Canteen closes at 20:00',
+    'The bus home leaves from gate 4',
+  ],
+};
+
+/** The example production, with the graphics this shot needs. Returns its id. */
+async function hallCup(page, kinds) {
+  await page.goto(`${base}/app`);
+  await page.locator('.topbar').waitFor({ timeout: 60_000 });
+  return page.evaluate(async (wanted) => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+    const { formatTemplate } = await import('/src/format/formatCode.ts');
+    const { createShowNamed, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+
+    const show = createShowNamed('Hall Cup');
+    for (const [categoryId, variantName] of wanted) {
+      const variant = variantsFor(categoryId).find((v) => v.name === variantName);
+      if (!variant) throw new Error(`no catalog variant "${variantName}" in ${categoryId}`);
+      const draft = mergeDraft(initialDraft(), {
+        variantId: variant.id,
+        lines: variant.suggestedLines.map((l) => ({ ...l })),
+        zone: null,
+        logoEnabled: null,
+        animation: { presetId: null, outPresetId: null },
+        paletteId: null,
+        customPalette: null,
+        fontId: null,
+      });
+      addGraphicToShow(show.id, await formatTemplate(buildDraftTemplate(variant, draft)));
+    }
+    await commitDurableWrites();
+    return show.id;
+  }, kinds);
+}
+
+/**
+ * The four graphics the data half of the guide walks through.
+ *
+ * TWO SCOREBOARDS ON PURPOSE. The guide's headline claim is that one value moves every graphic
+ * that reads it, and a pool where no two graphics want the same number cannot show that: the
+ * picture would be four bindings that each happen to point somewhere. Match Strip (the bug that
+ * stays up) and Quiet Score (the card you cut to at half time) carry the SAME four field titles,
+ * so one press of "Bind all by title" binds both to the same paths and the claim is visible
+ * rather than asserted.
+ */
+const HALL_CUP_GRAPHICS = [
+  ['scoreboard', 'Match Strip'],
+  ['scoreboard', 'Quiet Score'],
+  ['ticker', 'House Wire'],
+  ['lower-third', 'House Strap'],
+];
+
+/** Open the Data tab, paste the tree, and bind every field whose title names a leaf. */
+async function fillTree(page, showId) {
+  await page.goto(`${base}/app#/production/${showId}/data`);
+  await page.getByTestId('production-data').waitFor();
+  await page.getByTestId('data-raw-toggle').click();
+  await page.getByTestId('data-raw-text').fill(JSON.stringify(HALL_CUP_TREE, null, 2));
+  await page.getByTestId('data-raw-apply').click();
+  await page.getByTestId('data-row-match.teamA').waitFor();
+  await page.getByTestId('bind-all-production').click();
+  await page.getByTestId('bind-all-note-production').waitFor();
+}
+
+/** The guest list the name strap is filled from: the Line-up shape, cut to two columns. */
+async function addInterviewTable(page) {
+  await page.getByTestId('new-dataset-kind').selectOption('roster');
+  await page.getByTestId('add-dataset').click();
+  const dataset = page.locator('.pd-dataset');
+  await dataset.waitFor();
+  await dataset.getByTestId('dataset-name').fill('Interviews');
+  // Line-up ships Name / Number / Position. The strap's second field is called Title, and the
+  // binding is the WORDS, so the column is renamed rather than mapped. Number goes: this show
+  // interviews a referee and a coach, and a column nothing fills teaches nothing.
+  await dataset.getByTestId('col-c2').fill('Title');
+  await dataset.getByTestId('col-delete-c1').click();
+  await dataset.getByTestId('col-delete-c1').click();
+  const fill = async (row, cells) => {
+    const tr = dataset.locator('tbody tr').nth(row);
+    for (let i = 0; i < cells.length; i += 1) await tr.locator('td input').nth(i).fill(cells[i]);
+  };
+  await fill(0, ['Aino Virtanen', 'Otava captain']);
+  await page.getByTestId('add-row').click();
+  await fill(1, ['Mikko Laine', 'Karhut head coach']);
+  await page.getByTestId('add-row').click();
+  await fill(2, ['Sofia Nieminen', 'Referee']);
+  // The rundown reads the tables through the durable store, so let the write land before the
+  // next navigation: a shot of the Playout tab with no "Load a row" select is a shot of a
+  // product that looks like it does not have the feature.
+  await page.waitForTimeout(900);
 }
 
 /** Drop a shipped sample and land on the mapping step. */
@@ -135,6 +313,128 @@ await shot('svg-behaviour', async (page) => {
   await panel.scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   return modal(page);
+});
+
+// ── 4. The live tree: paths, types, and the values a whole show reads from ───
+await shot('data-tree', async (page) => {
+  const showId = await hallCup(page, HALL_CUP_GRAPHICS);
+  await fillTree(page, showId);
+  // No top pad: the dashboard's topbar sits directly above this panel, and padding upward
+  // catches a slice of its last button.
+  return clipBetween(page, '.pd-live-head', '.pd-live-add', { top: 0 });
+});
+
+// ── 5. The bindings: which field of which graphic reads which path ───────────
+//
+// The picture the guide turns on. Nine bound rows reading their value back and four left empty
+// is the whole distinction between "this value is the show's" and "this value is this cue's",
+// and it is one screen rather than two paragraphs. Both scoreboards landing on the same four
+// paths is the claim itself, which is why the pool carries two.
+//
+// A padded CLIP rather than an element grab: `.pd-bindings` has no gutter of its own, so the
+// element's own box puts the headings hard against the left edge and slices the "Bind all by
+// title" buttons down their right one.
+await shot('data-bindings', async (page) => {
+  const showId = await hallCup(page, HALL_CUP_GRAPHICS);
+  await fillTree(page, showId);
+  await blur(page);
+  return clipBetween(page, '.pd-bindings', '.pd-bindings');
+});
+
+// ── 6. What a bound field looks like on the Playout tab ──────────────────────
+//
+// Captured as a CLIP down to the ± LIVE NUMBERS block, because the two halves answer each
+// other: the fields read out with the path they follow, and the presses underneath are how an
+// operator moves that shared value without opening the Data tab at all.
+await shot('data-cue', async (page) => {
+  const showId = await hallCup(page, HALL_CUP_GRAPHICS);
+  await fillTree(page, showId);
+  await page.goto(`${base}/app#/production/${showId}`);
+  await page.getByTestId('production-page').waitFor();
+  await page.getByTestId('live-numbers').waitFor();
+  // The cue editor mounts a preview iframe and measures it; let the page settle before the
+  // shutter rather than photographing a half-laid-out dashboard.
+  await page.waitForTimeout(1200);
+  // No top pad: the verbs row sits 12px above the editor card, and padding upward catches a
+  // slice of its last button. The card carries its own gutter, so it needs none.
+  return clipBetween(page, '[data-testid="cue-editor"]', '[data-testid="live-numbers"]', { top: 0 });
+});
+
+// ── 7. A table, and the cue that loads a row out of it ───────────────────────
+await shot('data-table', async (page) => {
+  const showId = await hallCup(page, HALL_CUP_GRAPHICS);
+  await fillTree(page, showId);
+  await addInterviewTable(page);
+  await blur(page);
+  return clipBetween(page, '.pd-data-head', '.pd-dataset');
+});
+
+/** The Audience tab with the door open, three rehearsal arrivals in, and the viewer preview
+ *  unfolded. Shared by the two shots below, which photograph different halves of it. */
+async function audienceInbox(page) {
+  const showId = await hallCup(page, [
+    ['audience', 'House Question'],
+    ['poll', 'House Vote'],
+  ]);
+  await page.goto(`${base}/app#/production/${showId}/audience`);
+  await page.getByTestId('production-audience').waitFor();
+  await page.getByTestId('audience-open').check();
+  await page.getByTestId('audience-simulate').click();
+  await page.getByTestId('audience-preview-details').locator('summary').click();
+  // The preview mounts the join surface and loads its first view over the provider's own
+  // promise; the inbox rows arrive on the same change signal.
+  await page.waitForTimeout(1200);
+  await blur(page);
+}
+
+// ── 8. What the room actually sees ───────────────────────────────────────────
+//
+// TWO pictures rather than one, and this is the reason. A viewer's page is PORTRAIT and about
+// 380px wide; the operator's inbox is the full width of a dashboard. Photographed together the
+// result is a phone in the corner of a frame that is three-fifths empty black, and at the 780px
+// the docs column gives it, the phone is a stamp nobody can read.
+//
+// So the join surface gets its own frame, at 3x device scale because it is published near its
+// captured size rather than shrunk to a third of it (docs.css `.doc-shot.phone`). It is the
+// real renderer, the same code a phone loads, mounted read-only inside the studio.
+await shot('audience-join', async (page) => {
+  await audienceInbox(page);
+  return page.locator('.pd-aud-preview-frame');
+}, VIEWPORT, 3);
+
+// ── 9. Where those words land, and the only road from them to air ────────────
+//
+// The moderation rows, from the filter tabs down. The arrivals are simulated: that button is
+// what an operator with no room yet actually presses, and its rows say "(rehearsal)" in their
+// own text, so this picture cannot be read as real people's words.
+await shot('audience-inbox', async (page) => {
+  await audienceInbox(page);
+  // No bottom pad: the rows sit 6px apart, so padding downward publishes a sliver of the
+  // third card that reads as a rendering fault rather than as a list continuing.
+  return clipBetween(page, '.pd-aud-filters', '.pd-aud-row:nth-of-type(2)', { bottom: 0 });
+});
+
+// ── 10. A vote, counted ──────────────────────────────────────────────────────
+//
+// The operator's side only. The viewer's ballot is in the shot above's preview frame, and this
+// one is about the counts - which exist HERE and nowhere a viewer can reach.
+await shot('audience-vote', async (page) => {
+  const showId = await hallCup(page, [
+    ['audience', 'House Question'],
+    ['poll', 'House Vote'],
+  ]);
+  await page.goto(`${base}/app#/production/${showId}/audience`);
+  await page.getByTestId('production-audience').waitFor();
+  await page.getByTestId('audience-open').check();
+  await page.getByTestId('audience-round-question').fill('Who takes the second half?');
+  await page.getByTestId('audience-round-options').fill('Otava\nKarhut\nToo close to call');
+  await page.getByTestId('audience-round-open').click();
+  await page.getByTestId('audience-round-live').waitFor();
+  await page.getByTestId('audience-simulate-votes').click();
+  // The tally is POLLED at 2 s (ProductionAudienceWorkspace's tally effect), so a shutter
+  // fired straight after the press photographs three zeroes and a product that looks broken.
+  await page.waitForTimeout(2600);
+  return page.locator('.pd-aud-round');
 });
 
 await browser.close();

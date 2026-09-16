@@ -727,3 +727,37 @@ same page already holds, which can play, stop and clear graphics.
   (§14) - plus the RLS grant the key read depends on, read from 0008. The uncovered part is the
   wiring in `ProductionPage`, and the way to close it is an owner opening a published
   production's Data tab and watching a `scripts/weather-feed.mjs` tick land in it.
+
+## 16. The mechanism finally has a user-facing example (2026-09-16)
+
+Everything above is the plan's own vocabulary: tree, leaf, path, binding, resolve, patch. None of
+it had ever been written down for the person who has to USE it, and the owner's read on
+2026-09-16 was the predictable one: *"the production data, the bindings, and the tables are a bit
+confusing. How are those supposed to be used?"*
+
+`/docs#data-example` is the answer, and it is deliberately ONE small show rather than a second
+reference. "Hall Cup" carries two scoreboards, a ticker and a name strap; the tree holds
+`match.scoreA` and a `tickerItems` list; `Bind all by title` binds nine of the thirteen fields and
+leaves four alone; a table called Interviews fills the strap a row at a time. The second
+scoreboard is there because the headline claim - one value moves every graphic that reads it -
+cannot be SHOWN by a pool where no two graphics ever want the same number. Seven screenshots,
+all captured from the running app by `node scripts/docs-shots.mjs` (blocks 4 to 9) against that
+exact production, so a reader who copies the JSON lands on the pictures.
+
+**The distinction the section exists to draw** is the one §2.8 states architecturally and nobody
+outside this file had ever been told: production data is the one thing that is true right now and
+wires itself into graphics, and a table is a bank of candidate rows an operator picks from.
+Tables were not documented on `/docs` at all before this.
+
+**Two facts a reader needs that this plan implies rather than states.** An unpublished
+production's tree is this browser's localStorage (`model/productionState.ts`), so `⬇ Save as
+seed` is what makes values travel with the production; published, the server's copy is the
+authority and every operator shares it. Both are now on the public page in those words.
+
+**One repair found by photographing it.** `.pd-bind-row` was a five-column grid, and a BOUND row
+renders only four children - field, input, live value, unbind ✕. The 28px track therefore went to
+nothing and the ✕ landed in the `minmax(80px, 0.9fr)` one, drawing as a 336px slab; and because
+each row is its own grid with an `auto` track in it, every row sized its columns from its own
+content, so the path inputs sat up to 9px apart down the list. Both are fixed in
+`src/styles/feedback.css` by placing each child in a named column. Nothing in `e2e/` measured
+either, which is why neither had ever been caught.

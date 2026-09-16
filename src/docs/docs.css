@@ -196,9 +196,16 @@ td strong { color: var(--paper); }
   display: block; width: 100%; height: auto; border: 1px solid var(--line);
   border-radius: 8px; background: rgba(20, 25, 34, 0.55);
 }
+/* A picture of a PHONE page, which is portrait and about 380px wide. Stretched to the 780px
+   column like every other shot it is a blurry upscale, and it dwarfs the section it illustrates,
+   so it is published near the size it was captured and centred. It is captured at 3x device
+   scale for the same reason: this one is not shrunk to a third on the way in. */
+.doc-shot.phone img { width: auto; max-width: 360px; margin: 0 auto; }
 .doc-shot figcaption {
   margin-top: 8px; font-size: 13px; color: var(--faint); line-height: 1.55;
 }
+/* The caption keeps the column, even though its picture does not: narrowed and centred under a
+   360px image it starts 90px in from every other line of the page and reads as an indent. */
 .doc-shot figcaption strong { color: var(--dim); }
 
 /* Callouts: plain fact panels. `.truth` is the honesty callout — what has and has not
