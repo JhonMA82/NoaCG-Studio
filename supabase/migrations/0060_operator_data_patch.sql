@@ -3,6 +3,14 @@
 -- docs/CONTROL_PANEL_ANY_GRAPHIC.md §5 row 9). 0048 built the tree and the feed's door into it;
 -- this file adds the two things a DASHBOARD needs and nothing else.
 --
+-- THIS FILE WAS CORRECTED AFTER ITS OWN BRANCH LANDED, and that is allowed here for one reason:
+-- it has never applied anywhere. Its self-check raised on the post-land push for pull request
+-- 280 and again for 281, the whole migration rolled back in one transaction, and
+-- `list_migrations` on the project carries no 0060 row - so there is no applied text to disagree
+-- with and supabase/README.md's "a new migration, never by editing an applied one" does not
+-- bite. The correction is one qualification in `production_data_patch_paths`, explained where it
+-- sits. If this file ever DOES apply somewhere, the next correction is 0061.
+--
 -- WHY THE HOSTED CONTROL PAGE COULD NOT DO THIS BEFORE. That page is capability-addressed by an
 -- unguessable control slug and signed out. It has no data key and must never be given one -
 -- docs/DATA_API.md's "never a web page" warning is about exactly this surface - and until now
@@ -150,7 +158,16 @@ declare
   v_val jsonb;
   v_path text;
 begin
-  for v_key, v_val in select key, value from jsonb_each(p_patch) loop
+  -- `jsonb_each` IS ALIASED AND ITS COLUMNS QUALIFIED, and that is not a style choice. This
+  -- function's RETURNS TABLE names an out-parameter `value`, which is a plpgsql variable in
+  -- scope here; an unqualified `value` in this query is therefore ambiguous between that
+  -- variable and `jsonb_each`'s own column, and Postgres refuses the statement at run time with
+  -- `column reference "value" is ambiguous`. Nothing plans this query until the loop executes,
+  -- so the whole migration applied as far as its own self-check before failing - which is what
+  -- it did on the post-land push for pull request 280 (run 35045162515, statement 15), rolling
+  -- 0060 back in full. `control_data_apply` above runs the same `select key, value` shape and is
+  -- fine, because that function returns a scalar and declares no such out parameter.
+  for v_key, v_val in select e.key, e.value from jsonb_each(p_patch) e loop
     v_path := case when p_prefix = '' then v_key else p_prefix || '.' || v_key end;
     if jsonb_typeof(v_val) = 'object' and v_val <> '{}'::jsonb then
       return query select p.path, p.value from public.production_data_patch_paths(v_val, v_path) p;

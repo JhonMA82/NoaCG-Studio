@@ -3,9 +3,9 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-15
-state: active
+state: advanced
 branch: claude/control-panel-spec
-note: the plan and the profile design landed 2026-09-15 (docs/CONTROL_PANEL_ANY_GRAPHIC.md); the ten rows of its §5 run as the HA-HJ wave, one at a time; the walk that closes this receipt is row HJ
+note: the plan and the profile design landed 2026-09-15 (docs/CONTROL_PANEL_ANY_GRAPHIC.md); all ten rows of its §5 landed by 2026-09-16 (pull requests 270-281). HJ walked the proof case with the profile in use and timed it, but ON THE IN-APP PAGE: publishing needs a checkout carrying backend configuration and a linked worktree has none, so the hosted control page - the surface the show is run from - has still never shown a profile. AC-9 and AC-6 are open on that one gap, and AC-7 fails beside it because migration 0060 has applied nowhere. This receipt closes when the hosted walk has run.
 asked: "It's going to be the 20th of October when we are going to do an Elämäni biisi TV show ... five people going to cast their votes ... show how many votes a person got for a song and then there needs to be a total scoreboard ... I'm thinking I am just going to prompt it in Claude Code and import it into our playout dashboard in a few minutes"
 serves: P2
 size: large
