@@ -41,10 +41,10 @@
 //      broker, a `codex.js app-server`, a `codex.exe` and their MCP servers, about 450 MB each.
 //      Measured that evening: 30 node processes and 1.4 GB belonging to three delegations that
 //      had ended 6, 8 and 13 hours earlier, on a laptop whose job queue stops starting work
-//      below a 4 GB floor. Nothing collected them because nothing knew what to collect - the
-//      plugin's job record nulls the pid the moment a job completes, the family's parent links
-//      are severed within seconds of the launch, and defect 1's fix deliberately cuts the last
-//      live chain from this shell. `recordOwnership` writes each pid down WITH the time it
+//      below a free-RAM floor of 3.0 to 4.0 GB. Nothing collected them because nothing knew what
+//      to collect - the plugin's job record nulls the pid the moment a job completes, the
+//      family's parent links are severed within seconds of the launch, and defect 1's fix
+//      deliberately cuts the last live chain from this shell. `recordOwnership` writes each pid down WITH the time it
 //      started, while the links are still there; `reapTrees` asks the broker to shut down and
 //      then closes what the record still recognises. The record is the only thing standing
 //      between a reap and the owner's own desktop Codex app, whose processes are severed in

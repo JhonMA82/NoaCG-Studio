@@ -676,6 +676,18 @@ async function cmdList() {
     console.log('');
   }
 
+  // WHERE THE MACHINE IS, on a line somebody already reads, and ABOVE the empty-queue return. A
+  // declaration stands for twelve hours, so an `away` set at 22:00 for a night wave is still live
+  // when the owner sits down at 08:00 - the floor being 3.0 GB then is the exact failure this
+  // design is against. An empty queue is when a stale one is likeliest and cheapest to notice.
+  // Nothing auto-resets it: this listing is read by agents far more often than by him, and a read
+  // that changed scheduling would be a worse surprise than a stale floor.
+  const machine = readPresence(dir);
+  if (machine.state === 'away') {
+    console.log(`Machine marked AWAY until ${new Date(machine.until).toISOString()}${machine.setBy ? ` (set by ${machine.setBy})` : ''}`
+      + ` - the RAM floor is ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB. \`npm run jobs -- presence present\` if you are at it.`);
+  }
+
   if (pending(jobs).length === 0) {
     console.log('Job queue empty.');
     printOutstanding(jobs);
@@ -915,10 +927,16 @@ function cmdPresence() {
     const floor = freeMemFloorFor(now.state);
     console.log(`Machine is ${now.state === 'away' ? 'AWAY - nobody at the keyboard' : 'IN USE - somebody may be at the keyboard'}.`);
     console.log(`  free-RAM floor for one suite-equivalent: ${(floor / 1024).toFixed(1)} GB (a walk ${(floor * COST.walk / 1024).toFixed(1)}, a landing ${(floor * COST.merge / 1024).toFixed(1)})`);
-    if (now.setAt) {
-      console.log(`  declared ${new Date(now.setAt).toISOString()}${now.setBy ? ` by ${now.setBy}` : ''}`);
-      if (now.expired) console.log(`  that declaration EXPIRED ${new Date(now.until).toISOString()} - back to the safe answer until somebody says otherwise`);
-      else if (now.until) console.log(`  holds until ${new Date(now.until).toISOString()}, then back to in-use`);
+    // `readPresence` normalises every field to a number or null, so nothing here can be handed a
+    // date it cannot format - which matters because this command is the one somebody runs to find
+    // out why a hand-edited file is not doing what they meant.
+    if (now.setAt || now.until) {
+      if (now.setAt) console.log(`  declared ${new Date(now.setAt).toISOString()}${now.setBy ? ` by ${now.setBy}` : ''}`);
+      if (now.expired && now.until) console.log(`  that declaration EXPIRED ${new Date(now.until).toISOString()} - back to the safe answer until somebody says otherwise`);
+      else if (now.expired) console.log('  that declaration carried no deadline, so it counts as expired - write it with `presence away` rather than by hand');
+      else console.log(`  holds until ${new Date(now.until).toISOString()}, then back to in-use`);
+    } else if (now.expired) {
+      console.log('  something is in presence.json that carries no deadline - it counts as expired');
     } else {
       console.log('  nobody has said - "in use" is what an unknown means here');
     }

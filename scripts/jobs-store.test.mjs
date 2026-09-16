@@ -439,6 +439,104 @@ test('a declaration of absence expires back to the safe answer', () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
+test('nothing a person can put in presence.json stops the runner or outlives its deadline', () => {
+  // THE DRAIN LOOP HAS NO CATCH. `runner()` reads presence inside `for(;;)`, so anything this
+  // function throws kills the runner, the queue freezes at "NO RUNNER", and every replacement the
+  // next `add` spawns dies the same way with `stdio: 'ignore'` swallowing the stack - the shape of
+  // the 2026-09-04 outage. The file is hand-editable by design, because it is how a person says
+  // where they are, so every one of these is a thing somebody will actually write.
+  const dir = tempQueue();
+  const file = join(dir, 'presence.json');
+  const now = Date.UTC(2026, 8, 16, 12, 0, 0);
+  for (const junk of ['null', '[]', '42', '"away"', 'true', '{}', '{"state":null}', '{ torn']) {
+    writeFileSync(file, junk);
+    assert.equal(readPresence(dir, now).state, 'present', `${junk} must read as present, not throw`);
+  }
+
+  // A DECLARATION WITH NO READABLE DEADLINE IS EXPIRED, never eternal. Expiry is the whole safety
+  // mechanism, and a record nobody can date is exactly the stale guess it exists to catch.
+  for (const undated of [{ state: 'away' }, { state: 'away', until: null }, { state: 'away', until: 'tomorrow' }]) {
+    writeFileSync(file, JSON.stringify(undated));
+    const read = readPresence(dir, now);
+    assert.equal(read.state, 'present', `${JSON.stringify(undated)} must not stand for ever`);
+    assert.equal(read.expired, true);
+    assert.equal(read.until, null, 'and it reports no deadline rather than a date nobody can format');
+  }
+
+  // Fields that are not numbers come back as null, so a caller formatting them as dates cannot be
+  // the one to discover it: `new Date('yesterday').toISOString()` throws RangeError.
+  writeFileSync(file, JSON.stringify({ state: 'away', setAt: 'yesterday', setBy: 7, until: now + 1000 }));
+  const odd = readPresence(dir, now);
+  assert.equal(odd.state, 'away', 'the declaration itself still stands - only its trimmings were junk');
+  assert.equal(odd.setAt, null);
+  assert.equal(odd.setBy, null);
+  assert.doesNotThrow(() => new Date(odd.until).toISOString());
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('a policy written before presence existed still has a RAM floor', () => {
+  // `policy` is a documented option of `schedule`, and the floor used to be one number. Reaching
+  // for `.present` on a number yields undefined, `needsMb` becomes NaN, every `budgetedMb < NaN`
+  // is false - and the RAM check stops existing without a word. Measured on the first cut of this
+  // change: a whole suite admitted on 100 MB free. An old shape has to degrade, not misbehave.
+  const before = { ...POLICY, freeMemFloorMb: 4096 };
+  assert.equal(freeMemFloorFor('present', before), 4096);
+  assert.equal(freeMemFloorFor('away', before), 4096, 'one number means one floor, whoever is there');
+  assert.deepEqual(
+    schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 100, policy: before }).start,
+    [],
+    'a suite on 100 MB free is refused, exactly as it was before presence existed',
+  );
+  // And the day-wave suffix stays quiet, because with one floor presence is never the difference.
+  assert.doesNotMatch(
+    schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 3584, policy: before }).waiting[0].reason,
+    /presence away/,
+  );
+});
+
+test('the held-job message computes the memory it names, rather than quoting a number that will move', () => {
+  // The owner has been asked whether the away floor should go lower still. The sentence a waiting
+  // job prints must not be the thing that goes stale when he answers - so the difference is
+  // computed from the policy in force, and it scales with the job like every other figure here.
+  const lower = { ...POLICY, freeMemFloorMb: { present: 4096, away: 2048 } };
+  const suite = schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 3072, policy: lower }).waiting[0].reason;
+  assert.match(suite, /holds 2\.0 GB back/, 'a suite: 4096 - 2048');
+  const oneWalk = schedule([walk('j-0001')], { hour: NIGHT, freeMemMb: 1536, policy: lower }).waiting[0].reason;
+  assert.match(oneWalk, /holds 1\.0 GB back/, 'a walk pays half of that difference, like its floor');
+});
+
+test('a NOACG_JOBS_FREE_MB nobody can parse means the variable was not set, never no floor at all', async () => {
+  // `Number('4gb')` is NaN, and a NaN floor refuses nothing: `budgetedMb < NaN` is false for every
+  // reading, so a typo in this variable used to remove the RAM check rather than change it. That
+  // hole predates presence - the old spelling read the variable straight through `Number()` - and
+  // it is the same silent shape as the old policy object above, which is why both are pinned.
+  //
+  // POLICY reads the environment once, at module load, so each case imports a fresh copy. The
+  // query string is what makes it fresh: ES modules are cached by URL.
+  const floorsWith = async (value, tag) => {
+    const before = process.env.NOACG_JOBS_FREE_MB;
+    if (value === undefined) delete process.env.NOACG_JOBS_FREE_MB;
+    else process.env.NOACG_JOBS_FREE_MB = value;
+    try {
+      return (await import(`./jobs-store.mjs?floor-case=${tag}`)).POLICY.freeMemFloorMb;
+    } finally {
+      if (before === undefined) delete process.env.NOACG_JOBS_FREE_MB;
+      else process.env.NOACG_JOBS_FREE_MB = before;
+    }
+  };
+
+  for (const [value, tag] of [['4gb', 'words'], ['', 'empty'], ['-1', 'negative'], ['0', 'zero'], ['NaN', 'nan']]) {
+    const floors = await floorsWith(value, tag);
+    assert.equal(floors.present, 4096, `NOACG_JOBS_FREE_MB=${JSON.stringify(value)} must fall back, not disable`);
+    assert.equal(floors.away, 3072);
+  }
+
+  // A number it CAN parse still pins both, which is the documented override.
+  const pinned = await floorsWith('2048', 'pinned');
+  assert.equal(pinned.present, 2048);
+  assert.equal(pinned.away, 2048, 'an operator override is not something presence may loosen');
+});
+
 test('each job admitted in one pass spends the free memory the last one took', () => {
   // Every candidate used to be tested against the SAME reading, so N jobs that each fit the free
   // memory all started at once - four walks on 2.1 GB free, which is not four walks' worth of

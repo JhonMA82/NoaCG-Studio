@@ -346,8 +346,9 @@ answerable rather than silent:
             gigabyte free; `npm run jobs -- presence away` starts it now
 ```
 
-Presence moves the floor and nothing else. The concurrency budget above is still the clock's, so an
-away night runs one suite where the budget says one.
+Presence moves the floor and nothing else. The concurrency budget above is still the clock's: an
+away day runs the one suite the clock allows, and an away night the two - never more because
+nobody is home.
 
 ## What a job actually costs in RAM
 

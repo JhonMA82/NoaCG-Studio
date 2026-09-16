@@ -385,14 +385,21 @@ try {
     const live = pending(jobs);
     if (live.length > 0) {
       const { freemem } = await import('node:os');
+      // One read, used for both: the plan must be built on the same declaration this prints, or
+      // the summary explains a wait with a floor the scheduler did not use.
+      const machine = readPresence(dir);
       const plan = schedule(jobs, {
         hour: new Date().getHours(),
         freeMemMb: Math.round(freemem() / (1024 * 1024)),
-        // The same declaration the runner reads, so this summary and the runner never disagree
-        // about why a job is waiting.
-        presence: readPresence(dir).state,
+        presence: machine.state,
       });
       console.log('');
+      // An `away` declaration outlives the night it was set for, so a session starting in the
+      // morning is one of the few places it can be caught before it costs somebody their machine.
+      if (machine.state === 'away') {
+        console.log(`Machine marked AWAY until ${new Date(machine.until).toISOString()} - the queue's RAM floor is lowered.`);
+        console.log('  `npm run jobs -- presence present` if somebody is at it.');
+      }
       console.log(`Job queue: ${plan.running.length} running, ${plan.waiting.length} waiting (${plan.slots} slot(s) right now).`);
       for (const job of plan.running) console.log(`  running  ${job.id}  ${job.command}`);
       plan.waiting.slice(0, 5).forEach(({ job, reason }, i) => console.log(`  #${i + 1}       ${job.id}  ${reason}`));
