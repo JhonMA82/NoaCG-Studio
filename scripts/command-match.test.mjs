@@ -20,6 +20,7 @@ import {
   pushedUpdates,
   pushesAndDispatches,
   unfinishedRun,
+  pushReplacedNotice,
   requiresRunningDevServer,
   startsDevServer,
   SWEEP_SCRIPTS,
@@ -700,4 +701,45 @@ test('unfinishedRun speaks only when no run for the old tip reached a verdict', 
   // No run for the tip, or nothing to read, is nothing to say.
   assert.equal(unfinishedRun(oneCancelled, 'deadbeef'), null);
   assert.equal(unfinishedRun(null, 'a8ce0d1b'), null);
+});
+
+test('pushReplacedNotice tells a cancelled push and a cancelled dispatch opposite things', () => {
+  const where = { branch: 'claude/x', from: 'a8ce0d1bffffffff', to: 'b1b1b1b1ffffffff' };
+  const push = pushReplacedNotice({
+    ...where,
+    run: { databaseId: 42, conclusion: 'cancelled', status: 'completed', event: 'push' },
+  });
+  const dispatch = pushReplacedNotice({
+    ...where,
+    run: { databaseId: 43, conclusion: 'cancelled', status: 'completed', event: 'workflow_dispatch' },
+  });
+
+  // Both name the branch, the two tips and the run, because that is what the reader is looking for.
+  for (const notice of [push, dispatch]) {
+    assert.match(notice, /claude\/x/);
+    assert.match(notice, /a8ce0d1b/);
+    assert.match(notice, /b1b1b1b1/);
+    assert.match(notice, /gh run view <id> --json jobs/);
+  }
+  assert.match(push, /\b42\b/);
+  assert.match(dispatch, /\b43\b/);
+
+  // THE SPLIT THAT MATTERS. A cancelled PUSH run is covered by its replacement, so the notice says
+  // so and says a full suite is not the answer. A cancelled DISPATCH lost an override nothing
+  // replaces, so the notice must NOT claim coverage and must ask for the dispatch again.
+  assert.match(push, /cannot be narrower than the push run it replaced/);
+  assert.match(push, /A full suite is no longer the answer/);
+  assert.doesNotMatch(push, /DISPATCH, which has no diff base/);
+
+  assert.match(dispatch, /DISPATCH, which has no diff base/);
+  assert.match(dispatch, /Ask for the full suite again/);
+  assert.doesNotMatch(dispatch, /cannot be narrower/);
+  assert.doesNotMatch(dispatch, /A full suite is no longer the answer/);
+
+  // A run gh reported without an event is not a dispatch as far as this is concerned: the common
+  // case is a push, and claiming a lost override that nothing lost would send the reader to buy a
+  // suite for no reason. A still-running run has no conclusion, so the status stands in.
+  const noEvent = pushReplacedNotice({ ...where, run: { databaseId: 44, status: 'in_progress' } });
+  assert.match(noEvent, /cannot be narrower than the push run it replaced/);
+  assert.match(noEvent, /never finished \(in_progress\)/);
 });

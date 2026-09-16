@@ -255,28 +255,50 @@ built from the cache-hit step costs) stands in, `check:e2e-durations` says in wo
 are defaults, and **the first honest reading has to be recorded from a green FULL run on `main` with
 the cache in place**: `npm run record:e2e-durations`.
 
-**A GREEN run is not a verdict either, until you have read which jobs actually ran.** For an
-ordinary push the plan's base is still `github.event.before` - the PREVIOUS PUSH - and the
-concurrency group cancels the in-flight run on every new push to a branch. (The `--integration`
-fix above changes what a MERGE COMMIT is planned from; it does not change which commit an
-ordinary push diffs against.) So: push the change, then push a doc line two minutes later, and
-the second run plans only that doc line - `plan: {"mode":"none","specs":[],"catalog":false}`,
-every shard and the catalog tripwire SKIPPED, the run green on build and the factory gates alone -
-while the run that would have covered the change was cancelled before it finished. Nothing ever
-gated the change, and the tick says otherwise. Measured 2026-08-19 on
-`claude/catalog-names-stat-list-97cbd3`: three pushes in nine minutes, two cancelled, the survivor
-green with four of eight jobs skipped - on a branch whose whole subject was the catalog, which is
-the one thing `e2e/catalog-baseline.spec.ts` only ever checks in CI.
+**A GREEN run is not a verdict either, until you have read which jobs actually ran.**
 
 ```bash
 gh run view <id> --json jobs -q '.jobs[] | "\(.conclusion)\t\(.name)"'
 ```
 
-Skipped shards on a change that touches specs or the catalog mean the run answered a smaller
-question than you asked. Ask for the whole one: `gh workflow run ci.yml --ref <branch>`. A
-dispatched run has no `event.before`, finds no diff base, and escalates to the FULL suite by
-design. (A pull request does the same through `PR_BASE`, which is why a PR's run is trustworthy
-where a rapid second push's is not.)
+**The cancelled-predecessor hole closed on 2026-09-06, and it is worth knowing what it was,**
+because the habit it taught outlived it. The plan's base for an ordinary push used to be
+`github.event.before` - the PREVIOUS PUSH - while the concurrency group cancels the in-flight run
+on every new push to a branch. So: push the change, then push a doc line two minutes later, and
+the second run planned only that doc line, every shard SKIPPED, green on build and the factory
+gates alone, while the run that would have covered the change was cancelled before it finished.
+Nothing gated the change and the tick said otherwise. Measured 2026-08-19 on
+`claude/catalog-names-stat-list-97cbd3`: three pushes in nine minutes, two cancelled, the survivor
+green with four of eight jobs skipped - on a branch whose whole subject was the catalog, which is
+the one thing `e2e/catalog-baseline.spec.ts` only ever checks in CI.
+
+Since 2026-09-06 `ci.yml` measures EVERY branch push from `git merge-base origin/main HEAD`. That
+commit is an ancestor of the cancelled tip whatever the sequence was, so a replacement run plans
+the branch's whole work plus whatever `main` brought in since the fork, and it cannot plan less
+than the PUSH run it cancelled. Measured 2026-09-15 over 434 branch runs: 28 green runs came
+straight after a cancelled one and 8 of those ran no shard. Re-measured 2026-09-16 over the 158
+branch push runs of the preceding week, this time reading each one's plan rather than counting
+them: 12 were green straight after a cancelled run on the same branch, 4 of those ran no E2E
+shard, and all 4 planned `mode: none` from the merge-base over docs, handoffs, `.gitignore` and
+scripts the application never loads. No false green among them - which is what turns the earlier
+count from an upper bound into an answer.
+
+**The exception is a cancelled DISPATCH, and it is a real loss.** The concurrency group keys on
+the ref with no event in the key, so a push cancels an in-flight `gh workflow run` on the same
+branch. A dispatch has no diff base and runs everything; the push run that replaces it plans from
+the merge-base, which is narrower than what you had just bought. Nothing is uncovered - your own
+change is planned honestly - but the override is gone, so ask for it again. The defect itself is
+`docs/backlog/ci-concurrency-group-per-event.md`.
+
+**So read the job list for what it now tells you, which is the PLAN and not a hole.** A skipped
+shard means the classifier found nothing in the branch's whole diff against `main` that reaches
+the offline E2E surface - that is the plan being believed, and it is a verdict. What still repays
+the look is disagreeing with it: if the shards were skipped and you know you touched something
+that can reach the app, the map in `scripts/e2e-affected.mjs` is missing a rule, and that is a bug
+to fix rather than a run to re-buy. To override the plan itself, ask for the whole suite as its
+own command: `gh workflow run ci.yml --ref <branch>`. A dispatched run has no `event.before`,
+finds no diff base, and escalates to the FULL suite by design. (A pull request reaches the same
+honest base through `PR_BASE`.)
 
 ## One browser-driving job per MACHINE, not per worktree
 
