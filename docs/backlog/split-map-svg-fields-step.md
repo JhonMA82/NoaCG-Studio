@@ -22,10 +22,25 @@ bottleneck, and a file that every SVG-import row has to open is where parallel r
 
 ## What was done
 
-The step is **1,750 lines** with **36 hook calls** and one export. Four files now hold what was
+The step is **1,750 lines** with **35 hook calls** and one export. Four files now hold what was
 one, and the cut ran along a seam that already existed: every hook in the step sits above its
-`if (!svg) return null`, and everything below is derivation, handlers and JSX. **No hook moved and
-no hook order changed**, which is what made a 2,000-line extraction safe to do in one branch.
+`if (!svg) return null`, and everything below it is derivation, handlers and JSX. So the JSX and
+the handlers could move with no hook-order question to answer at all.
+
+**Seven hooks did move, and that is the part to check when extracting the next section.** The
+counts are 42 before, 42 after (`grep -o 'use(State|Ref|Effect|Memo|Callback|LayoutEffect)[<(]'`):
+35 left in the step, 6 in `FontsSection` (`fontBusy`, `fontError`, `uploadFor`, `fileInput`,
+`googleFamilies` and the index-loading effect) and 1 in `BehaviourSection` (the `fill` record).
+Each moved as a COMPLETE set into a component whose mount condition matches the lifetime that
+state already had, which is the condition that makes such a move safe:
+
+- `FontsSection` mounts on `draft.svgFonts.length > 0`, and its effect's own guard was already
+  `svgFonts.some(...)`, so the two are equivalent.
+- `BehaviourSection` is mounted UNCONDITIONALLY with its
+  `(textLayers.length > 0 || groups.length > 0)` guard inside it, precisely so `fill` keeps the
+  lifetime it had in the parent.
+
+What did not change is hook ORDER within any one component, and no hook crossed the early return.
 
 | File | Lines | What it holds |
 |---|---|---|
@@ -71,8 +86,13 @@ or `BehaviourSection.tsx` rather than in one shared 3,800-line file.
 Measured on `main` at `7e4b50aa`, 2026-09-15, and re-measured on
 `claude/qc-mapping-step-out-of-components` on 2026-09-16:
 
-- `wc -l` gave 3,827, now 1,750. `grep -c '^export'` gives 1 either way. All six React hooks:
-  48, now 36.
+- `wc -l` gave 3,827, now 1,750. `grep -c '^export'` gives 1 either way.
+- **Hook counts, with the command, because the two measurements here disagree.** The 2026-09-15
+  entry says 48 without naming its method and it does not reproduce. Counting call SITES with
+  `grep -o 'use\(State\|Ref\|Effect\|Memo\|Callback\|LayoutEffect\)[<(]' <file> | wc -l` gives
+  **42** at the merge base `0a5e3990` and **42** across the four files afterwards (35 + 6 + 1).
+  Use that command for the next entry; a bare number nobody can re-derive is what let the
+  "no hook moved" claim stand for a day before a review caught it.
 - Size history is `git show $(git rev-list -1 --before=<date> main):<path> | wc -l`, reading
   `steps/MapSvgFieldsStep.tsx` before the move.
 - Top-level declaration spans came from a line scan for `function|const` at column 0. A span counts
@@ -84,7 +104,9 @@ Measured on `main` at `7e4b50aa`, 2026-09-15, and re-measured on
 
 ## Trend
 
-- 2026-09-15: 3,827 lines, component body 2,714, 48 hooks, 913 lines of no-JSX logic, 11 commits
-  in the week.
-- 2026-09-16: **1,750 lines, 36 hooks**, split into four files; no hook order changed. The no-JSX
-  measurement layer stays under `components/` deliberately, with the reason recorded in §5.
+- 2026-09-15: 3,827 lines, component body 2,714, 48 hooks by an unstated count (42 by the command
+  above), 913 lines of no-JSX logic, 11 commits in the week.
+- 2026-09-16: **1,750 lines, 35 hooks in the step** and 42 across the four files it became - seven
+  moved out with the sections that own them, none crossed the early return, and no hook's order
+  within a component changed. The no-JSX measurement layer stays under `components/`
+  deliberately, with the reason recorded in `docs/ARCHITECTURE.md` §5.

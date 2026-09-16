@@ -203,11 +203,24 @@ was tried on paper and refused, because it costs more than the rule buys:
   (`wizard-import-through-its-index`) enforces its one door.
 
 What the rule is actually protecting - UI that cannot be reused from below and transforms hiding
-in the render tree - is answered instead by keeping the capability's boundary narrow. `draft.ts`
-exports exactly two functions to the rest of the wizard (`svgDesignOptions`,
-`withSvgImportPasses`) plus the `SvgImportDraft` shape `WizardDraft` extends, and `stageMeasure.ts`
-measures the step's own off-screen render, which nothing below the UI could call anyway. Re-open
-this only if that export surface starts growing again.
+in the render tree - is answered instead by keeping the capability's boundary narrow, and by
+MEASURING that rather than asserting it. Of the 15 functions `import/draft.ts` exports, **six are
+named anywhere outside `import/`**: `svgDesignOptions` and `withSvgImportPasses` (the two build
+doors `draft/core.ts` takes), `proposeSvgBehaviour` and `proposeSvgExtras` (the drop-time
+proposals, run by `CreationWizard.tsx`), `armTimerClock` (the same, on a field-kind change), and
+`behaviourSummary` (read by `FinishStep.tsx`). Plus the `SvgImportDraft` shape `WizardDraft`
+extends. `stageMeasure.ts` and `fieldAutoMap.ts` cross out not at all - they measure and propose
+over the step's own render, which nothing below the UI could call anyway.
+
+**Six is the number to watch, and this is how to count it** - re-open the exception if it grows:
+
+```
+node -e "const fs=require('fs'),p='src/components/wizard/import/draft.ts';
+const v=[...fs.readFileSync(p,'utf8').matchAll(/^export function (\w+)/gm)].map(m=>m[1]);
+const w=(d,o=[])=>{for(const e of fs.readdirSync(d,{withFileTypes:true})){const q=d+'/'+e.name;
+e.isDirectory()?w(q,o):/\.tsx?$/.test(e.name)&&!q.includes('/import/')&&o.push(q)}return o};
+const f=w('src');console.log(v.filter(n=>f.some(x=>new RegExp('\\\\b'+n+'\\\\b').test(fs.readFileSync(x,'utf8')))).join(' '))"
+```
 
 ## 6. Known debts (grandfathered, shrink-only)
 

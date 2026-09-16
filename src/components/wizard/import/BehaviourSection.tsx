@@ -33,6 +33,7 @@ import {
   recipeIdOf,
   rowKeysOf,
   withFill,
+  type FillBox,
   type FillLayer,
   type FillPick,
 } from './fieldAutoMap';
@@ -224,7 +225,7 @@ export default function BehaviourSection({
   /** The artwork's own ink bounds, which is what tells the fill guess whether a layer it is
    *  about to pick is a plate rather than a line (fieldAutoMap `isPlate`). Measured once per
    *  file by the step, because it is a fact about the DRAWING and not about the bindings. */
-  artworkInk: Parameters<typeof fillGap>[5];
+  artworkInk: FillBox | null;
   /** Point the preview's highlight at a layer while a picker names it. */
   setHoverId: (id: string | null) => void;
 }) {
