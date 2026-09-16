@@ -36,19 +36,28 @@ const commit = process.env.VERCEL_GIT_COMMIT_SHA || fromGit('rev-parse HEAD') ||
 const ref = process.env.VERCEL_GIT_COMMIT_REF || fromGit('rev-parse --abbrev-ref HEAD') || 'unknown';
 
 // The newest commit, at or before this build's commit, that can change what production serves.
-// `lastAffectingCommit` throws on a shallow checkout or a missing .git directory, and returns
-// null itself when the walked history runs out before finding one - both mean "cannot tell", so
-// they are kept apart from a real answer rather than folded into a guessed `false`.
+// `lastAffectingCommit` throws on a missing `.git` directory (no history to walk at all), and
+// returns null itself - without throwing - when a shallow checkout's truncated history runs out
+// before finding one. Both mean "cannot tell", so they are kept apart from a real answer rather
+// than folded into a guessed `false`.
 let lastDeployAffectingCommit = null;
-if (commit !== 'unknown') {
-  try {
-    lastDeployAffectingCommit = lastAffectingCommit(commit);
-  } catch {
-    lastDeployAffectingCommit = null;
-  }
+try {
+  lastDeployAffectingCommit = lastAffectingCommit(commit);
+} catch {
+  // already null
 }
 
 // null when it could not be determined at all - never a claimed `true` built on a guess.
+// Equality, not reachability: `lastDeployAffectingCommit` is always an ancestor-or-self of
+// `commit` (the walk starts at `commit`), so a looser "commit descends from it" check would be
+// true by construction and never say anything. The rare case this reads `false` for a build that
+// is arguably still fully current is a build whose own triggering commit is not itself
+// deploy-affecting but an earlier commit in the same unbuilt range is (e.g. a docs-only push that
+// a cancelled-and-superseded build folds an affecting commit into) - `commit` then differs from
+// `lastDeployAffectingCommit` while still containing it. That reads as "not current" here on
+// purpose: this field is a strict, conservative signal about THIS build's own commit, not a
+// substitute for deploy-verify.yml's live drift check, which already handles reachability against
+// whatever production is actually serving.
 const deployedCommitIsCurrent =
   lastDeployAffectingCommit === null ? null : commit === lastDeployAffectingCommit;
 
