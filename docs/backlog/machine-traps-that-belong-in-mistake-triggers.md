@@ -76,6 +76,36 @@ anyone reading the process table by hand.
 in the command itself (`scripts/hooks/guard-command.mjs`). Correct, and not obvious from the error
 the first time.
 
+## Four more, from the wave of 2026-09-16 (row QA)
+
+Copied out of `2026-09-16-qa-migration-0060-applies.md` when the seven spent handoffs of that wave
+were drained on 2026-09-16. The row's author flagged the first two himself, as "neither of which is
+in a repo file"; a repo-wide grep for `prosrc` and for `execute_sql` during the drain returned
+nothing but that handoff. Everything else in QA is carried by
+`docs/backlog/the-operator-door-guards-a-branch-and-not-a-leaf.md` and by the frozen-file notice in
+`supabase/migrations/0060_operator_data_patch.sql`.
+
+### Comparing a migration's functions against what the database really holds
+
+**Normalise line endings first.** The checkout is CRLF and Postgres stores the body with LF, so a
+naive hash of a function body disagrees on every function and looks like real drift. The byte
+counts differ by exactly one per line, which is the tell.
+
+**`length(prosrc)` counts characters, not bytes.** A body carrying an em dash or box-drawing
+characters shows a matching md5 beside a length four short. Trust the hash.
+
+**`supabase_migrations.schema_migrations.statements` stores the applied SQL**, comments included,
+so what actually ran is recoverable per statement. That is how a failure reported "at statement 15"
+was traced: 0060 applied as 16 statements, and the file had one fewer statement when it first
+failed.
+
+### Driving the operator door through the Supabase MCP
+
+**`execute_sql` runs read-only**, so a write path cannot be driven end to end through it. Re-derive
+the decision instead: run the guard's predicate, which is a pure read, with the bindings as a
+literal. The same tool cannot call `production_data_patch_paths` at all, because it is revoked from
+everything but `service_role`, which is the revoke working rather than a fault.
+
 ## What it would take
 
 Read them, decide which belong in `docs/MISTAKE_TRIGGERS.md` as triggers - the build-overlap one and

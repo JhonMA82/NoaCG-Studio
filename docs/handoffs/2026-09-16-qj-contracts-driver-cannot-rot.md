@@ -124,9 +124,15 @@ whether our write won, and not writing config mid-merge - apply to it unchanged.
 it: the row forbade editing QE's three files, and editing a queued branch's files from another
 branch is how the generated-file merge trap starts.
 
-QE also filed `docs/backlog/contracts-merge-driver-registers-a-path-that-goes-stale.md`, which this
-branch closes. That file exists only on QE's branch, so it cannot be deleted from here - whoever
-lands next should remove it once both are on `main`.
+QE also filed `docs/backlog/contracts-merge-driver-registers-a-path-that-goes-stale.md`, whose
+contracts half this branch closes.
+
+**Superseded 2026-09-16**, and the instruction that stood here - remove the file once both branches
+are on `main` - is withdrawn. Both are on `main`, and the file was re-pointed at the package driver
+instead of deleted, because the three repairs named above still have not travelled and one of them
+has teeth: `install()` there writes with a plain `git config <key> <value>`, which exits 5 against a
+doubled key and leaves the stale command in place. The re-derivation is in that file. Its NAME is
+now historic, and it is kept only because this paragraph cites it.
 
 ## Why not Codex
 
