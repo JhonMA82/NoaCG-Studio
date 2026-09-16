@@ -92,17 +92,6 @@ list, verb saves over CAS, republish by a member) is next and also needs no sche
 
 ## P2 Behaviour & Control
 
-**The core question - what NoaCG is actually trying to solve** (owner, 2026-08-22). Drawing a
-graphic without code is the easier half; the hard half is **giving it LOGIC, and then CHANGING that
-logic**, without code. A quiz that locks an answer and then reveals it is one set of rules - and the
-next producer wants no lock at all, just an immediate reveal. Two surfaces have been tried at this
-and neither landed as a way a non-programmer authors logic: the **canvas editor** and the **node
-editor**. The question stays open, it gets attacked from several angles rather than one, and it has
-no hard date. It is also the thing that decides whether NoaCG is usable by productions bigger than
-one school, so nothing here is a side quest. (Moved here verbatim from `docs/GOALS.md` on
-2026-09-16, when the roadmap was condensed back inside its line budget; the roadmap now names the
-question in one sentence and points at this entry for the argument.)
-
 State: DESIGN, as a standing research thread (owner, 2026-09-01 - "the search for the right model
 starts now"; do not defer serious exploration). Research rounds, prototypes and challenge
 scenarios run continuously beside other programmes' implementation.

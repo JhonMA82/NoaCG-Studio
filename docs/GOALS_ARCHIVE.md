@@ -2013,8 +2013,9 @@ prose that made the case for each one is below, and two blocks moved into the do
 subject rather than in here:
 
 - **The core question** - drawing a graphic without code is the easier half, the hard half is giving
-  it logic and then changing that logic - is now the opening of P2 in `docs/PROGRAMMES.md`, where
-  the rest of that programme's argument already lived. The roadmap names it in one sentence.
+  it logic and then changing that logic - is now the opening of §5 P2 in `docs/NORTH_STAR_2027.md`,
+  which is where the register's own contract puts a programme's argument. The roadmap names the
+  question in one sentence and calls it P2.
 - **The always-on quality bar** - the live suite runs before a class and after any change to
   publish, output or the topbar - is now a section of `docs/VERIFICATION.md`. It is a standing
   verification rule rather than a goal, and the roadmap holds only what is not done.
