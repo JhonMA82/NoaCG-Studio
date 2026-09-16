@@ -293,15 +293,16 @@
      tall window that makes them bigger, which is the owner's own tie-breaker when the two
      compete: "I would rather have the controls big than the monitors too big" (2026-08-21). */
   .pd-stagehead .pd-verb { min-height: 40px; justify-content: center; gap: 6px; }
-  /* `margin-left: auto` pushed it to the right of a ROW; in a grid it does nothing, and the
-     chip belongs under the buttons it describes either way. */
-  .pd-stagehead .pd-onair-line {
+  /* `margin-left: auto` pushed the small print to the right of a ROW; in a grid it does
+     nothing, and the chip and the checkbox belong under the buttons they describe either way:
+     one row spanning the pair, both centred, the checkbox one line under the chip. */
+  .pd-stagehead .pd-verb-aside {
     grid-column: 1 / -1;
     margin-left: 0;
     margin-top: 2px;
-    white-space: normal;
-    text-align: center;
+    align-items: center;
   }
+  .pd-stagehead .pd-onair-line { white-space: normal; text-align: center; }
 }
 /* PACKED, NOT SPREAD, once the window is tall. The grid above stretches its rows to the
    monitors' height, and on a tall window `align-content: stretch` has nothing left to do but
@@ -426,9 +427,54 @@
    states would be the very confusion this toggle exists to end. */
 .pd-verb-take.pd-verb-live { background: #2a2a30; border-color: rgba(255, 255, 255, 0.32); color: #f4f4f5; }
 .pd-verb-take.pd-verb-live:hover:not(:disabled) { background: #35353d; }
+/* The toggle's PREVIEW face ('preview-then-take' SPACE mode, on a cue not yet on PREVIEW).
+   Amber - the preview colour the monitors and the rundown tally already use - and never red,
+   because this press airs nothing. Same button, same key, same place; only the face changes,
+   which is how an operator learns the mode without relearning the bar. */
+.pd-verb-take.pd-verb-preview {
+  background: rgba(246, 166, 35, 0.12);
+  border-color: rgba(246, 166, 35, 0.75);
+  color: #f8c675;
+}
+.pd-verb-take.pd-verb-preview:hover:not(:disabled) { background: rgba(246, 166, 35, 0.2); }
+.pd-verb-take.pd-verb-preview kbd { background: rgba(0, 0, 0, 0.22); border-color: rgba(246, 166, 35, 0.45); color: #f8c675; }
 .pd-verb-secondary { border-color: rgba(255, 255, 255, 0.18); color: var(--text-dim); }
 .pd-verb:disabled { opacity: 0.4; }
-.pd-onair-line { margin-left: auto; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+/* THE BAR'S SMALL PRINT: the on-air chip and the SPACE-mode checkbox, one block at the bar's
+   end. One container rather than two loose items because a flex row with `margin-left: auto`
+   on the chip left the checkbox wrapping alone to the far left at 1200px, under TAKE, looking
+   like a field nobody finished. */
+.pd-verb-aside {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.pd-onair-line { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+/* THE SPACE-MODE CHECKBOX, beside the key it changes. Quiet on purpose: it is read once when
+   an operator sets up their habit and then never looked at again, so it takes the on-air
+   chip's size and colour and none of the buttons' weight. */
+.pd-space-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.pd-space-mode input { margin: 0; accent-color: var(--amber, #f6a623); }
+.pd-space-mode kbd {
+  font-family: var(--mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border);
+}
 .pd-onair { color: #ef4444; font-weight: 600; }
 
 /* ── The cue editor ────────────────────────────────────────────────────────── */
@@ -1352,7 +1398,11 @@
   .pd-verb kbd { display: none; }
   .pd-verb-take { flex: 1.6 1 0; }
   .pd-verbs .pd-verb-update { display: none; }
-  .pd-onair-line { display: none; }
+  /* The small print stands down with the bar's chips: the on-air chip has no room here, and
+     the SPACE mode names a KEY, which a phone has none of. The TAKE button still follows
+     whatever mode this browser set at a wider size (a tablet turned sideways), so nothing is
+     lost - only the control for changing it. */
+  .pd-verb-aside { display: none; }
   .pd-editor-update { display: inline-flex; }
 }
 

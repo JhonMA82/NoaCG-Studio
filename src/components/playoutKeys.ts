@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { loadSpaceMode, saveSpaceMode, SPACE_MODE_KEY, type SpaceMode } from '../model/productionState';
 
 /**
  * THE VERB KEYS of the playout dashboard (docs/PLAYOUT_DASHBOARD.md §2), as one implementation.
@@ -39,6 +40,11 @@ const KEY_MAP: Record<string, PlayoutVerb> = {
   // saying almost nothing. Selecting a cue in the rundown IS previewing it; the arrow keys walk
   // that selection. The EXPORTED controller keeps its own → Preview, where the word means
   // something else: it puts the cue on a real second output stream.
+  //
+  // The 'preview-then-take' SPACE mode (2026-09-16, `spaceAction` below) does not bring the
+  // key back: SPACE stays the one verb and the mode changes what its first press on a fresh
+  // cue does. The map is the same in both modes by design - an operator switching modes
+  // relearns one press, never the keyboard.
   ' ': 'take',
   // RE-TAKE is a key of its own, never the toggle wearing a second meaning. It replays a live
   // cue's entrance, which is a different intention from "put this on" and from "take it off",
@@ -108,4 +114,72 @@ export function stepSelection<T extends { id: string }>(
 /** Scroll a rundown row into view after the keys moved the selection there. */
 export function revealCue(testId: string): void {
   document.querySelector(`[data-testid="${testId}"]`)?.scrollIntoView({ block: 'nearest' });
+}
+
+// ── THE TWO SPACE MODES (docs/PLAYOUT_DASHBOARD.md §2, "Two Space modes"; owner, 2026-09-10). ──
+//
+// One decision for all three surfaces. The exported controller carries a copy of this table in
+// its own vanilla JS (`control/productionControllerHtml.ts`, `spaceAction`); a change here is
+// a change there, in the same commit, or the parity contract is broken.
+
+export type { SpaceMode };
+
+/** What one press of SPACE (or the TAKE button - the button IS the key) is about to do. */
+export type SpaceAction = 'preview' | 'take' | 'take-off';
+
+/**
+ * Decide the press from the SELECTED cue's state alone.
+ *
+ * 'take' mode is the toggle the dashboard has had since 2026-08-06: selecting a cue previews
+ * it, SPACE airs it, SPACE again takes it off. 'preview-then-take' is the owner's mixer cut:
+ * walking the rundown previews nothing, SPACE puts the selected cue on PREVIEW, SPACE again
+ * airs it, and SPACE on a cue that is on air takes it off and leaves it on PREVIEW. Off-air
+ * is the same gesture in both modes on purpose - a hand that learned "SPACE takes a live cue
+ * off" in one mode must not find a second press between it and a clean screen in the other.
+ */
+export function spaceAction(mode: SpaceMode, selected: { live: boolean; previewed: boolean }): SpaceAction {
+  if (selected.live) return 'take-off';
+  if (mode === 'preview-then-take' && !selected.previewed) return 'preview';
+  return 'take';
+}
+
+/** The TAKE button's face for an action, so the two React surfaces read the same words. */
+export function takeFace(action: SpaceAction): { text: string; title: string; className: string } {
+  if (action === 'take-off') {
+    return {
+      text: '■ TAKE OFF',
+      title: 'Take this cue OFF air. SPACE does the same',
+      className: 'pd-verb pd-verb-take pd-verb-live',
+    };
+  }
+  if (action === 'preview') {
+    // Amber, never red: red means "this puts something on air", and this press does not.
+    return {
+      text: '→ PREVIEW',
+      title: 'Show the selected cue on PREVIEW, nothing airs. SPACE again takes it to air',
+      className: 'pd-verb pd-verb-take pd-verb-preview',
+    };
+  }
+  return { text: '⟳ TAKE', title: 'Air the previewed cue', className: 'pd-verb pd-verb-take' };
+}
+
+/**
+ * The operator's mode, read once from this browser and written back on change. A write in
+ * another tab of the same browser is picked up through `storage`, so the in-app page and the
+ * hosted page never disagree on one machine.
+ */
+export function useSpaceMode(): [SpaceMode, (mode: SpaceMode) => void] {
+  const [mode, setModeState] = useState<SpaceMode>(loadSpaceMode);
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === SPACE_MODE_KEY) setModeState(loadSpaceMode());
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+  const setMode = useCallback((next: SpaceMode) => {
+    saveSpaceMode(next);
+    setModeState(next);
+  }, []);
+  return [mode, setMode];
 }

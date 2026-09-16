@@ -79,8 +79,6 @@ student draws the graphic, we supply the behaviour, and **a walk that is owed ne
       feedback and the costs are in the archive.
 - [ ] **Brands: make one, choose it in the wizard, the graphic adapts** (owner, 2026-09-05).
       **`docs/BRAND_PLAN.md`** holds the plan and the two wave rows, and parks level 2, the bible.
-- [ ] **Two Space-key modes, as an operator setting** (owner, ALIGN-2026-09-10-3; build before the
-      25th). `docs/backlog/space-sends-to-preview-then-to-program.md`.
 - [ ] **The production control profile, for 2026-10-20** (owner, 2026-09-15): the ARRANGE and
       COMBINE primitives, started 2026-09-15. `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6.
 

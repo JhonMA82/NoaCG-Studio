@@ -13,6 +13,14 @@
 // "⟳ TAKE" sends the same cue to the PROGRAM stream: the OBS/vMix sources (loaded with
 // ?stream=program) and the PGM monitor follow that one. Same rows, one `stream` field apart.
 //
+// TWO SPACE MODES (owner, 2026-09-10; docs/PLAYOUT_DASHBOARD.md §2 "Two Space modes"). The
+// checkbox in the verb bar picks them, per browser, from the same localStorage key the React
+// surfaces use. 'take' (default): selecting a cue previews it, SPACE airs it, SPACE again takes
+// it off. 'preview-then-take': selecting previews nothing; SPACE puts the selected cue on the
+// PREVIEW stream, SPACE again airs it, and SPACE on a live cue takes it off and leaves it on
+// PREVIEW. `spaceAction` below is a copy of the table in `components/playoutKeys.ts` - a change
+// to one is a change to both, in the same commit.
+//
 // Self-contained vanilla JS (no dependencies - it ships in a zip), same voice as
 // controlPanelHtml.ts, whose emitGraphic it reuses so the two generated surfaces cannot
 // disagree about a graphic's controls.
@@ -194,8 +202,19 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   /* The toggle's OFF half: not the take red, because red means "this puts something on air". */
   .verbs .take.live { background:#2a2a30; border-color:rgba(255,255,255,.32); color:#f4f4f5; }
   .verbs .take.live:hover:not(:disabled) { background:#35353d; }
+  /* The toggle's PREVIEW face ('preview-then-take' mode, on a cue not yet on PREVIEW): amber,
+     the preview colour, never red - this press airs nothing. */
+  .verbs .take.preview { background:rgba(246,166,35,.12); border-color:rgba(246,166,35,.75); color:#f8c675; }
+  .verbs .take.preview:hover:not(:disabled) { background:rgba(246,166,35,.2); }
+  .verbs .take.preview kbd { background:rgba(0,0,0,.22); border-color:rgba(246,166,35,.45); color:#f8c675; }
   .onair-line { margin-left:auto; font-size:12px; color:var(--dim); white-space:nowrap; }
   .onair-line b { color:var(--air); font-weight:600; }
+  /* The SPACE-mode checkbox, beside the key it changes; the on-air line's size and colour. */
+  .space-mode { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--dim);
+    white-space:nowrap; cursor:pointer; user-select:none; }
+  .space-mode input { margin:0; accent-color:#f6a623; }
+  .space-mode kbd { font-family:var(--mono); font-size:10px; letter-spacing:.06em; padding:1px 4px;
+    border-radius:4px; background:rgba(255,255,255,.07); border:1px solid var(--line); }
 
   /* The cue editor. */
   /* Content-sized, never a scroller: this is the pane the owner reported. */
@@ -354,6 +373,7 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
       <button id="v-next" title="Advance the on-air graphic one step">» Next <kbd>N</kbd></button>
       <button id="v-out" title="Play the selected cue's layer off air">■ Out <kbd>0</kbd></button>
       <span class="onair-line" id="live-line"></span>
+      <label class="space-mode" title="Checked: walking the rundown previews nothing. SPACE puts the selected cue on PREVIEW, SPACE again airs it, and SPACE on a cue that is on air takes it off and leaves it on PREVIEW. Unchecked: selecting a cue previews it and SPACE airs it."><input type="checkbox" id="space-mode"> <kbd>SPACE</kbd> previews first</label>
     </div>
     </div>
 
@@ -479,6 +499,21 @@ var drafts = {};   // cueId -> edited values overlay
 var pvwLive = {};  // graphic -> cueId on the preview stream
 var pgmLive = {};  // graphic -> cueId on the program stream
 var started = Date.now();
+// THE SPACE MODE, per browser - the same key and words the two React surfaces store, so one
+// machine's habit follows the operator across all three. An unreadable store means the default.
+var SPACE_MODE_KEY = 'spx-gfx-space-mode';
+function readSpaceMode() {
+  try { return localStorage.getItem(SPACE_MODE_KEY) === 'preview-then-take' ? 'preview-then-take' : 'take'; }
+  catch (e) { return 'take'; }
+}
+var spaceMode = readSpaceMode();
+// A COPY of components/playoutKeys.ts spaceAction - the one decision SPACE makes, read off
+// the selected cue's state alone. Off-air is the same gesture in both modes on purpose.
+function spaceAction(mode, live, previewed) {
+  if (live) return 'take-off';
+  if (mode === 'preview-then-take' && !previewed) return 'preview';
+  return 'take';
+}
 function cueById(id) { for (var i = 0; i < PAYLOAD.cues.length; i++) if (PAYLOAD.cues[i].id === id) return PAYLOAD.cues[i]; return null; }
 function graphicByName(name) { for (var i = 0; i < PAYLOAD.graphics.length; i++) if (PAYLOAD.graphics[i].name === name) return PAYLOAD.graphics[i]; return null; }
 function cueValues(cue) {
@@ -554,7 +589,12 @@ function allOut() {
 function toggleProgram() {
   var cue = cueById(selectedId);
   if (!cue) return;
-  if (pgmLive[cue.graphic] === cue.id) outCue('program');
+  var next = spaceAction(spaceMode, pgmLive[cue.graphic] === cue.id, pvwLive[cue.graphic] === cue.id);
+  if (next === 'take-off') {
+    outCue('program');
+    // The mixer cut: what leaves PROGRAM lands on PREVIEW. In 'take' mode it is already there.
+    if (spaceMode === 'preview-then-take' && pvwLive[cue.graphic] !== cue.id) takeTo('preview');
+  } else if (next === 'preview') takeTo('preview');
   else takeTo('program');
 }
 function retake() {
@@ -562,16 +602,20 @@ function retake() {
   if (cue && pgmLive[cue.graphic] === cue.id) takeTo('program');
 }
 // Walk the rundown from the keyboard: selecting is the same act as clicking a row, so it goes
-// to PREVIEW and nothing airs. With the toggle above, a whole production can be run from the
-// keys alone - which is also what makes a Stream Deck (a keyboard emulator) work here.
+// to PREVIEW in 'take' mode and is a cursor move in the other; nothing airs either way. With
+// the toggle above, a whole production can be run from the keys alone - which is also what
+// makes a Stream Deck (a keyboard emulator) work here.
+function selectCue(id) {
+  selectedId = id;
+  if (spaceMode === 'take') takeTo('preview');
+  paint();
+}
 function stepSelection(by) {
   if (!PAYLOAD.cues.length) return;
   var at = -1;
   for (var i = 0; i < PAYLOAD.cues.length; i++) if (PAYLOAD.cues[i].id === selectedId) at = i;
   var next = at < 0 ? (by > 0 ? 0 : PAYLOAD.cues.length - 1) : Math.min(PAYLOAD.cues.length - 1, Math.max(0, at + by));
-  selectedId = PAYLOAD.cues[next].id;
-  takeTo('preview');
-  paint();
+  selectCue(PAYLOAD.cues[next].id);
   var el = document.getElementById('cue-' + selectedId);
   if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
 }
@@ -582,6 +626,14 @@ document.getElementById('v-update').onclick = updateLive;
 document.getElementById('v-next').onclick = nextLive;
 document.getElementById('v-out').onclick = function () { outCue('program'); };
 document.getElementById('v-allout').onclick = allOut;
+document.getElementById('space-mode').onchange = function (e) {
+  spaceMode = e.target.checked ? 'preview-then-take' : 'take';
+  try { localStorage.setItem(SPACE_MODE_KEY, spaceMode); } catch (err) { /* the choice lasts this session */ }
+  // A checkbox is an INPUT and the verb keys stand down while one has focus - right while
+  // typing a name, wrong here: the next SPACE would flip the mode back instead of taking.
+  e.target.blur();
+  paint();
+};
 
 // The verb KEYS (docs/PLAYOUT_DASHBOARD.md §2). Never while typing — the fields live on this
 // same surface, and a space inside a name must stay a space.
@@ -654,7 +706,7 @@ function paint() {
       '<span class="body"><span class="nm">' + esc(cue.label) + '</span>' +
       '<span class="sub">' + lay + esc(cue.note || cue.graphic) + '</span></span>' +
       (onAir ? '<span class="tag air">ON AIR</span>' : onPvw ? '<span class="tag pv">PVW</span>' : '');
-    el.onclick = function () { selectedId = cue.id; takeTo('preview'); paint(); };
+    el.onclick = function () { selectCue(cue.id); };
     host.appendChild(el);
   });
 
@@ -665,20 +717,30 @@ function paint() {
     var gg = graphicByName(b); if (gg && (pgmLayer === null || gg.layer > pgmLayer)) pgmLayer = gg.layer;
   }
   var sel = cueById(selectedId);
-  document.getElementById('pvw-label').textContent = pvwNames.length ? pvwNames.join(' · ') : (sel ? sel.label : '');
+  // With nothing on the PREVIEW stream, 'take' mode names the selection (it is on its way
+  // there); the other mode says the truth, because nothing is.
+  document.getElementById('pvw-label').textContent = pvwNames.length
+    ? pvwNames.join(' · ')
+    : (spaceMode === 'preview-then-take' ? 'nothing in preview' : (sel ? sel.label : ''));
   document.getElementById('pgm-label').textContent = pgmNames.length ? pgmNames.join(' · ') : 'nothing on air';
   document.getElementById('pgm-layer').textContent = pgmLayer === null ? '' : 'L' + pgmLayer;
   document.getElementById('live-line').innerHTML = pgmNames.length
     ? 'on air: <b>● ' + esc(pgmNames.join(' · ')) + '</b>'
     : '○ nothing on air';
   document.getElementById('v-allout').disabled = pgmNames.length === 0;
-  // The toggle's two faces, painted from the same fact the key reads.
+  // The toggle's faces, painted from the same decision the key runs.
   var selLive = !!(sel && pgmLive[sel.graphic] === sel.id);
+  var selPvw = !!(sel && pvwLive[sel.graphic] === sel.id);
+  var next = spaceAction(spaceMode, selLive, selPvw);
   var take = document.getElementById('v-take');
-  take.innerHTML = selLive ? '■ TAKE OFF <kbd>SPACE</kbd>' : '⟳ TAKE <kbd>SPACE</kbd>';
-  take.className = selLive ? 'take live' : 'take';
-  take.title = selLive ? 'Take this cue OFF air — the same thing SPACE does' : 'Air the previewed cue';
+  take.innerHTML = next === 'take-off' ? '■ TAKE OFF <kbd>SPACE</kbd>'
+    : next === 'preview' ? '→ PREVIEW <kbd>SPACE</kbd>' : '⟳ TAKE <kbd>SPACE</kbd>';
+  take.className = next === 'take-off' ? 'take live' : next === 'preview' ? 'take preview' : 'take';
+  take.title = next === 'take-off' ? 'Take this cue OFF air — the same thing SPACE does'
+    : next === 'preview' ? 'Show the selected cue on PREVIEW, nothing airs. SPACE again takes it to air'
+    : 'Air the previewed cue';
   take.disabled = !sel;
+  document.getElementById('space-mode').checked = spaceMode === 'preview-then-take';
   // Greyed, never removed: a verb that appeared would shove the ones after it sideways at the
   // moment a cue goes live.
   document.getElementById('v-retake').disabled = !selLive;

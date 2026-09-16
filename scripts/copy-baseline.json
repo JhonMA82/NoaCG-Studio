@@ -23,7 +23,7 @@
       "em-dash": 12
     },
     "src/components/HostedControlPage.tsx": {
-      "em-dash": 14
+      "em-dash": 13
     },
     "src/components/InsertTemplateDialog.tsx": {
       "em-dash": 5
@@ -95,7 +95,7 @@
       "em-dash": 5
     },
     "src/components/home/ProductionPage.tsx": {
-      "em-dash": 30
+      "em-dash": 29
     },
     "src/components/home/ProductionPicker.tsx": {
       "em-dash": 2

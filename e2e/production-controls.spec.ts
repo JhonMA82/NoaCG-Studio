@@ -1,4 +1,4 @@
-import { test, expect, type Page, type Route } from '@playwright/test';
+import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { createProject } from './_create';
@@ -1659,4 +1659,247 @@ test('the EXPORTED controller says where its combined controls run, and carries 
   // The generated panel under it is untouched: this is a degradation of the production's own
   // buttons, never of the graphic's.
   await expect(ctl.locator('#editor-events button', { hasText: 'Start clock' })).toBeVisible();
+});
+
+// ── THE TWO SPACE MODES (owner, 2026-09-10, docs/PLAYOUT_DASHBOARD.md §2 "Two Space modes"). ──
+//
+// A two-cue rundown of one lower third, driven from the keys the way an operator drives it.
+// Both modes are pinned on this page; the exported controller has its own copy of the decision
+// and is pinned below it; the hosted page reads the same table (hosted-control.spec.ts).
+
+/** A production of two cues on one lower third, named so the rundown reads in order. */
+async function twoCueRundown(page: Page): Promise<Locator> {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Evening News');
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await page.getByTestId('cue-label').fill('Anna');
+  await expect(rows.first()).toContainText('Anna');
+  await page.getByTestId('add-cue').click();
+  await expect(rows).toHaveCount(2);
+  await page.getByTestId('cue-label').fill('Ben');
+  await expect(rows.nth(1)).toContainText('Ben');
+  // The verb keys stand down while a field has focus; the walk below is from the rundown.
+  await page.getByTestId('cue-label').blur();
+  return rows;
+}
+
+test('SPACE previews first: the cursor previews nothing, SPACE stages, SPACE airs, SPACE cuts back to PREVIEW', async ({
+  page,
+}) => {
+  const rows = await twoCueRundown(page);
+  const previewWhat = page.getByTestId('preview-what');
+  const take = page.getByTestId('verb-take');
+  const chip = page.getByTestId('live-cue-chip');
+  const mode = page.getByTestId('space-mode');
+
+  // Unchecked is the default, and today's behaviour: Ben was selected by adding him, so he is
+  // on PREVIEW.
+  await expect(mode).not.toBeChecked();
+  await expect(previewWhat).toHaveText('Ben');
+  await mode.check();
+  await expect(mode).toBeChecked();
+  // Switching keeps the picture still: what the operator was looking at stays on PREVIEW.
+  await expect(previewWhat).toHaveText('Ben');
+
+  // THE CURSOR IS ONLY A CURSOR. Up to Anna: she is selected, Ben is still on PREVIEW, and the
+  // button says what the next press does. (The checkbox blurred itself on the click, so this
+  // arrow reached the rundown rather than the checkbox.)
+  await page.keyboard.press('ArrowUp');
+  await expect(rows.nth(0)).toHaveClass(/selected/);
+  await expect(rows.nth(0)).not.toHaveClass(/on-pvw/);
+  await expect(rows.nth(1)).toHaveClass(/on-pvw/);
+  await expect(previewWhat).toHaveText('Ben');
+  await expect(take).toHaveText(/→ PREVIEW/);
+  await expect(page.locator('.pd-editor-kicker')).toHaveText(/SELECTED CUE · 1/);
+
+  // SPACE stages. Nothing airs; the press was a verb, not a second flip of the checkbox.
+  await page.keyboard.press('Space');
+  await expect(mode).toBeChecked();
+  await expect(rows.nth(0)).toHaveClass(/on-pvw/);
+  await expect(rows.nth(1)).not.toHaveClass(/on-pvw/);
+  await expect(previewWhat).toHaveText('Anna');
+  await expect(chip).toContainText('nothing on air');
+  await expect(take).toHaveText(/⟳ TAKE/);
+  await expect(page.locator('.pd-editor-kicker')).toHaveText(/PREVIEW CUE · 1/);
+
+  // SPACE airs, and the cue STAYS on PREVIEW so the next press is the off half of the toggle.
+  await page.keyboard.press('Space');
+  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(chip).toContainText('Anna');
+  await expect(previewWhat).toHaveText('Anna');
+  await expect(take).toHaveText(/■ TAKE OFF/);
+
+  // SPACE takes it off and leaves it on PREVIEW.
+  await page.keyboard.press('Space');
+  await expect(rows.nth(0)).not.toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/on-pvw/);
+  await expect(chip).toContainText('nothing on air');
+
+  // THE MIXER CUT from a cue the cursor had left. Anna back on air; Ben staged beside her (she
+  // stays up - PREVIEW is a check, not a tally); back to Anna, and SPACE takes her off AND puts
+  // her on PREVIEW in Ben's place.
+  await page.keyboard.press('Space');
+  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Space');
+  await expect(rows.nth(1)).toHaveClass(/on-pvw/);
+  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(previewWhat).toHaveText('Ben');
+  await page.keyboard.press('ArrowUp');
+  await expect(take).toHaveText(/■ TAKE OFF/);
+  await page.keyboard.press('Space');
+  await expect(rows.nth(0)).not.toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/on-pvw/);
+  await expect(rows.nth(1)).not.toHaveClass(/on-pvw/);
+  await expect(previewWhat).toHaveText('Anna');
+  await expect(chip).toContainText('nothing on air');
+
+  // The habit survives a reload; the PREVIEW does not, because a check of what is about to air
+  // is not something to trust from before the page went away.
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('space-mode')).toBeChecked();
+  await expect(page.getByTestId('preview-what')).toHaveText('nothing in preview');
+  await expect(page.locator('.pd-pvw .pd-frame-empty')).toContainText('SPACE on the selected cue');
+  await expect(page.getByTestId('verb-take')).toHaveText(/→ PREVIEW/);
+});
+
+test('the default SPACE mode is unchanged: selecting previews, SPACE airs, SPACE takes off', async ({ page }) => {
+  const rows = await twoCueRundown(page);
+  const previewWhat = page.getByTestId('preview-what');
+  const take = page.getByTestId('verb-take');
+  await expect(page.getByTestId('space-mode')).not.toBeChecked();
+
+  // Walking the rundown IS previewing: the arrow moves the amber tally with the cursor.
+  await page.keyboard.press('ArrowUp');
+  await expect(rows.nth(0)).toHaveClass(/selected/);
+  await expect(rows.nth(0)).toHaveClass(/on-pvw/);
+  await expect(rows.nth(1)).not.toHaveClass(/on-pvw/);
+  await expect(previewWhat).toHaveText('Anna');
+  // There is no PREVIEW face in this mode: the first press airs.
+  await expect(take).toHaveText(/⟳ TAKE/);
+  await page.keyboard.press('Space');
+  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(take).toHaveText(/■ TAKE OFF/);
+  await page.keyboard.press('Space');
+  await expect(rows.nth(0)).not.toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/on-pvw/);
+
+  // The two modes are the same table on every surface - the decision itself, pinned once.
+  const table = await page.evaluate(async () => {
+    const { spaceAction } = await import('/src/components/playoutKeys.ts');
+    const states = [
+      { live: false, previewed: false },
+      { live: false, previewed: true },
+      { live: true, previewed: true },
+      { live: true, previewed: false },
+    ];
+    return {
+      take: states.map((s) => spaceAction('take', s)),
+      previewThenTake: states.map((s) => spaceAction('preview-then-take', s)),
+    };
+  });
+  expect(table.take).toEqual(['take', 'take', 'take-off', 'take-off']);
+  expect(table.previewThenTake).toEqual(['preview', 'take', 'take-off', 'take-off']);
+});
+
+test('the EXPORTED controller carries both SPACE modes, read off the relay: preview stream first, then program', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(180_000);
+  // The third surface, with its own copy of the decision (docs/CONTROL_PANEL_PARITY.md). Its
+  // PREVIEW is a real second stream, so "on PREVIEW" is a row on the wire and the assertions
+  // read the wire: which STREAM each `cue` tally row went to, and in what order.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const b64 = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const shows = await import('/src/model/shows.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const tpl = variantById('lt01')!.create({});
+    const { doc } = createGraphic(tpl, { name: 'Hairline' });
+    const show = shows.createShowNamed('Evening News');
+    shows.addGraphicToShow(show.id, tpl, { graphicId: doc!.id });
+    const first = shows.loadShows().find((s) => s.id === show.id)!;
+    shows.updateShowCue(show.id, first.cues![0].id, { label: 'Anna' });
+    shows.addShowCue(show.id, first.graphics[0].id, { label: 'Ben' });
+    const fresh = shows.loadShows().find((s) => s.id === show.id)!;
+    const zip = await buildShowZipFor(fresh, 'html-overlay');
+    return zip.generateAsync({ type: 'base64' });
+  });
+
+  const zip = await JSZip.loadAsync(b64, { base64: true });
+  const files = new Map<string, string>();
+  for (const n of Object.keys(zip.files)) {
+    if (!zip.files[n].dir && /\.(html|json)$/.test(n)) files.set(n.replace(/^[^/]+\//, ''), await zip.file(n)!.async('string'));
+  }
+  const { serve, rows } = relayServe(files);
+  const origin = 'http://evening-host.local';
+  const ctl = await context.newPage();
+  await routeOrigin(ctl, origin, serve);
+  await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
+  await expect(ctl.locator('#mode')).toContainText('SHOW');
+
+  /** The tally rows so far, as `stream:on|off`, oldest first. Both cues are one graphic, so the
+   *  stream and the direction are the whole story. */
+  const tallies = () =>
+    rows
+      .filter((r) => (r.msg as { t: string }).t === 'cue')
+      .map((r) => `${r.stream}:${(r.msg as { cue: string | null }).cue === null ? 'off' : 'on'}`);
+  const anna = ctl.locator('.cue', { hasText: 'Anna' });
+  const ben = ctl.locator('.cue', { hasText: 'Ben' });
+  const take = ctl.locator('#v-take');
+  const mode = ctl.locator('#space-mode');
+
+  // DEFAULT MODE: the page opens with the first cue selected, and selecting a row previews it.
+  await expect(mode).not.toBeChecked();
+  await ben.click();
+  await expect(ben).toHaveClass(/on-pvw/, { timeout: 10_000 });
+  expect(tallies()).toEqual(['preview:on']);
+  await expect(take).toHaveText(/⟳ TAKE/);
+
+  // PREVIEW-THEN-TAKE. Selecting Anna sends nothing; the button says the next press previews.
+  await mode.check();
+  await expect(mode).toBeChecked();
+  await anna.click();
+  await expect(anna).toHaveClass(/selected/);
+  await expect(take).toHaveText(/→ PREVIEW/);
+  expect(tallies()).toEqual(['preview:on']);
+
+  // SPACE stages: one preview-stream tally, no program row. The press was a verb, and the
+  // checkbox is still checked - it gave the keys back on its own click.
+  await ctl.keyboard.press('Space');
+  await expect(anna).toHaveClass(/on-pvw/, { timeout: 10_000 });
+  await expect(mode).toBeChecked();
+  expect(tallies()).toEqual(['preview:on', 'preview:on']);
+  await expect(take).toHaveText(/⟳ TAKE/);
+
+  // SPACE airs; SPACE takes off. Both program-stream rows, and PREVIEW keeps the cue.
+  await ctl.keyboard.press('Space');
+  await expect(anna).toHaveClass(/on-air/, { timeout: 10_000 });
+  await expect(take).toHaveText(/■ TAKE OFF/);
+  await ctl.keyboard.press('Space');
+  await expect(anna).not.toHaveClass(/on-air/, { timeout: 10_000 });
+  await expect(anna).toHaveClass(/on-pvw/);
+  expect(tallies()).toEqual(['preview:on', 'preview:on', 'program:on', 'program:off']);
+
+  // THE MIXER CUT from a cue the cursor left: Anna on air, Ben staged over her on PREVIEW (same
+  // graphic, same layer), back to Anna, SPACE. Program goes off, and Anna returns to PREVIEW
+  // with a preview-stream row of her own, because Ben had taken that stream from her.
+  await ctl.keyboard.press('Space');
+  await expect(anna).toHaveClass(/on-air/, { timeout: 10_000 });
+  await ctl.keyboard.press('ArrowDown');
+  await expect(ben).toHaveClass(/selected/);
+  await ctl.keyboard.press('Space');
+  await expect(ben).toHaveClass(/on-pvw/, { timeout: 10_000 });
+  await expect(anna).toHaveClass(/on-air/);
+  await ctl.keyboard.press('ArrowUp');
+  await expect(take).toHaveText(/■ TAKE OFF/);
+  await ctl.keyboard.press('Space');
+  await expect(anna).not.toHaveClass(/on-air/, { timeout: 10_000 });
+  await expect(anna).toHaveClass(/on-pvw/);
+  await expect(ben).not.toHaveClass(/on-pvw/);
+  expect(tallies().slice(-3)).toEqual(['preview:on', 'program:off', 'preview:on']);
 });

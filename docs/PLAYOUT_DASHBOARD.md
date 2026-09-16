@@ -259,14 +259,17 @@ Two columns. **The PAGE is the only scroller; every block on it is content-sized
   it RE-TOOK, so one surface had two behaviours and the label read wrong to a hand already on
   the key). Following SPX, one control turns a graphic on and off: it reads **⟳ TAKE `SPACE`**
   off air and **■ TAKE OFF `SPACE`** while that cue is live, and the click does exactly what the
-  press does. `0` means Out from either state.
+  press does. `0` means Out from either state. **Since 2026-09-16 the operator can choose a second
+  mode for this one control** - SPACE previews first, then airs - and the button wears a third
+  face for it; §2f is the contract.
 - **RE-TAKE is a SECONDARY control** — Take on a cue that is already live: it sends the cue's
   current values and replays the entrance, which is the graphic's own reset. That makes it the
   gesture for airing the NEXT row onto a layer that is already up (load the row, `R`), which is
   how the quiz bank walks. Its own button and its own key, never the primary button's live state. Like every other verb it stays in place and greys out when it
   does not apply, so nothing on the bar moves sideways at the moment a cue goes live.
-- **`↑`/`↓` walk the rundown**, selecting a cue exactly as clicking it does (to PREVIEW; nothing
-  airs). With the toggle, that makes the whole surface operable from the keys alone — which is
+- **`↑`/`↓` walk the rundown**, selecting a cue exactly as clicking it does (to PREVIEW in the
+  default mode, a cursor move in the other - §2f; nothing airs either way). With the toggle,
+  that makes the whole surface operable from the keys alone — which is
   also what makes a **Stream Deck** work today, since one is a keyboard emulator by default. A
   dedicated plugin (WebSocket, live button state) is a separate project and is not started.
 - **The keymap is ONE module, `src/components/playoutKeys.ts`**, read by both React surfaces
@@ -371,6 +374,71 @@ docs/CONTROL_PANEL_PARITY.md §4.
 
 **Still open**: a shared title PREFIX ("Team …", "Score …") as a weaker grouping for what the side
 rule refuses. Nothing in the catalog needs it today, which is why it is not written.
+
+### 2f. Two Space modes - the operator's checkbox (owner 2026-09-10, built 2026-09-16)
+
+**The ask, in his words** (`docs/OWNER_RULINGS.md` ALIGN-2026-09-10-3): *"I think we need to have
+a checkbox for this so the operator can choose for themselves. One is that you press Space and it
+goes to the preview and then you press Space again and it goes to program. That would mean that
+when you go up and down the queue list, nothing gets automatically put into the preview. If the
+graphic that you have chosen is selected in the queue list and it's in the program, then when you
+press space again, it disappears from the program and is just in the preview. It works like a cut
+button on a mixer."* The other mode is today's toggle, unchanged.
+
+**The setting.** A checkbox, **`SPACE` previews first**, in the verb bar under the on-air chip on
+all three surfaces (`components/SpaceModeToggle.tsx`, and the controller's own copy). It sits
+beside the key it changes, not on a settings screen, for the reason the playout layer sits in the
+cue editor: the operator decides this with a hand on the key. Unchecked is the default. It is a
+person's habit, so it lives in `localStorage` under `spx-gfx-space-mode`
+(`model/productionState.ts`), per browser, never synced, and unversioned - one word with a safe
+default, and an unknown value reads as the default. The in-app and hosted pages share one value
+on one machine; the exported controller keeps its own under the same key on the relay's origin.
+The phone hides the checkbox with the on-air chip: the mode names a key a phone does not have,
+and the TAKE button still follows whatever a wider window set.
+
+**The model (binding). SPACE always acts on the SELECTED cue, and reads that cue's state alone:**
+
+| the selected cue is | `take` (default) | `preview-then-take` |
+|---|---|---|
+| on air | off air | off air, **and it becomes the cue on PREVIEW** |
+| on PREVIEW, off air | airs | airs, and **stays on PREVIEW** |
+| neither | cannot happen: selection is preview | **goes to PREVIEW**; nothing airs |
+
+- **"On PREVIEW" is one cue on the React surfaces**, page state and never stored: a check of what
+  is about to air does not survive a reload, so a reloaded page starts with PREVIEW empty
+  ("nothing in preview") and the button reading **→ PREVIEW**. On the exported controller PREVIEW
+  is the real second stream it has always been, one tally per layer, and "on PREVIEW" is a row
+  on the wire.
+- **Staging REPLACES what was on PREVIEW.** A replaced cue that is on air stays on air: PREVIEW
+  is a check, never a tally. So the cut from a cue the cursor had left - Anna on air, Ben staged,
+  back to Anna, SPACE - takes Anna off and puts her on PREVIEW in Ben's place.
+- **Off-air is one press in both modes, on purpose.** A hand that learned "SPACE takes a live cue
+  off" in one mode must never find a second press between it and a clean screen in the other.
+  `0` still means Out from either state and never touches PREVIEW.
+- **The editor follows the SELECTION on all three surfaces** - what the exported controller has
+  always done - and the PREVIEW monitor follows only the staged cue. The kicker reads **EDITING
+  SELECTED CUE** while the cursor is ahead of the monitor, PREVIEW CUE once SPACE has caught it
+  up; the too-long warning is shown only when the edited cue is the one PREVIEW measured; the
+  hosted page's live-edit refreshes PREVIEW only while the edited cue is on it.
+- **The button IS the key, so it has three faces**, all from one decision (`spaceAction`):
+  **→ PREVIEW** (amber, the preview colour - never red, because the press airs nothing),
+  **⟳ TAKE** and **■ TAKE OFF**. Ticking the box stages what was on PREVIEW so the picture stands
+  still; unticking makes the selection the preview again.
+- **The checkbox blurs itself on the click.** It is an `INPUT`, and the verb keys stand down while
+  one has focus; without the blur the next SPACE flipped the mode back instead of taking.
+
+**Why this reading of "a cut button on a mixer".** A mixer's cut swaps PVW and PGM in one press.
+His first two sentences make airing a separate press from previewing, so the swap's forward half
+is not what he asked for; its return half is exactly his third sentence - what leaves PROGRAM
+lands on PREVIEW. That is the cut here. A reading where SPACE on a live cue only staged it, and a
+second press took it off, was rejected for the off-air reason above.
+
+**Where it is decided, and pinned.** `components/playoutKeys.ts` (`spaceAction`, `takeFace`,
+`useSpaceMode`) for both React surfaces; `control/productionControllerHtml.ts` carries a copy of
+`spaceAction`, and a change to one is a change to both in the same commit. Both modes are pinned
+on the in-app page and the exported controller in `e2e/production-controls.spec.ts`, the storage
+contract in `e2e/hosted-control.spec.ts`, and the hosted page's own walk in
+`e2e/configured/hosted-space-modes.spec.ts`.
 
 ## 3. Layout — phone
 
