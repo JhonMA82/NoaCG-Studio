@@ -1039,3 +1039,40 @@ What it changes:
 - **Copying OGraf Studio code is allowed as an option**, subject to the exact-file licence review
   in `docs/OGRAF_STUDIO_RESEARCH.md` §9: the code is AGPL-3.0-only and its runtime ships inside
   every export.
+
+---
+
+## 2026-09-16 - the RAM floor follows presence, and away means the whole machine
+
+Asked at 13:00 UTC, during the day wave, whether this wave could go over the queue's 4 GB free-RAM
+floor. He answered:
+
+> Not on the computer, ok to use it all.
+
+This is the second half of what he asked for the evening before (2026-09-15, recorded as the rule
+`jobs/owner-away-machine-job-queue-may` and as
+`docs/backlog/ram-floor-by-presence-not-by-guess.md`):
+
+> if I'm not on the computer then it's okay to use more RAM and also to check whether we actually
+> need 4 GB ready every time so we aren't too conservative with the RAM. Of course during a workday
+> when I'm at the computer, I need 4 GB of RAM probably, maybe. During a day wave it's always good
+> to ask if you can go over 4 GB.
+
+**What it settles.** Presence decides the allowance, not the clock and not one constant. When he is
+away the queue may spend the free memory the machine has; when he is at the machine it keeps his
+gigabyte free. The 2026-09-15 wording tied the looser floor to "not on the computer" and the
+stricter one to "a workday when I'm at the computer", and this answer confirms the same split on a
+day that was neither a night nor a wave he was watching. It also answers his second question, which
+was whether 4 GB is needed every time: it is not. Measured on this box on 2026-09-16
+(`docs/JOB_RUNNER_PLAN.md`, "What a job actually costs in RAM"), a browser walk peaks at about
+1.4 GB, so a suite-equivalent costs about 3 GB. The floor for an away machine is that measured cost,
+3072 MB; the 4096 MB kept when he is present is the same cost plus roughly a gigabyte left for
+whoever is at the keyboard.
+
+**What it does not settle.** It is not a ruling about the concurrency budget - one suite by day and
+two by night are unchanged, and the floor stays an admission check on a single job rather than part
+of that budget. It does not say the queue may page the machine: below the away floor a suite still
+waits, because a box that swaps runs every job slower rather than more of them. And it is not
+standing permission to leave the machine marked away - presence is an explicit signal that expires,
+so a forgotten "away" reverts to the safe answer rather than spending the machine out from under
+him the next morning.

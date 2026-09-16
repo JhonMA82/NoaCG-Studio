@@ -16,6 +16,7 @@ import {
   MAX_LANDING_RETRIES,
   NO_VERDICT_EXIT,
   POLICY,
+  PRESENCE_TTL_MS,
   addJob,
   adoptOrphanedLandings,
   cancelVerdict,
@@ -27,6 +28,7 @@ import {
   expiredJobIds,
   finishedSince,
   flagValue,
+  freeMemFloorFor,
   giveUpReason,
   hasFlag,
   landingRow,
@@ -35,7 +37,9 @@ import {
   pending,
   pruneJobs,
   readJobs,
+  readPresence,
   reapDead,
+  writePresence,
   refusalForWorktree,
   refusalGuidance,
   requeueDecision,
@@ -332,6 +336,107 @@ test('a single browser walk starts on the RAM a suite is rightly refused', () =>
   // And a session that declares a smaller cost gets a smaller floor with it.
   const declared = walk('j-0001', { cost: 0.25 });
   assert.deepEqual(schedule([declared], { hour: NIGHT, freeMemMb: 1100 }).start.map((j) => j.id), ['j-0001']);
+});
+
+// -- Presence: who is at the machine decides the floor ------------------------------------------
+//
+// Owner 2026-09-16, asked whether the day's wave could go over the 4 GB floor: "Not on the
+// computer, ok to use it all" (docs/OWNER_RULINGS.md). The gigabyte between the two floors is his
+// working room, so it is kept only while somebody might be using it - and every case below is
+// about the direction that mistake can go. Spending the machine out from under a person who is
+// using it is the failure; making an agent wait is an inconvenience.
+
+test('the same free-RAM reading admits a suite when the machine is away and refuses it when it is in use', () => {
+  // 3.5 GB free: above the away floor (3.0), below the in-use one (4.0). This is the reading the
+  // control-panel chain sat on all evening on 2026-09-15 with nobody at the keyboard.
+  const reading = { hour: NIGHT, freeMemMb: 3584 };
+  assert.deepEqual(
+    schedule([job('j-0001')], { ...reading, presence: 'away' }).start.map((j) => j.id),
+    ['j-0001'],
+    'nobody is at the machine, so the suite gets the memory',
+  );
+  assert.deepEqual(
+    schedule([job('j-0001')], { ...reading, presence: 'present' }).start,
+    [],
+    'somebody may be at the machine, so his gigabyte stays free',
+  );
+
+  // And the wait SAYS what would start it. The owner's own rule is that a day wave may ask to go
+  // over 4 GB; a wait that does not name the gigabyte being kept is a wait nobody can answer.
+  const held = schedule([job('j-0001')], { ...reading, presence: 'present' }).waiting[0].reason;
+  assert.match(held, /3\.5 GB RAM free, needs 4\.0/);
+  assert.match(held, /presence away/, 'the reason names the one command that releases it');
+
+  // The suffix is about presence and nothing else: a job that is short under BOTH floors says so
+  // plainly rather than blaming a person who is not the reason.
+  assert.doesNotMatch(
+    schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 1024, presence: 'present' }).waiting[0].reason,
+    /presence away/,
+  );
+});
+
+test('an unknown presence is treated as somebody being at the machine', () => {
+  // The whole safety property. A caller that has not been taught about presence, a typo, a state
+  // written by a newer version of the store - each of them is an UNKNOWN, and an unknown that
+  // reads as "away" spends the machine out from under whoever is using it.
+  const reading = { hour: NIGHT, freeMemMb: 3584 };
+  for (const unknown of [undefined, null, '', 'AWAY', 'Away', 'afk', 'present', 0, false]) {
+    assert.deepEqual(
+      schedule([job('j-0001')], { ...reading, presence: unknown }).start,
+      [],
+      `presence ${JSON.stringify(unknown)} must not loosen the floor`,
+    );
+  }
+  // Including the caller that says nothing at all, which is every caller written before this.
+  assert.deepEqual(schedule([job('j-0001')], reading).start, []);
+  assert.equal(freeMemFloorFor(undefined), POLICY.freeMemFloorMb.present);
+  assert.equal(freeMemFloorFor('away'), POLICY.freeMemFloorMb.away);
+});
+
+test('presence moves the floor and leaves the concurrency budget alone', () => {
+  // The floor is an admission check on ONE job; the budget is how much of this machine agent work
+  // may occupy at once, and the owner set that by the clock. An away night that started two
+  // suites where the budget says one would be this change reaching past what it was asked for.
+  assert.equal(capacity({ hour: DAY, freeMemMb: PLENTY, presence: 'away' }), POLICY.byDay);
+  assert.equal(capacity({ hour: NIGHT, freeMemMb: PLENTY, presence: 'away' }), POLICY.byNight);
+  const two = [job('j-0001'), job('j-0002')];
+  assert.deepEqual(
+    schedule(two, { hour: DAY, freeMemMb: PLENTY, presence: 'away' }).start.map((j) => j.id),
+    ['j-0001'],
+    'one suite by day, however much memory is free and however away the machine is',
+  );
+});
+
+test('a declaration of absence expires back to the safe answer', () => {
+  const dir = tempQueue();
+  const monday = Date.UTC(2026, 8, 14, 20, 0, 0);
+
+  assert.equal(readPresence(dir, monday).state, 'present', 'nobody has said anything yet');
+
+  writePresence(dir, 'away', { now: monday, by: 'the night wave' });
+  assert.equal(readPresence(dir, monday).state, 'away');
+  assert.equal(readPresence(dir, monday).setBy, 'the night wave');
+
+  // One minute before the window closes it still stands; one minute after it does not. An `away`
+  // left set on Friday evening is not knowledge on Monday morning - it is a stale guess, and the
+  // queue acting on it would spend the machine out from under the person who just sat down.
+  assert.equal(readPresence(dir, monday + PRESENCE_TTL_MS - 60_000).state, 'away');
+  const stale = readPresence(dir, monday + PRESENCE_TTL_MS + 60_000);
+  assert.equal(stale.state, 'present');
+  assert.equal(stale.expired, true, 'and it says WHY the floor moved back, rather than going quiet');
+
+  // Sitting back down takes effect at once rather than waiting out the window.
+  writePresence(dir, 'present', { now: monday + 60_000 });
+  assert.equal(readPresence(dir, monday + 120_000).state, 'present');
+
+  // Nothing readable, nothing sensible, no directory at all: every one of them is `present`.
+  writeFileSync(join(dir, 'presence.json'), '{ not json');
+  assert.equal(readPresence(dir, monday).state, 'present');
+  writeFileSync(join(dir, 'presence.json'), JSON.stringify({ state: 'asleep', until: monday + 1e9 }));
+  assert.equal(readPresence(dir, monday).state, 'present');
+  assert.equal(readPresence(null, monday).state, 'present');
+  assert.throws(() => writePresence(dir, 'maybe'), /present, away/);
+  rmSync(dir, { recursive: true, force: true });
 });
 
 test('each job admitted in one pass spends the free memory the last one took', () => {

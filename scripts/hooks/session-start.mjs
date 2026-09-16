@@ -297,7 +297,7 @@ try {
 // and whether the runner is alive to drain any of it.
 try {
   const { readJobs, jobsDir } = await import('../jobs-store.mjs');
-  const { pending, finishedSince, schedule } = await import('../jobs-store.mjs');
+  const { pending, finishedSince, schedule, readPresence } = await import('../jobs-store.mjs');
   const dir = jobsDir();
   const jobs = dir ? readJobs(dir) : [];
 
@@ -388,6 +388,9 @@ try {
       const plan = schedule(jobs, {
         hour: new Date().getHours(),
         freeMemMb: Math.round(freemem() / (1024 * 1024)),
+        // The same declaration the runner reads, so this summary and the runner never disagree
+        // about why a job is waiting.
+        presence: readPresence(dir).state,
       });
       console.log('');
       console.log(`Job queue: ${plan.running.length} running, ${plan.waiting.length} waiting (${plan.slots} slot(s) right now).`);

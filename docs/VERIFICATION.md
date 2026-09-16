@@ -342,7 +342,8 @@ is why the local worker count is not a constant.
 
 **Better than waiting: enqueue.** `npm run queue -- "<command>"` returns a job id immediately and
 one runner per machine drains the queue - one job by day, two between 00:00 and 07:00, never two
-merges, and nothing below a free-RAM floor (`NOACG_JOBS_FREE_MB` retunes it). `npm run jobs` shows
+merges, and nothing below a free-RAM floor of 3.0 GB while nobody is at the machine or 4.0 GB while
+somebody may be (`npm run jobs -- presence away|present` says which; `NOACG_JOBS_FREE_MB` pins both). `npm run jobs` shows
 what is running and the REASON each waiting job is waiting, which is the thing none of the
 mechanisms above ever reported: "correctly queued behind a long suite" and "died ten minutes ago"
 used to look identical from outside. Every job carries a 45-minute cap and is killed as a whole

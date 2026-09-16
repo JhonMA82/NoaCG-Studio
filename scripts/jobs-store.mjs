@@ -80,8 +80,14 @@ export function hasFlag(args, name) {
  * pull request 212 shipped without pictures. Half a suite is a JUDGEMENT, not a measurement: a
  * suite is a dev server and four browser workers, a walk is that server and one page, and half
  * leaves the floor at 2 GB - reachable on this box, which 4 GB is not while the owner has a
- * browser open. Retune it from the logs the way `freeMemFloorMb` says to, once one says what a
- * walk actually costs.
+ * browser open.
+ *
+ * MEASURED 2026-09-16, AND 0.5 SURVIVES IT. A `save-to-air-bench` walk running beside six sessions
+ * peaked at about 1.4 GB - 0.97 GB across five `chrome-headless-shell` processes, plus a 0.4 GB
+ * dev server - against the 3.0 GB a suite-equivalent is now taken to cost. That is 0.47, so the
+ * judgement was very nearly the measurement. What moved instead was the floor the fraction is
+ * charged against: half of 3072 is 1536 MB, which fits the walk, where half of 4096 demanded
+ * 2048 for a job that uses 1.4. `docs/JOB_RUNNER_PLAN.md` carries the numbers.
  *
  * AND READ j-0888 AS THE WEAKER EVIDENCE IT TURNED OUT TO BE. Its script landed on 2026-09-10 as
  * `scripts/ograf-external-walk.mjs`, and reading it counts one `chromium.launch`, TWO pages and
@@ -109,11 +115,32 @@ export const POLICY = Object.freeze({
   byDay: 1,
   byNight: 2,
   /**
-   * Below this much free RAM nothing new starts, whatever the clock allows. 4 GB on a 16 GB box
-   * is a starting point, not a measurement - `NOACG_JOBS_FREE_MB` retunes it without a code
-   * change, which is how it should be set once the logs say what a run actually costs.
+   * Below this much free RAM nothing new starts, whatever the clock allows - one figure for one
+   * suite-equivalent, scaled by what the job costs (see `schedule`).
+   *
+   * TWO NUMBERS, BECAUSE PRESENCE DECIDES THE ALLOWANCE. Owner 2026-09-16, asked whether that
+   * day's wave could go over the 4 GB floor: "Not on the computer, ok to use it all" - the second
+   * half of his 2026-09-15 ask, recorded in `docs/OWNER_RULINGS.md`. When nobody is at the
+   * keyboard the floor is what a job actually takes; when somebody is, it is that plus their own
+   * headroom.
+   *
+   * BOTH ARE MEASURED NOW, which the single 4096 never was - it called itself a starting point
+   * for a week. Measured on this 15.9 GB laptop on 2026-09-16 with six sessions live
+   * (`docs/JOB_RUNNER_PLAN.md`, "What a job actually costs in RAM"): one browser walk peaked at
+   * about 1.4 GB - 0.97 GB of `chrome-headless-shell` plus a 0.4 GB dev server - so a
+   * suite-equivalent is about 3 GB. `away` IS that cost, 3072, which puts a walk's 0.5 share at
+   * 1536 MB against its measured 1.4 GB and a landing's 0.15 share at 461 MB against the few
+   * hundred megabytes `gh run watch` actually uses. `present` keeps the familiar 4096, and the
+   * extra gigabyte is no longer unexplained: admitting a suite at exactly the floor leaves about
+   * 1 GB free, which is the room the person at the keyboard gets.
+   *
+   * `NOACG_JOBS_FREE_MB` still retunes it without a code change, and now pins BOTH - an explicit
+   * operator override is not something a presence flag should be able to loosen or tighten.
    */
-  freeMemFloorMb: Number(process.env.NOACG_JOBS_FREE_MB ?? 4096),
+  freeMemFloorMb: Object.freeze({
+    present: Number(process.env.NOACG_JOBS_FREE_MB ?? 4096),
+    away: Number(process.env.NOACG_JOBS_FREE_MB ?? 3072),
+  }),
   /**
    * A job killed at this age is recorded `timed-out` rather than sitting forever.
    *
@@ -142,6 +169,89 @@ export function jobsDir() {
 export function ensureJobsDir(dir) {
   mkdirSync(join(dir, 'logs'), { recursive: true });
   return dir;
+}
+
+// --- presence: is anybody at this machine? ----------------------------------------------------
+//
+// The ONE scheduling input this machine cannot read for itself. Free memory, the clock and the
+// process table are all measurable; whether a person is sitting in front of the laptop is not,
+// on Windows or anywhere else that matters. `ram-reclaim.mjs` already learned this the hard way -
+// `MainWindowHandle` reads 0 for apps with a visible window - so presence is DECLARED, never
+// guessed, and the whole design follows from that.
+//
+// IT IS A SIDECAR FILE, NOT AN ENVIRONMENT VARIABLE, and that is the change. `NOACG_JOBS_FREE_MB`
+// works only at runner start: a runner keeps the environment it was spawned with, so today's way
+// to loosen the floor is to stop the runner and start a new one by hand, which is exactly what
+// docs/backlog/ram-floor-by-presence-not-by-guess.md asked to stop needing. A file beside the
+// jobs is re-read on every scheduling pass, so presence can change under a running runner - which
+// is the only shape that fits a fact that changes when somebody stands up.
+//
+// IT EXPIRES, and that is the safety mechanism rather than a nicety. An `away` left set on Friday
+// evening is not knowledge on Monday morning, it is a stale guess wearing knowledge's clothes, and
+// the failure it causes is the queue spending the machine out from under somebody who is using it.
+// After the window it reads `present` again, which is what an unknown has to mean.
+
+/** The declared states. Anything else - missing, stale, unreadable, misspelt - reads as `present`. */
+export const PRESENCE = Object.freeze(['present', 'away']);
+
+/**
+ * How long a declaration stands before it reverts to `present`.
+ *
+ * Twelve hours: long enough to cover a night wave or a working day set once at its start, short
+ * enough that nothing set yesterday is still deciding anything today.
+ */
+export const PRESENCE_TTL_MS = 12 * 60 * 60 * 1000;
+
+/** The sidecar's path. A plain name beside the jobs, like `last-seen.json`. */
+function presencePath(dir) {
+  return join(dir, 'presence.json');
+}
+
+/**
+ * Who is at the machine, as the scheduler should believe it right now.
+ *
+ * Returns the record rather than the bare state, because a caller printing "the floor is 3.0 GB"
+ * owes the reader who said so and until when. `state` is always one of `PRESENCE`.
+ */
+export function readPresence(dir, now = Date.now()) {
+  const safe = { state: 'present', setAt: null, setBy: null, until: null, expired: false };
+  if (!dir) return safe;
+  let record;
+  try {
+    record = JSON.parse(readFileSync(presencePath(dir), 'utf8'));
+  } catch {
+    return safe; // never written, half-written, or deleted - all of them mean "nobody said"
+  }
+  if (!PRESENCE.includes(record.state)) return safe;
+  // An expired declaration is reported as expired rather than silently dropped: "away expired at
+  // 08:00" tells a reader why the floor moved back, and a dropped record tells them nothing.
+  if (typeof record.until === 'number' && now >= record.until) return { ...safe, ...record, state: 'present', expired: true };
+  return { ...safe, ...record, expired: false };
+}
+
+/**
+ * Declare who is at the machine. Returns the record written.
+ *
+ * `until` defaults to `PRESENCE_TTL_MS` from now for BOTH states. Expiring `present` as well is
+ * deliberate even though it expires to itself: one rule for the file means a reader never has to
+ * work out which half of it is still live.
+ */
+export function writePresence(dir, state, { now = Date.now(), by = null, ttlMs = PRESENCE_TTL_MS } = {}) {
+  if (!PRESENCE.includes(state)) throw new Error(`presence must be one of ${PRESENCE.join(', ')} - got ${state}`);
+  const record = { state, setAt: now, setBy: by, until: now + ttlMs };
+  writeFileSync(presencePath(dir), `${JSON.stringify(record, null, 1)}\n`);
+  return record;
+}
+
+/**
+ * The free-RAM floor for one suite-equivalent, given who is at the machine.
+ *
+ * Only the exact string `away` loosens it. Every other value - `undefined` from a caller that has
+ * not been taught about presence, a typo, a state from a newer version of this file - lands on
+ * `present`, which is the answer that cannot hurt anybody.
+ */
+export function freeMemFloorFor(presence, policy = POLICY) {
+  return presence === 'away' ? policy.freeMemFloorMb.away : policy.freeMemFloorMb.present;
 }
 
 /**
@@ -493,7 +603,13 @@ export function dependencyDecision(job, byId) {
  */
 export function schedule(jobs, {
   hour, freeMemMb, outsideRuns = 0, policy = POLICY, aheadOfMain = () => true, now = Date.now(),
+  presence = 'present',
 }) {
+  // Presence moves the RAM floor and NOTHING ELSE. It is not part of `capacity` below: the budget
+  // is about how much of this machine agent work may occupy at once, which the owner set by the
+  // clock, and the floor is about whether ONE job physically fits right now. Merging them would
+  // make an away night start two suites where the budget says one.
+  const freeMemFloorMb = freeMemFloorFor(presence, policy);
   const byId = new Map(jobs.map((j) => [j.id, j]));
   const running = jobs.filter((j) => j.state === 'running');
   const slots = capacity({ hour, freeMemMb, outsideRuns, policy });
@@ -588,8 +704,14 @@ export function schedule(jobs, {
     // the landing still waits. Nothing can crowd in behind it, because two merges never overlap
     // (above), so at most one is admitted per pass whatever this figure says.
     const budgetedMb = job.kind === 'merge' ? freeMemMb : freeLeftMb;
-    const needsMb = policy.freeMemFloorMb * cost;
+    const needsMb = freeMemFloorMb * cost;
     if (budgetedMb < needsMb) {
+      // A JOB HELD BY THE STRICTER FLOOR SAYS SO, and says what would free it. This is the
+      // "day-wave ask" the backlog item wanted: the owner's own rule is that during a day wave a
+      // session may ask to go over 4 GB, and a wait that does not name the gigabyte being kept for
+      // him is a wait nobody can answer. Printed only when presence is the whole difference -
+      // saying it about a job that is short either way would be noise.
+      const awayWouldStart = presence !== 'away' && budgetedMb >= policy.freeMemFloorMb.away * cost;
       waiting.push({
         job,
         // BOTH FIGURES, because they answer different questions and only one of them is the
@@ -597,9 +719,12 @@ export function schedule(jobs, {
         // looking for the memory, when the answer is that earlier jobs in this same pass claimed
         // it - which the next poll may well undo.
         reason:
-          budgetedMb === freeMemMb
+          (budgetedMb === freeMemMb
             ? `only ${(freeMemMb / 1024).toFixed(1)} GB RAM free, needs ${(needsMb / 1024).toFixed(1)}`
-            : `only ${(freeLeftMb / 1024).toFixed(1)} GB of ${(freeMemMb / 1024).toFixed(1)} GB free RAM unclaimed this pass, needs ${(needsMb / 1024).toFixed(1)}`,
+            : `only ${(freeLeftMb / 1024).toFixed(1)} GB of ${(freeMemMb / 1024).toFixed(1)} GB free RAM unclaimed this pass, needs ${(needsMb / 1024).toFixed(1)}`)
+          + (awayWouldStart
+            ? ` - the machine is marked in use, which keeps a gigabyte free; \`npm run jobs -- presence away\` starts it now`
+            : ''),
       });
       continue;
     }
