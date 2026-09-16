@@ -7,15 +7,14 @@
 -- It was corrected twice after its own branch landed, and that was allowed for one reason: it had
 -- never applied anywhere. Its self-check raised on the post-land pushes for pull requests 280 and
 -- 281, rolling the whole migration back in one transaction each time, so there was no applied
--- text to disagree with. THAT WINDOW IS CLOSED. Post-land run 35055657854 applied 0060 to
--- production and to staging on 2026-09-16 at 04:27 UTC, and both projects hold exactly the five
--- function bodies below - re-derived on 2026-09-16 by comparing `md5(pg_proc.prosrc)` on each
--- project against this file. `db push` keys the remote ledger on the four-digit version alone and
--- will never re-run this file, so an edit to the SQL below would live in git and in neither
--- database. The two corrections that did land were a qualification in
--- `production_data_patch_paths` and a narrowing of the array carve-out, each explained where it
--- sits; this header is the only text touched since the apply, and it sits outside every `$$` body
--- so the md5 comparison above still holds.
+-- text to disagree with. THAT WINDOW IS CLOSED - post-land run 35055657854 applied 0060 to
+-- production and to staging on 2026-09-16 at 04:27 UTC, so supabase/README.md's "a new migration,
+-- never by editing an applied one" now bites here like anywhere else. Both projects hold exactly
+-- the five function bodies below, re-derived on 2026-09-16 by comparing `md5(pg_proc.prosrc)` on
+-- each against this file; that comparison still holds, because this header is the only text
+-- touched since the apply and it sits outside every `$$` body. The two corrections that did land
+-- were a qualification in `production_data_patch_paths` and a narrowing of the array carve-out,
+-- each explained where it sits.
 --
 -- WHY THE HOSTED CONTROL PAGE COULD NOT DO THIS BEFORE. That page is capability-addressed by an
 -- unguessable control slug and signed out. It has no data key and must never be given one -
