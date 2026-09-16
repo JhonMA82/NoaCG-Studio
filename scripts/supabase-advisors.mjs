@@ -1,4 +1,4 @@
-// gate: none - reads the live Supabase project with credentials no runner holds
+// gate: workflow post-land.yml
 // guards: supabase/**
 //
 // The SUPABASE ADVISOR gate: fails on a NEW advisor finding, ignores the accepted ones.
@@ -31,9 +31,26 @@
 //
 // Needs a Management API personal access token in SUPABASE_ACCESS_TOKEN - taken from the real
 // environment or from the checkout's `.env`, the same way check-model-ids.mjs finds its provider
-// keys (the CLI's own login is stored elsewhere and is deliberately not read here). That is why
-// this is NOT part of .github/workflows/weekly-audit.yml, which is secret-free on purpose - see
-// docs/STACK_FRESHNESS.md.
+// keys (the CLI's own login is stored elsewhere and is deliberately not read here).
+//
+// WHERE IT RUNS, AND WHY THERE. `.github/workflows/post-land.yml`, straight after the step that
+// pushes migrations - the only moment this check can exist. It reads the LIVE project, so a new
+// definer function is there to be found only once the migration that creates it has applied, and
+// that happens after the merge. Post-land already holds the token, inside the `production`
+// GitHub environment.
+//
+// NOT weekly-audit.yml, which is secret-free on purpose (docs/STACK_FRESHNESS.md). That is not
+// squeamishness about secrets in Actions: weekly-audit has `workflow_dispatch` with no
+// environment, so a token there would be readable by YAML on any branch anyone dispatches it
+// from, where post-land's is scoped to an environment. It would also answer a week late about a
+// database that changes on landings.
+//
+// EXIT CODES ARE THE INTERFACE, because the workflow acts differently on each and "could not
+// look" is never "looked, fine":
+//   0  no finding that is new against the baseline
+//   1  a NEW finding - the alarm this exists to raise
+//   2  no token, or no baseline to compare against - nothing was checked
+//   3  the Management API would not answer - nothing was checked
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -123,13 +140,25 @@ const fetchAdvisors = async () => {
   }
   const ref = readProjectRef();
   const out = [];
-  for (const type of ['security', 'performance']) {
-    const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/advisors/${type}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error(`advisors/${type} answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const body = await res.json();
-    for (const lint of body.lints ?? []) out.push({ ...lint, advisorType: type });
+  // A REFUSED OR UNREACHABLE API IS EXIT 3, NOT A THROW. An uncaught throw exits 1, which is the
+  // code that means "a new finding" - and post-land.yml turns that one red. A five-minute
+  // Management API outage would then red every landing until it recovered, for something nobody
+  // can act on, which is precisely how an alarm teaches people to ignore it. So "could not look"
+  // gets its own code and the workflow only warns. It still never reads as clean: the caller
+  // gets null, not an empty finding list.
+  try {
+    for (const type of ['security', 'performance']) {
+      const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/advisors/${type}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`advisors/${type} answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      const body = await res.json();
+      for (const lint of body.lints ?? []) out.push({ ...lint, advisorType: type });
+    }
+  } catch (err) {
+    console.error(`supabase-advisors: could not reach the Management API, so nothing was checked.\n  ${err.message}`);
+    process.exitCode = 3;
+    return null;
   }
   return out;
 };
