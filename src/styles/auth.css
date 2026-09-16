@@ -8,6 +8,11 @@
   background: var(--bg);
   z-index: var(--z-auth-gate);
   padding: 24px;
+  /* A card taller than a short window (the signup half through a door: reason, the account
+     sentence, the legal line, two fields, three buttons) scrolls rather than hanging its
+     close row above the top edge. `margin: auto` on the card keeps it centred while it fits,
+     which `align-items: center` alone does not do once it overflows. */
+  overflow-y: auto;
 }
 /* Dialog variant: a translucent backdrop over the live workspace (click outside / Esc closes). */
 .auth-overlay { background: rgba(6, 8, 11, 0.72); backdrop-filter: blur(3px); }
@@ -15,6 +20,7 @@
   position: relative;
   width: 100%;
   max-width: 360px;
+  margin: auto;
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: 12px;

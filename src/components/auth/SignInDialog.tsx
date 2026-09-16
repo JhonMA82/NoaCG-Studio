@@ -5,6 +5,7 @@ import { useAuthState } from './useAuthState';
 import { useAuthUi } from './authUi';
 import BrandLogo from '../BrandLogo';
 import { useModalGate } from '../spaceKey';
+import { ACCOUNT_IS_FOR, NO_ACCOUNT_NEEDED } from './accountCopy';
 
 /**
  * The on-demand sign-in dialog (Era 5.6 — the open editor). The app is never walled behind it:
@@ -95,7 +96,7 @@ export default function SignInDialog() {
       const { error } = await requestPasswordReset(email.trim());
       setBusy(false);
       if (error) setError(error);
-      else setNote('Check your email — the reset link brings you back here to set a new password.');
+      else setNote('Check your email. The reset link brings you back here to set a new password.');
       return;
     }
     const fn = mode === 'signin' ? signInWithEmail : signUpWithEmail;
@@ -122,6 +123,10 @@ export default function SignInDialog() {
     setNote(null);
   };
 
+  // Whether a gate opened this dialog with a reason of its own. One test, read by both lines
+  // below, so the two shapes cannot drift apart.
+  const throughDoor = reason !== null;
+
   return (
     <div
       className="auth-gate auth-overlay"
@@ -140,8 +145,15 @@ export default function SignInDialog() {
           <button className="gallery-close" onClick={close} title="Close (keep working without an account)">✕</button>
         </div>
         <div className="auth-logo"><BrandLogo size={44} stacked /></div>
-        <p className="auth-tag">{reason ?? 'Sign in to save your work across devices, share to the community, and use AI.'}</p>
-        <p className="muted auth-sub">Creating and exporting graphics never needs an account.</p>
+        {/* WHAT THE ACCOUNT IS FOR, said at the moment we ask and nowhere else. A gate's own
+            reason ("Sign in to view this shared template.") says why NOW and leads when there is
+            one; the account sentence then moves under it, so a reader who arrived through a door
+            still learns what the account buys beyond that door. Opened from the topbar there is
+            no door, and the sentence is the whole answer. The no-wall line closes both shapes. */}
+        <p className="auth-tag" data-testid="auth-reason">{throughDoor ? reason : ACCOUNT_IS_FOR}</p>
+        <p className="muted auth-sub" data-testid="auth-account-for">
+          {throughDoor ? `${ACCOUNT_IS_FOR} ${NO_ACCOUNT_NEEDED}` : NO_ACCOUNT_NEEDED}
+        </p>
 
         {mode === 'signup' && (
           <p className="auth-legal">
