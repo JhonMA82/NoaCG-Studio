@@ -100,13 +100,20 @@ and the new spec answers it the way a reader would.
   path is the one the signed-out case proved on the bundle.
 - The signed-in walk against `noacg.studio` itself after the fix needs the deployment, so it is the
   acceptance item, by hand.
-- **`npm run test:e2e:affected` was NOT run here, and that is a decision rather than an oversight.**
-  `src/App.tsx` is a CORE file, so it escalates - and locally the escalation resolved to the FULL
-  suite over 95 changed files, because `e2e-affected` takes its base from the local `main` this
-  machine's merge queue no longer moves (it listed `.gitattributes`, which this branch never
-  touched). That is hours of browser work on the machine's single browser slot, against a scope
-  that is not this branch's. CI runs the real thing on the merge group, which is what this row's
-  gate says.
+- **`npm run test:e2e:integration` after taking `main` in: 581 passed, one failure that is not
+  this branch's.** The plan was the 66-spec sprint focus set from the FORK POINT, covering both
+  sides. The failure was `student-rehearsal.spec.ts` "the rehearsal: a student draws a scoreboard
+  and a quiz..." at line 228, where the on-air quiz's `answer.selected/B` did not light within the
+  timeout - an imported-SVG machine on air, nothing this branch touches. Re-run alone it passes in
+  **17.3 s**, against 27.6 s when it failed under four workers on a loaded laptop, so it is the
+  load flake CI's own retry job is built for.
+- **A plain `npm run test:e2e:affected` was NOT run BEFORE the merge, and that was a decision.**
+  `src/App.tsx` is a CORE file, so it escalates - and without `--integration` the escalation
+  resolved to the FULL suite over 95 changed files, because `e2e-affected` takes its base from the
+  local `main` this machine's merge queue no longer moves (it listed `.gitattributes`, which this
+  branch never touched). That is hours of browser work on the machine's single browser slot,
+  against a scope that is not this branch's. The integration run above is the one that
+  mattered, and CI runs it again on the merge group.
 
 ## For row SB, which shares §7 row 14
 
