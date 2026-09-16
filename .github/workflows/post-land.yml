@@ -68,10 +68,23 @@ jobs:
       # for a finding that is NEW against `supabase/advisor-baseline.json`, and never for one
       # that cleared. When it does fire, docs/STACK_FRESHNESS.md says what to do with it.
       #
-      # EXIT 2 AND 3 MEAN "COULD NOT CHECK" - no token, or the Management API refusing - and only
-      # warn. Turning every landing red over an upstream outage nobody can act on is how an alarm
-      # teaches people to ignore it.
+      # EXIT 3 IS THE ONLY CODE THAT MERELY WARNS: the Management API would not answer, or
+      # answered something this script could not compare. Turning every landing red over an
+      # upstream outage nobody can act on is how an alarm teaches people to ignore it.
+      #
+      # EXIT 2 REDS LIKE EXIT 1, because it is a defect on OUR side - a missing or mangled
+      # `supabase/advisor-baseline.json`, an unconfigured project ref. The token half of exit 2 is
+      # unreachable here, since the guard below returns first; what is left is a tracked file that
+      # is gone or unreadable, and letting that only warn would switch the alarm off permanently
+      # while every landing stayed green. That is the exact shape this step exists to refuse.
+      #
+      # IT RUNS EVEN IF A PUSH ABOVE FAILED. The production push and the staging push are separate
+      # statements, so production can change and staging then fail - which is precisely when the
+      # advisors have something new to say. Without this the finding would surface on the NEXT
+      # landing instead, whose author would be told to fix or accept something they did not write.
+      # `success() || failure()` rather than `always()`, so a cancelled run still stops.
       - name: Ask the advisors about what just applied
+        if: ${{ success() || failure() }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
@@ -82,10 +95,17 @@ jobs:
           fi
           status=0
           node scripts/supabase-advisors.mjs || status=$?
-          if [ "$status" -eq 1 ]; then
-            echo "::error title=Advisors::A Supabase advisor finding that is new since supabase/advisor-baseline.json. Read it in the log above, then either fix it or re-record the baseline with the judgement written down (docs/STACK_FRESHNESS.md)."
-            exit 1
-          fi
-          if [ "$status" -ne 0 ]; then
-            echo "::warning title=Advisors::The advisors could not be asked (exit $status), so this landing was not checked."
-          fi
+          case "$status" in
+            0) ;;
+            1)
+              echo "::error title=Advisors::A Supabase advisor finding that is new since supabase/advisor-baseline.json. Read it in the log above, then either fix it or re-record the baseline with the judgement written down (docs/STACK_FRESHNESS.md). If the migration that caused it landed before this one, say so when you re-record."
+              exit 1
+              ;;
+            3)
+              echo "::warning title=Advisors::The advisors could not be asked, so this landing was not checked. See the error above; nothing here needs fixing if the Management API was simply unavailable."
+              ;;
+            *)
+              echo "::error title=Advisors::The advisor check could not run (exit $status) - that is a defect in this repository, not an upstream outage. See the error above."
+              exit 1
+              ;;
+          esac

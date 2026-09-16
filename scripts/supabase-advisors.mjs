@@ -46,11 +46,15 @@
 // database that changes on landings.
 //
 // EXIT CODES ARE THE INTERFACE, because the workflow acts differently on each and "could not
-// look" is never "looked, fine":
+// look" is never "looked, fine". The split between 2 and 3 is whose defect it is, which is the
+// only question that changes what a reader should do about it:
 //   0  no finding that is new against the baseline
-//   1  a NEW finding - the alarm this exists to raise
-//   2  no token, or no baseline to compare against - nothing was checked
-//   3  the Management API would not answer - nothing was checked
+//   1  a NEW finding - the alarm this exists to raise. post-land reds.
+//   2  could not check, and the fault is on THIS side: no token, no project ref, no baseline to
+//      compare against, a baseline whose shape changed, or a bug in this file. post-land reds,
+//      because every one of those is actionable and none may switch the alarm off quietly.
+//   3  could not check, and the outside world is why: the Management API would not answer, or
+//      answered something that could not be compared against the baseline. post-land warns.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -83,7 +87,16 @@ const ACCEPTED_CLASSES = {
     'client (CasparCG/OBS/vMix), so these RPCs must be anon-callable. docs/CLOUD_PLAYOUT.md. ' +
     'NOTE: control_send, control_send_many and control_stage WRITE, so anyone holding a slug ' +
     'can append to the log. That is the design, but it is an abuse-rate question the linter ' +
-    'cannot ask - accepted here as reachability, not as a judgement about volume.',
+    'cannot ask - accepted here as reachability, not as a judgement about volume. ' +
+    'control_data_patch_by_slug (0060) writes too, and it is the one that writes DURABLE state ' +
+    'rather than the append-only log: it patches control_shows.data. Accepted on the same ' +
+    'reachability ground - operating a production needs no account, and the slug is what says you ' +
+    'may - with the unrestricted apply beneath it, control_data_apply, kept to service_role. ' +
+    'ACCEPTING THE REACHABILITY IS NOT A CLAIM THAT ITS GUARD IS TIGHT: measured on staging ' +
+    '2026-09-16, that guard reads the path and never the value, so `{"drivers":[]}` still deletes ' +
+    'a whole bound branch through the array carve-out. That is tracked as its own work in ' +
+    'docs/backlog/the-operator-door-guards-a-branch-and-not-a-leaf.md and the fix is migration ' +
+    '0061; it is a bug in the guard, not a reason to revoke a grant the product needs.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot.',
@@ -140,20 +153,45 @@ const fetchAdvisors = async () => {
   }
   const ref = readProjectRef();
   const out = [];
-  // A REFUSED OR UNREACHABLE API IS EXIT 3, NOT A THROW. An uncaught throw exits 1, which is the
-  // code that means "a new finding" - and post-land.yml turns that one red. A five-minute
-  // Management API outage would then red every landing until it recovered, for something nobody
-  // can act on, which is precisely how an alarm teaches people to ignore it. So "could not look"
-  // gets its own code and the workflow only warns. It still never reads as clean: the caller
-  // gets null, not an empty finding list.
+  // A REFUSED OR UNREACHABLE API IS EXIT 3, NOT A THROW - an uncaught throw exits 1, the code
+  // that means "a new finding", and a five-minute outage would then red every landing until it
+  // recovered. It still never reads as clean: the caller gets null, not an empty finding list.
   try {
     for (const type of ['security', 'performance']) {
-      const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/advisors/${type}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`advisors/${type} answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
-      const body = await res.json();
-      for (const lint of body.lints ?? []) out.push({ ...lint, advisorType: type });
+      // A TIMEOUT, because the alternative is the job's own 15-minute cap. An API that accepts
+      // the connection and then stalls would burn that cap between these two requests and end
+      // the run `timed_out`, which ci-watch.mjs counts as red - a red landing for an upstream
+      // outage, which is the exact outcome exit 3 exists to prevent. Aborting routes the same
+      // event into exit 3, where it only warns.
+      //
+      // An explicit controller with a timer this CLEARS, not `AbortSignal.timeout()`, and not by
+      // preference: that helper leaves a live libuv handle behind, and exiting while it closes
+      // aborts the process on Windows. scripts/migration-drift.mjs hit it first and
+      // scripts/db-push.mjs carries the same shape against the same API - 30 s is its
+      // API_TIMEOUT_MS.
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30_000);
+      let res;
+      let body;
+      try {
+        res = await fetch(`https://api.supabase.com/v1/projects/${ref}/advisors/${type}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`advisors/${type} answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
+        body = await res.json();
+      } finally {
+        clearTimeout(timer);
+      }
+      // `lints` MUST BE AN ARRAY, and `?? []` used to let a reshaped 200 through as "no
+      // findings". That was already this gate's silent-green path
+      // (docs/metrics/2026-09-08-gates-that-measure-nothing.md); it became load-bearing the day
+      // post-land started reading exit 0 as "this landing was checked". A body without the key
+      // means the endpoint changed shape, which is the one thing that must never read as clean.
+      if (!Array.isArray(body.lints)) {
+        throw new Error(`advisors/${type} answered 200 with no \`lints\` array - the endpoint's shape changed, so nothing could be compared.`);
+      }
+      for (const lint of body.lints) out.push({ ...lint, advisorType: type });
     }
   } catch (err) {
     console.error(`supabase-advisors: could not reach the Management API, so nothing was checked.\n  ${err.message}`);
@@ -172,96 +210,122 @@ const readInput = (file) => {
   throw new Error(`${file}: expected an array, or an object with a lints/findings array`);
 };
 
-const lints = inputArg ? readInput(inputArg) : await fetchAdvisors();
-if (lints === null) {
-  // fetchAdvisors already explained itself and set the exit code.
-} else {
-  // `cache_key` is the advisors' own stable identity for a finding - it survives rewording of
-  // the human-facing detail, which a hash of the message would not.
-  const seen = new Map();
-  for (const l of lints) seen.set(l.cache_key, { name: l.name, level: l.level, detail: l.detail });
-  measured.optional(
-    seen.size,
-    'advisor findings',
-    'A project the advisors have nothing to say about reports zero, and that is the answer this ' +
-      'check hopes for rather than a sign it stopped looking. The baseline count below is the ' +
-      'report that would notice a comparison against nothing.',
-  );
-
-  if (updating) {
-    const entries = {};
-    for (const key of [...seen.keys()].sort()) entries[key] = seen.get(key);
-    writeFileSync(
-      BASELINE,
-      `${JSON.stringify(
-        {
-          note:
-            'Advisor findings seen and accepted. Regenerate with ' +
-            '`node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because ' +
-            'of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording ' +
-            'accepts everything currently reported, so read the diff before committing one.',
-          recordedAt: new Date().toISOString().slice(0, 10),
-          count: Object.keys(entries).length,
-          entries,
-        },
-        null,
-        2,
-      )}\n`,
-    );
-    console.log(`Recorded ${Object.keys(entries).length} accepted findings to supabase/advisor-baseline.json`);
+// EXIT 2 FOR ANY UNEXPECTED ERROR, never the uncaught throw's 1: a mangled baseline, an
+// unconfigured project ref or a bug in this file would otherwise send somebody hunting for a new
+// advisor finding that does not exist. The exit-code table in the header says what each means.
+try {
+  const lints = inputArg ? readInput(inputArg) : await fetchAdvisors();
+  if (lints === null) {
+    // fetchAdvisors already explained itself and set the exit code.
   } else {
-    if (!existsSync(BASELINE)) {
-      console.error(
-        'supabase-advisors: no baseline yet. Record one with:\n' +
-          '  node scripts/supabase-advisors.mjs --update-baseline\n' +
-          'Read the recorded file before committing it - it accepts everything currently reported.',
-      );
-      process.exitCode = 2;
-    } else {
-      const baseline = JSON.parse(readFileSync(BASELINE, 'utf8'));
-      // THE KEY, NOT THE COUNT. An empty baseline is the state this project is trying to reach -
-      // fix every standing advisory, re-record, and `entries` is legitimately `{}` - so refusing
-      // a zero here would fail the gate for succeeding. What is never honest is `entries` having
-      // been renamed away, which would silently compare every live finding against nothing.
-      if (!baseline || typeof baseline.entries !== 'object' || baseline.entries === null) {
-        throw new Error(`${BASELINE} has no \`entries\` object - the baseline's shape changed, and every live finding would read as new against nothing.`);
-      }
-      const accepted = new Set(Object.keys(baseline.entries));
-      measured.optional(
-        accepted.size,
-        'accepted baseline findings',
-        'zero is honest once every standing advisory has been fixed and the baseline re-recorded; the shape check above is what makes a zero here mean "clean" rather than "renamed away".',
-      );
-      const added = [...seen.keys()].filter((k) => !accepted.has(k)).sort();
-      const cleared = [...accepted].filter((k) => !seen.has(k)).sort();
+    // `cache_key` is the advisors' own stable identity for a finding - it survives rewording of
+    // the human-facing detail, which a hash of the message would not.
+    const seen = new Map();
+    for (const l of lints) seen.set(l.cache_key, { name: l.name, level: l.level, detail: l.detail });
+    measured.optional(
+      seen.size,
+      'advisor findings',
+      'A project the advisors have nothing to say about reports zero, and that is the answer this ' +
+        'check hopes for rather than a sign it stopped looking. The baseline count below is the ' +
+        'report that would notice a comparison against nothing.',
+    );
 
-      if (asJson) {
-        console.log(JSON.stringify({ total: seen.size, added: added.map((k) => ({ key: k, ...seen.get(k) })), cleared }, null, 2));
+    if (updating) {
+      const entries = {};
+      for (const key of [...seen.keys()].sort()) entries[key] = seen.get(key);
+      writeFileSync(
+        BASELINE,
+        `${JSON.stringify(
+          {
+            note:
+              'Advisor findings seen and accepted. Regenerate with ' +
+              '`node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because ' +
+              'of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording ' +
+              'accepts everything currently reported, so read the diff before committing one.',
+            recordedAt: new Date().toISOString().slice(0, 10),
+            count: Object.keys(entries).length,
+            entries,
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      console.log(`Recorded ${Object.keys(entries).length} accepted findings to supabase/advisor-baseline.json`);
+    } else {
+      if (!existsSync(BASELINE)) {
+        console.error(
+          'supabase-advisors: no baseline yet. Record one with:\n' +
+            '  node scripts/supabase-advisors.mjs --update-baseline\n' +
+            'Read the recorded file before committing it - it accepts everything currently reported.',
+        );
+        process.exitCode = 2;
       } else {
-        console.log(`${seen.size} advisor findings; ${accepted.size} accepted in the baseline.`);
-        if (added.length) {
-          console.log('\nNEW since the baseline:');
-          for (const key of added) {
-            const f = seen.get(key);
-            console.log(`  - [${f.level}] ${f.name}`);
-            console.log(`      ${f.detail}`);
-            const why = ACCEPTED_CLASSES[f.name];
-            // A new member of an accepted class is still new. Say what the class is accepted
-            // FOR, so the reader can judge whether this occurrence is the same thing or a real
-            // mistake wearing a familiar name.
-            if (why) console.log(`      (this class is accepted because: ${why})`);
+        const baseline = JSON.parse(readFileSync(BASELINE, 'utf8'));
+        // THE KEY, NOT THE COUNT. An empty baseline is the state this project is trying to reach -
+        // fix every standing advisory, re-record, and `entries` is legitimately `{}` - so refusing
+        // a zero here would fail the gate for succeeding. What is never honest is `entries` having
+        // been renamed away, which would silently compare every live finding against nothing.
+        if (!baseline || typeof baseline.entries !== 'object' || baseline.entries === null) {
+          throw new Error(`${BASELINE} has no \`entries\` object - the baseline's shape changed, and every live finding would read as new against nothing.`);
+        }
+        const accepted = new Set(Object.keys(baseline.entries));
+        measured.optional(
+          accepted.size,
+          'accepted baseline findings',
+          'zero is honest once every standing advisory has been fixed and the baseline re-recorded; the shape check above is what makes a zero here mean "clean" rather than "renamed away".',
+        );
+        const added = [...seen.keys()].filter((k) => !accepted.has(k)).sort();
+        const cleared = [...accepted].filter((k) => !seen.has(k)).sort();
+
+        if (asJson) {
+          console.log(JSON.stringify({ total: seen.size, added: added.map((k) => ({ key: k, ...seen.get(k) })), cleared }, null, 2));
+        } else {
+          console.log(`${seen.size} advisor findings; ${accepted.size} accepted in the baseline.`);
+          if (added.length) {
+            console.log('\nNEW since the baseline:');
+            for (const key of added) {
+              const f = seen.get(key);
+              console.log(`  - [${f.level}] ${f.name}`);
+              console.log(`      ${f.detail}`);
+              const why = ACCEPTED_CLASSES[f.name];
+              // A new member of an accepted class is still new. Say what the class is accepted
+              // FOR, so the reader can judge whether this occurrence is the same thing or a real
+              // mistake wearing a familiar name.
+              if (why) console.log(`      (this class is accepted because: ${why})`);
+            }
           }
+          // A cleared finding is good news and must never fail the run - but it should be
+          // re-recorded, or the baseline slowly becomes a list of things that no longer exist and
+          // stops meaning "accepted".
+          if (cleared.length) {
+            console.log(`\nGone since the baseline (${cleared.length}) - re-record when convenient:`);
+            for (const key of cleared) console.log(`  - ${key}`);
+          }
+          if (!added.length && !cleared.length) console.log('No change against the baseline.');
         }
-        // A cleared finding is good news and must never fail the run - but it should be
-        // re-recorded, or the baseline slowly becomes a list of things that no longer exist and
-        // stops meaning "accepted".
-        if (cleared.length) {
-          console.log(`\nGone since the baseline (${cleared.length}) - re-record when convenient:`);
-          for (const key of cleared) console.log(`  - ${key}`);
+        process.exitCode = added.length ? 1 : 0;
+
+        // EVERY ACCEPTED FINDING CLEARING AT ONCE IS NOT GOOD NEWS. A hundred-odd standing
+        // advisories are not fixed by one landing, so the plausible causes are a payload this
+        // script could not read properly and a baseline that no longer describes this project -
+        // and a cleared finding never fails, by design, so without this the run exits 0 having
+        // compared nothing. The report above still prints, because the list of what "cleared" is
+        // what tells the reader which of the two it is.
+        //
+        // Exit 3, not 1: nobody should be sent hunting for a new finding that does not exist, and
+        // post-land should not red a landing for something upstream most likely did.
+        if (accepted.size > 0 && cleared.length === accepted.size) {
+          console.error(
+            `\nsupabase-advisors: all ${accepted.size} accepted findings are absent from a report of ` +
+              `${seen.size} - that is a comparison against the wrong data, not a clean project. ` +
+              'Check the project ref and the payload before re-recording anything.',
+          );
+          process.exitCode = 3;
         }
-        if (!added.length && !cleared.length) console.log('No change against the baseline.');
       }
-      process.exitCode = added.length ? 1 : 0;
     }
   }
+} catch (err) {
+  console.error(`supabase-advisors: ${err.message}`);
+  process.exitCode = 2;
 }

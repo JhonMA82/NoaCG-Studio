@@ -286,10 +286,14 @@ members. A finding that *disappears* is reported but never fails — good news m
 alarm — though it should be re-recorded, or the baseline decays into a list of things that no
 longer exist.
 
-Exit codes are four-valued: `0` clean, `1` new findings, **`2` could not check** (no token, or no
-baseline yet) and **`3` could not check** (the Management API would not answer). "Could not check"
-is deliberately not "clean", and it is deliberately not `1` either — post-land only reds on `1`,
-so an upstream outage must not borrow the code that means "somebody shipped something new".
+Exit codes are four-valued, and the split between the two "could not check" codes is whose defect
+it is: `0` clean, `1` new findings, **`2` could not check and the fault is ours** (no token, no
+project ref, no baseline, a baseline whose shape changed, a bug in the script), **`3` could not
+check and the fault is upstream** (the Management API would not answer, or answered something that
+could not be compared). "Could not check" is deliberately not "clean", and neither is `1` —
+post-land reds on `1` and `2` and only warns on `3`, so an outage must not borrow the code that
+means "somebody shipped something new", and a deleted baseline must not quietly switch the alarm
+off while every landing stays green.
 
 The baseline holds **110 findings** as of 2026-09-16. The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
@@ -346,12 +350,24 @@ holds for this occurrence too, and the fix is to re-record the baseline with the
 down. Check the live database rather than the migration text — the migration is a claim, and the
 advisors report on what is actually there.
 
+**The finding is not always the landing's own.** The step runs on a failed push too, so a landing
+that only broke the staging half can still surface production's news; and when Supabase ships a
+new advisor lint, every existing object matching it reads as new on whatever lands next. So read
+what the finding names before assuming the author caused it — and when you re-record, say in the
+commit which migration actually introduced it.
+
 **The decay this was written to stop, measured once: 2026-09-16.** The gate had been green on
 2026-09-09 and ran nowhere. Seven days later it was red at 110 live against a 106 baseline — four
 findings from migration 0060's two slug-addressed functions — and nothing had said a word. The
 four were read against the live database and accepted: `anon` holds no privilege at all on
 `control_shows`, so those functions are the only door, and the one that writes the column
 wholesale (`control_data_apply`) is `service_role` only. Baseline re-recorded at 110.
+
+Accepting that reachability is not a claim that the door's own guard is tight, and on this
+occasion it is not — `docs/backlog/the-operator-door-guards-a-branch-and-not-a-leaf.md` measured
+the hole the same day, and migration 0061 is the fix. The two judgements are separate on purpose:
+the advisors ask who can call a function, and a bug inside the function is not answered by
+revoking a grant the product needs.
 
 ## Standing upgrade debt
 
