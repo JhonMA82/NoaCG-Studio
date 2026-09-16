@@ -26,7 +26,6 @@ import { resolveEasing } from '../../../model/easings';
 import type {
   AnimPresetId,
   AnimSpeed,
-  DesignArt,
   ExtraFieldSpec,
   LineSpec,
   Palette,
@@ -38,32 +37,18 @@ import type {
 import { paletteById } from '../../../model/wizard';
 import type { EasingId } from '../../../model/easings';
 import { ensureFontFace, fontByStack, type CustomFont } from '../../../model/fonts';
-import type { SvgImportResult } from '../../../assets/svgImport';
 import type { ProjectLegibility } from '../../../model/designRules';
 import { draftFormatSelection } from './format';
 import { brandMarkFor, withUniversalMotion } from './template';
-import {
-  hiddenSvgLayers,
-  pollDrivenLayers,
-  svgBehaviourOption,
-  svgExtrasOptions,
-  svgGrowthOptions,
-  withDesignFieldSpecs,
-  withEraseSeedFields,
-  withStretchDemoLine,
-  withSvgOutlineFields,
-  type DesignEraseState,
-  type DesignFieldSpec,
-  type SvgBehaviourDraft,
-  type SvgExtraDraft,
-  type SvgFieldDraft,
-  type SvgFontDraft,
-  type SvgImageDraft,
-  type SvgOutlineDraft,
-  type SvgStretchDraft,
-} from '../import';
+// TWO FUNCTIONS AND A SHAPE, which is the whole of what this file knows about the SVG road.
+// It used to be nine: five option builders read by an inline `designSvg: {...}` literal here,
+// and four template passes applied in sequence. Every one of them was public only because it
+// was called from this side of the boundary, and the literal meant the field NUMBERING, the
+// poll-driven filter and the outline rule were spelled here rather than where they are
+// decided. Both halves now live in the capability that owns them (../import/draft.ts).
+import { svgDesignOptions, withSvgImportPasses, type SvgImportDraft } from '../import';
 
-export interface WizardDraft {
+export interface WizardDraft extends SvgImportDraft {
   /** What the finished graphic is CALLED (the Finish step). Empty = fall back to the design's
    *  own catalog name, which is what every project was called before this step existed. It
    *  matters most on the export branch: the name slugs the zip AND, for the SPX and CasparCG
@@ -163,52 +148,9 @@ export interface WizardDraft {
   /** The Fields step's logo toggle on an 'optional'-logo variant; null = undecided
    *  (falls back to "a logo image was provided"). */
   logoEnabled: boolean | null;
-  /** The artwork the graphic IS, in the Import Graphic flow (measured at import). */
-  designArt: DesignArt | null;
-  /** The untouched upload, kept so an erase re-runs from clean pixels (never compounds). */
-  designOriginal: AssetFile | null;
-  /** The applied baked-text erases (Prepare step), in the order they were marked; [] = none.
-   *  A design usually has more than one piece of baked text — a name AND a title, a scoreline
-   *  AND a clock — so each marked region is its own erase, and each seeds its own field(s). */
-  designErases: DesignEraseState[];
-  /** The user's declared answer that the artwork's baked text is INTENTIONAL (a wordmark, a
-   *  deliberate slogan) — or that there is none. It lives on the draft rather than in the
-   *  Prepare step's state so the answer survives leaving the step: Prepare stops re-proposing
-   *  and the Text step's still-baked note stands down. Cleared by a fresh drop and by
-   *  answering "yes, mark it". */
-  designKeepBakedText: boolean;
-  /** The Text step's placed fields (Import Graphic). Ordered; each becomes a real placed
-   *  field at build, AFTER the erase-seeded ones. */
-  designFields: DesignFieldSpec[];
-  /** The imported SVG (the SVG road, docs/SVG_IMPORT_PLAN.md): sanitized + inventoried at
-   *  drop, width/height already fitted to the frame. null outside svg mode. */
-  designSvg: SvgImportResult | null;
-  /** The mapping step's working state, one row per detected text layer: which become
-   *  operator fields, and their edited labels/samples. Initialized from the inventory
-   *  (all ON — or only the `f:`-prefixed ones when any layer opted in by name). */
-  svgFields: SvgFieldDraft[];
-  /** The mapping step's picture rows, one per `<image>` layer: OFF by default (most
-   *  pictures inside a design are the artwork, not a slot), ON = a filelist field whose
-   *  value swaps the node's href. */
-  svgImages: SvgImageDraft[];
-  /** The mapping step's outlined-text rows, one per glyph-shaped group: OFF by default,
-   *  ON = the group is hidden and a placed HTML field stands in for it (plan §1.A). */
-  svgOutlines: SvgOutlineDraft[];
-  /** The BEHAVIOUR bound to the artwork, or null for the ordinary in/out graphic the importer
-   *  has always produced. Proposed from the layer names at drop, and freely re-picked. */
-  svgBehaviour: SvgBehaviourDraft | null;
-  /** The SWITCHES and CHOICES on the artwork's hidden layers (docs/SVG_BEHAVIOUR_PLAN.md §7c),
-   *  one entry per layer the reader gave a use. Proposed from `show:` / `choice:` names at
-   *  drop; every hidden layer no recipe claimed is offered the same two answers in the step. */
-  svgExtras: SvgExtraDraft[];
-  /** Does the graphic HUG its text — one rectangle widening so a longer value fits at full
-   *  size (plan §3)? Off is the graphic that declares a STAGE, which is every board and
-   *  every scorebug; on is the lower third whose banner is as wide as the name on it. */
-  svgStretch: SvgStretchDraft;
-  /** Per referenced font family: how it resolves. Bundled faces auto-match by name at drop;
-   *  the mapping step offers the Google fetch or an upload for the rest. An entry with
-   *  neither source is UNRESOLVED — created anyway, with a warning. */
-  svgFonts: SvgFontDraft[];
+  /** THE IMPORT-GRAPHIC ROAD'S OWN FIELDS are `SvgImportDraft` (../import), declared beside
+   *  the types they carry rather than here: every one of them is a shape that capability
+   *  defines, and a record that names them twice is two places to edit for one new answer. */
   /** The project's legibility settings (model/designRules.ts): viewing target + the two
    *  size-floor toggles. PROJECT METADATA, never template CSS — draftToOptions does not read
    *  it; the create paths land it on the store, which persists it with the project. An
@@ -325,54 +267,10 @@ export function draftToOptions(variant: TemplateVariant, draft: WizardDraft): Wi
     // swallow it.
     logoEnabled: draft.logoEnabled ?? (mark ? true : undefined),
     designArt: draft.designArt ?? undefined,
-    designSvg: draft.designSvg
-      ? {
-          markup: draft.designSvg.markup,
-          width: draft.designSvg.width,
-          height: draft.designSvg.height,
-          // A layer a POLL drives is a display target, not an operator field: the round writes
-          // its wording, its figure and its count, and a second writer on the same node would
-          // have the operator watching their typing be overwritten. Dropped HERE rather than by
-          // unticking the row in the step, because the field ids are positions in exactly this
-          // list — filtering it is the one place where the numbering, the markup binding and the
-          // control page cannot disagree about which layers are fields.
-          fields: draft.svgFields
-            .filter((f) => f.on && !pollDrivenLayers(draft.svgBehaviour).has(f.candidateId))
-            .map((f) => ({
-              candidateId: f.candidateId,
-              title: f.title.trim() || 'Text',
-              sample: f.sample,
-              numeric: f.numeric,
-              countdown: f.kind === 'countdown',
-              // Both ABSENT unless set, for the same reason `hidden` is: an untouched import
-              // must build the bytes it built before the alignment grid existed.
-              ...(f.align ? { align: f.align } : {}),
-              ...(f.keepNudge ? { nudge: true } : {}),
-            })),
-          images: draft.svgImages
-            .filter((f) => f.on)
-            .map((f) => ({ candidateId: f.candidateId, title: f.title.trim() || 'Picture' })),
-          // Only a MEASURED outline can be replaced: its field needs the box, and hiding the
-          // shapes without a stand-in would simply lose the designer's text.
-          outlines: draft.svgOutlines
-            .filter((f) => f.on && f.box)
-            .map((f) => ({ candidateId: f.candidateId })),
-          // The layers the author said to take OFF the artwork. Left ABSENT where nobody said
-          // so, rather than emitted empty: an untouched import must build the same bytes it
-          // built before the question existed.
-          hidden: hiddenSvgLayers(draft),
-          behaviour: svgBehaviourOption(draft) ?? undefined,
-          extras: svgExtrasOptions(draft),
-          // A growth rule travels only when it is both ON and pointed at a shape that still
-          // exists: a half-answered picker must never become a graphic that resizes at random.
-          growth: svgGrowthOptions(draft),
-          fonts: draft.svgFonts.map((f) => ({
-            family: f.family,
-            fontId: f.fontId ?? undefined,
-            customFont: f.customFont ?? undefined,
-          })),
-        }
-      : undefined,
+    // WHAT THE MAPPED SVG BECOMES, answered by the road that mapped it. The shape was spelled
+    // out here as a literal, which put the field NUMBERING - a position in a filtered list -
+    // in the file that knows least about why a layer is in it or out.
+    designSvg: svgDesignOptions(draft),
   };
 }
 
@@ -431,11 +329,12 @@ export function buildDraftTemplate(
     }
     template = { ...template, css };
   }
+  // THE IMPORT ROAD'S BUILD PASSES, in the one order they are correct in: the erase-seeded
+  // fields before the outline stand-ins before the drawn ones, because each numbers itself
+  // after the last. That ORDER is the knowledge, and it was written out here where changing it
+  // by accident cost nothing; it now lives with the passes it orders.
   if (variant.category === 'imported-design') {
-    template = withEraseSeedFields(template, draft);
-    template = withSvgOutlineFields(template, draft, opts.previewMarkers);
-    template = withDesignFieldSpecs(template, draft);
-    if (opts.stretchDemo) template = withStretchDemoLine(template, draft);
+    template = withSvgImportPasses(template, draft, opts);
   }
   const inId = draft.animation.presetId ?? variant.animationPresets[0];
   const outId = draft.animation.outPresetId;
