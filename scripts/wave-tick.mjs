@@ -31,7 +31,7 @@
 // judgement - this only makes the shape visible while somebody can still act on it.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, appendFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, appendFileSync, readdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -40,6 +40,8 @@ import { syncLandings } from './landings.mjs';
 import { nodeProcesses } from './e2e-runs.mjs';
 import { git, worktreeEntries } from './worktree-cleanup-lib.mjs';
 import { wavePlansDir } from './wave-plan-store.mjs';
+import { readProgress, readLaunches, currentProgress } from './wave-launch.mjs';
+import { planAcceptance } from './work-spec.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
@@ -144,6 +146,13 @@ export function looksFinishedUnqueued(branch, { now, quietMinutes = QUIET_MINUTE
  */
 export function deltaBetween(previous, current, { quietMinutes = QUIET_MINUTES } = {}) {
   const events = [];
+  for (const [branch, report] of Object.entries(current.workerReports ?? {})) {
+    const before = previous?.workerReports?.[branch];
+    if (['launchAt', 'workerId', 'sha', 'state', 'nextAction', 'blocker'].some((key) => before?.[key] !== report[key])) {
+      events.push(`WORKER ${branch} ${report.state} at ${report.sha} - ${report.nextAction}`
+        + (report.blocker ? `; blocker: ${report.blocker}` : ''));
+    }
+  }
   const prevBranches = previous?.branches ?? {};
   const prevBlocked = new Set(previous?.blocked ?? []);
   const prevUnqueued = new Set(previous?.finishedUnqueued ?? []);
@@ -246,6 +255,15 @@ export function deltaBetween(previous, current, { quietMinutes = QUIET_MINUTES }
       }
     }
   }
+  // Branch/worker completion is never feature completion. Observe the acceptance ledger
+  // separately; the existing orchestrator decides and records any follow-on execution.
+  for (const feature of current.features ?? []) {
+    const before = previous?.features?.find((item) => item.record === feature.record);
+    if (JSON.stringify(before) === JSON.stringify(feature)) continue;
+    const label = feature.status === 'evidence-complete' ? 'PARENT EVIDENCE READY' : 'PARENT OPEN';
+    events.push(`${label} ${feature.record} - ${feature.openCriteria.slice(0, 8).join(', ') || feature.status}; `
+      + (feature.status === 'evidence-complete' ? 'judge scenario evidence before closing' : 'plan bounded gap work in the existing wave'));
+  }
   return events;
 }
 
@@ -265,10 +283,12 @@ export function nextState(current, { tick, quietMinutes = QUIET_MINUTES }) {
   return {
     v: STATE_VERSION,
     tick,
+    workerReports: current.workerReports ?? {},
     at: new Date(current.at).toISOString(),
     branches,
     blocked: current.blocked.map((session) => session.key),
     queueStalled: current.queueStalled ?? 0,
+    ...(current.features?.length ? { features: current.features } : {}),
     finishedUnqueued: current.landedUnknown ? (current.finishedUnqueuedCarried ?? []) : current.branches
       .filter((branch) => looksFinishedUnqueued(branch, { now: current.at, quietMinutes }))
       .map((branch) => branch.name),
@@ -280,11 +300,26 @@ export function summaryLine(current) {
   const running = current.jobs.filter((job) => job.state === 'running').length;
   const waiting = current.jobs.filter((job) => job.state === 'waiting').length;
   return `${ahead.length} branch(es) ahead of main, ${running} job(s) running, ${waiting} waiting, `
-    + `${current.blocked.length} session(s) waiting on a call`;
+    + `${current.blocked.length} session(s) waiting on a call`
+    + (current.features?.length ? `, ${current.features.filter((item) => item.status !== 'evidence-complete').length}/${current.features.length} parent feature(s) open` : '');
 }
 
 export function heartbeatLine({ tick, at, summary, events = 0 }) {
   return `- tick ${tick} at ${new Date(at).toISOString()}: ${events} event(s); ${summary}`;
+}
+
+/** Commit observations at least once: a failed event write must never advance the cursor.
+ * A crash after append can repeat an event. Consumers reconcile current state before acting. */
+export function persistTick({ statePath, eventPath, state, events, at }, {
+  append = appendFileSync, write = writeFileSync, rename = renameSync,
+} = {}) {
+  if (events.length) {
+    const stamp = new Date(at).toISOString();
+    append(eventPath, events.map((event) => `${stamp} tick ${state.tick} ${event}\n`).join(''), 'utf8');
+  }
+  const temporary = `${statePath}.${process.pid}.tmp`;
+  write(temporary, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  rename(temporary, statePath);
 }
 
 /** A wave plan more than a wave-window old is a LEFTOVER awaiting the next orchestrator, not the
@@ -529,10 +564,14 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
   const blocked = blockedSessions();
   if (!blocked.ok) warnings.push(`blocked-sessions.mjs gave no readable answer (${blocked.detail}) - the waiting column is blind this tick.`);
 
+  const wavePlan = args.wavePlan === 'none' ? null : (args.wavePlan ?? newestWavePlan(now));
+  const features = wavePlan && existsSync(wavePlan) ? planAcceptance(readFileSync(wavePlan, 'utf8')) : [];
   const current = {
     at: now,
+    workerReports: currentProgress(readLaunches(dir), readProgress(dir), Object.fromEntries(branches.map((branch) => [branch.name, branch]))),
     branches,
     jobs,
+    features,
     blocked: blocked.sessions,
     landedUnknown,
     queueStalled,
@@ -546,15 +585,9 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
   const events = previous ? deltaBetween(previous, current, { quietMinutes: args.quietMinutes }) : [];
   const summary = summaryLine(current);
 
-  writeFileSync(statePath, `${JSON.stringify(nextState(current, { tick, quietMinutes: args.quietMinutes }), null, 2)}\n`, 'utf8');
-  // Durability first: the state file has just recorded these events as seen, so the log is the
-  // only place they exist if nothing reads stdout (see the header).
-  if (events.length) {
-    const stamp = new Date(now).toISOString();
-    appendFileSync(path.join(dir, 'wave-tick-events.log'), events.map((event) => `${stamp} tick ${tick} ${event}\n`).join(''), 'utf8');
-  }
+  persistTick({ statePath, eventPath: path.join(dir, 'wave-tick-events.log'),
+    state: nextState(current, { tick, quietMinutes: args.quietMinutes }), events, at: now });
 
-  const wavePlan = args.wavePlan === 'none' ? null : (args.wavePlan ?? newestWavePlan(now));
   if (wavePlan && existsSync(wavePlan)) {
     appendOwnLine(wavePlan, heartbeatLine({ tick, at: now, summary, events: events.length }));
   } else if (args.wavePlan !== 'none') {
@@ -564,7 +597,7 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
   }
 
   if (args.json) {
-    process.stdout.write(`${JSON.stringify({ tick, at: new Date(now).toISOString(), firstTick: !previous, events, summary, warnings }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ tick, at: new Date(now).toISOString(), firstTick: !previous, events, summary, features, warnings }, null, 2)}\n`);
     return 0;
   }
   const lines = [];

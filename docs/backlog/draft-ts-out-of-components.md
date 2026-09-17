@@ -1,65 +1,76 @@
-# Move `wizard/draft.ts` out of `components/` - the debt row that grew 2.4x
+# CLOSED, REFUSED: moving the wizard's import draft out of `components/`
 
-**Filed:** 2026-08-28. **Source:** weekly quality review (measurement)
+**Filed:** 2026-08-28. **Closed:** 2026-09-16 on `claude/qc-mapping-step-out-of-components`, by
+measuring what the move would cost. **Source:** weekly quality review (measurement).
 
-## Why
+## The verdict
 
-**`docs/ARCHITECTURE.md` §5 records this debt at 430 lines. It is now 1,049.**
+**Do not move `src/components/wizard/import/draft.ts` (or `fieldAutoMap.ts`, or the measurement
+layer beside them) out of `components/`.** The item asked for it on the strength of one sentence
+in `docs/ARCHITECTURE.md` §5 - "Logic files without JSX do not live under `components/`" - and
+never priced the move. Priced, it loses on three counts, every one re-derivable:
 
-The row reads: "`components/wizard/draft.ts` (a 430-line logic module parked in the UI tree - move
-it toward `blocks/`/`templates/` when next reworked)". It has since been reworked repeatedly - **30
-edits in the month to 2026-08-28** - and grew to 1,049 lines without ever being moved. The
-"when next reworked" clause was the mechanism, and it did not fire.
+1. **It widens the affected-spec plan by ~4x, for the file that is edited most.**
+   `scripts/e2e-affected.mjs` unions its rules rather than taking the first match, so a file's
+   plan is as wide as the widest rule it matches. Ask the tool
+   (`node -e "console.log(require('./scripts/e2e-affected.mjs').planFor(['<path>']).specs.length)"`):
+   **13** specs where the file is, **48** under `templates/importedDesign/`, **15** under
+   `blocks/`. The `templates/` destination this item implied would undo the narrowing wizard row 2
+   was built for ("38 specs down to 13", commit `79566d3c`). Merge latency is the owner's stated
+   bottleneck; this item would have added to it while claiming to reduce debt. `blocks/` is cheap
+   on this count and loses on the next two - plus a third: the four `with*(template, draft)` passes
+   take a draft type, and `blocks/` may not import `components/`, so the move would not compile
+   without taking `WizardDraft` with it.
+2. **Two compiled invariants would stop loading for the code they govern.**
+   `contracts/rules/wizard/let-geometry-propose-followers-author-edit.md` (which names
+   `proposeFollowers` by symbol) and `keep-prepare-erase-offer-never-applied.md` (which governs
+   what `withEraseSeedFields` does) both carry `scope: src/components/wizard/import/**`. A file
+   outside that scope loads `src/templates/AGENTS.md` instead - the chain that calls itself the
+   tightest in the repo.
+3. **The area contract already answered it.** `wizard/keep-whole-import-graphic-capability-inside`
+   names the draft slice as part of the capability, and `.dependency-cruiser.cjs`
+   (`wizard-import-through-its-index`) enforces its single door. This item read §5 without
+   reading that.
 
-§5 states the rule it breaks without qualification: **"Logic files without JSX do not live under
-`components/`."** This is not a stylistic preference - it is the boundary that keeps UI thin, and
-a 1,049-line no-JSX module is the largest single counterexample in the tree.
+The verdict now lives in `docs/ARCHITECTURE.md` §5, beside the rule, which is where the next
+person meets the question. **This file stays only because
+`docs/backlog/architecture-debt-rows-are-unverifiable.md` cites it.**
 
-Two costs, both real. It sits above the transform layer while behaving like part of it, so a
-wizard change that belongs in `templates/` gets written here instead, where nothing can import it.
-And the architecture doc now understates its own worst row by a factor of 2.4, which makes the
-whole §5 list read as smaller than it is.
+## What was done instead, and what it fixed
 
-## What it would take
+The real complaint under the item was that the boundary was wide, not that the code was in the
+wrong folder. That was fixed on the same branch:
 
-One session.
+- `WizardDraft` no longer declares thirteen fields whose types the import capability defines.
+  `SvgImportDraft` declares them once, beside those types, and `WizardDraft extends` it.
+- The nine functions `draft/core.ts` imported across the boundary are now two - `svgDesignOptions`
+  and `withSvgImportPasses` - and the eight that were public only to cross it are module-private.
+  The import list in `core.ts` went from eighteen names to three, and the file from 453 lines
+  to 352.
+- The knowledge that lived on the CALLING side came with them: the `designSvg` option literal
+  (which decided field NUMBERING in the file that knows least about it) and the order of the four
+  template passes (which each number their fields after the last).
 
-Move it to `blocks/` or `templates/` per the §4 table ("a deterministic edit to template code" ->
-`blocks/`; "a new catalog template, variant, pack, or graphic type" -> `templates/`), split if it
-turns out to serve both. Update importers. **Delete the §5 row in the same commit** - a debt row
-that outlives its debt is the defect this review keeps finding.
+**The first of the item's two findings is therefore done.** Its eight helpers collapsed exactly
+as it predicted.
 
-**Risk: it drags a `components/` import along with it.** That inverts the graph and is the one way
-this move makes things worse rather than better.
+## The second finding outlived it, and is bigger than it was described
 
-**Two findings to take while the file is open**, both from reviews that declined them as
-out-of-scope and neither filed anywhere else. Eight helpers in `draft/core.ts` became public
-because they cross the row-1 boundary and could collapse into two functions owned by the import
-slice. And `pickersOf`, `withFill` and `clearFill` in `import/fieldAutoMap.ts:450, 463, 469` walk
-the same five draft shapes that `proposeSvgBehaviour` walks in `import/draft.ts:1132` - two copies
-of one walk, which drift silently because nothing compares them. Moving the module is the moment
-both become cheap.
+The item said `pickersOf`, `withFill` and `clearFill` in `fieldAutoMap.ts` "walk the same five
+draft shapes that `proposeSvgBehaviour` walks", calling it two copies of one walk. Re-measured on
+2026-09-16:
 
-**Proof it did not break:** `npm run build` catches exactly that - eslint Stage A pins "nothing
-imports `components/`" and `depcruise` is default-deny over the §3 edge table, so a bad edge fails
-the gate rather than landing. Then the wizard e2e specs for behaviour.
+- **Half of it is already fixed.** Those three functions share one walk, `mapBoxes`
+  (`fieldAutoMap.ts:531`). A later branch did that.
+- **The rest is worse than stated.** Each behaviour role is spelled in FOUR places, not two:
+  `templates/behaviours/<recipe>.ts` declares it as registry data (`{ look: 'answer.selected',
+  rows: 'answer', … }`, `quiz.ts:98`); `proposeSvgBehaviour` (`import/draft.ts:1195`) reads the
+  proposal into the draft by hand; `mapBoxes` visits the box by hand; and `MapSvgFieldsStep`
+  renders its picker by hand. Reproduce with
+  `grep -rn "'answer.selected'\|'team.flash'\|'badge'" src/components/wizard/import src/templates/behaviours`.
+- **The registry is already the table the other three restate.** The generic `recipe` draft shape
+  reads it; the four legacy shapes (quiz, score, poll, timer - the set the step names as
+  `LEGACY_RECIPES`) do not. The fix is to collapse those four onto the generic shape, which is a
+  persisted-format change to `DesignSvgBehaviour` and wants its own row and its own migration.
 
-## Evidence
-
-- `wc -l src/components/wizard/draft/*.ts` -> 636 across three files. Wizard row 1
-  (docs/WORKFLOW_ARCHITECTURE.md §5.5) split the 1,861-line `draft.ts` by capability into
-  `draft/core.ts`, `draft/template.ts` and `draft/format.ts`, and left `draft.ts` as a nine-line
-  re-export; row 2 then took the import slice into the capability's own folder.
-  `docs/ARCHITECTURE.md` §5 said 430 when this item was written. The item stands as it
-  was: the logic is still under `components/`.
-- `git log --since="1 month ago" --name-only` -> 30 commits.
-- `docs/ARCHITECTURE.md` §5: "Logic files without JSX do not live under `components/`."
-- Checked in the same pass and moving the OTHER way: §5 also lists `CanvasInteraction.tsx` at
-  "13 inline `applyTemplate` sites". It has 16 `applyTemplate` calls of which **5** are inline
-  `{...template, ...}` assembly. That row improved and the doc overstates it - worth correcting
-  when §5 is next edited, but not worth a branch of its own.
-
-## Trend
-
-- 2026-08-28: 1,049 lines vs 430 recorded in `ARCHITECTURE.md` §5 (2.4x), 30 commits/month
-- 2026-09-08: **split, not moved, and now larger.** `draft.ts` is a 4-line re-export barrel; the logic sits in `components/wizard/draft/` (`core.ts` 449, `template.ts` 157, `format.ts` 30 = 636 lines) plus a second no-JSX module, `components/wizard/import/draft.ts`, at **1,285 lines**. Total no-JSX draft logic under `components/`: **1,921 lines, up from 1,049**. None of it has JSX; none of it left `components/`
+Filed on its own as `docs/backlog/one-role-vocabulary-for-the-five-behaviour-shapes.md`.

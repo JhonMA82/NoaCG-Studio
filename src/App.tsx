@@ -15,15 +15,15 @@ import SaveDialogs from './components/save/SaveDialogs';
 import ShareWithTeamDialog from './components/teams/ShareWithTeamDialog';
 import JoinTeamDialog from './components/teams/JoinTeamDialog';
 import { useAuthUi } from './components/auth/authUi';
+import { useAuthState } from './components/auth/useAuthState';
 import { isBackendConfigured } from './backend/config';
 import { isAgentRequestUrl } from './backend/agentAccess';
 import { arrivingRecoveryLink, isRecoveryRequestUrl } from './backend/recoveryLink';
-import { getAccessToken } from './backend/auth';
-import { syncNow } from './backend/syncController';
+import { graphicWhenSynced } from './backend/graphicWhenSynced';
 import { useDocKindStore } from './store/docKindStore';
 import { useTemplateStore } from './store/templateStore';
 import { parseRoute, useRouter, type Route } from './app/router';
-import { openGraphicById, useSaveUi } from './store/saveActions';
+import { openGraphicDoc, useSaveUi } from './store/saveActions';
 import { raiseStorageAlert } from './store/storageAlert';
 import { isAdvancedMode, useAdvancedMode } from './components/useAdvancedMode';
 import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
@@ -162,6 +162,10 @@ export default function App() {
   // Back/Forward walk between surfaces and a refresh restores the same place.
   const route = useRouter((s) => s.route);
 
+  // Signing in is a second chance at a deep link that could not be resolved without an account
+  // (the graphic-route effect below). Offline this reads true and nothing ever waits on it.
+  const { signedIn } = useAuthState();
+
   // THE ONE BOOT DECISION STILL MADE FROM AN EFFECT: a first-ever visit, which lands on the
   // wizard. Everything else is settled at module load by decideBootRoute, which explains why
   // this is so much smaller than it was. It is late by a frame, and the comment on
@@ -182,27 +186,50 @@ export default function App() {
   // A `#/graphic/<id>` route means THAT library graphic should be the working document.
   // Loading is guarded (unsaved changes ask first); handled once per route change so a
   // canceled guard doesn't re-ask in a loop. Cancel rewinds the URL to the plain editor.
-  const handledGraphicRoute = useRef<string | null>(null);
+  //
+  // ONE ATTEMPT PER ID, AND EXACTLY ONE MORE WHEN A SESSION ARRIVES. `signedIn` is false while
+  // the session is still being read (up to 6 s - backend/auth.ts's bounded read), so keying this
+  // on the flag alone ran the whole body twice on every ordinary signed-in boot: two cloud
+  // lookups, and a second unsaved-changes dialog for a switch the reader had just approved.
+  // Only the attempt that ENDED at "nobody is signed in here" is worth repeating, and only once
+  // somebody has signed in.
+  const graphicAttempt = useRef<{ id: string; needsSignIn: boolean } | null>(null);
   useEffect(() => {
     if (route.view !== 'graphic') {
-      handledGraphicRoute.current = null;
+      graphicAttempt.current = null;
       return;
     }
-    if (handledGraphicRoute.current === route.id) return;
-    handledGraphicRoute.current = route.id;
+    const previous = graphicAttempt.current;
+    if (previous && previous.id === route.id && !(previous.needsSignIn && signedIn)) return;
+    graphicAttempt.current = { id: route.id, needsSignIn: false };
     const { saved } = useTemplateStore.getState();
     if (saved.graphicId === route.id) return; // already open (the normal refresh case)
     useSaveUi.getState().requestSwitch(
       () => {
-        if (openGraphicById(route.id)) return;
-        // A MISS while signed in may be a record that exists in the cloud and has not been
-        // pulled yet - the deep link an agent's `noacg save` printed, opened on a machine that
-        // has not synced since (docs/AGENT_SAVE.md). One sync pass, one retry, then Home: the
-        // link works on first open instead of "next time the studio opens".
+        // ONE LOOKUP, not two: graphicWhenSynced answers from the local library when it can, and
+        // a miss is not an answer yet - the record may be one an agent's `noacg save` minted a
+        // second ago, in the cloud and not in this browser (docs/AGENT_SAVE.md). It asks the
+        // cloud and waits; what to DO with each answer is decided here, because each one wants
+        // something different on screen.
         void (async () => {
-          if (isBackendConfigured() && (await getAccessToken().catch(() => null))) {
-            await syncNow().catch(() => undefined);
-            if (openGraphicById(route.id)) return;
+          const found = await graphicWhenSynced(route.id);
+          // The cloud answers in seconds, and the reader may have moved on inside them. Opening
+          // a document over whatever they went to instead would be worse than not opening it.
+          const live = useRouter.getState().route;
+          if (live.view !== 'graphic' || live.id !== route.id) return;
+          if (useTemplateStore.getState().saved.graphicId === route.id) return; // a parallel attempt won
+          if (found.status === 'found') {
+            openGraphicDoc(found.doc);
+            return;
+          }
+          if (found.status === 'needs-sign-in') {
+            // KEEP THE LINK AND ASK. The graphic is somebody's - very likely this reader's, in
+            // an account they have not signed into on this machine - so replacing the URL with
+            // Home would destroy the only copy of the address they were given. The route stays,
+            // a refresh still works, and signing in runs this effect once more (the ref above).
+            graphicAttempt.current = { id: route.id, needsSignIn: true };
+            useAuthUi.getState().openSignIn('Sign in to open this graphic. It is saved in an account.');
+            return;
           }
           // Unknown id (deleted, other profile): land on Home rather than a dead editor.
           useRouter.getState().replace({ view: 'home', section: null });
@@ -210,7 +237,7 @@ export default function App() {
       },
       () => useRouter.getState().replace({ view: 'editor' }),
     );
-  }, [route]);
+  }, [route, signedIn]);
 
   // `#/video` and `#/graphic` pin the persisted shell kind so refresh matches the URL.
   useEffect(() => {
@@ -327,7 +354,10 @@ export default function App() {
   useEffect(() => {
     if (!isBackendConfigured()) return;
     const onExpired = () =>
-      useAuthUi.getState().openSignIn('Your session expired — sign in again to keep syncing. Everything you made is safe on this device.');
+      useAuthUi.getState().openSignIn(
+        'Your session expired — sign in again to keep syncing. Everything you made is safe on this device.',
+        'resume',
+      );
     window.addEventListener('spx-session-expired', onExpired);
     return () => window.removeEventListener('spx-session-expired', onExpired);
   }, []);

@@ -223,7 +223,41 @@
 @media (min-width: 1366px) {
   .pd-stagehead {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    /* THE VERB COLUMN HAS A FLOOR, AND THE MONITORS GIVE WAY TO IT. `auto minmax(0, 1fr)` let
+       the monitors take their whole max-content width first and left the verbs whatever was
+       over, which on a TALL window is nothing: `--pd-monitor-h` grows with the viewport height
+       while the column it sits in does not get any wider, so at 1440×900 the verb column
+       measured 27px and at 1600×1000 it measured 0. The five buttons then overflowed their own
+       track and OVERLAPPED IN PAIRS - Update painted on top of Re-take, Out on top of Next -
+       so a click on » Next landed on ■ Out and took the graphic off air instead of advancing
+       it. Measured on the production page, 2026-09-15: broken at 1440×900 (18px overlap) and
+       1600×1000 (28px), fine at 1366×768, 1600×900 and 1920×1080, which is why the ratified
+       frames never showed it.
+
+       The floor is 206px and the monitors shrink into it, which is the owner's own tie-breaker
+       where the two compete: "I would rather have the controls big than the monitors too big"
+       (2026-08-21). `.pd-frame` takes its height from its width, so a narrower monitor is a
+       smaller picture and nothing about its shape changes.
+
+       206px IS THE RATIFIED 1366×768 FRAME'S OWN NUMBER rather than one picked here, which is
+       what makes it defensible: that window already gave the verbs exactly 206px, so the
+       smallest supported size is unchanged and every wider one now matches it. It also buys the
+       margin the first cut of this fix did not have. At a 186px floor the block's tightest verb
+       measured 90px of ink in a 90px box - nothing overlapped, but the padding was entirely
+       gone, so a fallback face under `font-display: swap`, OS text scaling or one longer label
+       would have pushed the text over its own border. At 206px that verb has a 100px box and
+       10px of slack, the same as at 1366×768. The monitors' pair gives up 20px for it.
+
+       The floor cannot be derived from the buttons, which is the shape you would reach for
+       first: `.pd-verbs` is a nested grid whose own columns are `minmax(0, 1fr)`, so its
+       min-content is 153px - SMALLER than this floor and smaller than the 255px its widest row
+       actually needs. Measured 2026-09-15; a `min-content` track would have made the block
+       narrower, not safer. `e2e/agent-made-graphics.spec.ts` asserts this number instead, so a
+       change that lets the monitors eat the track again fails by name. IF A LABEL IS EVER
+       LENGTHENED, re-measure the slack: the check is `getBoundingClientRect().width` of a
+       `.pd-verb` against a `Range` over its contents, and 10px on the tightest verb is what this
+       floor was chosen to leave. */
+    grid-template-columns: minmax(0, auto) minmax(206px, 1fr);
     /* STRETCH, not `end`: the monitors set the row's height and the verb column takes exactly
        that. Left to its own height the stack ran TALLER than the monitors (six 44px buttons
        plus the chip is 310px against 245px of monitor at 1536×814), which made the sticky head
@@ -259,15 +293,16 @@
      tall window that makes them bigger, which is the owner's own tie-breaker when the two
      compete: "I would rather have the controls big than the monitors too big" (2026-08-21). */
   .pd-stagehead .pd-verb { min-height: 40px; justify-content: center; gap: 6px; }
-  /* `margin-left: auto` pushed it to the right of a ROW; in a grid it does nothing, and the
-     chip belongs under the buttons it describes either way. */
-  .pd-stagehead .pd-onair-line {
+  /* `margin-left: auto` pushed the small print to the right of a ROW; in a grid it does
+     nothing, and the chip and the checkbox belong under the buttons they describe either way:
+     one row spanning the pair, both centred, the checkbox one line under the chip. */
+  .pd-stagehead .pd-verb-aside {
     grid-column: 1 / -1;
     margin-left: 0;
     margin-top: 2px;
-    white-space: normal;
-    text-align: center;
+    align-items: center;
   }
+  .pd-stagehead .pd-onair-line { white-space: normal; text-align: center; }
 }
 /* PACKED, NOT SPREAD, once the window is tall. The grid above stretches its rows to the
    monitors' height, and on a tall window `align-content: stretch` has nothing left to do but
@@ -373,7 +408,8 @@
   gap: 8px;
   white-space: nowrap;
 }
-.pd-verb kbd {
+/* One key chip for everything in the bar - the buttons and the SPACE-mode checkbox alike. */
+.pd-verbs kbd {
   font-family: var(--mono, monospace);
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -392,9 +428,45 @@
    states would be the very confusion this toggle exists to end. */
 .pd-verb-take.pd-verb-live { background: #2a2a30; border-color: rgba(255, 255, 255, 0.32); color: #f4f4f5; }
 .pd-verb-take.pd-verb-live:hover:not(:disabled) { background: #35353d; }
+/* The toggle's PREVIEW face ('preview-then-take' SPACE mode, on a cue not yet on PREVIEW).
+   Amber - the preview colour the monitors and the rundown tally already use - and never red,
+   because this press airs nothing. Same button, same key, same place; only the face changes,
+   which is how an operator learns the mode without relearning the bar. */
+.pd-verb-take.pd-verb-preview {
+  background: rgba(246, 166, 35, 0.12);
+  border-color: rgba(246, 166, 35, 0.75);
+  color: #f8c675;
+}
+.pd-verb-take.pd-verb-preview:hover:not(:disabled) { background: rgba(246, 166, 35, 0.2); }
+.pd-verb-take.pd-verb-preview kbd { background: rgba(0, 0, 0, 0.22); border-color: rgba(246, 166, 35, 0.45); color: #f8c675; }
 .pd-verb-secondary { border-color: rgba(255, 255, 255, 0.18); color: var(--text-dim); }
 .pd-verb:disabled { opacity: 0.4; }
-.pd-onair-line { margin-left: auto; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+/* THE BAR'S SMALL PRINT: the on-air chip and the SPACE-mode checkbox, one block at the bar's
+   end. One container rather than two loose items because a flex row with `margin-left: auto`
+   on the chip left the checkbox wrapping alone to the far left at 1200px, under TAKE, looking
+   like a field nobody finished. */
+.pd-verb-aside {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.pd-onair-line { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+/* THE SPACE-MODE CHECKBOX, beside the key it changes. Quiet on purpose: it is read once when
+   an operator sets up their habit and then never looked at again, so it takes the on-air
+   chip's size and colour and none of the buttons' weight. */
+.pd-space-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.pd-space-mode input { margin: 0; accent-color: var(--amber, #f6a623); }
 .pd-onair { color: #ef4444; font-weight: 600; }
 
 /* ── The cue editor ────────────────────────────────────────────────────────── */
@@ -532,6 +604,27 @@
 /* The mark drops the label row's uppercase tracking on purpose: read in the same letterforms
    as the field NAME it sits beside, a warning looks like part of the name. */
 .pd-field .field-over { color: var(--danger); font-weight: 700; text-transform: none; letter-spacing: 0; }
+/* THE BOUND-FIELD PATH, for the same reason and then two more. `.pd-field > span` is uppercase
+   and tracked, and a production-data path is neither: it is case-sensitive text an operator has
+   to be able to read back to whoever writes the feed, so `match.home.score` must not arrive as
+   MATCH.HOME.SCORE. It also takes the label's own 10px rather than the in-app chip's 11px,
+   because here it sits INSIDE the label line rather than in a meta row of its own.
+
+   AND THE LABEL LINE HAS TO BE ABLE TO WRAP. The chip is `nowrap` (a path broken across a line
+   is unreadable), so in a plain inline label a long one - `fixtures.0.home.scoreRunningTotal` is
+   not an unusual binding - ran straight out of the field box and painted over the field beside
+   it, while the field NAME broke in two behind it. That is the silent overlap the band's own
+   backstop comment above refuses. A flex line wraps the chip onto its own row instead, which is
+   what the in-app chip already gets from `.field-meta`'s wrap, and the ellipsis is the last
+   resort for a path longer than the whole field. */
+.pd-field-bound-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1px 6px;
+  min-width: 0;
+}
+.pd-field .pd-bound-mark { text-transform: none; letter-spacing: 0; font-size: 10px; max-width: 100%; }
 .pd-field-over input,
 .pd-field-over textarea,
 .pd-field-over select { border-color: var(--danger); }
@@ -597,7 +690,150 @@
   color: var(--text-dim, #9aa1ad);
 }
 .pd-actions-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+/* PINNED — the controls this production put above the fold (the profile's ARRANGE,
+   docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b). The HAIRLINE IS THE FOLD: everything under it is the
+   full generated panel in its sections, so the operator's handful reads as the top of one list
+   rather than as a separate block with a heading of its own.
+   Deliberately NOT a second accent and NOT a bigger button. Amber is preview and brand, red is
+   air, and a pinned control is neither — it is the same control, nearer the hand. */
+.pd-actions-pinned { padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+/* HIDDEN — one collapsed drawer, worn like the activity feed's summary so it reads as a drawer
+   rather than as a control. Hiding a control is a production saying "not in my way"; it is not
+   the same as deleting it, and the machine still accepts every one of these. */
+.pd-actions-more { margin-top: 10px; }
+.pd-actions-more > summary {
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--text-dim, #9aa1ad);
+  padding: 3px 0;
+}
 .pd-action { font-size: 12.5px; padding: 6px 11px; }
+
+/* COMBINED — this production's own buttons, each with its tick list beside it (§6b). The control
+   and its ticks are ONE unit that wraps together, because a tick that wrapped away from its button
+   would be a choice with nothing visible to attach it to. */
+.pd-combined { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pd-combined-asks { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11.5px; }
+.pd-combined-asks label { display: inline-flex; align-items: center; gap: 4px; color: var(--text-dim, #9aa1ad); }
+.pd-combined-asks input { margin: 0; }
+/* AN ARMED WAIT IS VISIBLE, which is half of what keeps the delay on the right side of the
+   "no second clock" ruling (owner 2026-08-09). The button wears the on-air accent while it counts
+   down, and pressing it cancels — so the thing that shows the wait is also the thing that stops
+   it, rather than a second control beside it. */
+.pd-action.pd-combined-waiting {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.pd-combined-count { font-variant-numeric: tabular-nums; color: var(--accent); }
+
+/* THE CONTROLS PANEL — authoring, not operating (components/home/ProductionControlsPanel.tsx).
+   It wears the ⚡ block's chrome because it is about that block, and it is a `<details>` because
+   a drag-to-reorder list open under the buttons that go to air is a hazard mid-programme. */
+.pd-controls-panel > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  list-style: none; /* the kicker IS the affordance; a disclosure triangle beside it reads twice */
+}
+.pd-controls-panel > summary::-webkit-details-marker { display: none; }
+.pd-controls-panel > summary .muted { font-size: 11px; }
+.pd-controls-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+/* One row per control: grip, the name box that grows, then the two marks at a fixed width so the
+   column of buttons reads straight down the list rather than stepping in and out with the
+   longest name. */
+.pd-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-panel, rgba(255, 255, 255, 0.02));
+}
+.pd-controls-row.dragging { opacity: 0.45; }
+/* A hidden control still reads, at a lower weight: it is behind "More", not gone, and a row you
+   cannot read is a row you will not un-hide. */
+.pd-controls-row.hidden .pd-controls-name { color: var(--text-dim, #9aa1ad); }
+/* The grip is the drag SOURCE now, not the whole row, so it has to read as the handle: a little
+   bigger than the row's text and it takes the padding, so the grab target is the full row height
+   rather than one 11px glyph. */
+.pd-controls-row .pd-grip {
+  cursor: grab;
+  color: var(--text-dim, #9aa1ad);
+  font-size: 13px;
+  line-height: 1;
+  padding: 6px 2px;
+}
+.pd-controls-row .pd-grip:active { cursor: grabbing; }
+/* THE NAME IS AN INLINE EDIT, not a form field. Six full-width boxes stacked under the ⚡ block's
+   compact chips made the authoring panel the heaviest thing in the column, and read as six values
+   waiting to be filled in rather than as a list of controls. The border and ground arrive on
+   hover and focus, which is where the affordance is needed and nowhere else. */
+.pd-controls-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  padding: 4px 8px;
+  background: transparent;
+  border-color: transparent;
+}
+.pd-controls-name:hover { border-color: var(--border); }
+.pd-controls-name:focus {
+  border-color: var(--accent);
+  background: var(--bg-panel, rgba(255, 255, 255, 0.02));
+}
+.pd-controls-mark {
+  flex: 0 0 auto;
+  min-width: 78px;
+  font-size: 11.5px;
+  padding: 4px 8px;
+  color: var(--text-dim, #9aa1ad);
+}
+.pd-controls-mark.on { color: var(--text); border-color: var(--accent); }
+.pd-controls-delete { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; flex-wrap: wrap; }
+.pd-controls-delete .hint { margin: 0; flex: 1 1 220px; }
+
+/* COMBINED CONTROLS, the composer half (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b). It sits under the
+   arrange list inside the same collapsed panel, separated by a rule rather than by a second
+   `<details>`: both halves author ONE profile, and two drawers would suggest two records. */
+.pd-combine { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.pd-combine > h4 { margin: 0 0 4px; font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; }
+.pd-combine > .hint { margin: 0 0 10px; }
+.pd-combine-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pd-combine-control {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px;
+  background: var(--bg-panel, rgba(255, 255, 255, 0.02));
+}
+.pd-combine-head { display: flex; align-items: center; gap: 6px; }
+.pd-combine-head .muted { font-size: 11px; flex: 0 0 auto; }
+/* The step list is NUMBERED, because the order is the meaning: a reader has to be able to say
+   "the third step" and have the surface agree. The numbers come from a COUNTER rather than from
+   the `<ol>`'s own marker — a flex row is not a `list-item`, so the marker never paints, and a
+   list that says it is ordered while showing no numbers is the worse of the two. */
+.pd-combine-steps { margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 3px; counter-reset: combine-step; }
+.pd-combine-steps > li { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.pd-combine-steps > li::before {
+  counter-increment: combine-step;
+  content: counter(combine-step) ".";
+  flex: 0 0 18px;
+  text-align: right;
+  color: var(--text-dim, #9aa1ad);
+  font-variant-numeric: tabular-nums;
+}
+.pd-combine-step-text { flex: 1 1 auto; min-width: 0; }
+.pd-combine-steps button { font-size: 11px; padding: 2px 6px; flex: 0 0 auto; }
+/* The picker wraps rather than scrolls: this column is narrow on a laptop and five controls in a
+   row would push the "+ Add step" button out of reach at the width the panel actually has. */
+.pd-combine-picker { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 12px; }
+.pd-combine-picker select { flex: 1 1 110px; min-width: 0; font-size: 12px; padding: 4px 6px; }
+.pd-combine-picker button { flex: 0 0 auto; font-size: 11.5px; padding: 4px 8px; }
+.pd-combine-after { display: flex; align-items: center; gap: 4px; color: var(--text-dim, #9aa1ad); flex: 0 0 auto; }
+/* Wide enough for "12.5" and no wider — the box takes seconds, and one sized like a text field
+   invites the value this panel deliberately cannot store. */
+.pd-combine-after input { width: 58px; font-size: 12px; padding: 4px 6px; }
 .pd-action.destructive { border-color: #7a4a2a; }
 .pd-action.destructive:hover:not(:disabled) { border-color: var(--accent); }
 /* ± LIVE NUMBERS — one label + a −/+ pair per number field, reading as one control. The pair
@@ -1154,7 +1390,11 @@
   .pd-verb kbd { display: none; }
   .pd-verb-take { flex: 1.6 1 0; }
   .pd-verbs .pd-verb-update { display: none; }
-  .pd-onair-line { display: none; }
+  /* The small print stands down with the bar's chips: the on-air chip has no room here, and
+     the SPACE mode names a KEY, which a phone has none of. The TAKE button still follows
+     whatever mode this browser set at a wider size (a tablet turned sideways), so nothing is
+     lost - only the control for changing it. */
+  .pd-verb-aside { display: none; }
   .pd-editor-update { display: inline-flex; }
 }
 
@@ -1237,6 +1477,10 @@
 /* Only the two verbs that change what is ON AIR earn a colour; everything else is a step. */
 .prod-log-take .prod-log-text { color: #4ade80; }
 .prod-log-out .prod-log-text { color: var(--text-dim); }
+/* A NOTE is the feed saying something did NOT happen — a combined control's step the machine
+   dropped, or a tail an Out cancelled. It reads warmer than a command row because it is the one
+   line in the feed the operator may need to act on. */
+.prod-log-note .prod-log-text { color: #fbbf24; }
 .prod-status { font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 .prod-status.ok { color: #4ade80; }
 /* A cue on air: a row that must be findable at a glance. There can be SEVERAL — one per layer

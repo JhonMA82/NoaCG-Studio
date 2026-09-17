@@ -6,8 +6,9 @@
 //   npm run reclaim -- --apply --include-heavy   also closes the Codex app and Antigravity
 //
 // This is a 16 GB laptop and the number of sessions a wave can run is set by free RAM, nothing
-// else. The job queue refuses to start work below a 4 GB floor (`POLICY.freeMemFloorMb` in
-// `jobs-store.mjs`), and it is routinely refused by memory that no process is doing anything
+// else. The job queue refuses to start work below a free-RAM floor (`POLICY.freeMemFloorMb` in
+// `jobs-store.mjs` - 3.0 GB while nobody is at the machine, 4.0 GB while somebody may be), and it
+// is routinely refused by memory that no process is doing anything
 // with: an Adobe helper tree with two bundled node servers of its own, a drive-discovery service
 // for a drive nobody has plugged in, a Stream Deck daemon, an ASUS toy. Three hundred megabytes
 // of nothing, on a machine where three hundred megabytes decides whether a gate starts.

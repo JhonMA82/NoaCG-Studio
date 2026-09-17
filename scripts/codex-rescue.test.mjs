@@ -182,7 +182,8 @@ test('an explicit --effort always wins over the default, even a lower one', asyn
 
 test('the default effort is the owner-ruled setting, not the machine config', async () => {
   const { DEFAULT_EFFORT, DEFAULT_EFFORT_REVIEW_ON } = await import('./codex-rescue.mjs');
-  // medium until 2026-09-16 by the 2026-09-09 ruling; high is the standing norm it returns to.
+  // high is the standing norm. The 2026-09-09 medium trial expired on 2026-09-16 having measured
+  // nothing - 0 delegation outcomes in its window - so it went back rather than being extended.
   assert.equal(DEFAULT_EFFORT, 'high');
   // low is never the default, whatever the machine config drifted to - that is the one thing this
   // constant exists to stop, and it is the shape the defect actually took on 2026-08-30.

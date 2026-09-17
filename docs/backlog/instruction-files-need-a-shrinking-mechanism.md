@@ -5,7 +5,7 @@ kind: ask
 raised: 2026-09-03
 state: advanced
 asked: "The wizard instruction file being at 99% is exactly the kind of problem I expect you to solve autonomously. Compact/modularize it without losing important instructions. More broadly, all our instruction/context files keep growing, so we need a systematic way to remove stale information and modularize them before this becomes a recurring problem."
-note: d399b612 landed the contract-staleness gate and the root AGENTS.md is 11 KB lighter; the orchestrator chain is still at its ceiling and the evidence-date idea is untouched
+note: d399b612 landed the contract-staleness gate and the root AGENTS.md is 11 KB lighter; the 2026-09-16 pass took the orchestrator core from 199 to 168 lines by relocation, the common path is unchanged at 634 of 640, and the evidence-date idea is untouched
 ---
 
 **2026-09-03 - part 1 done, and part 3 has its first mechanical test.** `claude/a-agents-md-headroom`
@@ -58,11 +58,33 @@ gitignored generated files (via `git check-ignore`, so the verdict matches CI), 
 transient-by-design directories (`docs/handoffs/`, `docs/backlog/`, `docs/acceptance/`). On the day
 it landed the only durable rot it found across 131 contracts was already fixed or gitignored.
 
-**What is still open:** the `.agent-workflows/orchestrator*` common path, at 640 of 640 lines, which
-still blocks the orchestrator half of `docs/backlog/memory-store-drain.md` and wants the
-planner/watcher session split the 2026-09-05 orchestrator review proposes; and the evidence-date
-idea. The byte-reserve gate landed 2026-09-03 - `scripts/check-shared-instructions.mjs` fails the
-build once a chain has less than 4 KB free.
+**2026-09-16 - the orchestrator core has room again, by relocation and not by trimming.**
+`claude/qf-orchestrator-core-headroom` took `.agent-workflows/orchestrator.md` from 199 of 200
+lines to 168, with the common path unchanged at 634 of 640. The method was the core's own test,
+applied to every rule: does it fire BEFORE its module loads? A rule that does keeps one sentence
+in the core and its mechanics move to the module; a rule that does not leaves whole. Ten rules
+failed the test in part - the wave-state file's format (15 lines, now the new every-plan module
+`orchestrator/wave-state.md`), section 6's answer-it-yourself mechanics and the pick (now
+`pushback.md`, which owns sections 4 and 6), the mechanism order behind "every wave improves the
+orchestration system" (already in `coherence.md`, so the core now points there), "where the
+collision pass is UNSURE, chain" with its owner quote (`collisions.md`), the standing-ask owner
+quote and the per-receipt rule (`pushback.md`), and five restatements of mechanics that
+`collisions.md` already carried word for word or that `routing.md` and `specs.md` now carry after a
+one-sentence addition each. Nothing was ambiguous enough for a
+`walk-p` item. The symbol-survival check the 2026-09-04 entry asked for ran as a scratch script:
+78 backticked tokens in the pre-edit core, 60 still in the core, 18 in a module this branch edited,
+0 lost - and it needed a CRLF normalisation, because `git show` yields LF while the checkout holds
+CRLF, so a token wrapped across a line break read as lost until the endings matched. That script
+is worth landing beside `check-contract-freshness.mjs` the next time a contract is compacted; it
+is not in this commit because the gate script is held by an in-flight branch.
+
+**What is still open:** the common path is the tighter number now - 634 of 640 with six every-plan
+modules, and `codex/orchestrator-durable-recovery` frees about 11 lines of it when it lands. That
+number still gates the orchestrator half of `docs/backlog/memory-store-drain.md`, and wants the
+planner/watcher session split the 2026-09-05 orchestrator review proposes; the core's 32 free
+lines are what the ten routed memory rules can now draw on. The evidence-date idea is untouched.
+The byte-reserve gate landed 2026-09-03 - `scripts/check-shared-instructions.mjs` fails the build
+once a chain has less than 4 KB free.
 
 # Instruction files only ever grow, and nothing removes what stopped being true
 
@@ -158,3 +180,27 @@ the compaction ships in the same commit.** Waiting for the answer is the failure
   15 KB core. This is now the blocking item, not a background one: `docs/backlog/memory-store-drain.md`
   names it as the reason ten routed memory rules still have nowhere to go, so two backlog items are
   waiting on these two lines.
+- 2026-09-15: the common path has room again at **629 of 640** lines (`routing.md` went from 72
+  lines to 60), but the core is at **199 of 200**, one line from failing the build. The byte chains
+  are still comfortable: `src/components/wizard` 65.8%, `src/ai/pro/harness` 65.3%,
+  `src/templates/importedDesign` 63.0%. What grew is the workflow folder: `.agent-workflows/` went
+  from 250.6 KB to 278.8 KB in the week (+11%). Most of it landed in modules loaded on demand,
+  which is the right place: `orchestrator/hosts.md` (new, 12.2 KB), `orchestrator/specs.md` (new,
+  6.7 KB) and `orchestrator-week.md` (5.3 to 16.0 KB). One is not cheap. `check.md` went from 13.0
+  KB to 17.8 KB (+36%), and `/queue-merge` reads its stamp, so nearly every finishing session pays
+  for it. Root `AGENTS.md` is 16,170 bytes (15,841 on 09-08). The always-loaded
+  `.claude/rules/everywhere.md` is 7,859 bytes and flat. The per-document 32 KB cap the review
+  brief cites is only the fallback in `check-shared-instructions.mjs`. The enforced limits are the
+  110,000-byte chain budget with its 4,096-byte reserve, 25 lines per wrapper, and the two
+  orchestrator line caps.
+- 2026-09-16, `docs/GOALS.md`: condensed to **190 of its own 200-line cap** and given a gate,
+  `npm run check:goals-budget`, which reads the number out of the file's first paragraph rather
+  than holding a second copy of it. **190 and not 199 on purpose**: `codex/ograf-studio-architecture-research`
+  is in flight and inserts seven lines under `## NEXT - OGraf-first`, so the reserved headroom
+  lands it at 197. Anyone filling the file back up to 196 before that branch lands reds the build
+  rather than losing anything, which is the gate working, but the ten lines are spoken for.
+  Recorded here on 2026-09-16 when row QG's handoff was drained; it was that handoff's only home.
+- 2026-09-16: the core is at **168 of 200** lines and the common path at **634 of 640**, with a
+  sixth every-plan module (`orchestrator/wave-state.md`). Everything that left the core moved into
+  a module, most of it verbatim and the rest paraphrased into a sentence the module already had;
+  the symbol-survival check found 0 of 78 backticked tokens lost. Neither cap moved.

@@ -41,10 +41,10 @@
 //      broker, a `codex.js app-server`, a `codex.exe` and their MCP servers, about 450 MB each.
 //      Measured that evening: 30 node processes and 1.4 GB belonging to three delegations that
 //      had ended 6, 8 and 13 hours earlier, on a laptop whose job queue stops starting work
-//      below a 4 GB floor. Nothing collected them because nothing knew what to collect - the
-//      plugin's job record nulls the pid the moment a job completes, the family's parent links
-//      are severed within seconds of the launch, and defect 1's fix deliberately cuts the last
-//      live chain from this shell. `recordOwnership` writes each pid down WITH the time it
+//      below a free-RAM floor of 3.0 to 4.0 GB. Nothing collected them because nothing knew what
+//      to collect - the plugin's job record nulls the pid the moment a job completes, the
+//      family's parent links are severed within seconds of the launch, and defect 1's fix
+//      deliberately cuts the last live chain from this shell. `recordOwnership` writes each pid down WITH the time it
 //      started, while the links are still there; `reapTrees` asks the broker to shut down and
 //      then closes what the record still recognises. The record is the only thing standing
 //      between a reap and the owner's own desktop Codex app, whose processes are severed in
@@ -1066,20 +1066,21 @@ function summarize(job) {
 // launch that names no effort now carries the norm explicitly instead of inheriting whatever the
 // machine happens to say. An explicit --effort always wins; this is a default, not a clamp.
 //
-// MEDIUM UNTIL 2026-09-16, by the owner's ruling of 2026-09-09: spend the Codex subscription hard
-// this week on `gpt-6-astra`, the CLI's new default model, and take the throughput medium buys.
-// This is not a relaxation of the floor - medium IS the floor the same owner set, chosen
-// deliberately rather than drifted into, and low remains reserved for mechanical retrieval.
+// THE MEDIUM TRIAL RAN FROM 2026-09-09 TO 2026-09-16 AND MEASURED NOTHING, so the default is back
+// at the norm. The week was meant to answer whether `gpt-6-astra` at medium is worth more than the
+// previous model at high, and the delegation ledger is what settles that: model, effort, outcome
+// and cause per task class. Read on the expiry date, `npm run harness:usage` reported 0 tasks and
+// 0 delegation outcomes in the window - 51 on the ledger overall, none of them from the trial -
+// so there is no evidence to extend it with, and the trial's own terms say it goes back.
 //
-// IT HAS AN EXPIRY BECAUSE A TRIAL WITHOUT ONE IS JUST A NEW DEFAULT. What the week is meant to
-// answer is whether astra at medium is worth more than the previous model at high, and the
-// delegation ledger already records what settles it: model, effort, outcome and cause per task
-// class (`npm run harness:usage`, `scripts/delegation-outcome.mjs`). On or after the date above,
-// read the ledger and either extend this with the evidence or put it back to `high`.
+// A TRIAL WITHOUT AN EXPIRY IS JUST A NEW DEFAULT, which is why the date was asserted rather than
+// written down: the constant below is read by `scripts/codex-rescue.test.mjs`, and with `high` in
+// place that assertion passes on any date. Re-running the trial is cheap - set this to `medium`,
+// move the date, and this time route enough work through `scripts/delegation-outcome.mjs` for the
+// ledger to have something to say. Whoever does that owns the measurement, not just the switch.
 //
 // Nothing here pins the MODEL: `--model` is forwarded when a caller names one, and with none the
 // CLI uses its own default, which is `gpt-6-astra` as of 0.154.0-alpha.6.
-// Restored on 2026-09-17 after the trial expired; no quality evidence justifies an extension.
 export const DEFAULT_EFFORT = 'high';
 export const DEFAULT_EFFORT_REVIEW_ON = '2026-09-16';
 

@@ -10,7 +10,8 @@ execution route. **In Claude Code the PRIMARY launch path is the Agent tool**, w
 definitions below. Native Codex uses its subagents or the authenticated Claude CLI, not those definitions.
 
 **Record every launch**, initial rows and refills alike, with
-`node scripts/wave-launch.mjs record --letter <L> --branch <branch> --size <small|standard|large>`.
+`node scripts/wave-launch.mjs record` with letter, branch, size and the returned identity fields
+in `hosts.md`; pass the recorded worker ID back to the worker for progress reports.
 It is one appended ledger line, and it is the only place a row's launch-to-queued time is written -
 the number `wave-horizon.mjs` reads to decide whether another unit still fits the night. A launch
 nobody records is a night the horizon cannot learn from, so the seed never improves.
@@ -48,7 +49,7 @@ each the row runs while the plan still reads as honoured. The first two were mea
   Agent tool generates `worktree-agent-<id>`; no parameter sets it and no check compares the two,
   so two of four rows in this wave committed on the generated name. After the first commit
   `npm run jobs` and the morning report have already read the wrong name, so the row renames before
-  it - the rule and its sharp edge are a DO-step line rule in `prompts.md`, because this module
+  it - the rule and its sharp edge are a checkout-confirmation rule in `prompts.md`, because this module
   loads long after the prompt that has to carry it was written.
 - **`isolation: remote` IS ACCEPTED AND RUNS ON THIS LAPTOP.** The call succeeds, the row works,
   and nothing anywhere says the isolation was dropped - so rows routed to "cloud" to spare the

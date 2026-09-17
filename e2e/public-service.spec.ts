@@ -712,7 +712,7 @@ test('every export target packages the new categories with no dangling reference
       ...[...html.matchAll(/(?:src|href)=\\?"([^"\\]+)/g)].map((m) => m[1]),
       ...[...html.matchAll(/url\(\s*\\?['"]?([^'")\\]+)/g)].map((m) => m[1]),
     ].map((u) => u.trim()).filter((u) => u !== '' && u !== '__NOACG_BASE__');
-    const external = loads.filter((u) => /^(https?:)?\/\//i.test(u) && !/^https?:\/\/localhost/i.test(u));
+    const external = loads.filter((u) => /^(https?:)?\/\//i.test(u) && !/^https?:\/\/127\.0\.0\.1(?::|\/)/i.test(u));
     expect(external, label).toEqual([]);
 
     // Every relative reference the package makes must be a file the package contains —

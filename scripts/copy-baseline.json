@@ -23,7 +23,7 @@
       "em-dash": 12
     },
     "src/components/HostedControlPage.tsx": {
-      "em-dash": 14
+      "em-dash": 13
     },
     "src/components/InsertTemplateDialog.tsx": {
       "em-dash": 5
@@ -41,18 +41,12 @@
       "em-dash": 4
     },
     "src/components/SettingsDialog.tsx": {
-      "em-dash": 5
+      "em-dash": 4
     },
     "src/components/StylePanel.tsx": {
       "em-dash": 2
     },
     "src/components/SyncStatus.tsx": {
-      "em-dash": 1
-    },
-    "src/components/auth/AuthStatus.tsx": {
-      "em-dash": 2
-    },
-    "src/components/auth/SignInDialog.tsx": {
       "em-dash": 1
     },
     "src/components/canvas/CanvasInteraction.tsx": {
@@ -82,9 +76,6 @@
     "src/components/home/ProductionAudienceWorkspace.tsx": {
       "em-dash": 19
     },
-    "src/components/home/ProductionDataPanel.tsx": {
-      "em-dash": 4
-    },
     "src/components/home/ProductionDataWorkspace.tsx": {
       "em-dash": 5
     },
@@ -95,7 +86,7 @@
       "em-dash": 5
     },
     "src/components/home/ProductionPage.tsx": {
-      "em-dash": 31
+      "em-dash": 29
     },
     "src/components/home/ProductionPicker.tsx": {
       "em-dash": 2
@@ -116,9 +107,6 @@
       "em-dash": 3
     },
     "src/components/render/RenderPanel.tsx": {
-      "em-dash": 1
-    },
-    "src/components/save/SaveDialogs.tsx": {
       "em-dash": 1
     },
     "src/components/save/StorageAlertDialog.tsx": {
@@ -157,8 +145,14 @@
     "src/components/wizard/ViewingControls.tsx": {
       "em-dash": 1
     },
+    "src/components/wizard/import/BehaviourSection.tsx": {
+      "em-dash": 2
+    },
     "src/components/wizard/import/DesignPrepCanvas.tsx": {
       "em-dash": 2
+    },
+    "src/components/wizard/import/FontsSection.tsx": {
+      "em-dash": 1
     },
     "src/components/wizard/import/ImportDesignStep.tsx": {
       "em-dash": 3
@@ -167,7 +161,7 @@
       "em-dash": 1
     },
     "src/components/wizard/import/MapSvgFieldsStep.tsx": {
-      "em-dash": 6
+      "em-dash": 2
     },
     "src/components/wizard/import/PlaceFieldsStep.tsx": {
       "em-dash": 4

@@ -201,9 +201,15 @@ Phase 1 is built - manual, local, no API.
   **Its head/actions classes are `.pd-live-head` / `.pd-live-actions`, not the tables section's**
   - `.pd-data-head .pd-data-actions` is measured by geometry in the empty-state spec, and a
   second element wearing those names would answer that measurement instead.
-  A LIST value edits in a TEXTAREA: `<input>` sanitises newlines out of its own value, so a list
-  rendered there comes back joined into one string. `reparseLeaf` reads an edit back in the type
-  it already had.
+  A LIST value edits in a TEXTAREA, chosen by the value's TYPE and never by how many lines its
+  text currently has: `<input>` sanitises newlines out of its own value, so a list rendered there
+  comes back joined into one string, and a condition that moves while somebody types would swap
+  the element under their caret. `reparseLeaf` reads an edit back in the type it already had.
+  **Its text boxes are DEFERRED** - see `home/useDeferredEdits` below.
+- **home/useDeferredEdits** - the hook that makes a text box cost ONE write per edit rather than
+  one per keystroke, and keeps what is being typed safe from a store that moves underneath. Any
+  box in this directory controlled by something persisted or shared belongs on it rather than on
+  a fourth private copy of the idea; the file names the surfaces that still have their own.
 - **home/ProductionDataWorkspace** - the Tables section. **Every destructive control on a table
   is ARMED** - the table, a COLUMN and a ROW alike: all three take typed-in values with no undo
   behind them, off a table someone may be reading rows from during a show. One `armed` state per

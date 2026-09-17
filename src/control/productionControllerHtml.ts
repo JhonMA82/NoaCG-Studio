@@ -13,6 +13,14 @@
 // "⟳ TAKE" sends the same cue to the PROGRAM stream: the OBS/vMix sources (loaded with
 // ?stream=program) and the PGM monitor follow that one. Same rows, one `stream` field apart.
 //
+// TWO SPACE MODES (owner, 2026-09-10; docs/PLAYOUT_DASHBOARD.md §2 "Two Space modes"). The
+// checkbox in the verb bar picks them, per browser, from the same localStorage key the React
+// surfaces use. 'take' (default): selecting a cue previews it, SPACE airs it, SPACE again takes
+// it off. 'preview-then-take': selecting previews nothing; SPACE puts the selected cue on the
+// PREVIEW stream, SPACE again airs it, and SPACE on a live cue takes it off and leaves it on
+// PREVIEW. `spaceAction` below is a copy of the table in `components/playoutKeys.ts` - a change
+// to one is a change to both, in the same commit.
+//
 // Self-contained vanilla JS (no dependencies - it ships in a zip), same voice as
 // controlPanelHtml.ts, whose emitGraphic it reuses so the two generated surfaces cannot
 // disagree about a graphic's controls.
@@ -25,6 +33,13 @@ import {
   OVERFLOW_NOTE_ONE,
 } from './controlModel';
 import { MATCH_CLOCK_PAGE_JS } from './matchClockPageJs';
+import {
+  CONTROLLER_SPACE_MODE_KEY,
+  PREVIEW_EMPTY_LABEL,
+  SPACE_FACES,
+  SPACE_MODE_TITLE,
+  spaceActionTable,
+} from './spaceMode';
 
 /** One cue as the controller ships it: prepared data for one graphic of the pool. */
 export interface EmittedCue {
@@ -40,6 +55,17 @@ export interface ControllerPayload {
   /** Each with the PLAYOUT LAYER its production assigned (docs/PLAYOUT_DASHBOARD.md §5). */
   graphics: (EmittedGraphic & { file: string; layer: number })[];
   cues: EmittedCue[];
+  /**
+   * Does this production have COMBINED controls (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b)?
+   *
+   * A BOOLEAN, and deliberately nothing more — not their names, not their steps. §6f draws the
+   * line here: a sequencer with delays and ticks, inlined a second time in vanilla JS, is the
+   * second production runtime the owner refused on 2026-09-15, so this package does not carry
+   * one. What it carries is the honest degradation — one line where the combined section would
+   * be, rather than the silent one a production got before, where the buttons it composed simply
+   * were not there and nothing said why.
+   */
+  combined: boolean;
   /** The design canvas the monitors letterbox into (the first graphic's, typically 1920×1080). */
   width: number;
   height: number;
@@ -183,8 +209,17 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   /* The toggle's OFF half: not the take red, because red means "this puts something on air". */
   .verbs .take.live { background:#2a2a30; border-color:rgba(255,255,255,.32); color:#f4f4f5; }
   .verbs .take.live:hover:not(:disabled) { background:#35353d; }
+  /* The toggle's PREVIEW face ('preview-then-take' mode, on a cue not yet on PREVIEW): amber,
+     the preview colour, never red - this press airs nothing. */
+  .verbs .take.preview { background:rgba(246,166,35,.12); border-color:rgba(246,166,35,.75); color:#f8c675; }
+  .verbs .take.preview:hover:not(:disabled) { background:rgba(246,166,35,.2); }
+  .verbs .take.preview kbd { background:rgba(0,0,0,.22); border-color:rgba(246,166,35,.45); color:#f8c675; }
   .onair-line { margin-left:auto; font-size:12px; color:var(--dim); white-space:nowrap; }
   .onair-line b { color:var(--air); font-weight:600; }
+  /* The SPACE-mode checkbox, beside the key it changes; the on-air line's size and colour. */
+  .space-mode { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--dim);
+    white-space:nowrap; cursor:pointer; user-select:none; }
+  .space-mode input { margin:0; accent-color:#f6a623; }
 
   /* The cue editor. */
   /* Content-sized, never a scroller: this is the pane the owner reported. */
@@ -235,6 +270,20 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   .events-row { display:flex; flex-wrap:wrap; gap:6px; }
   .events button { font:inherit; font-size:12.5px; color:var(--text); background:var(--panel-2);
     border:1px solid var(--line); border-radius:6px; padding:6px 11px; cursor:pointer; }
+  /* PINNED: the production's own handful, above the fold. The hairline under it IS the fold -
+     everything below is the full generated panel, in its sections. No second accent and no
+     bigger button: amber is preview and brand, red is air, and a pinned control is neither. */
+  .events-pinned { padding-bottom:8px; margin-bottom:2px; border-bottom:1px solid var(--line); }
+  /* HIDDEN: one collapsed line, worn like the activity feed's so it reads as a drawer rather
+     than as a control. */
+  /* The one line §6f gives a production with combined controls. It reads as a note rather than
+     as a disabled control, because there is nothing here to enable: the buttons run on the
+     hosted page and this package has no network. */
+  .events-combined { margin:10px 0 0; padding-top:8px; border-top:1px solid var(--line);
+    font-size:11.5px; color:var(--dim); }
+  .events-more { margin-top:8px; }
+  .events-more summary { cursor:pointer; font-size:11.5px; color:var(--dim); padding:3px 0; }
+  .events-more .events-row { margin-top:4px; }
 
   /* Activity: one collapsed line. */
   .feed { flex:none; font-size:12.5px; color:var(--dim); padding-bottom:12px; }
@@ -329,6 +378,7 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
       <button id="v-next" title="Advance the on-air graphic one step">» Next <kbd>N</kbd></button>
       <button id="v-out" title="Play the selected cue's layer off air">■ Out <kbd>0</kbd></button>
       <span class="onair-line" id="live-line"></span>
+      <label class="space-mode" title="${escapeHtml(SPACE_MODE_TITLE)}"><input type="checkbox" id="space-mode"> <kbd>SPACE</kbd> previews first</label>
     </div>
     </div>
 
@@ -454,6 +504,27 @@ var drafts = {};   // cueId -> edited values overlay
 var pvwLive = {};  // graphic -> cueId on the preview stream
 var pgmLive = {};  // graphic -> cueId on the program stream
 var started = Date.now();
+// THE SPACE MODE, per browser (docs/PLAYOUT_DASHBOARD.md §2f). This page runs on the relay's
+// origin, so it keeps its own store; the key, the decision and the words all come from
+// control/spaceMode.ts at generation time, so nothing here can drift from the React surfaces.
+var SPACE_MODE_KEY = ${jsonForScript(CONTROLLER_SPACE_MODE_KEY)};
+function readSpaceMode() {
+  try { return localStorage.getItem(SPACE_MODE_KEY) === 'preview-then-take' ? 'preview-then-take' : 'take'; }
+  catch (e) { return 'take'; }
+}
+var spaceMode = readSpaceMode();
+// The TAKE button's three faces; only the classes are this page's own.
+var FACES = ${jsonForScript(SPACE_FACES)};
+// THE DECISION ITSELF, as the table of its outcomes computed from the shared function at
+// generation time (control/spaceMode.ts spaceActionTable): per mode, the four states in the
+// order off+fresh, off+previewed, live+fresh, live+previewed.
+var SPACE_TABLE = ${jsonForScript(spaceActionTable())};
+function spaceAction(mode, sel) { return SPACE_TABLE[mode][(sel.live ? 2 : 0) + (sel.previewed ? 1 : 0)]; }
+// "ON PREVIEW" IS ONE CUE, held here the moment it is sent - never read back off the 400 ms
+// log poll, because the owner's gesture is two presses in a row and a decision that waited
+// for the poll previewed twice and aired nothing. The PREVIEW STREAM's per-graphic tally
+// (pvwLive) stays what the log says; this is only what SPACE decides against.
+var stagedId = null;
 function cueById(id) { for (var i = 0; i < PAYLOAD.cues.length; i++) if (PAYLOAD.cues[i].id === id) return PAYLOAD.cues[i]; return null; }
 function graphicByName(name) { for (var i = 0; i < PAYLOAD.graphics.length; i++) if (PAYLOAD.graphics[i].name === name) return PAYLOAD.graphics[i]; return null; }
 function cueValues(cue) {
@@ -485,11 +556,26 @@ function feed(text) {
 function takeTo(stream) {
   var cue = cueById(selectedId);
   if (!cue) return;
-  send([
+  var items = [];
+  if (stream === 'preview') {
+    // ONE cue on PREVIEW, held synchronously (see stagedId). In 'preview-then-take' mode
+    // staging REPLACES what was there, as it does on the React monitors: the other graphics
+    // leave the preview stream so the stream shows the one cue the label names. In 'take'
+    // mode the stream keeps its accumulating behaviour, which SPACE never consults.
+    stagedId = cue.id;
+    if (spaceMode === 'preview-then-take') {
+      for (var other in pvwLive) if (other !== cue.graphic) {
+        items.push({ graphic: other, stream: 'preview', msg: { t: 'stop' } });
+        items.push({ graphic: other, stream: 'preview', msg: { t: 'cue', cue: null } });
+      }
+    }
+  }
+  items.push(
     { graphic: cue.graphic, stream: stream, msg: { t: 'update', data: cueValues(cue) } },
     { graphic: cue.graphic, stream: stream, msg: { t: 'play' } },
     { graphic: cue.graphic, stream: stream, msg: { t: 'cue', cue: cue.id } },
-  ]);
+  );
+  send(items);
   feed((stream === 'preview' ? '→ Preview: ' : '⟳ Take: ') + cue.label + ' · ' + cue.graphic);
 }
 function updateLive() {
@@ -529,7 +615,14 @@ function allOut() {
 function toggleProgram() {
   var cue = cueById(selectedId);
   if (!cue) return;
-  if (pgmLive[cue.graphic] === cue.id) outCue('program');
+  var next = spaceAction(spaceMode, { live: pgmLive[cue.graphic] === cue.id, previewed: stagedId === cue.id });
+  if (next === 'take-off') {
+    outCue('program');
+    // The mixer cut: what leaves PROGRAM lands on PREVIEW. Already there in 'take' mode, where
+    // selecting previewed it, and often in the other; only a cue the cursor came back to needs
+    // the row.
+    if (stagedId !== cue.id) takeTo('preview');
+  } else if (next === 'preview') takeTo('preview');
   else takeTo('program');
 }
 function retake() {
@@ -537,16 +630,20 @@ function retake() {
   if (cue && pgmLive[cue.graphic] === cue.id) takeTo('program');
 }
 // Walk the rundown from the keyboard: selecting is the same act as clicking a row, so it goes
-// to PREVIEW and nothing airs. With the toggle above, a whole production can be run from the
-// keys alone - which is also what makes a Stream Deck (a keyboard emulator) work here.
+// to PREVIEW in 'take' mode and is a cursor move in the other; nothing airs either way. With
+// the toggle above, a whole production can be run from the keys alone - which is also what
+// makes a Stream Deck (a keyboard emulator) work here.
+function selectCue(id) {
+  selectedId = id;
+  if (spaceMode === 'take') takeTo('preview');
+  paint();
+}
 function stepSelection(by) {
   if (!PAYLOAD.cues.length) return;
   var at = -1;
   for (var i = 0; i < PAYLOAD.cues.length; i++) if (PAYLOAD.cues[i].id === selectedId) at = i;
   var next = at < 0 ? (by > 0 ? 0 : PAYLOAD.cues.length - 1) : Math.min(PAYLOAD.cues.length - 1, Math.max(0, at + by));
-  selectedId = PAYLOAD.cues[next].id;
-  takeTo('preview');
-  paint();
+  selectCue(PAYLOAD.cues[next].id);
   var el = document.getElementById('cue-' + selectedId);
   if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
 }
@@ -557,6 +654,15 @@ document.getElementById('v-update').onclick = updateLive;
 document.getElementById('v-next').onclick = nextLive;
 document.getElementById('v-out').onclick = function () { outCue('program'); };
 document.getElementById('v-allout').onclick = allOut;
+document.getElementById('space-mode').onchange = function (e) {
+  spaceMode = e.target.checked ? 'preview-then-take' : 'take';
+  try { localStorage.setItem(SPACE_MODE_KEY, spaceMode); } catch (err) { /* the choice lasts this session */ }
+  // Switching keeps the picture still, as on the React pages: into 'preview-then-take' the
+  // selection goes on PREVIEW if it is not there yet (a fresh page never previewed its first
+  // cue), so the next SPACE airs it on every surface alike rather than previewing here alone.
+  if (spaceMode === 'preview-then-take' && selectedId && stagedId !== selectedId) takeTo('preview');
+  paint();
+};
 
 // The verb KEYS (docs/PLAYOUT_DASHBOARD.md §2). Never while typing — the fields live on this
 // same surface, and a space inside a name must stay a space.
@@ -564,7 +670,10 @@ document.addEventListener('keydown', function (e) {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   var el = e.target;
   var tag = el && el.tagName;
-  if (el && (el.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')) return;
+  // A checkbox, radio or button is an INPUT nobody types into, and it keeps focus after a click:
+  // the SPACE after ticking one must still be the verb (the same rule as components/playoutKeys.ts).
+  var typedInput = tag === 'INPUT' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'button';
+  if (el && (el.isContentEditable || typedInput || tag === 'TEXTAREA' || tag === 'SELECT')) return;
   var key = String(e.key).toLowerCase();
   var run = { p: function () { takeTo('preview'); }, ' ': toggleProgram, r: retake,
     u: updateLive, n: nextLive, '0': function () { outCue('program'); },
@@ -629,7 +738,7 @@ function paint() {
       '<span class="body"><span class="nm">' + esc(cue.label) + '</span>' +
       '<span class="sub">' + lay + esc(cue.note || cue.graphic) + '</span></span>' +
       (onAir ? '<span class="tag air">ON AIR</span>' : onPvw ? '<span class="tag pv">PVW</span>' : '');
-    el.onclick = function () { selectedId = cue.id; takeTo('preview'); paint(); };
+    el.onclick = function () { selectCue(cue.id); };
     host.appendChild(el);
   });
 
@@ -640,20 +749,26 @@ function paint() {
     var gg = graphicByName(b); if (gg && (pgmLayer === null || gg.layer > pgmLayer)) pgmLayer = gg.layer;
   }
   var sel = cueById(selectedId);
-  document.getElementById('pvw-label').textContent = pvwNames.length ? pvwNames.join(' · ') : (sel ? sel.label : '');
+  // With nothing on the PREVIEW stream, 'take' mode names the selection (it is on its way
+  // there); the other mode says the truth, because nothing is.
+  document.getElementById('pvw-label').textContent = pvwNames.length
+    ? pvwNames.join(' · ')
+    : (spaceMode === 'preview-then-take' ? ${jsonForScript(PREVIEW_EMPTY_LABEL)} : (sel ? sel.label : ''));
   document.getElementById('pgm-label').textContent = pgmNames.length ? pgmNames.join(' · ') : 'nothing on air';
   document.getElementById('pgm-layer').textContent = pgmLayer === null ? '' : 'L' + pgmLayer;
   document.getElementById('live-line').innerHTML = pgmNames.length
     ? 'on air: <b>● ' + esc(pgmNames.join(' · ')) + '</b>'
     : '○ nothing on air';
   document.getElementById('v-allout').disabled = pgmNames.length === 0;
-  // The toggle's two faces, painted from the same fact the key reads.
+  // The toggle's faces, painted from the same decision the key runs.
   var selLive = !!(sel && pgmLive[sel.graphic] === sel.id);
+  var next = spaceAction(spaceMode, { live: selLive, previewed: !!(sel && stagedId === sel.id) });
   var take = document.getElementById('v-take');
-  take.innerHTML = selLive ? '■ TAKE OFF <kbd>SPACE</kbd>' : '⟳ TAKE <kbd>SPACE</kbd>';
-  take.className = selLive ? 'take live' : 'take';
-  take.title = selLive ? 'Take this cue OFF air — the same thing SPACE does' : 'Air the previewed cue';
+  take.innerHTML = esc(FACES[next].text) + ' <kbd>SPACE</kbd>';
+  take.className = next === 'take-off' ? 'take live' : next === 'preview' ? 'take preview' : 'take';
+  take.title = FACES[next].title;
   take.disabled = !sel;
+  document.getElementById('space-mode').checked = spaceMode === 'preview-then-take';
   // Greyed, never removed: a verb that appeared would shove the ones after it sideways at the
   // moment a cue goes live.
   document.getElementById('v-retake').disabled = !selLive;
@@ -930,36 +1045,78 @@ function paintEditor() {
   // The graphic's OPERATOR EVENTS (its state machine's buttons) — the capability module the
   // machine declares; a graphic with none shows none. Interactive graphics (polls, Q&A, chat)
   // add their operator actions in this same region (docs/PLAYOUT_DASHBOARD.md §8).
-  // GROUPED BY THE AUTHOR'S SECTION, as the two React surfaces do (controlModel
-  // controlSections): a quiz declares "Round" and "Judging" and a flat row of eight buttons
-  // throws that away. Same order, same "Actions" default, hand-rolled here only because this
-  // page ships without React or any import. (No backticks in this file's emitted script - it
-  // IS a template literal, and one would end the string mid-page.)
+  //
+  // ORDER, SECTION, WORD, PINNED AND HIDDEN all come from \`g.arranged\`, which the generator
+  // resolved with the one \`arrangeControls\` the two React surfaces call
+  // (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e: ARRANGE renders on all three deployments). It is
+  // read here rather than recomputed because an arrangement is AUTHORED state, fixed when the
+  // zip was written - unlike the payload rule below, which reads live values at press time and
+  // therefore has to be restated in this page's own JS. A production with no profile gets the
+  // author's own grouping and empty pinned/hidden lists, so this is also the panel a
+  // profile-less package always had. (No backticks in this file's emitted script - it IS a
+  // template literal, and one would end the string mid-page.)
   var events = document.getElementById('editor-events');
   events.innerHTML = '';
-  var sections = [];
-  (g ? g.events : []).forEach(function (e) {
-    var key = e.section || 'Actions';
-    var bucket = null;
-    sections.forEach(function (s) { if (s.name === key) bucket = s; });
-    if (bucket) bucket.buttons.push(e);
-    else sections.push({ name: key, buttons: [e] });
-  });
-  sections.forEach(function (section) {
-    if (sections.length > 1 || section.name !== 'Actions') {
-      var head = document.createElement('h4');
-      head.textContent = section.name;
-      events.appendChild(head);
-    }
+  var arranged = g && g.arranged ? g.arranged : { pinned: [], sections: [], more: [] };
+  // By SCAN rather than by a map keyed on the name: an event id is the author's own word, and a
+  // graphic with a control called 'constructor' would answer a function from an object map.
+  var declaredFor = function (event) {
+    var found = null;
+    (g ? g.events : []).forEach(function (e) { if (e.event === event) found = e; });
+    return found;
+  };
+  var eventRow = function (actions) {
     var row = document.createElement('div');
     row.className = 'events-row';
-    events.appendChild(row);
-    section.buttons.forEach(function (e) { row.appendChild(eventButton(e)); });
+    actions.forEach(function (a) {
+      var e = declaredFor(a.event);
+      if (e) row.appendChild(eventButton(e, a.label));
+    });
+    return row;
+  };
+  // PINNED, above the fold and above the section headings - the handful this show presses.
+  if (arranged.pinned.length > 0) {
+    var pinnedRow = eventRow(arranged.pinned);
+    pinnedRow.className = 'events-row events-pinned';
+    events.appendChild(pinnedRow);
+  }
+  arranged.sections.forEach(function (section) {
+    if (arranged.sections.length > 1 || section[0] !== 'Actions') {
+      var head = document.createElement('h4');
+      head.textContent = section[0];
+      events.appendChild(head);
+    }
+    events.appendChild(eventRow(section[1]));
   });
+  // HIDDEN, behind one disclosure: the production said "not in my way", which is not "gone" -
+  // the machine still accepts these, and this page is the fallback a show drops to when the
+  // network dies, so a tucked-away control must still be one click from the operator.
+  if (arranged.more.length > 0) {
+    var more = document.createElement('details');
+    more.className = 'events-more';
+    var summary = document.createElement('summary');
+    summary.textContent = 'More (' + arranged.more.length + ')';
+    more.appendChild(summary);
+    more.appendChild(eventRow(arranged.more));
+    events.appendChild(more);
+  }
+  // COMBINED CONTROLS - the line, and only the line (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6f). It
+  // sits exactly where the "Combined" section sits on the two hosted surfaces, so an operator
+  // taught on those looks in the right place and is told rather than left guessing. There is no
+  // button here on purpose: this package runs with no network, and a sequencer inlined a second
+  // time in vanilla JS is the second production runtime the owner refused.
+  if (PAYLOAD.combined) {
+    var combinedNote = document.createElement('p');
+    combinedNote.className = 'events-combined';
+    combinedNote.id = 'events-combined';
+    combinedNote.textContent =
+      'This production\\u2019s combined controls run from its hosted control page';
+    events.appendChild(combinedNote);
+  }
 
-  function eventButton(e) {
+  function eventButton(e, label) {
     var btn = document.createElement('button');
-    btn.textContent = '⚡ ' + e.label;
+    btn.textContent = '⚡ ' + label;
     btn.onclick = function () {
       // The SAME rule as controlModel.ts eventPayload (this page ships without it): payload
       // fields ride at the cue's current value; adjust fields (a goal's +1) ride moved by their

@@ -1,7 +1,9 @@
 # The collision pass - what can run at once
 
 Done when every pair of rows is either disjoint in `TOUCHES` and `MINTS` or carries a ruling
-below, and `node scripts/wave-plan-check.mjs` finds no slot minted twice.
+below, and `node scripts/wave-plan-check.mjs` finds no slot minted twice. **Where the pass is
+UNSURE, chain** (owner, 2026-09-03: *"chaining tasks is completely fine"*) - chaining spends
+wall-clock the night has; a wrong parallel call is paid at 05:00 with nobody awake ("two dialogs").
 
 **File overlap is the expensive failure, and a file list alone does not find it** - nor does a list
 of paths nobody confirmed, which is not yet a file list (`prompts.md`, the confirmation pass). Two
@@ -13,9 +15,12 @@ every `TOUCHES` set, then across the collisions a `TOUCHES` diff calls disjoint.
 - **A scarce shared slot.** Two sessions minting migration `0036`; two re-recording
   `scripts/overflow-baseline.json`; two adding an e2e spec and so both editing `e2e-lists.mjs` /
   `e2e-affected.mjs`; two archiving a landed goal out of `docs/GOALS.md`; two touching
-  `package.json`. Different filenames, disjoint sets, clean merge, wrong result. **The plan
-  ALLOCATES these up front** - A takes 0036, B takes 0037, C owns the baseline re-record - and each
-  is named in that session's `MINTS`.
+  `package.json`. **And LIVE MACHINE STATE, which has no filename at all** - the machine's signed-in
+  CLI credential, a global install, a declared presence (`incidents.md` "the credential one row
+  cleared"). Different filenames, disjoint sets, clean merge, wrong result. **The plan ALLOCATES
+  these up front** - A takes 0036, B takes 0037, C owns the baseline re-record - named in that
+  session's `MINTS`, which BINDS: two rows never mint one slot. It does not oblige the named row to
+  use it, nor forbid a row that discovers it needs an unallocated one from taking it and saying so.
 - **A shared CHECK - two rows that change one FLOW, not one file.** Different sources, same TEST,
   because that test drives the flow both changed. **Ask of every pair: do these rows change the
   same user-visible FLOW?** If so they share its tests whatever their file lists say. Measurable,

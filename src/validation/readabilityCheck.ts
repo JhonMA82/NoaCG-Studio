@@ -23,11 +23,13 @@
 // source line from a caption.
 //
 // HONEST LIMITS, stated rather than papered over:
-// - Contrast is measured against the nearest ancestor's solid background-color. A url()
-//   image or a fully transparent stack (text straight over footage) is UNKNOWABLE here, so no
-//   ratio is reported - instead the PROTECTION rule asks whether such text carries a panel,
-//   gradient scrim, text-shadow or stroke detectable from computed style (WARN in v1: the
-//   owner passed a panel-free minimalist anchor, so a hard fail would flag it on day one).
+// - Contrast is measured against the nearest ancestor's solid background-color, or against a
+//   SLAB PAINTED ON THAT ANCESTOR'S ::before / ::after (resolveBacking below states exactly
+//   which pseudo-layers count and which do not). A url() image or a fully transparent stack
+//   (text straight over footage) is UNKNOWABLE here, so no ratio is reported - instead the
+//   PROTECTION rule asks whether such text carries a panel, gradient scrim, text-shadow or
+//   stroke detectable from computed style (WARN in v1: the owner passed a panel-free
+//   minimalist anchor, so a hard fail would flag it on day one).
 // - The safe-area check reads the LAYOUT box and skips any side an ancestor clips - where a
 //   mask cut the text, the edge position is the mask's design and the overflow instruments
 //   own that question.
@@ -130,18 +132,240 @@ interface Backing {
   gradient: boolean;
 }
 
-/** The nearest ancestor (or self) painting a solid-enough background-color. A url() IMAGE
- *  makes the backing unknowable (the image wins the paint); a GRADIENT also stops the walk
- *  but is remembered as protection - a scrim behind text is the treatment the rule asks for. */
-function resolveBacking(el: Element, win: Window): Backing {
+/** What an element's (or pseudo-element's) own paint contributes, or null for "see through
+ *  me, keep walking". A url() IMAGE makes the backing unknowable (the image wins the paint);
+ *  a GRADIENT also stops the walk but is remembered as protection - a scrim behind text is the
+ *  treatment the rule asks for. `alphaScale` folds in a pseudo-layer's own opacity.
+ *
+ *  A backing that clears the threshold is then measured AS IF IT WERE SOLID, and for a panel
+ *  between 0.86 and 0.96 - where nine of the fourteen curated palettes put `--panel-bg` - that
+ *  is optimistic by a percent or two. For the two cinematic palettes at 0.55 it is optimistic
+ *  by a lot. That is a PRE-EXISTING property of this walk, it predates pseudo-elements being
+ *  read at all, and changing it moves 14 shipped designs across the blocking contrast floor -
+ *  so it is written down rather than fixed in passing:
+ *  `docs/backlog/a-translucent-panel-is-measured-as-if-it-were-solid.md` carries the
+ *  measurement and the severity question it turns on. */
+function paintOf(cs: CSSStyleDeclaration, alphaScale = 1): Backing | null {
+  if (cs.backgroundImage && cs.backgroundImage !== 'none') {
+    return { color: null, gradient: /gradient\(/.test(cs.backgroundImage) };
+  }
+  const bg = parseColor(cs.backgroundColor);
+  if (bg && bg.a * alphaScale >= 0.5) return { color: bg, gradient: false };
+  return null;
+}
+
+/** A parallelogram in viewport pixels - what a transformed box actually paints over. */
+type Quad = { x: number; y: number }[];
+
+/** The six numbers of a computed 2D `transform`, or null when it is 3D or unparseable - we
+ *  do not model a 3D matrix, and guessing at one is how a check goes blind. */
+function matrix2d(value: string): number[] | null {
+  if (!value || value === 'none') return [1, 0, 0, 1, 0, 0];
+  const m = /^matrix\(([^)]+)\)$/.exec(value);
+  if (!m) return null;
+  const n = m[1].split(',').map((p) => parseFloat(p));
+  return n.length === 6 && n.every((v) => Number.isFinite(v)) ? n : null;
+}
+
+/** A computed `transform` that only MOVES its box - identity or a translation. Everything
+ *  else (skew, rotate, scale) changes the mapping from an element's local coordinates into
+ *  viewport ones, which is what the pseudo-element placement below relies on being a shift. */
+function translationOnly(value: string): boolean {
+  const m = matrix2d(value);
+  return !!m && m[0] === 1 && m[1] === 0 && m[2] === 0 && m[3] === 1;
+}
+
+/** `box` after its own 2D transform, as four corners. `origin` is the transform origin in the
+ *  SAME (viewport) coordinates as the box, not an offset inside it - the box handed in here has
+ *  already been inset for corner rounding, and an offset would drag the origin along with it. */
+function paintedQuad(
+  box: { left: number; top: number; width: number; height: number },
+  m: number[],
+  origin: { x: number; y: number },
+): Quad {
+  const { x: ox, y: oy } = origin;
+  const map = (x: number, y: number) => {
+    const dx = x - ox;
+    const dy = y - oy;
+    return { x: ox + m[0] * dx + m[2] * dy + m[4], y: oy + m[1] * dx + m[3] * dy + m[5] };
+  };
+  return [
+    map(box.left, box.top),
+    map(box.left + box.width, box.top),
+    map(box.left + box.width, box.top + box.height),
+    map(box.left, box.top + box.height),
+  ];
+}
+
+/**
+ * Is every corner of `r` inside the convex quad `q`? (Same sign on every edge cross-product;
+ * a mirrored matrix flips the winding consistently, so the sign is read, not assumed.)
+ *
+ * The text rect is shrunk by SLACK first, for the same reason `clippedSides` below allows a
+ * pixel: every length in this catalog comes out of `calc(Npx * var(--scale))`, so a descender,
+ * a last glyph carrying letter-spacing or a sub-pixel layout under a fractional scale routinely
+ * puts a corner a fraction of a pixel past a slab that plainly backs it. Without the slack one
+ * such corner discards the whole backing and reinstates the exact false positive this file was
+ * changed to remove - silently, and differently at 1080p and 720p.
+ */
+const SLACK = 1;
+
+function quadCoversRect(q: Quad, r: DOMRect): boolean {
+  const x0 = r.left + SLACK;
+  const y0 = r.top + SLACK;
+  const x1 = Math.max(r.right - SLACK, x0);
+  const y1 = Math.max(r.bottom - SLACK, y0);
+  const corners = [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+  let sign = 0;
+  for (const p of corners) {
+    for (let i = 0; i < 4; i += 1) {
+      const a = q[i];
+      const b = q[(i + 1) % 4];
+      const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+      if (Math.abs(cross) < 1e-6) continue; // exactly on the edge - counts as covered
+      const s = cross > 0 ? 1 : -1;
+      if (sign === 0) sign = s;
+      else if (sign !== s) return false;
+    }
+  }
+  return sign !== 0; // a degenerate (zero-area) quad covers nothing
+}
+
+/**
+ * THE SLAB A PSEUDO-ELEMENT PAINTS BEHIND `textRect`, or null.
+ *
+ * Why this exists: the house chassis paints its panel on a ::before, because a preset tweens
+ * the element itself and the design's lean has to live on a layer no preset can flatten
+ * (src/templates/scoreboards/sb01.ts). A pseudo-element is not in the DOM ancestor chain, so
+ * before this the walk read every ancestor as transparent and warned that text on an opaque
+ * near-black slab "sits straight over the picture with no panel" - twice, on a design we ship.
+ *
+ * WHAT COUNTS, and why each condition is there. A pseudo has no containment relation to the
+ * text the way an ancestor element does, so every guarantee an ancestor gets for free has to
+ * be re-established here:
+ *
+ *  1. It generates a box and paints one - `content` other than none/normal, not display:none
+ *     or visibility:hidden. An empty pseudo backs nothing.
+ *  2. `position: absolute` inside a POSITIONED host. That pins its containing block to the
+ *     host's padding box, which is the only reason we can say where it lands. A static or
+ *     relative pseudo is an in-flow box BESIDE the content, not under it.
+ *  3. A NEGATIVE `z-index`. This is what puts it behind the host's in-flow text. An
+ *     out-of-flow pseudo on layer 0 or above paints ON TOP of the words - accepting one would
+ *     measure contrast against a slab the reader never sees through, and score a hidden line
+ *     as perfectly legible.
+ *  4. Nothing from the host up to the root is transformed beyond a translation, so the host's
+ *     viewport rect places the pseudo's local box exactly. (A rotate or scale up the chain
+ *     maps both boxes, and we have only measured one of them.)
+ *  5. Its painted quad - the border box, inset for any corner rounding and carried through its
+ *     OWN 2D transform - contains the whole text rect. This is the condition that keeps a
+ *     decorative sliver, an accent edge down one side of a panel, from passing as the panel,
+ *     and it is why the -8deg skew is applied rather than ignored: a skewed slab uncovers its
+ *     own top and bottom corners by tan(8deg) x half its height, and text parked there is not
+ *     backed.
+ *
+ * HOW THE CORNER ROUNDING IS HANDLED, since a pill slab is a real shape here (`border-radius:
+ * 999px` appears across the glass families): the quad is inset HORIZONTALLY by the largest
+ * corner radius. That sub-rectangle is exactly the part of a rounded rect no curve can bite,
+ * so it is sound rather than approximate, and on the square slabs this function was written for
+ * it takes nothing at all.
+ *
+ * STATED LIMIT. A `position: fixed` pseudo resolves against the viewport rather than its host,
+ * and is refused rather than special-cased - as is anything whose box will not resolve to px.
+ * Those refusals warn where a human would not; that is the safe direction, because a check that
+ * goes blind is worse than one that is occasionally fussy.
+ */
+function pseudoBacking(
+  host: Element,
+  which: '::before' | '::after',
+  textRect: DOMRect,
+  win: Window,
+): { z: number; paint: Backing } | null {
+  const cs = win.getComputedStyle(host, which);
+  if (!cs) return null;
+  if (cs.content === 'none' || cs.content === 'normal') return null;      // (1) no box at all
+  if (cs.display === 'none' || cs.visibility === 'hidden') return null;
+  const opacity = parseFloat(cs.opacity);
+  const alpha = Number.isFinite(opacity) ? opacity : 1;
+  if (alpha < 0.5) return null;
+  if (cs.position !== 'absolute') return null;                            // (2) placeable ...
+  const hostCs = win.getComputedStyle(host);
+  if (hostCs.position === 'static') return null;                          // ... against its host
+  const z = parseFloat(cs.zIndex);
+  if (!(z < 0)) return null;                                              // (3) behind the text
+
+  // What the pseudo paints, before asking where. A transparent layer is not a backing, and a
+  // url() image over the text is unknowable - both answers are the same as "no slab here".
+  const paint = paintOf(cs, alpha);
+  if (!paint) return null;
+
+  // (4) The host's rect is the pseudo's containing block only while every transform between
+  // the host and the root is a shift.
+  for (let n: Element | null = host; n; n = n.parentElement) {
+    if (!translationOnly(win.getComputedStyle(n).transform)) return null;
+  }
+
+  // (5) The painted BORDER box, in viewport pixels. `left`/`top` place the margin edge inside
+  // the containing block (the host's padding box); the background paints over the border box,
+  // which is the content box plus padding and border unless box-sizing already counted them.
+  const hostRect = host.getBoundingClientRect();
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const bdX = parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+  const bdY = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+  const counted = cs.boxSizing === 'border-box'; // width/height already include padding + border
+  const box = {
+    left: hostRect.left + parseFloat(hostCs.borderLeftWidth) + parseFloat(cs.left) + parseFloat(cs.marginLeft),
+    top: hostRect.top + parseFloat(hostCs.borderTopWidth) + parseFloat(cs.top) + parseFloat(cs.marginTop),
+    width: parseFloat(cs.width) + (counted ? 0 : padX + bdX),
+    height: parseFloat(cs.height) + (counted ? 0 : padY + bdY),
+  };
+  if (!Object.values(box).every((v) => Number.isFinite(v))) return null;  // an `auto` we cannot resolve
+
+  // The transform origin, pinned in viewport coordinates BEFORE the box is inset below.
+  const [originX, originY] = cs.transformOrigin.split(' ').map(parseFloat);
+  if (!Number.isFinite(originX) || !Number.isFinite(originY)) return null;
+  const origin = { x: box.left + originX, y: box.top + originY };
+
+  // Corner rounding: inset horizontally by the largest radius, which leaves the strip no curve
+  // can reach. A percentage radius resolves against the box's own width, near enough for an
+  // inset whose only job is to be conservative.
+  const radius = (v: string) => {
+    const n = parseFloat(v);
+    if (!Number.isFinite(n)) return 0;
+    return v.includes('%') ? (n / 100) * box.width : n;
+  };
+  const round = Math.min(
+    Math.max(
+      radius(cs.borderTopLeftRadius), radius(cs.borderTopRightRadius),
+      radius(cs.borderBottomLeftRadius), radius(cs.borderBottomRightRadius),
+    ),
+    box.width / 2,
+  );
+  box.left += round;
+  box.width -= round * 2;
+
+  const m = matrix2d(cs.transform);
+  if (!m) return null;
+  return quadCoversRect(paintedQuad(box, m, origin), textRect) ? { z, paint } : null;
+}
+
+/** The nearest ancestor (or self) painting a solid-enough background behind `textRect` -
+ *  either on the element itself, or on a ::before / ::after slab it paints (pseudoBacking
+ *  above holds the rules for those). The pseudo-layers are asked FIRST at each step, because
+ *  a pseudo paints over its own host's background and so is the nearer surface; between the
+ *  two, the one on the higher layer wins, and ::after breaks a tie by painting last. */
+function resolveBacking(el: Element, textRect: DOMRect, win: Window): Backing {
   let node: Element | null = el;
   while (node && node !== el.ownerDocument.documentElement) {
-    const cs = win.getComputedStyle(node);
-    if (cs.backgroundImage && cs.backgroundImage !== 'none') {
-      return { color: null, gradient: /gradient\(/.test(cs.backgroundImage) };
+    // ::after is asked second so that, on an equal layer, it wins - it paints last.
+    let nearest: { z: number; paint: Backing } | null = null;
+    for (const which of ['::before', '::after'] as const) {
+      const layer = pseudoBacking(node, which, textRect, win);
+      if (layer && (!nearest || layer.z >= nearest.z)) nearest = layer;
     }
-    const bg = parseColor(cs.backgroundColor);
-    if (bg && bg.a >= 0.5) return { color: bg, gradient: false };
+    if (nearest) return nearest.paint;
+    const own = paintOf(win.getComputedStyle(node));
+    if (own) return own;
     node = node.parentElement;
   }
   return { color: null, gradient: false };
@@ -264,7 +488,7 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
   for (const c of candidates) {
     const role = roleFor(c);
     const ink = parseColor(c.cs.color);
-    const backing = ink && ink.a >= 0.1 ? resolveBacking(c.el, win) : { color: null, gradient: false };
+    const backing = ink && ink.a >= 0.1 ? resolveBacking(c.el, c.rect, win) : { color: null, gradient: false };
     let contrast: number | null = null;
     if (ink && backing.color) {
       // Composite a translucent ink over its backing before comparing.

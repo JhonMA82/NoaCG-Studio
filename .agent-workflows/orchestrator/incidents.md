@@ -10,6 +10,22 @@ mid-wave")*.
 
 ---
 
+## the credential one row cleared
+
+2026-09-16. Two rows of one wave both needed the machine's signed-in `noacg` CLI credential. SB's
+save-to-air bench drove an interactive login that mints a key; SA's deep-link bench used the key
+already on the machine. One cleared it while the other was mid-bench, and that bench leg could not
+be re-run because the credential had already moved. **Both rows did exactly what they were
+assigned**, and the collision pass called them disjoint because neither touched a file - the
+scarce-slot list enumerated only slots that HAVE filenames.
+
+The wave showed the other half of the allocation rule the same day. `scripts/e2e-lists.mjs` was
+minted to SC; SC put its shared decision in a new module, never touched the list, and SI took it
+instead for two new configured specs. A real three-way merge confirmed the two branches were
+clean. Nothing broke - but the plan read as though `MINTS` reserved a slot for the row it named,
+when what it must do is stop two rows minting ONE slot while leaving a third free to take a slot
+nobody claimed.
+
 ## the copy gate landed mid-wave
 
 **2026-08-26.** A session added a build gate and it landed 35 minutes into the wave. Every

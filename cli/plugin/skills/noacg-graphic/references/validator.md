@@ -57,7 +57,8 @@ none of these; data arrives through `update()`.
 | `bench-type-floor` | warn | a text FIELD renders below the category floor (20px at 1080p; 16px for a corner bug) | larger type |
 | `legibility-*` | warn | the on-air design rules: size per role, contrast, stroke, safe area | read each message; they are measured numbers |
 | `bench-mark-unreadable` | warn | a brand mark's ink does not read on the surface it sits on | the mark's surface/ink |
-| `bench-field-unpainted` | warn | a declared text field reaches NO pixel in the settled state | the field's element is visible where the operator expects the value to appear |
+| `bench-field-unpainted` | warn | a declared text field reaches NO pixel in ANY of the machine's states | the field's element is visible where the operator expects the value to appear. A `hidden` field in a `noacg-data-source` holder is a REPORTED field and is exempt - it is read, never drawn |
+| `bench-events-skipped` | warn | the bench pressed fewer than all of the machine's operator arrows (a ceiling of 24, or a from-state it could not enter) and names the ones it left | press them by hand before air, or give the graphic fewer arrows - a control surface an operator can read is smaller than that. A from-state it could not enter is a real defect: an arrow nobody can ever press |
 | `bench-hidden` | error | the graphic is off air within 2 s of `stop()` | the exit hides the root and finishes |
 | `bench-replay` | error | `play()` after `stop()` is on air again | entrances are `fromTo`, state resets |
 | `bench-stress` | error / warn | the three layout checks again with every text doubled and numbers widened | make panels grow/wrap/shrink; the stress frame is what an operator will type |

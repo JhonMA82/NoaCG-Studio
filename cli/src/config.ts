@@ -37,13 +37,21 @@ export function configDir(): string {
   return path.join(process.env.XDG_CONFIG_HOME || path.join(homedir(), '.config'), 'noacg');
 }
 
+/**
+ * What `cliVersion()` answers when it cannot read its own package.json. It is a sentinel and not
+ * a version this package ever had, so anything that COMPARES versions has to treat it as unknown
+ * rather than as very old - `noacg doctor` would otherwise read it as "behind everything" and
+ * print update instructions derived from a fallback constant.
+ */
+export const UNKNOWN_VERSION = '0.0.0';
+
 /** The CLI's own version, read from its package.json (dist/ sits beside it). */
 export function cliVersion(): string {
   try {
     const pkg = require('../package.json') as { version?: string };
-    return pkg.version ?? '0.0.0';
+    return pkg.version ?? UNKNOWN_VERSION;
   } catch {
-    return '0.0.0';
+    return UNKNOWN_VERSION;
   }
 }
 

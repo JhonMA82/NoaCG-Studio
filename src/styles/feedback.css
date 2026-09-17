@@ -42,33 +42,80 @@
    The production's live value tree and its field bindings, above the tables on the Data tab.
    Rows are a fixed grid rather than a flex run so the PATHS line up as a column - a nested
    tree read down its own left edge is the whole legibility argument for the surface. */
-.pd-live { margin-bottom: 26px; padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+/* CAPPED, AND THE TWO ROW GRIDS SHARE THEIR COLUMNS. The tab is full-bleed (a sub-page has no
+   rail), and the rows used to be grids of `fr` tracks, so on a 2560px screen a 12px label and its
+   input sat 800px apart with nothing between them (measured 2026-09-16: label column 16-812,
+   input from 820). A value list is read down its left edge, so the block stops at 1200px, and
+   the label and path columns are custom properties here so the value rows and the binding rows
+   agree by construction rather than by two literals 70 lines apart staying equal. Both grids end
+   in a `minmax(0, 1fr)` track and a 28px delete track, so both delete columns sit on the block's
+   right edge. */
+.pd-live {
+  --pd-label-col: 220px;
+  --pd-path-col: minmax(200px, 460px);
+  max-width: 1200px;
+  margin-bottom: 26px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+/* PHONE (the dashboard's own breakpoint, playout-dashboard.css). The desktop columns add up to
+   more than a 480px phone has to give (598px for a value row where the content box is 448px),
+   so the pixel widths stand down for `fr` tracks with a ZERO minimum. Rows still agree with each
+   other, because no track depends on what its own row holds. */
+@media (max-width: 900px) {
+  .pd-live { --pd-label-col: minmax(0, 1fr); --pd-path-col: minmax(0, 1.4fr); }
+}
+/* THE DRAWER: what the three blocks of this tab are for, closed by default so it costs nothing
+   once learned. Its summary copies `.pd-actions-more > summary` (playout-dashboard.css) rather
+   than sharing it: three drawers now wear this look and a shared `.pd-drawer` belongs in that
+   sheet, which this panel's row did not own. */
+.pd-explain { margin: 0 0 10px; }
+.pd-explain > summary { cursor: pointer; font-size: 11.5px; color: var(--text-dim); padding: 3px 0; }
+.pd-explain-body { max-width: 640px; padding: 4px 0 2px; }
+.pd-explain-body p { margin: 0 0 8px; font-size: 12.5px; line-height: 1.5; color: var(--text); }
+.pd-explain-body p.hint { margin: 0; }
 /* Its own head/actions classes, NOT the tables section's: `.pd-data-head .pd-data-actions` is
    measured by geometry in e2e/production-data.spec.ts, and a second element wearing those names
    would answer that measurement instead. */
 .pd-live-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
 .pd-live-head h2 { margin: 0; font-size: 16px; }
-.pd-live-head .hint { max-width: 560px; margin: 0; }
+/* The line SHRINKS before the actions wrap: a published production shows six buttons (about
+   660px with the Data key toggle), and 120px of heading plus 480px of hint plus those buttons is
+   more than the 1200px cap, so the hint gives up width down to 320px first. */
+.pd-live-head .hint { flex: 1 1 320px; max-width: 480px; margin: 0; }
 .pd-live-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; flex: 0 0 auto; }
 .pd-live-rows { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+/* FIXED TRACKS, not `fr`: every row is its own grid, so a track that depends on the row's own
+   content sits at a different x on every row. Path, value, type, the steppers (numbers only, so
+   the delete button is PINNED to the last track rather than auto-placed - on a text row it used
+   to land in the stepper track and stretch to fill it), a spacer to the block's edge, delete. */
 .pd-live-row {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(120px, 1.4fr) 54px 64px 28px;
+  grid-template-columns: var(--pd-label-col) var(--pd-path-col) 54px minmax(0, 1fr) 28px;
   align-items: center;
   gap: 8px;
   padding: 3px 0;
 }
+.pd-live-row > .pd-live-del { grid-column: 5; }
 .pd-live-path { font-size: 12px; color: var(--text); opacity: 0.85; overflow-wrap: anywhere; }
 .pd-live-row input { width: 100%; min-width: 0; }
+/* A BOX STILL BEING TYPED INTO. The edit is not in the tree yet and nothing else may put a value
+   in this box until it is (ProductionDataPanel's `useDeferredEdits`), which is a real difference
+   between two boxes that look identical - so it is on screen. Amber, the colour this product
+   already uses for "armed, not yet done", and only the border moves: the text must not shift
+   under the caret while somebody is typing in it. */
+.pd-live-row input[data-dirty],
+.pd-live-row textarea[data-dirty] { border-color: var(--amber); }
 .pd-live-type { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.pd-live-step { display: flex; gap: 4px; }
+.pd-live-step { display: flex; gap: 4px; justify-self: start; }
 .pd-live-step button { padding: 2px 8px; line-height: 1.4; font-size: 13px; }
 .pd-live-del { padding: 2px 7px; line-height: 1.4; color: var(--muted); }
 .pd-live-del:hover { color: var(--text); border-color: var(--accent); }
 .pd-live-add { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .pd-live-add input { width: 190px; }
 .pd-live-add .hint { margin: 0; }
-.pd-live-add code, .pd-live-path { font-family: var(--mono, ui-monospace, monospace); }
+/* Every path or literal quoted in this panel's prose is mono, in one rule. */
+.pd-live-add code, .pd-live-path, .pd-bind-rule code, .pd-explain-body code { font-family: var(--mono, ui-monospace, monospace); }
 /* THE DATA KEY block: a credential on a screen other people can see, so it reads as its own
    boxed aside rather than as one more row of the tree. */
 .pd-datakey {
@@ -102,21 +149,46 @@
 /* The bindings table: field on the left, path in the middle, what it is ACTUALLY showing on the
    right - so a mistyped path reads as a blank here instead of as a mystery on air. */
 .pd-bindings { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
-.pd-bindings h3 { margin: 0 0 10px; font-size: 14px; }
-.pd-bindings h4 { margin: 14px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.pd-bindings h3 { margin: 0; font-size: 14px; }
+.pd-bindings h4 { margin: 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+/* The two "Bind all by title" buttons (AC-8): one for the whole production, one per graphic.
+   Each sits beside the heading it applies to, so the scope it acts on is never ambiguous. */
+.pd-bind-head, .pd-bind-graphic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pd-bind-graphic-head { margin: 14px 0 6px; }
+.pd-bind-all { padding: 2px 8px; font-size: 11px; line-height: 1.5; }
+/* The one line that says what the button does, under the heading it sits beside. */
+.pd-bind-rule { margin: 6px 0 4px; max-width: 760px; }
+/* FOUR TRACKS, the same on every row: field, path, status, unbind. The status track carries
+   whichever ONE of the row's right-hand pieces applies (the Suggest button, the "n paths match"
+   note, or the live value - the component renders at most one), so no row needs a track the
+   others lack. The old template gave the Suggest button its own `auto` track and let the label
+   and status tracks share `fr` space, so the input started at 726, 788 or 820 depending on what
+   the row beside it held (measured at 2560px, 2026-09-16). `minmax(0, 1fr)` on the status track
+   is what stops a long note pushing the input left on its own row. */
 .pd-bind-row {
   display: grid;
-  grid-template-columns: minmax(130px, 1fr) minmax(120px, 1.2fr) auto minmax(80px, 0.9fr) 28px;
+  grid-template-columns: var(--pd-label-col) var(--pd-path-col) minmax(0, 1fr) 28px;
   align-items: center;
   gap: 8px;
   padding: 2px 0;
 }
+.pd-bind-row > .pd-live-del { grid-column: 4; }
 .pd-bind-field { font-size: 12px; overflow-wrap: anywhere; }
 .pd-bind-field code { color: var(--muted); margin-right: 4px; }
 .pd-bind-row input { width: 100%; min-width: 0; font-family: var(--mono, ui-monospace, monospace); font-size: 12px; }
-.pd-bind-suggest { padding: 2px 8px; font-size: 11px; line-height: 1.5; }
+/* Still being typed into - the same amber as the value boxes above, and for the same reason. */
+.pd-bind-row input[data-dirty] { border-color: var(--amber); }
+/* `justify-self: start`, because the status track is wide and a grid item stretches to fill it:
+   without this the button ran the full track width instead of hugging its label. */
+.pd-bind-suggest { padding: 2px 8px; font-size: 11px; line-height: 1.5; justify-self: start; }
 .pd-bind-live { font-size: 12px; color: var(--accent); overflow-wrap: anywhere; }
 .pd-bind-miss { font-size: 11px; color: var(--muted); font-style: italic; }
+.pd-bind-ambiguous { font-size: 11px; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
 
 /* A BOUND cue field reads out instead of editing: its value comes from the live tree at Take,
    so an editable box here would show a number nothing will ever air (plan §2.7). It wears

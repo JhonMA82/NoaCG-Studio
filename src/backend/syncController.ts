@@ -53,17 +53,68 @@ async function canSync(): Promise<boolean> {
 let running = false;
 let queued = false;
 
-/** Run a sync now (guarded, serialized). Safe to call anytime; no-ops when it can't sync. */
+/**
+ * Callers who asked for a sync WHILE ONE WAS ALREADY RUNNING, waiting to be told that a pass
+ * covering their call has finished. They are answered by the pass that starts AFTER them (the
+ * coalesced one `queued` asks for), never by the one that was already in flight.
+ *
+ * THE DISTINCTION IS THE WHOLE POINT, and skipping it cost R2.4 on production. A pass lists the
+ * cloud once, near its start; a record created after that list is not in it. `await syncNow()`
+ * used to return an already-resolved promise in this branch, so a caller that meant "pull, then
+ * look again" looked again having pulled nothing. The deep link `noacg save` prints is exactly
+ * that caller: the studio boots, its sign-in pass is already running, the graphic was saved a
+ * second ago, and the re-check after the "sync" missed it and redirected to Home. It arrived
+ * about five seconds later, with the URL long since rewritten.
+ */
+let waiting: Array<() => void> = [];
+
+/** Answer every waiter. Called when a pass finishes and when no pass can run at all — a waiter
+ *  that hangs is worse than one told "nothing came", because its caller waits forever. */
+function answer(list: Array<() => void>): void {
+  for (const resolve of list) resolve();
+}
+
+/**
+ * Run a sync now (guarded, serialized). Safe to call anytime; no-ops when it can't sync.
+ *
+ * RESOLVES WHEN A PASS THAT COULD SEE THE CALLER'S DATA HAS COMPLETED - which is the promise
+ * every caller already assumed it was making. See `waiting` above for what that costs when it
+ * is not true.
+ */
 export async function syncNow(): Promise<void> {
   if (!(await canSync())) {
     setState({ phase: 'offline' });
+    // RELEASING THE WAITERS HERE IS ONLY HONEST WHEN NOTHING IS COMING. This branch is reached
+    // by any caller at any moment - a debounced push, a boot pass fired while the session is
+    // still being read - and a pass that is running or queued will still answer them. Releasing
+    // on somebody else's "I cannot sync" told a deep-link lookup the cloud had answered when
+    // nothing had been asked yet, and it went to Home while its record was seconds away.
+    // If sync really is over, the queued pass reaches this branch with both flags down and
+    // releases them then, so nobody waits forever either.
+    //
+    // ONE WINDOW REMAINS, deliberately: the re-dispatch below clears `queued` and then awaits
+    // `canSync()` inside the new call, and a third caller arriving inside that await sees both
+    // flags down. Closing it needs the pass chain to be one object rather than two booleans,
+    // which is a change to make when something needs it. A caller that acts on a release must
+    // therefore check that a pass really did run - `backend/graphicWhenSynced.ts` reads the
+    // phase for exactly this reason, and anything new here should do the same.
+    if (!running && !queued) {
+      answer(waiting);
+      waiting = [];
+    }
     return;
   }
   if (running) {
     queued = true; // coalesce: one more pass after the current finishes
-    return;
+    return new Promise<void>((resolve) => {
+      waiting.push(resolve);
+    });
   }
   running = true;
+  // Everyone who asked DURING the previous pass is answered when this one finishes; everyone
+  // who asks during THIS pass goes into the fresh list and waits for the next.
+  const answered = waiting;
+  waiting = [];
   setState({ phase: 'syncing' });
   try {
     // Sync's own pull-writes dispatch 'spx-data-changed' too; that's fine — runSync is idempotent,
@@ -100,8 +151,11 @@ export async function syncNow(): Promise<void> {
     setState({ phase: 'error', detail: e instanceof Error ? e.message : String(e) });
   } finally {
     running = false;
+    answer(answered);
     if (queued) {
       queued = false;
+      // Through syncNow, not the body directly: the session can have ended while this pass ran,
+      // and that early return is also what releases the waiters this pass did not answer.
       void syncNow();
     }
   }

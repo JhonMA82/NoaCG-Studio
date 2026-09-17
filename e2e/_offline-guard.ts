@@ -73,6 +73,10 @@ function redact(value: string): string {
  */
 const QUEUE_TIMEOUT_MS = 30 * 60_000;
 
+// webServer's deadline ends before globalSetup. Bound these separate HTTP probes too: a
+// server can answer readiness once and then keep accepting connections without replying.
+const PROBE_TIMEOUT_MS = 10_000;
+
 async function waitForOtherRuns(): Promise<void> {
   if (process.env.CI) return;
   const me = resolve(process.cwd());
@@ -112,11 +116,16 @@ async function waitForOtherRuns(): Promise<void> {
 
 export default async function offlineGuard(): Promise<void> {
   await waitForOtherRuns();
-  const base = `http://localhost:${devPort()}`;
+  const base = `http://127.0.0.1:${devPort()}`;
 
-  const alreadyRunning = await fetch(base, { method: 'GET' })
+  const alreadyRunning = await fetch(base, { method: 'GET', signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
     .then((r) => r.ok)
-    .catch(() => false);
+    .catch((error: unknown) => {
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        throw new Error(`Offline guard readiness probe timed out after ${PROBE_TIMEOUT_MS}ms at ${base}.`, { cause: error });
+      }
+      return false;
+    });
   if (!alreadyRunning) return; // Nothing to inspect; see the note above.
 
   const browser = await chromium.launch();
@@ -129,7 +138,17 @@ export default async function offlineGuard(): Promise<void> {
       const probe = (await import('/e2e/_env-probe.ts')) as Record<string, unknown>;
       return { ...probe };
     });
-    const aiConfig = await fetch(`${base}/api/ai/config`).then((response) => response.json()) as {
+    const aiSignal = AbortSignal.timeout(PROBE_TIMEOUT_MS);
+    const aiConfig = await fetch(`${base}/api/ai/config`, { signal: aiSignal })
+      .then((response) => response.json())
+      .catch((error: unknown) => {
+        // Body reads can reject with AbortError instead of TimeoutError. The signal
+        // identifies our deadline in both phases without depending on that distinction.
+        if (aiSignal.aborted) {
+          throw new Error(`Offline guard AI configuration probe timed out after ${PROBE_TIMEOUT_MS}ms at ${base}/api/ai/config.`, { cause: error });
+        }
+        throw error;
+      }) as {
       providers?: { id?: string; managedKey?: boolean }[];
     };
     managedProviders = (aiConfig.providers ?? [])

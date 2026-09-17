@@ -773,3 +773,358 @@ the deck stays. Keep surfacing it until he has opened it.
 **Asked at the weekly alignment session.** Two of the three big things are waiting on a word from you, not on more planning - the desktop app is parked by your own August decision, and the full editor is designed but not switched on. Do they stay locked?
 
 > Everything should be unlocked. There's no reason to lock anything. My deadlines are my problem and I will make sure that we meet those deadlines. I'll also let you know when we need to work on something that I need. One priority right now is to make Codex do some work because we are running out of Claude Code tokens each week so we have to be more economical and get more things done. That's something we should keep an eye on all the time. When we can use Codex efficiently, I will upgrade our Codex subscription and then we can use more of that.
+
+---
+
+## ALIGN-2026-09-15-1
+
+**From the brief handed to the control-panel planning session on 2026-09-15**, the owner's words
+as the brief carried them; the plan it produced is `docs/CONTROL_PANEL_ANY_GRAPHIC.md`.
+
+> The goal is one control-panel approach that fits ANY graphic we have: catalog templates,
+> imported SVGs, and graphics a coding agent makes through the NoaCG CLI. Later, foreign OGraf
+> packages too.
+
+> The proof case is Elämäni biisi on Yle, 2026-10-20. Five people vote on who performs each song.
+> One graphic shows each person's votes for the current song. Another keeps a running total of how
+> many songs each person has guessed right. The owner wants to prompt it in Claude Code, save it
+> with the CLI, and run it from the playout dashboard within minutes, in front of the producer and
+> director. The early October production needs the scoreboards and quiz boards we already have.
+
+> Hold these constraints: No expression language, ever. The code is the truth; there is no hidden
+> scene model. Controls are generated from the graphic's machine, never hand-built per graphic. A
+> generic OGraf host must still display the graphic from standard data updates alone. P2 is still
+> at DESIGN, so the result is a plan, not code.
+
+> What we know about Zero Density: OGraf Studio's custom actions are only declared. The runtime
+> acknowledges the call and runs no behaviour, so executable operator logic is where NoaCG leads.
+> Their Reality Event Graph is Unreal Blueprints, a programmer's surface. Learn from their
+> patterns, but copy no code: it is AGPL, and its runtime is embedded in every export.
+
+What it settles: the "agent-authored machines" gate in `docs/GOALS.md` NEXT. An agent-authored
+machine is the proof case, so the skill blesses it under the three gates of 2026-08-27.
+
+---
+
+## ALIGN-2026-09-15-2
+
+**Asked after the first landing of `docs/CONTROL_PANEL_ANY_GRAPHIC.md`.** Should the production
+control profile be built for 2026-10-20 on the strength of the "one press: Reveal plus the +1s"
+case, rather than waiting for the producer to ask? The plan said wait.
+
+> Yes - build the production control profile for 2026-10-20 based on the "one press: Reveal +
+> delayed action" case.
+
+> But please treat that example as evidence for a general capability, not as the workflow we are
+> specifically designing around.
+
+> The goal is that NoaCG should be able to control essentially any sensible graphic sequence:
+> reveal elements in different orders, trigger several related actions from one control, delay a
+> later action when needed, and support graphic-specific controls without us having to hard-code
+> each use case.
+
+> At the same time, don't turn this into a general-purpose automation/programming system. The
+> operator experience should remain simple. Prefer a small set of composable primitives that
+> graphics can combine into their own appropriate controls.
+
+> So use my example to prove the architecture, but check that the underlying design is not
+> accidentally specific to that example. We should be ready for graphics we have not designed yet
+> without building speculative complexity for hypothetical requirements.
+
+What it settles: `docs/CONTROL_PANEL_ROAD.md` §3 is activated, on its own fences. The design that
+answers the framing is `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6 - two primitives, a general check
+against eight sequences, and the refusals named.
+
+---
+
+## ALIGN-2026-09-15-3
+
+**Asked after the shared-data answer** (a score entered on one graphic updating the total held in
+another): whether to add the Phase 3 stepper change and bind-by-title, and a check of the plan
+against the boundary he drew.
+
+> Yes, add the Phase 3 stepper change and bind-by-title. This sounds like the right architecture
+> for shared production data.
+
+> One big-picture check before we treat this as settled: I think production data/bindings are one
+> capability of the control system, not the whole control model.
+
+> The broader goal is still that an arbitrary graphic can expose whatever simple production
+> controls make sense for it: different reveal orders, grouped actions, a delayed follow-up
+> action, shared-data changes, etc. My score example should prove one case rather than define the
+> architecture.
+
+> I also think we should distinguish portable graphics from portable production behaviour. A
+> downloaded graphic should remain usable without knowing NoaCG-specific production paths, but I
+> don't think we should force every piece of NoaCG's multi-graphic state, sequencing and
+> automation into a standalone HTML export if that creates a second production runtime. It may be
+> cleaner for advanced behaviour to live in NoaCG's playout/control layer and integrate with
+> external playout systems.
+
+> Please sanity-check the current plan against that boundary. Don't expand scope if the
+> architecture already supports it.
+
+What it settles: `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6g - the four parts of the control model
+and the home of each; the exported production controller renders the generated panel and ARRANGE
+and carries neither COMBINE nor the data tree, which is the one carve-out from the three-surface
+parity in `docs/PLAYOUT_DASHBOARD.md`; and rows 9 and 10 in §5 (the bound-field stepper patches
+the tree; bind all by title).
+
+---
+
+## ALIGN-2026-09-15-4
+
+**Asked after the boundary check**, when the control-panel rows were all sequenced after the 25th.
+
+> We don't have to wait until the 25th if we have everything ready for the 25th, so I need to
+> just check what we need. You could also tell me what I need to check before the 25th, and then
+> we can start working on other things too.
+
+What it settles: the ten rows in `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5 start now. What the 25th
+needs is its own list - `docs/DEMO_2026-09-25.md` §7, where the rows he owns are 3, 10, 11 and
+13, and the owner walks under `docs/GOALS.md` NOW - and none of the control-panel rows touches a
+file or a surface that list depends on.
+
+In the same message he asked how an election night is thought about: many graphics showing the
+same party and candidate figures in different looks, the numbers gathered by a feed or an
+assistant, nobody typing, and the operator still driving. The answer is the shipped shared-data
+design (`docs/PRODUCTION_DATA_PLAN.md`, `docs/DATA_API.md`, `docs/CLOUD_PLAYOUT.md` §7): every
+graphic binds to one production tree, a connector outside the app writes the tree through the
+Data API as one more writer of the log, later rows win so the operator's presses beat the feed,
+and data never operates - airing, advancing and declaring stay presses. Recorded as a row of the
+general check in `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6c. What does not exist is the connector
+for any particular election source; the pattern is `scripts/weather-feed.mjs` and
+`scripts/sportsdb-feed.mjs`, and the numbers to know are the ingest budget of 25 updates per 5 s
+per production and the log's 50.
+
+---
+
+## ALIGN-2026-09-14-1
+
+**Asked at the weekly alignment session** (run 2026-09-14, answered by dictation 2026-09-15; the
+dictated "Wiley" is Yle, confirmed). Did the student production on 12 September happen, and did
+anything in the quiz or the scoreboard go wrong on the day? Nothing in the repo records it, and the
+answer decides whether this week starts with fixes.
+
+> We didn't have the production on the 12th so the next production is at the beginning of October.
+> Everything should be done by the 25th, when we have the lecture with the students and the Yle
+> people. Nothing to fix right now.
+
+What it settles: the 2026-09-12 rehearsal named in `docs/GOALS.md` NOW did not happen, so no
+finding from it exists. The next real production is early October, on the scoreboards and quiz
+boards that exist today.
+
+---
+
+## ALIGN-2026-09-14-2
+
+**Asked at the weekly alignment session.** You said changing animations and using the keyframe
+timeline does not feel good enough, and the rebuild plan copies a professional layers, inspector
+and timeline layout. Who is that editor for first: a student who should never need it, or a
+professional in Advanced mode?
+
+> The editing animations, yeah, it hasn't worked, and right now we haven't focused on it but
+> because we have SVG import and playout kind of solved, I think we could start working on the
+> editor. This means that we could fix something in our graphics that we have imported as the SVG
+> in the editor or change something in a template.
+
+> Actually most of all, what I realized now is what I want the editor for: it would have a basic
+> template for all different types of graphics. Then you could just go in and kind of make your
+> own. My point here is that people don't always want to make their own graphics and I understand
+> that. That's why we have the templates but it's difficult to choose.
+
+> For people it might just be easier to go into the editor, unlock, show different types of
+> graphics (like lower thirds and some other graphics), then move it around, choose the color,
+> choose animation, and export it out to production or to an HTML template. I don't know what to
+> call it but the Yle people also were asking for this kind of a default template that you can
+> edit, modify a little bit, and use for anything.
+
+> The Yle people exactly said that there's very seldom that they do new graphics from scratch. At
+> the music center where I worked with the multi-camera, it's the same thing. A random stream comes
+> up and we need to make a lower third quick. No one really cares how much they look. It's good if
+> we get the colors correct but otherwise it's just important that we can add the names and
+> information we want.
+
+> Anyway this type of template editor would be, I think, the first thing we need but if you want
+> to modify your graphics, it could also be possible.
+
+Clarified later the same morning, when a proposal to re-scope the Codex rebuild plan around the
+template editor was put to him:
+
+> About the Codex planning a more complicated editor. Let's not skip that. It's part of our plan to
+> fix the editor. It has been planned around an open-source OGraf editor that you can also check
+> out. Let's not make any hasty decisions about scrapping that. My thought about the template
+> editor is still valid. I think we need to do them both. I'm not really sure in what order, even
+> though I know that a simple template editor would bring us really far with Yle.
+
+What it settles: two editor needs, neither scrapped. `docs/EDITOR_REBUILD_PLAN.md`, benchmarked on
+Zero Density's OGraf Studio, stays; a quick template editor joins it. Whether they are one editor
+and in which order is the planning question in
+`docs/backlog/one-editor-studio-benchmark-and-quick-templates.md` (see the 2026-09-15 ruling below).
+
+---
+
+## ALIGN-2026-09-14-3
+
+**Asked at the weekly alignment session.** After the 25th, three big things you unlocked all want
+to go first: the editor rebuild, graphics that bring their own control panel, and the desktop app.
+Which one leads?
+
+> Yes, I understand that everything wants to go first. I think the editor rebuild is up on the list
+> but so is the control panel for different types of graphics, and the desktop app can wait a
+> little bit longer. I will have a use case for the "bring your own" control panel.
+
+> It's going to be the 20th of October when we are going to do an Elämäni biisi TV show where you
+> have to guess what song is being performed and for whom. That means there are five people going
+> to cast their votes. We need to be able to show how many votes a person got for a song and then
+> there needs to be a total scoreboard so we can see how many songs they get correct as they are
+> moving along.
+
+> This type of graphic we need to be able to play out. I would want to try it out and build it.
+> For an actual use case I would want to show the production producer and director how easily we
+> can make this graphic in our CG. I'm thinking I am just going to prompt it in Claude Code and
+> import it into our playout dashboard in a few minutes, etc.
+
+> A few important dates are: the 25th with the lecture; a few days after that we will have the
+> production, where we're going to need the scoreboards and quiz boards; a few weeks after that I
+> want to demo this, and it's called Elämäni biisi, shown on Yle.
+
+The dictation said "It's Up" and "Elemente BC"; he confirmed both are Elämäni biisi, the only show
+meant. What it settles: the editor and the control panel for any graphic both lead, and the desktop
+app waits a little longer. The Elämäni biisi case and the plan it produced are already recorded as
+ALIGN-2026-09-15-1 to -4 above. The ruling below says how much weight the case carries.
+
+---
+
+## 2026-09-15 - deadlines are not gospel, and everything is unlocked
+
+Given while these answers were being recorded. Dictated, so the intent binds and the wording does
+not.
+
+> Let's keep in mind that my own deadlines and these plans I have shouldn't always be thought of as
+> gospel. In the end, we're making NoaCG as good as possible, and there's a lot of work to be done
+> in many different fields. I do have these deadlines, but we don't have to block everything just
+> because of those. It doesn't have to mean that everything we now do has to do with my project and
+> my deadlines. It's still meant for everyone, this software.
+
+> Let's record the rulings with the Elämäni biisi voting graphics, but we don't have to make such a
+> big deal out of that, because it should be done anyway, because it's in our plan to already be
+> able to do those kinds of graphics. It's just a very concrete example of what we need to be
+> doing, and also record the ruling that everything is unlocked.
+
+> Of course, I want you to help me out with my deadlines and get everything done for the deadlines.
+> You can be very clear with me about what we need to do before those deadlines, but we don't have
+> to park everything else behind those deadlines. We can work on anything if it makes sense.
+
+On the editor, in the same message: *"I wish that we could think of it as one editor, or maybe it
+can't. That's not up to me... Let's have Fable look at it, and it can suggest if we can combine it
+or how we should move forward."* The two inputs he named are Zero Density's open-source OGraf Studio
+as a benchmark, or code to copy, and getting a lower third out quickly from a template whose shapes,
+colours and logos change. On the Space-key modes (ALIGN-2026-09-10-3): build them, and there is no
+reason they cannot land before the 25th.
+
+What it changes:
+
+- **Nothing is parked for being outside NOW or behind a date.** `docs/GOALS.md` NOW becomes what
+  the dated events need, and anything else may start when there is a clear vision of how and it
+  makes sense. This supersedes the 2026-09-07 rule `root/treat-only-section-push-everything-under`
+  and GOALS' "work that does not serve that date is not current work".
+- **Every programme in `docs/PROGRAMMES.md` is AUTHORIZED**, citing this and ALIGN-2026-09-10-4.
+  The scope edges that return an ACTIVE programme to him are unchanged.
+- **A deadline is owed a clear list, never the whole machine.** A session planning around a date
+  says plainly what the date needs, which for the 25th is `docs/DEMO_2026-09-25.md` §7, and plans
+  the rest on merit.
+- **A concrete production case proves a general capability and never becomes the design target.**
+  ALIGN-2026-09-15-2 said this about the control profile; it now holds for every owner production.
+- **Copying OGraf Studio code is allowed as an option**, subject to the exact-file licence review
+  in `docs/OGRAF_STUDIO_RESEARCH.md` §9: the code is AGPL-3.0-only and its runtime ships inside
+  every export.
+
+---
+
+## 2026-09-16 - the RAM floor follows presence, and away means the whole machine
+
+Asked at 13:00 UTC, during the day wave, whether this wave could go over the queue's 4 GB free-RAM
+floor. He answered:
+
+> Not on the computer, ok to use it all.
+
+This is the second half of what he asked for the evening before (2026-09-15, recorded as the rule
+`jobs/owner-away-machine-job-queue-may` and as
+`docs/backlog/ram-floor-by-presence-not-by-guess.md`):
+
+> if I'm not on the computer then it's okay to use more RAM and also to check whether we actually
+> need 4 GB ready every time so we aren't too conservative with the RAM. Of course during a workday
+> when I'm at the computer, I need 4 GB of RAM probably, maybe. During a day wave it's always good
+> to ask if you can go over 4 GB.
+
+**What it settles.** Presence decides the allowance, not the clock and not one constant. When he is
+away the queue may spend the free memory the machine has; when he is at the machine it keeps his
+gigabyte free. The 2026-09-15 wording tied the looser floor to "not on the computer" and the
+stricter one to "a workday when I'm at the computer", and this answer confirms the same split on a
+day that was neither a night nor a wave he was watching. It also answers his second question, which
+was whether 4 GB is needed every time: it is not. Measured on this box on 2026-09-16
+(`docs/JOB_RUNNER_PLAN.md`, "What a job actually costs in RAM"), a browser walk peaks at about
+1.4 GB, so a suite-equivalent costs about 3 GB. The floor for an away machine is that measured cost,
+3072 MB; the 4096 MB kept when he is present is the same cost plus roughly a gigabyte left for
+whoever is at the keyboard.
+
+**What it does not settle.** It is not a ruling about the concurrency budget - one suite by day and
+two by night are unchanged, and the floor stays an admission check on a single job rather than part
+of that budget. It does not say the queue may page the machine: below the away floor a suite still
+waits, because a box that swaps runs every job slower rather than more of them. And it is not
+standing permission to leave the machine marked away - presence is an explicit signal that expires,
+so a forgotten "away" reverts to the safe answer rather than spending the machine out from under
+him the next morning.
+
+---
+
+## ALIGN-2026-09-15-6 - answered 2026-09-16 - 20 October is a demonstration, not an air date
+
+**Asked at the weekly alignment session of 2026-09-15** and left unanswered in that session's file:
+on 20 October, will the vote board and scoreboard be on air in the Elämäni biisi broadcast through
+Yle's own playout, or is it a demonstration for the producer and director on the NoaCG player? The
+question carried a consequence - if they air for real, proving NoaCG on Yle's actual output moves
+ahead of both editors. He answered in conversation on 2026-09-16, which is why
+`scripts/alignment-answers.mjs` never picked it up and why it is recorded by hand here:
+
+> To answer the YLE question and Elämäni Biisi question, it's not about using it on air for real.
+> The main point is to show how easily the graphic can be done. If we are going to use it, it would
+> be just to show the host and contestants what the graphics are and what the score is, because
+> it's not a live show. They will make the graphics for it in post, but they need to have a graphic
+> that gets updated so they can follow along. We will be running that on SPX. The point is to
+> impress the producers and creators of this show with what NoaCG can do.
+
+**What it settles.**
+
+- **Nothing moves ahead of the editors.** The premise the question attached to a yes is false, so
+  the order of ALIGN-2026-09-14-3 stands untouched: the editor rebuild and the control panel for
+  any graphic both lead, and the desktop app waits. No work is added, reordered or pulled forward
+  by this date.
+- **It is not a live broadcast and not Yle's own playout.** The programme's own graphics are made
+  in POST and are not ours to make. What is wanted on the day is a graphic that gets UPDATED so the
+  host and contestants can follow along - the running score, read in the room - which is the
+  totals board of `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §3b doing exactly what it already does. There
+  is no broadcast chain to prove and no Yle output to be compatible with.
+- **The playout on the day is SPX.** That is a fact about the room, not a programme of work. It
+  does land on a seam, because NoaCG's two doors into SPX hand the operator different products and
+  only one of them keeps the control profile - which door the day uses, and what the other costs,
+  is `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5a item 2. The half of that question only hardware can
+  answer has been in the owner queue since 2026-08-25.
+- **What is being demonstrated is how easily the graphic is made**, and the audience is the
+  producers and creators of the show - people whose own job is making graphics. So the measurement
+  that matters is the authoring stopwatch, not any playout chain. The numbers and what each one was
+  measured on are `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5a item 3; they are three separate runs and
+  are never added into one figure.
+
+The weekly session's own ledger was filled at the same time - `**Answer:**` under
+ALIGN-2026-09-15-6 in `docs/handoffs/2026-09-15-orchestrator-week.local.md`, which is gitignored and
+lives only in the primary checkout - because `scripts/alignment-answers.mjs` reads that file and not
+this one, and an id left with an empty answer is carried forward and asked again.
+
+**What it does not settle.** It does not downgrade the control-panel work. ALIGN-2026-09-15-2 built
+the production control profile on a general argument - "essentially any sensible graphic sequence" -
+and said in the same breath that the Elämäni biisi press is evidence for that capability and never
+the workflow being designed around. A day that turns out to be a demonstration rather than an air
+date takes nothing away from that reasoning, and the 2026-09-15 ruling that a concrete production
+case never becomes the design target is what this answer confirms rather than what it weakens.

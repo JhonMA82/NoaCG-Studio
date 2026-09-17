@@ -3,7 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-03
-state: unstarted
+state: advanced
+note: "Readiness landed in 7e4b50aa. Advisory holder diagnostics add controlled and real CPU evidence; integrated AC-5 review remains open under docs/work-specs/browser-holder-recovery/work.json."
 asked: "Loop/browser blocking: we still seem to have problems with the machine browser blocking other work. Please keep working toward a proper solution."
 ---
 # An e2e run whose dev server never comes up holds the machine-wide browser lock forever

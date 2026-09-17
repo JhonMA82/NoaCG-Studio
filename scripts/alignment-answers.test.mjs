@@ -249,6 +249,20 @@ test('a carried-forward question takes the answered copy, whichever week holds i
   assert.equal(state.pending[0].source, 'docs/handoffs/2026-09-08-orchestrator-week.local.md');
 });
 
+test('an id already in the rulings file reads as answered, even while the weekly Answer line is blank', () => {
+  // A question the owner settled in chat can land in docs/OWNER_RULINGS.md before anyone goes back
+  // to fill in the weekly file's own **Answer:** line. Without this, it prints OPEN at every
+  // weekly session forever, asking him a question he already answered.
+  const weekly = { '2026-09-15-orchestrator-week.local.md': question('ALIGN-2026-09-15-1', 'Still the top?') };
+  const before = alignmentState(checkout({ weekly }));
+  assert.deepEqual(before.open.map((entry) => entry.id), ['ALIGN-2026-09-15-1']);
+  assert.deepEqual(before.recorded, []);
+
+  const after = alignmentState(checkout({ weekly, rulings: '# Owner rulings\n\n## ALIGN-2026-09-15-1\n\n> Yes.\n' }));
+  assert.deepEqual(after.open, []);
+  assert.deepEqual(after.recorded.map((entry) => entry.id), ['ALIGN-2026-09-15-1']);
+});
+
 test('an unanswered question from an older week is dropped, per the carry-forward-once rule', () => {
   const state = alignmentState(checkout({
     weekly: {

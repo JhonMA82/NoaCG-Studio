@@ -22,7 +22,21 @@ import { DATA_SOURCE_CLASS } from '../templates/shared/base';
 export const TEXT_FTYPES = new Set(['textfield', 'textarea', 'number', 'hidden']);
 
 /**
- * A NUMBER the author declared input-only: a value the runtime COMPUTES with, never echoes.
+ * A value the author declared input-only: one the runtime COMPUTES with or READS BACK, never
+ * echoes. Two shapes qualify, and neither is "the element is hidden" on its own.
+ *
+ * A `hidden` FIELD carrying the class is the OGraf reported-field shape, and R4 states it in as
+ * many words: *"A reported field is hidden and input-only, never a drawn element"*
+ * (docs/OGRAF_STATE_IN_FIELDS.md §5). It exists so a data-only controller can reach a behaviour it
+ * has no event channel for - the graphic's own `update()` reads it back and acts - so asking "is
+ * this string on screen" of it is asking the wrong question of a field the contract requires to be
+ * off screen. The proof case's votes board carries exactly one (`Shown`, written `votes`/`revealed`
+ * by a host with no buttons), and every graphic the `noacg-graphic` skill teaches carries such a
+ * holder, so the warning was the common case on the very shape the platform tells agents to
+ * author. SPX also hides `hidden` from the operator's form (src/control/controlModel.ts), so the
+ * type is already the author saying "this is not display copy".
+ *
+ * The NUMBER half, and why the exemption stayed narrow for the year before it:
  *
  * `class="noacg-data-source"` on the field's own element is the root `AGENTS.md` contract for a
  * holder SPX writes and a runtime reads without ever drawing it. On its own that says nothing
@@ -43,10 +57,11 @@ export const TEXT_FTYPES = new Set(['textfield', 'textarea', 'number', 'hidden']
  *
  * It is asked at REPORT time, so a holder whose value IS painted still has to prove it: the quiz's
  * percentages pass on the sentinel exactly as before, and hiding the chips still raises the
- * finding.
+ * finding. And the CLASS is what clears it in both shapes - a plain hidden field with no
+ * declaration is an ordinary invisible field, which is the defect this whole check exists for.
  */
-function declaredNumericInput(doc: Document, field: SpxTemplate['fields'][number]): boolean {
-  if (field.ftype !== 'number') return false;
+function declaredInputOnly(doc: Document, field: SpxTemplate['fields'][number]): boolean {
+  if (field.ftype !== 'number' && field.ftype !== 'hidden') return false;
   return doc.getElementById(field.field)?.classList.contains(DATA_SOURCE_CLASS) ?? false;
 }
 
@@ -228,6 +243,6 @@ export async function unreachableFields(
   }
 
   return missing
-    .filter((d) => !declaredNumericInput(doc, d.field))
+    .filter((d) => !declaredInputOnly(doc, d.field))
     .map((d) => `${d.field.title || d.field.field} (${d.field.field})`);
 }

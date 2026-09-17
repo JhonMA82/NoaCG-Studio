@@ -25,7 +25,7 @@ import { closeSync, createWriteStream, existsSync, fstatSync, openSync, readFile
 import { freemem } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { activeRuns, nodeProcesses, orphanProcesses } from './e2e-runs.mjs';
+import { activeRuns, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
 import { delegationRecords } from './codex-rescue.mjs';
 import { requiresRunningDevServer } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
@@ -36,6 +36,7 @@ import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mj
 import { hasUnread, readRelayText } from './relay.mjs';
 import { syncLandings } from './landings.mjs';
 import {
+  COST,
   FOREGROUND_WAIT_CAP_MS,
   MAX_LANDING_RETRIES,
   // `auto-merge`'s "CI never answered" and the sentence for it - the one refusal the queue
@@ -45,6 +46,7 @@ import {
   NO_VERDICT_REASON,
   ORDER_BLOCKED_REFUSAL,
   POLICY,
+  PRESENCE,
   addJob,
   adoptOrphanedLandings,
   cancelVerdict,
@@ -62,7 +64,10 @@ import {
   landingRow,
   pending,
   pruneJobs,
+  freeMemFloorFor,
   readJobs,
+  readPresence,
+  writePresence,
   readReviewStamp,
   stampGap,
   readLandings,
@@ -160,6 +165,7 @@ async function main() {
   else if (args[0] === 'wait') await cmdWait();
   else if (args[0] === 'log') cmdLog();
   else if (args[0] === 'cancel') cmdCancel();
+  else if (args[0] === 'presence') cmdPresence();
   else await cmdList();
 }
 
@@ -623,9 +629,11 @@ async function cmdRequeue() {
 
 async function cmdList() {
   const { jobs, start, waiting, dead, running, slots } = snapshot();
+  const holderDiagnostics = await sampleHolderDiagnostics();
   if (flag('--json')) {
     process.stdout.write(`${JSON.stringify({
       running,
+      holderDiagnostics,
       waiting: waiting.map((w) => ({ ...w.job, reason: w.reason })),
       // A job whose dependency died is still `waiting` on disk until a runner writes it off, and
       // leaving it out of both lists made it vanish from the listing entirely.
@@ -635,6 +643,7 @@ async function cmdList() {
     })}\n`);
     return;
   }
+  if (holderDiagnostics.length) console.log(`Browser holder diagnostics (advisory):\n${describeHolderDiagnostics(holderDiagnostics)}`);
   // WHAT IS RED ON MAIN, above everything else, because it frames the rest of this report: the
   // queue below is busy landing branches on top of whatever is already broken, and it is
   // supposed to (it gates on ci.yml alone so an infrastructure fault cannot freeze it). Nothing
@@ -665,6 +674,18 @@ async function cmdList() {
     }
     console.log('  Those sessions have nothing left to merge - /handoff tells you which are done.');
     console.log('');
+  }
+
+  // WHERE THE MACHINE IS, on a line somebody already reads, and ABOVE the empty-queue return. A
+  // declaration stands for twelve hours, so an `away` set at 22:00 for a night wave is still live
+  // when the owner sits down at 08:00 - the floor being 3.0 GB then is the exact failure this
+  // design is against. An empty queue is when a stale one is likeliest and cheapest to notice.
+  // Nothing auto-resets it: this listing is read by agents far more often than by him, and a read
+  // that changed scheduling would be a worse surprise than a stale floor.
+  const machine = readPresence(dir);
+  if (machine.state === 'away') {
+    console.log(`Machine marked AWAY until ${new Date(machine.until).toISOString()}${machine.setBy ? ` (set by ${machine.setBy})` : ''}`
+      + ` - the RAM floor is ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB. \`npm run jobs -- presence present\` if you are at it.`);
   }
 
   if (pending(jobs).length === 0) {
@@ -888,6 +909,51 @@ function cmdCancel() {
   console.log(verdict.message);
 }
 
+/**
+ * Say who is at this machine, or read back what was last said.
+ *
+ * `npm run jobs -- presence away` before a night wave or a walk away from the desk, `presence
+ * present` on sitting back down, `presence` alone to see what the scheduler currently believes.
+ *
+ * WHY THIS IS A COMMAND AND NOT A FLAG ON THE RUNNER. The floor used to move only by restarting
+ * the runner with `NOACG_JOBS_FREE_MB`, which meant the person who wanted more memory had to stop
+ * the thing that was using it. The declaration is a file the running runner re-reads, so this
+ * command changes the next scheduling pass and touches nothing else.
+ */
+function cmdPresence() {
+  const asked = args[1];
+  if (asked === undefined) {
+    const now = readPresence(dir);
+    const floor = freeMemFloorFor(now.state);
+    console.log(`Machine is ${now.state === 'away' ? 'AWAY - nobody at the keyboard' : 'IN USE - somebody may be at the keyboard'}.`);
+    console.log(`  free-RAM floor for one suite-equivalent: ${(floor / 1024).toFixed(1)} GB (a walk ${(floor * COST.walk / 1024).toFixed(1)}, a landing ${(floor * COST.merge / 1024).toFixed(1)})`);
+    // `readPresence` normalises every field to a number or null, so nothing here can be handed a
+    // date it cannot format - which matters because this command is the one somebody runs to find
+    // out why a hand-edited file is not doing what they meant.
+    if (now.setAt || now.until) {
+      if (now.setAt) console.log(`  declared ${new Date(now.setAt).toISOString()}${now.setBy ? ` by ${now.setBy}` : ''}`);
+      if (now.expired && now.until) console.log(`  that declaration EXPIRED ${new Date(now.until).toISOString()} - back to the safe answer until somebody says otherwise`);
+      else if (now.expired) console.log('  that declaration carried no deadline, so it counts as expired - write it with `presence away` rather than by hand');
+      else console.log(`  holds until ${new Date(now.until).toISOString()}, then back to in-use`);
+    } else if (now.expired) {
+      console.log('  something is in presence.json that carries no deadline - it counts as expired');
+    } else {
+      console.log('  nobody has said - "in use" is what an unknown means here');
+    }
+    console.log(`  free right now: ${(freeMb() / 1024).toFixed(1)} GB`);
+    return;
+  }
+  if (!PRESENCE.includes(asked)) {
+    console.error(`presence: say one of ${PRESENCE.join(', ')} - or nothing, to read it back.`);
+    process.exit(1);
+  }
+  ensureJobsDir(dir);
+  const record = writePresence(dir, asked, { by: currentBranch() ?? 'unknown branch' });
+  const floor = freeMemFloorFor(record.state);
+  console.log(`Machine marked ${record.state}. Floor for one suite-equivalent is now ${(floor / 1024).toFixed(1)} GB.`);
+  console.log(`  holds until ${new Date(record.until).toISOString()}, then back to in-use on its own.`);
+}
+
 // --- the drain loop --------------------------------------------------------------------------
 
 /**
@@ -910,9 +976,20 @@ async function runner() {
   console.log(`Runner ${process.pid} draining ${dir}`);
   let idleSince = null;
   let starvedSince = null;
+  let diagnosticSample = null;
+  let diagnosticAt = 0;
 
   for (;;) {
     const now = Date.now();
+    // Observation is deliberately outside snapshot(), plan() and reclaimCandidates(). The
+    // runner reuses successive samples without adding a wait or changing scheduling inputs.
+    if (now - diagnosticAt >= 30_000) {
+      const current = holderSample();
+      const diagnostics = diagnoseHolders(activeRuns({}), diagnosticSample, current);
+      if (diagnostics.length) console.log(`Browser holder diagnostics (advisory):\n${describeHolderDiagnostics(diagnostics)}`);
+      diagnosticSample = current;
+      diagnosticAt = now;
+    }
     // One pass, one answer per branch. Held landings ask `aheadOfMain` on every poll and nothing
     // about a branch changes between two jobs read from the same snapshot.
     aheadOfMainCache.clear();
@@ -954,6 +1031,10 @@ async function runner() {
     const { start, dead, released, waiting, running } = schedule(jobs, {
       hour: new Date(now).getHours(),
       freeMemMb: freeMb(),
+      // Re-read every pass, deliberately. Presence is the one input that changes while the runner
+      // is alive - somebody sits down - and a value cached at runner start would be exactly the
+      // stale environment variable this replaced.
+      presence: readPresence(dir, now).state,
       outsideRuns: outsideRuns(jobs),
       aheadOfMain,
       now,
@@ -1329,7 +1410,11 @@ function snapshot() {
   return {
     jobs,
     ...schedule(jobs, {
-      hour: new Date().getHours(), freeMemMb: freeMb(), outsideRuns: outsideRuns(jobs), aheadOfMain,
+      hour: new Date().getHours(),
+      freeMemMb: freeMb(),
+      presence: readPresence(dir).state,
+      outsideRuns: outsideRuns(jobs),
+      aheadOfMain,
     }),
   };
 }

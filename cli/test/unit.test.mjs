@@ -19,15 +19,18 @@
 // Run `npm run build` first - these import the built `dist/`.
 
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
+import http from 'node:http';
 import JSZip from 'jszip';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { test } from 'node:test';
 
+import { readDoc, skillDir } from '../dist/commands/docs.js';
 import { flagBool, flagList, flagNumber, flagString, parseArgs, table, UsageError } from '../dist/output.js';
 import { isGeneratedFile, packageEntries, readPackageInput, removeStaleGenerated, unzipTo, zipDirectory } from '../dist/workspace.js';
 import { AGENT_KEY_PREFIX, credentialsPath, displayPrefix, forgetKey, isAgentKey, resolveKey, storeKey } from '../dist/auth.js';
@@ -549,4 +552,240 @@ test('every caspar sub-command except send refuses a stray word', async () => {
   const parsed = JSON.parse(sent.stdout);
   assert.equal(parsed.command, 'INFO 1', 'send keeps every word it was given');
   assert.doesNotMatch(parsed.error ?? '', /outside its flags/);
+});
+
+// ---------------------------------------------------------------- the login handoff exits
+//
+// `noacg login` is the one step of the agent road with a human in it, and on 2026-09-10 it minted
+// the key, stored it, printed its success line and then sat for 923 s without exiting, until it
+// was killed. Nothing here covered either exit, so both are pinned below.
+//
+// What holds the process is a socket, and it is not the obvious one: `server.close()` closes
+// connections that are IDLE in the HTTP sense, but a browser also opens a speculative connection
+// it never sends a request on, and that one has no finished message, so it survives the close and
+// keeps the event loop alive. These tests hold exactly that socket open across the handoff, which
+// is what makes them fail without `closeAllConnections()` in `login.ts`. The timeout path is
+// pinned separately because the 923 s run says nothing about it: a successful handoff cancels the
+// giving-up timer by design, so that path was never taken.
+
+/** A stand-in NoaCG deployment. The only endpoint `login` calls is the redeem. */
+function stubDeployment(key) {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', (c) => (body += c));
+      req.on('end', () => {
+        if (req.method === 'POST' && req.url === '/api/me/agent-keys') {
+          res.writeHead(201, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ key, id: 'k_test', name: 'unit test', prefix: displayPrefix(key), createdAt: '2026-09-16T00:00:00.000Z' }));
+          return;
+        }
+        res.writeHead(404, { 'content-type': 'text/plain' });
+        res.end('not this deployment');
+      });
+    });
+    server.listen(0, '127.0.0.1', () => resolve({ server, origin: `http://127.0.0.1:${server.address().port}` }));
+  });
+}
+
+/**
+ * Start `login` against a stub deployment, read the consent URL it prints, and behave like the
+ * browser: load the callback page and leave a second, request-less socket connected.
+ *
+ * Returns the child, the loopback port and state, a `complete()` that posts the code back the way
+ * the served page does, and `waitForExit`. The caller must call `release()`.
+ */
+async function drivenLogin({ waitSec }) {
+  const key = `${AGENT_KEY_PREFIX}${'d'.repeat(32)}`;
+  const { server: stub, origin } = await stubDeployment(key);
+  const home = await tmpdir();
+  const env = { ...process.env, NOACG_URL: origin, APPDATA: home, XDG_CONFIG_HOME: home };
+  delete env.NOACG_AGENT_KEY;
+
+  const child = spawn(process.execPath, [cli, 'login', '--no-browser', '--wait', String(waitSec)], { env });
+  let stdout = '';
+  let stderr = '';
+  let exit = null;
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (d) => (stdout += d));
+  child.stderr.on('data', (d) => (stderr += d));
+  const exited = new Promise((resolve) => child.on('exit', (code) => { exit = { code, at: Date.now() }; resolve(exit); }));
+
+  const browser = new http.Agent({ keepAlive: true });
+  let speculative = null;
+  /** Everything this helper owns, freed once. The caller's `finally` cannot cover the setup
+   *  below, so anything that throws before the session object exists frees it here instead -
+   *  otherwise the spawned CLI keeps its stdio attached and holds the whole test run open. */
+  const release = () => {
+    browser.destroy();
+    speculative?.destroy();
+    stub.close();
+    if (exit === null) child.kill();
+  };
+
+  try {
+    // The consent URL carries the loopback port and the state, and goes to stderr through out.log().
+    let consent = null;
+    for (let i = 0; i < 300 && !consent; i++) {
+      const m = /http:\/\/\S+\/app\?\S+/.exec(stderr);
+      if (m) consent = new URL(m[0]);
+      else await new Promise((r) => setTimeout(r, 50));
+    }
+    assert.ok(consent, `login printed no consent URL in 15 s. stderr:\n${stderr}`);
+    const port = Number(consent.searchParams.get('port'));
+    const state = consent.searchParams.get('agent');
+
+    const request = (options, body) =>
+      new Promise((resolve, reject) => {
+        const r = http.request({ host: '127.0.0.1', port, agent: browser, ...options }, (res) => {
+          let text = '';
+          res.setEncoding('utf8');
+          res.on('data', (c) => (text += c));
+          res.on('end', () => resolve({ status: res.statusCode, text }));
+        });
+        r.on('error', reject);
+        if (body !== undefined) r.write(body);
+        r.end();
+      });
+
+    const page = await request({ method: 'GET', path: '/callback' });
+    assert.equal(page.status, 200, 'the listener serves the callback page');
+    speculative = net.connect(port, '127.0.0.1');
+    await new Promise((resolve, reject) => {
+      speculative.once('connect', resolve);
+      speculative.once('error', reject);
+    });
+
+    return {
+      key,
+      origin,
+      home,
+      state,
+      out: () => ({ stdout, stderr }),
+      complete: (params) => request({ method: 'POST', path: '/complete', headers: { 'content-type': 'text/plain' } }, params),
+      waitForExit: async (withinMs) => {
+        // The timer is cleared rather than left to fire: a pending one holds the whole test file
+        // open for the rest of its budget after the assertion has already passed.
+        let timer;
+        const deadline = new Promise((resolve) => { timer = setTimeout(() => resolve('timed out'), withinMs); });
+        const which = await Promise.race([exited, deadline]).finally(() => clearTimeout(timer));
+        assert.notEqual(which, 'timed out', `login did not exit within ${withinMs} ms of the handoff - it is hanging with a browser socket still open. stdout:\n${stdout}\nstderr:\n${stderr}`);
+        return exit;
+      },
+      release,
+    };
+  } catch (e) {
+    release();
+    throw e;
+  }
+}
+
+test('a successful login exits 0 promptly, with the browser tab still open', { skip: noConfigDoor }, async () => {
+  const session = await drivenLogin({ waitSec: 60 });
+  try {
+    const done = await session.complete(`code=test-code&state=${session.state}`);
+    assert.equal(done.status, 200, 'the listener accepts the code the page hands back');
+
+    // Five seconds is not the target - the fixed path exits in about 0.3 s, and the point is that
+    // this never again becomes "as long as the person leaves the tab open". It is the slack a
+    // loaded CI runner gets for one redeem and one credentials write.
+    const exit = await session.waitForExit(5000);
+    assert.equal(exit.code, 0, `a login that minted and stored a key exits 0. stdout:\n${session.out().stdout}`);
+
+    // The line the person reads is on STDOUT (out.say), while every progress line is on stderr
+    // (out.log). Reading the wrong stream is what made this defect look like a different one.
+    const { stdout, stderr } = session.out();
+    assert.match(stdout, /^Logged in to /m, 'the success line reaches stdout, where a person sees it');
+    assert.match(stdout, /revoke it any time/, 'the success line says how to take the key back');
+    assert.doesNotMatch(stderr, /Logged in to /, 'the success line is not on stderr');
+
+    const stored = JSON.parse(await fs.readFile(path.join(session.home, 'noacg', 'credentials.json'), 'utf8'));
+    assert.equal(stored.deployments[session.origin].key, session.key, 'the key it printed about is the key it stored');
+  } finally {
+    session.release();
+  }
+});
+
+test('a login whose code never arrives exits non-zero within its wait, and says it gave up', async () => {
+  // Six seconds rather than two: the giving-up clock starts when the listener opens, BEFORE the
+  // helper has read the consent URL and connected to it, so a short wait races its own setup on a
+  // loaded runner and fails with ECONNREFUSED instead of the assertion below.
+  const session = await drivenLogin({ waitSec: 6 });
+  try {
+    // Nothing is posted back: this is the person who never presses Allow, or closes the tab.
+    const exit = await session.waitForExit(20_000);
+    assert.equal(exit.code, 1, 'giving up is exit 1, the documented "refused" code');
+    const { stdout } = session.out();
+    assert.match(stdout, /No reply from the browser within 6 s/, 'it says what it waited for');
+    assert.match(stdout, /run `noacg login` again/, 'it says what to do next');
+  } finally {
+    session.release();
+  }
+});
+
+// ---------------------------------------------------------------- the shipped skill text
+//
+// The skill is the only thing standing between an agent and a graphic that carries its state in
+// FIELDS instead of buttons. It is plain markdown with no compiler behind it, so what it promises
+// is pinned here or nowhere.
+//
+// WHY THE GATES and not a spell-check of the whole file: authoring a machine was opened on
+// 2026-08-27 on the condition of three gates (docs/CONTROL_PANEL_ROAD.md §9), and those gates ARE
+// the safety model - there is no other check that an authored machine is one a human wanted.
+// A rewrite that drops a gate from the text drops it from practice, silently, because nothing
+// else names them. Rewording a gate is fine and should update this test deliberately; losing one
+// should fail.
+
+/** The shipped SKILL.md, LF-normalised: a Windows checkout hands it back with CRLF, and a match
+ *  that only passes on one platform's checkout teaches people to ignore the test (build-skill.mjs
+ *  compares the generated copies the same way, for the same reason). */
+async function shippedSkill() {
+  return (await fs.readFile(path.join(skillDir(), 'SKILL.md'), 'utf8')).replace(/\r\n/g, '\n');
+}
+
+test('the shipped skill names all three gates for an authored machine', async () => {
+  const contract = (await readDoc('contract')).replace(/\r\n/g, '\n');
+  const skill = await shippedSkill();
+
+  // Pinned by the TOOL and the ACT each gate names, inside the gates section, and never by the
+  // sentences around them. An early cut pinned the prose "the bench walks every operator arrow"
+  // and would have locked that claim into CI while the bench was still doing less than it said -
+  // it capped at eight distinct event names and never snapped back between them, so the accurate
+  // rewrite had to be free to change those words. (It walks every arrow since 2026-09-15, which is
+  // exactly the point: the sentence became true by someone fixing the bench, not by CI insisting
+  // on it.) A pin on wording makes the next author choose between a true contract and a green
+  // build, which is how a gate quietly becomes a slogan.
+  const section = /### 5a\. The three gates\n([\s\S]*?)\n### /.exec(contract)?.[1];
+  assert.ok(section, 'references/contract.md has no "5a. The three gates" section');
+
+  const gates = [
+    { name: 'validate, with its machine findings read', tokens: ['noacg validate', 'machine'] },
+    { name: 'inspect, and SHOW the user the buttons', tokens: ['noacg inspect', 'SHOW the user the buttons'] },
+    { name: 'the bench walking the operator arrows', tokens: ['bench', 'operator arrow'] },
+  ];
+  for (const gate of gates) {
+    for (const token of gate.tokens) {
+      assert.ok(section.includes(token), `the gate "${gate.name}" no longer names "${token}"`);
+    }
+  }
+
+  // The loop is where an agent actually works, so the gates have to be STEPS, not a reference
+  // it may never open. Gate 2 is the one with a human in it and the one a loop can silently
+  // skip, so it is pinned by its own words.
+  assert.match(skill, /MACHINE findings/i, 'the loop does not tell the agent to read the machine findings');
+  assert.match(skill, /SHOW the user the buttons/, 'the loop does not tell the agent to show the user the buttons');
+  assert.match(skill, /BENCH walk/i, 'the loop does not say the bench walks the arrows');
+  assert.match(skill, /Read the printed BUTTONS against/i, 'step 4 lost its read-against-the-brief instruction');
+});
+
+test('the skill no longer calls an authored machine a later capability', async () => {
+  // The sentence this replaces - "Authoring your own machine is a later capability." - was the
+  // measured gap (docs/CONTROL_PANEL_ANY_GRAPHIC.md §2c): everything under it already worked, and
+  // the skill was the only thing still saying no. If it comes back, the capability is closed
+  // again no matter what the rest of the file says.
+  for (const topic of ['contract', 'control']) {
+    assert.doesNotMatch(await readDoc(topic), /later capability/i, `references/${topic}.md still defers authoring a machine`);
+  }
+  assert.doesNotMatch(await shippedSkill(), /later capability/i, 'SKILL.md still defers authoring a machine');
 });

@@ -16,6 +16,7 @@ import {
   MAX_LANDING_RETRIES,
   NO_VERDICT_EXIT,
   POLICY,
+  PRESENCE_TTL_MS,
   addJob,
   adoptOrphanedLandings,
   cancelVerdict,
@@ -27,6 +28,7 @@ import {
   expiredJobIds,
   finishedSince,
   flagValue,
+  freeMemFloorFor,
   giveUpReason,
   hasFlag,
   landingRow,
@@ -35,7 +37,9 @@ import {
   pending,
   pruneJobs,
   readJobs,
+  readPresence,
   reapDead,
+  writePresence,
   refusalForWorktree,
   refusalGuidance,
   requeueDecision,
@@ -332,6 +336,205 @@ test('a single browser walk starts on the RAM a suite is rightly refused', () =>
   // And a session that declares a smaller cost gets a smaller floor with it.
   const declared = walk('j-0001', { cost: 0.25 });
   assert.deepEqual(schedule([declared], { hour: NIGHT, freeMemMb: 1100 }).start.map((j) => j.id), ['j-0001']);
+});
+
+// -- Presence: who is at the machine decides the floor ------------------------------------------
+//
+// Owner 2026-09-16, asked whether the day's wave could go over the 4 GB floor: "Not on the
+// computer, ok to use it all" (docs/OWNER_RULINGS.md). The gigabyte between the two floors is his
+// working room, so it is kept only while somebody might be using it - and every case below is
+// about the direction that mistake can go. Spending the machine out from under a person who is
+// using it is the failure; making an agent wait is an inconvenience.
+
+test('the same free-RAM reading admits a suite when the machine is away and refuses it when it is in use', () => {
+  // 3.5 GB free: above the away floor (3.0), below the in-use one (4.0). This is the reading the
+  // control-panel chain sat on all evening on 2026-09-15 with nobody at the keyboard.
+  const reading = { hour: NIGHT, freeMemMb: 3584 };
+  assert.deepEqual(
+    schedule([job('j-0001')], { ...reading, presence: 'away' }).start.map((j) => j.id),
+    ['j-0001'],
+    'nobody is at the machine, so the suite gets the memory',
+  );
+  assert.deepEqual(
+    schedule([job('j-0001')], { ...reading, presence: 'present' }).start,
+    [],
+    'somebody may be at the machine, so his gigabyte stays free',
+  );
+
+  // And the wait SAYS what would start it. The owner's own rule is that a day wave may ask to go
+  // over 4 GB; a wait that does not name the gigabyte being kept is a wait nobody can answer.
+  const held = schedule([job('j-0001')], { ...reading, presence: 'present' }).waiting[0].reason;
+  assert.match(held, /3\.5 GB RAM free, needs 4\.0/);
+  assert.match(held, /presence away/, 'the reason names the one command that releases it');
+
+  // The suffix is about presence and nothing else: a job that is short under BOTH floors says so
+  // plainly rather than blaming a person who is not the reason.
+  assert.doesNotMatch(
+    schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 1024, presence: 'present' }).waiting[0].reason,
+    /presence away/,
+  );
+});
+
+test('an unknown presence is treated as somebody being at the machine', () => {
+  // The whole safety property. A caller that has not been taught about presence, a typo, a state
+  // written by a newer version of the store - each of them is an UNKNOWN, and an unknown that
+  // reads as "away" spends the machine out from under whoever is using it.
+  const reading = { hour: NIGHT, freeMemMb: 3584 };
+  for (const unknown of [undefined, null, '', 'AWAY', 'Away', 'afk', 'present', 0, false]) {
+    assert.deepEqual(
+      schedule([job('j-0001')], { ...reading, presence: unknown }).start,
+      [],
+      `presence ${JSON.stringify(unknown)} must not loosen the floor`,
+    );
+  }
+  // Including the caller that says nothing at all, which is every caller written before this.
+  assert.deepEqual(schedule([job('j-0001')], reading).start, []);
+  assert.equal(freeMemFloorFor(undefined), POLICY.freeMemFloorMb.present);
+  assert.equal(freeMemFloorFor('away'), POLICY.freeMemFloorMb.away);
+});
+
+test('presence moves the floor and leaves the concurrency budget alone', () => {
+  // The floor is an admission check on ONE job; the budget is how much of this machine agent work
+  // may occupy at once, and the owner set that by the clock. An away night that started two
+  // suites where the budget says one would be this change reaching past what it was asked for.
+  assert.equal(capacity({ hour: DAY, freeMemMb: PLENTY, presence: 'away' }), POLICY.byDay);
+  assert.equal(capacity({ hour: NIGHT, freeMemMb: PLENTY, presence: 'away' }), POLICY.byNight);
+  const two = [job('j-0001'), job('j-0002')];
+  assert.deepEqual(
+    schedule(two, { hour: DAY, freeMemMb: PLENTY, presence: 'away' }).start.map((j) => j.id),
+    ['j-0001'],
+    'one suite by day, however much memory is free and however away the machine is',
+  );
+});
+
+test('a declaration of absence expires back to the safe answer', () => {
+  const dir = tempQueue();
+  const monday = Date.UTC(2026, 8, 14, 20, 0, 0);
+
+  assert.equal(readPresence(dir, monday).state, 'present', 'nobody has said anything yet');
+
+  writePresence(dir, 'away', { now: monday, by: 'the night wave' });
+  assert.equal(readPresence(dir, monday).state, 'away');
+  assert.equal(readPresence(dir, monday).setBy, 'the night wave');
+
+  // One minute before the window closes it still stands; one minute after it does not. An `away`
+  // left set on Friday evening is not knowledge on Monday morning - it is a stale guess, and the
+  // queue acting on it would spend the machine out from under the person who just sat down.
+  assert.equal(readPresence(dir, monday + PRESENCE_TTL_MS - 60_000).state, 'away');
+  const stale = readPresence(dir, monday + PRESENCE_TTL_MS + 60_000);
+  assert.equal(stale.state, 'present');
+  assert.equal(stale.expired, true, 'and it says WHY the floor moved back, rather than going quiet');
+
+  // Sitting back down takes effect at once rather than waiting out the window.
+  writePresence(dir, 'present', { now: monday + 60_000 });
+  assert.equal(readPresence(dir, monday + 120_000).state, 'present');
+
+  // Nothing readable, nothing sensible, no directory at all: every one of them is `present`.
+  writeFileSync(join(dir, 'presence.json'), '{ not json');
+  assert.equal(readPresence(dir, monday).state, 'present');
+  writeFileSync(join(dir, 'presence.json'), JSON.stringify({ state: 'asleep', until: monday + 1e9 }));
+  assert.equal(readPresence(dir, monday).state, 'present');
+  assert.equal(readPresence(null, monday).state, 'present');
+  assert.throws(() => writePresence(dir, 'maybe'), /present, away/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('nothing a person can put in presence.json stops the runner or outlives its deadline', () => {
+  // THE DRAIN LOOP HAS NO CATCH. `runner()` reads presence inside `for(;;)`, so anything this
+  // function throws kills the runner, the queue freezes at "NO RUNNER", and every replacement the
+  // next `add` spawns dies the same way with `stdio: 'ignore'` swallowing the stack - the shape of
+  // the 2026-09-04 outage. The file is hand-editable by design, because it is how a person says
+  // where they are, so every one of these is a thing somebody will actually write.
+  const dir = tempQueue();
+  const file = join(dir, 'presence.json');
+  const now = Date.UTC(2026, 8, 16, 12, 0, 0);
+  for (const junk of ['null', '[]', '42', '"away"', 'true', '{}', '{"state":null}', '{ torn']) {
+    writeFileSync(file, junk);
+    assert.equal(readPresence(dir, now).state, 'present', `${junk} must read as present, not throw`);
+  }
+
+  // A DECLARATION WITH NO READABLE DEADLINE IS EXPIRED, never eternal. Expiry is the whole safety
+  // mechanism, and a record nobody can date is exactly the stale guess it exists to catch.
+  for (const undated of [{ state: 'away' }, { state: 'away', until: null }, { state: 'away', until: 'tomorrow' }]) {
+    writeFileSync(file, JSON.stringify(undated));
+    const read = readPresence(dir, now);
+    assert.equal(read.state, 'present', `${JSON.stringify(undated)} must not stand for ever`);
+    assert.equal(read.expired, true);
+    assert.equal(read.until, null, 'and it reports no deadline rather than a date nobody can format');
+  }
+
+  // Fields that are not numbers come back as null, so a caller formatting them as dates cannot be
+  // the one to discover it: `new Date('yesterday').toISOString()` throws RangeError.
+  writeFileSync(file, JSON.stringify({ state: 'away', setAt: 'yesterday', setBy: 7, until: now + 1000 }));
+  const odd = readPresence(dir, now);
+  assert.equal(odd.state, 'away', 'the declaration itself still stands - only its trimmings were junk');
+  assert.equal(odd.setAt, null);
+  assert.equal(odd.setBy, null);
+  assert.doesNotThrow(() => new Date(odd.until).toISOString());
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('a policy written before presence existed still has a RAM floor', () => {
+  // `policy` is a documented option of `schedule`, and the floor used to be one number. Reaching
+  // for `.present` on a number yields undefined, `needsMb` becomes NaN, every `budgetedMb < NaN`
+  // is false - and the RAM check stops existing without a word. Measured on the first cut of this
+  // change: a whole suite admitted on 100 MB free. An old shape has to degrade, not misbehave.
+  const before = { ...POLICY, freeMemFloorMb: 4096 };
+  assert.equal(freeMemFloorFor('present', before), 4096);
+  assert.equal(freeMemFloorFor('away', before), 4096, 'one number means one floor, whoever is there');
+  assert.deepEqual(
+    schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 100, policy: before }).start,
+    [],
+    'a suite on 100 MB free is refused, exactly as it was before presence existed',
+  );
+  // And the day-wave suffix stays quiet, because with one floor presence is never the difference.
+  assert.doesNotMatch(
+    schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 3584, policy: before }).waiting[0].reason,
+    /presence away/,
+  );
+});
+
+test('the held-job message computes the memory it names, rather than quoting a number that will move', () => {
+  // The owner has been asked whether the away floor should go lower still. The sentence a waiting
+  // job prints must not be the thing that goes stale when he answers - so the difference is
+  // computed from the policy in force, and it scales with the job like every other figure here.
+  const lower = { ...POLICY, freeMemFloorMb: { present: 4096, away: 2048 } };
+  const suite = schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 3072, policy: lower }).waiting[0].reason;
+  assert.match(suite, /holds 2\.0 GB back/, 'a suite: 4096 - 2048');
+  const oneWalk = schedule([walk('j-0001')], { hour: NIGHT, freeMemMb: 1536, policy: lower }).waiting[0].reason;
+  assert.match(oneWalk, /holds 1\.0 GB back/, 'a walk pays half of that difference, like its floor');
+});
+
+test('a NOACG_JOBS_FREE_MB nobody can parse means the variable was not set, never no floor at all', async () => {
+  // `Number('4gb')` is NaN, and a NaN floor refuses nothing: `budgetedMb < NaN` is false for every
+  // reading, so a typo in this variable used to remove the RAM check rather than change it. That
+  // hole predates presence - the old spelling read the variable straight through `Number()` - and
+  // it is the same silent shape as the old policy object above, which is why both are pinned.
+  //
+  // POLICY reads the environment once, at module load, so each case imports a fresh copy. The
+  // query string is what makes it fresh: ES modules are cached by URL.
+  const floorsWith = async (value, tag) => {
+    const before = process.env.NOACG_JOBS_FREE_MB;
+    if (value === undefined) delete process.env.NOACG_JOBS_FREE_MB;
+    else process.env.NOACG_JOBS_FREE_MB = value;
+    try {
+      return (await import(`./jobs-store.mjs?floor-case=${tag}`)).POLICY.freeMemFloorMb;
+    } finally {
+      if (before === undefined) delete process.env.NOACG_JOBS_FREE_MB;
+      else process.env.NOACG_JOBS_FREE_MB = before;
+    }
+  };
+
+  for (const [value, tag] of [['4gb', 'words'], ['', 'empty'], ['-1', 'negative'], ['0', 'zero'], ['NaN', 'nan']]) {
+    const floors = await floorsWith(value, tag);
+    assert.equal(floors.present, 4096, `NOACG_JOBS_FREE_MB=${JSON.stringify(value)} must fall back, not disable`);
+    assert.equal(floors.away, 3072);
+  }
+
+  // A number it CAN parse still pins both, which is the documented override.
+  const pinned = await floorsWith('2048', 'pinned');
+  assert.equal(pinned.present, 2048);
+  assert.equal(pinned.away, 2048, 'an operator override is not something presence may loosen');
 });
 
 test('each job admitted in one pass spends the free memory the last one took', () => {
@@ -1536,4 +1739,16 @@ test('readReviewStamp: reads checks/<branch-with-dashes>.json and treats an unre
   assert.equal(readReviewStamp(dir, 'claude/y'), null);
   assert.equal(readReviewStamp(dir, 'claude/z'), null, 'a stamp without reviewedSha proves nothing');
   rmSync(dir, { recursive: true, force: true });
+});
+
+test('advisory idle evidence neither releases the browser slot nor reaps a live job', () => {
+  const live = job('j-0001', { state: 'running', pid: 42, startedAt: 1000 });
+  const waiting = job('j-0002');
+  const facts = { hour: DAY, freeMemMb: PLENTY, now: 800000 };
+  const baseline = schedule([live, waiting], facts);
+  const observed = schedule([live, waiting], { ...facts,
+    holderDiagnostics: [{ pid: 42, status: 'suspected-idle', cpuDeltaSeconds: 0 }] });
+  assert.deepEqual(observed, baseline);
+  assert.deepEqual(observed.start, []);
+  assert.deepEqual(reapDead([live], () => true, facts.now), []);
 });

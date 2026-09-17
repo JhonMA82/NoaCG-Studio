@@ -8,6 +8,7 @@
 //   node scripts/e2e-durations.mjs --check                 # report drift, change nothing
 //   npm run record:e2e-durations                           # re-record from the newest green full run
 //   npm run record:e2e-durations -- <run-id>               # ...or from one you name
+//   node scripts/e2e-durations.mjs --refresh [run-id]      # re-record, then keep it only if it MATTERS
 //   node scripts/e2e-durations.mjs <merged-report.json>    # rewrite the table from a report you merged
 //
 // WHY A TABLE AND NOT A FILE COUNT. Until 2026-08-19 CI sized its shards off the NUMBER of spec
@@ -55,7 +56,15 @@
 // A HALF-RUN IS REFUSED, not silently recorded: a run whose E2E jobs are not all `(full)`, or that
 // is missing a shard, measures a SUBSET, and writing that would drop every unmeasured spec back to
 // the median. Blob artifacts are kept for 7 days, so re-record from a recent run.
-import { readFileSync, writeFileSync, mkdtempSync, rmSync, copyFileSync, mkdirSync } from 'node:fs';
+//
+// AND NOBODY HAS TO REMEMBER TO. `--refresh` is the same recording with a verdict on the end, and
+// `.github/workflows/e2e-durations-refresh.yml` runs it weekly and opens a PULL REQUEST when the
+// answer moved enough to matter (`refreshVerdict`). It is a pull request and never a push because
+// this table sets the shard budget every E2E plan is judged against, and a gate that edits its own
+// budget unwatched is not a gate. The mechanism exists because the human step was skipped for 15
+// days in August and again for 12 in September, both times unnoticed
+// (docs/CI_STABILITY.md §4, "Reopened 2026-09-04").
+import { readFileSync, writeFileSync, appendFileSync, mkdtempSync, rmSync, copyFileSync, mkdirSync } from 'node:fs';
 import { readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -258,6 +267,243 @@ export function specFilesOnDisk() {
   return readdirSync(E2E_DIR).filter((f) => f.endsWith('.spec.ts')).sort();
 }
 
+/** Every measured minute in a table's `minutes` map, added up - the suite total, in test-minutes. */
+function totalOf(minutes) {
+  return Object.values(minutes).reduce((a, b) => a + b, 0);
+}
+
+/**
+ * HOW FAR A RE-RECORDING HAS TO MOVE BEFORE IT IS WORTH ASKING SOMEBODY TO LOOK.
+ *
+ * A refresh that opened a pull request on ANY change would open one every Monday, and a weekly
+ * pull request nobody needs is exactly how the weekly report that already existed came to be
+ * ignored for a fortnight. So each threshold has to clear the NOISE FLOOR and still catch the
+ * drift, and both were measured rather than guessed.
+ *
+ * THE NOISE FLOOR, measured 2026-09-16 by recording twice from two green full runs an hour apart
+ * (35076557657 and 35077595313) over the same 151 spec files. Nothing about the suite changed
+ * between them, and the two recordings disagreed by **4.0% on the total** and by **0.6
+ * table-minutes on the slowest shard**. A runner's speed moves every number in the table at once,
+ * which is the first half; the second half is that the repacked figure is an IN-SAMPLE optimum -
+ * `packShards` minimises the heaviest bin for the very numbers it was just handed, so a fresh
+ * recording always looks a little better than the one CI is packing with, even when it has
+ * learned nothing. Against the 12-day-old table on main the same comparison read 2.3.
+ *
+ * - `totalFraction` 10%: clear of that 4%, and worth a look on its own terms - 10% of the 113.9
+ *   minutes measured here is a shard's worth of test time appearing or disappearing.
+ * - `budgetMinutes` 1: `budgetMinutes` says how many table-minutes one shard can carry inside its
+ *   20-minute cap, and it is the number a plan's "does this fit" verdict is made of. A minute is
+ *   ~6% of it, and both overhead terms feed it, so this covers a changed install cost and a
+ *   changed test factor at once rather than thresholding each separately. The two recordings above
+ *   differed by 0.02 minutes on the p90 overhead, so there is no noise problem here.
+ * - `slowestShardMinutes` 1.5: between the floor of 0.6 and the 2.3 that a fortnight of real drift
+ *   produced. The E2E stage waits on its slowest shard, so this is time off every full run until
+ *   somebody re-records. Table-minutes are the tests alone; a runner also pays a fixed cost per job
+ *   and per spec file, which is why the observed spread across shard indices is smaller than the
+ *   spread between bins.
+ *
+ * A spec file on disk with no entry at all needs no threshold and has no noise floor: it is packed
+ * at the median, which is a guess, and four of them were on disk on 2026-09-16.
+ */
+export const REFRESH_THRESHOLDS = { totalFraction: 0.1, budgetMinutes: 1, slowestShardMinutes: 1.5 };
+
+/**
+ * WHAT THE SLOWEST SHARD CARRIES UNDER EACH TABLE, both scored with the FRESH measurements.
+ *
+ * This is the cost of a stale table stated as the thing it breaks. `packShards` divides the suite
+ * using the weights it is given; give it the OLD table and it produces the shard set CI is
+ * shipping today, give it the NEW one and it produces the shard set this refresh would ship. Score
+ * both with the new weights - this week's truth about how long each file takes - and the
+ * difference between their slowest bins is what the stale table is costing the runner everything
+ * waits on, in test-minutes, before any runner is asked anything.
+ *
+ * The planner is imported HERE rather than at the top of the file because it imports this module:
+ * the table is the planner's input, and this one function is the only place the arrow runs the
+ * other way. A dynamic import keeps the cycle out of the module graph that every consumer loads.
+ *
+ * @param {object} before the table as it stands on main
+ * @param {object} after the table as this recording would write it
+ * @param {string[]} suite every spec file on disk
+ */
+export async function shardBalance(before, after, suite = specFilesOnDisk()) {
+  const { packShards, planMinutes, shardsFor } = await import('./e2e-affected.mjs');
+  const full = { mode: 'full', specs: [] };
+  const cost = (table) => {
+    const bins = packShards(suite, shardsFor(full, table, suite), table);
+    // `planMinutes` over one bin is what that runner is being handed, and it carries the
+    // "unmeasured counts as the median" rule that the packer itself used - so the two agree.
+    const loads = bins.map((bin) => planMinutes({ mode: 'subset', specs: bin }, after, suite));
+    const total = loads.reduce((a, b) => a + b, 0);
+    return {
+      shards: bins.length,
+      slowest: Math.max(...loads),
+      spread: Math.max(...loads) - Math.min(...loads),
+      balanced: total / loads.length,
+    };
+  };
+  return { before: cost(before), after: cost(after) };
+}
+
+/**
+ * WHETHER A FRESH RECORDING IS WORTH A PULL REQUEST, and the numbers that say so.
+ *
+ * Pure, so the thresholds can be pinned by a test rather than discovered on a Monday. Every reason
+ * it returns is a sentence a person reads in the pull request body; an empty list means the table
+ * on main still describes this suite and the recording is thrown away.
+ *
+ * @param {object} before the table as it stands on main
+ * @param {object} after the table as this recording would write it
+ * @param {string[]} suite every spec file on disk
+ * @param {{ before: object, after: object }} balance from `shardBalance`
+ */
+export function refreshVerdict(before, after, suite, balance) {
+  const beforeTotal = totalOf(before.minutes);
+  const afterTotal = totalOf(after.minutes);
+  const { unmeasured } = drift(before.minutes, suite);
+  const totalFraction = beforeTotal > 0 ? Math.abs(afterTotal - beforeTotal) / beforeTotal : 1;
+  const budgetMove = budgetMinutes(after) - budgetMinutes(before);
+  const slowestGain = balance.before.slowest - balance.after.slowest;
+
+  const reasons = [];
+  if (unmeasured.length > 0) {
+    reasons.push(
+      `${unmeasured.length} spec file(s) the table on main has never measured, each packed at the ` +
+        `median today: ${unmeasured.join(', ')}`,
+    );
+  }
+  if (totalFraction >= REFRESH_THRESHOLDS.totalFraction) {
+    reasons.push(
+      `the suite total moved ${(totalFraction * 100).toFixed(1)}% - ` +
+        `${beforeTotal.toFixed(1)} min recorded, ${afterTotal.toFixed(1)} min measured`,
+    );
+  }
+  if (Math.abs(budgetMove) >= REFRESH_THRESHOLDS.budgetMinutes) {
+    reasons.push(
+      `a shard's budget moves ${budgetMove >= 0 ? '+' : ''}${budgetMove.toFixed(1)} table-minutes ` +
+        `(${budgetMinutes(before).toFixed(1)} -> ${budgetMinutes(after).toFixed(1)}), so the plan's ` +
+        'own "does this fit the cap" verdict changes',
+    );
+  }
+  if (slowestGain >= REFRESH_THRESHOLDS.slowestShardMinutes) {
+    reasons.push(
+      `the slowest of ${balance.after.shards} shards loses ${slowestGain.toFixed(1)} table-minutes of ` +
+        `tests - ${balance.before.slowest.toFixed(1)} under the weights CI packs with today, ` +
+        `${balance.after.slowest.toFixed(1)} repacked, against a perfectly balanced ` +
+        `${balance.after.balanced.toFixed(1)}`,
+    );
+  }
+  return {
+    material: reasons.length > 0,
+    reasons,
+    facts: { beforeTotal, afterTotal, totalFraction, budgetMove, slowestGain, unmeasured },
+  };
+}
+
+/**
+ * The branch the scheduled refresh proposes from, and the one the body below tells a person to
+ * name. `.github/workflows/e2e-durations-refresh.yml` sets the same string in its own `env:`,
+ * because a workflow cannot read a constant out of a module; `e2e-durations.test.mjs` asserts the
+ * two agree, so the instruction in the pull request body cannot come to name a branch nobody has.
+ */
+export const REFRESH_BRANCH = 'bot/e2e-durations';
+
+/** The headline, in one line - the commit message's second paragraph, and the log's own summary. */
+export function refreshSummary(before, after, balance) {
+  return (
+    `${Object.keys(after.minutes).length} spec files, ${totalOf(after.minutes).toFixed(1)} min of tests ` +
+    `(${Object.keys(before.minutes).length} and ${totalOf(before.minutes).toFixed(1)} before); the slowest of ` +
+    `${balance.after.shards} shards carries ${balance.after.slowest.toFixed(1)} table-minutes repacked, ` +
+    `against ${balance.before.slowest.toFixed(1)} under the weights CI packs with today.`
+  );
+}
+
+/**
+ * What a quiet week says, in one paragraph - the numbers that were NOT enough, and what they were
+ * measured against.
+ *
+ * It goes where the loud week's pull request body would have gone, including the job summary the
+ * acceptance route sends a person to read. Printing the body there instead would open a quiet run
+ * with "# The E2E durations table, re-recorded from run N" over an empty "why it is worth landing"
+ * section, which reads as a refresh that lost its own argument.
+ */
+export function quietBody({ facts }) {
+  return (
+    'The table on main still describes this suite - nothing proposed. Suite total ' +
+    `${facts.beforeTotal.toFixed(1)} -> ${facts.afterTotal.toFixed(1)} min ` +
+    `(${(facts.totalFraction * 100).toFixed(1)}%), the shard budget moves ` +
+    `${facts.budgetMove >= 0 ? '+' : ''}${facts.budgetMove.toFixed(2)} min, repacking would take ` +
+    `${facts.slowestGain.toFixed(2)} table-minutes off the slowest shard, and ${facts.unmeasured.length} ` +
+    'spec file(s) have never been measured. It takes ' +
+    `${REFRESH_THRESHOLDS.totalFraction * 100}%, ${REFRESH_THRESHOLDS.budgetMinutes} minute, ` +
+    `${REFRESH_THRESHOLDS.slowestShardMinutes} table-minutes, or one unmeasured spec to be worth a ` +
+    'pull request.'
+  );
+}
+
+/** The pull request body, as markdown - the whole case for landing it, or for not opening it. */
+export function refreshBody(before, after, verdict, balance) {
+  const { facts } = verdict;
+  const stamp = (table) => `run ${table.source.run ?? '?'} (${table.source.recordedAt ?? '?'})`;
+  const row = (label, a, b) => `| ${label} | ${a} | ${b} |`;
+  return [
+    `# The E2E durations table, re-recorded from run ${after.source.run ?? '?'}`,
+    '',
+    '`scripts/e2e-durations.json` is the measured per-spec table `packShards` divides the E2E suite',
+    'with, and the per-job overhead the plan judges a shard against its 20-minute cap with. This',
+    'branch re-records it from the newest green FULL `ci.yml` run on `main`.',
+    '',
+    '## Why it is worth landing',
+    '',
+    ...verdict.reasons.map((reason) => `- ${reason}`),
+    '',
+    '## What moved',
+    '',
+    '| | table on main | this recording |',
+    '|---|---|---|',
+    row('recorded from', stamp(before), stamp(after)),
+    row('spec files measured', Object.keys(before.minutes).length, Object.keys(after.minutes).length),
+    row('suite total', `${facts.beforeTotal.toFixed(1)} min`, `${facts.afterTotal.toFixed(1)} min`),
+    row('per-job overhead, p90', `${before.overhead.jobMinutes} min`, `${after.overhead.jobMinutes} min`),
+    row('test factor', before.overhead.testFactor, after.overhead.testFactor),
+    row('a shard can carry', `${budgetMinutes(before).toFixed(1)} table-min`, `${budgetMinutes(after).toFixed(1)} table-min`),
+    row(
+      'slowest of the nine bins, both scored with this recording',
+      `${balance.before.slowest.toFixed(1)} table-min`,
+      `${balance.after.slowest.toFixed(1)} table-min`,
+    ),
+    row(
+      'spread across the bins, the same way',
+      `${balance.before.spread.toFixed(2)} table-min`,
+      `${balance.after.spread.toFixed(2)} table-min`,
+    ),
+    '',
+    '## Before it lands',
+    '',
+    'Nothing here was reviewed: the job that opened this holds no opinion about the numbers, and it',
+    'deliberately posts no `noacg/reviewed` stamp and turns no auto-merge on. Read the diff, then',
+    'take it through the queue like any other branch - `/check`, then `/queue-merge`.',
+    '',
+    'Then one extra command, because a branch pushed with a workflow token starts no run of its own',
+    '(GitHub\'s rule for `GITHUB_TOKEN`). `CI gate` is here because the job asked for it by dispatch;',
+    '`Reviewed` is not, because that job runs on pull request events this pull request never raised.',
+    'Once `/queue-merge` has posted the stamp, ask for the run that reads it:',
+    '',
+    '```',
+    // `diff_base` matters as much as the flag beside it: a dispatch with an EMPTY one plans the
+    // whole suite (ci.yml's input docs), which is nine runners and a quarter of an hour for a JSON
+    // file no spec can observe. The sha is the main commit this table was measured on, so the plan
+    // covers everything between it and this branch; a table that somehow carries no sha falls back
+    // to a substitution that is correct wherever it is pasted, rather than to an empty flag.
+    `gh workflow run ci.yml --ref ${REFRESH_BRANCH} -f require_review=true ` +
+      `-f diff_base=${after.source.sha || '$(git rev-parse origin/main)'}`,
+    '```',
+    '',
+    'Auto-merge takes it from there.',
+    '',
+    `Opened by \`.github/workflows/e2e-durations-refresh.yml\`; \`node scripts/e2e-durations.mjs --refresh ${after.source.run ?? ''}\` reproduces it.`,
+  ].join('\n');
+}
+
 /** Rewrite the table, refusing a report that measured nothing. Returns the spec count, or 0. */
 function writeTable(minutes, source, overhead) {
   if (Object.keys(minutes).length === 0) return 0;
@@ -278,7 +524,7 @@ function writeTable(minutes, source, overhead) {
     minutes,
   };
   writeFileSync(TABLE, `${JSON.stringify(written, null, 2)}\n`);
-  const total = Object.values(minutes).reduce((a, b) => a + b, 0);
+  const total = totalOf(minutes);
   console.log(`e2e-durations: wrote ${Object.keys(minutes).length} specs, ${total.toFixed(1)} min total.`);
   return Object.keys(minutes).length;
 }
@@ -365,7 +611,7 @@ function record(runId) {
     // The per-job OVERHEAD, from the same run. `gh run view --json jobs` does not carry step
     // timings, so this asks the REST endpoint that does; a failure here is not fatal, because a
     // refreshed per-spec table with last week's overhead is strictly better than no refresh.
-    const totalMinutes = Object.values(minutes).reduce((a, b) => a + b, 0);
+    const totalMinutes = totalOf(minutes);
     let overhead = null;
     try {
       // `per_page=100` rather than `--paginate`: this endpoint answers with an OBJECT, and
@@ -400,7 +646,93 @@ function record(runId) {
   }
 }
 
-function main() {
+/**
+ * RE-RECORD, THEN DECIDE WHETHER ANYBODY SHOULD BE ASKED TO LOOK.
+ *
+ * The scheduled half of the refresh (.github/workflows/e2e-durations-refresh.yml). It records the
+ * table the way a person would, judges the result against `REFRESH_THRESHOLDS`, and leaves the
+ * working tree holding EITHER a refreshed table worth a pull request or the byte-for-byte file it
+ * started with. The workflow needs no opinion of its own: a dirty `scripts/e2e-durations.json` is
+ * the whole signal, and `material=` on $GITHUB_OUTPUT says the same thing without reading git.
+ *
+ * It never commits, pushes or opens anything - that is the workflow's half, deliberately, because
+ * a script that can both measure the shard budget and land the measurement is the thing this
+ * mechanism was built to avoid.
+ *
+ * @param {string|undefined} runId a run to record from, or undefined for the newest green full one
+ * @param {string|undefined} bodyPath where to write the pull request body
+ */
+async function refresh(runId, bodyPath) {
+  // The exact bytes, not a re-serialisation: an immaterial refresh has to leave NO diff at all,
+  // and `writeTable` stamps a fresh `recordedAt` that would be one on its own.
+  const held = readFileSync(TABLE, 'utf8');
+  const before = readTable();
+  // ONE RESTORE PATH FOR EVERY WAY OUT BUT THE GOOD ONE. A recording that died half way - expired
+  // artifacts, a `gh` outage, a packer that threw over a malformed entry - must not leave the table
+  // in whatever state it reached: the contract above is that this leaves one of two files on disk,
+  // and a failure that leaves a third is the one nobody would think to look for.
+  try {
+    const recorded = record(runId);
+    if (recorded !== 0) {
+      writeFileSync(TABLE, held);
+      return recorded;
+    }
+
+    const after = readTable();
+    const suite = specFilesOnDisk();
+    const balance = await shardBalance(before, after, suite);
+    const verdict = refreshVerdict(before, after, suite, balance);
+    // What gets written wherever a person will read it: the whole case when there is one, and the
+    // numbers that were NOT enough when there is not.
+    const body = verdict.material ? refreshBody(before, after, verdict, balance) : quietBody(verdict);
+
+    if (verdict.material) {
+      console.log(`e2e-durations: the refresh is worth a pull request - ${verdict.reasons.length} reason(s).`);
+      for (const reason of verdict.reasons) console.log(`  - ${reason}`);
+      if (bodyPath) writeFileSync(bodyPath, `${body}\n`);
+    } else {
+      writeFileSync(TABLE, held);
+      console.log('e2e-durations: nothing material moved, so the table is left exactly as it was.');
+      console.log(`  ${body}`);
+    }
+
+    if (process.env.GITHUB_OUTPUT) {
+      // One line each, and `summary` is deliberately one line: the workflow puts it in the commit
+      // message, and a multi-line output needs a heredoc delimiter that a reader has to get right.
+      appendFileSync(
+        process.env.GITHUB_OUTPUT,
+        `material=${verdict.material}\nrun=${after.source.run ?? ''}\nsummary=${refreshSummary(before, after, balance)}\n`,
+      );
+    }
+    // The job summary is where the acceptance route sends a person, so a quiet week must not open
+    // with a pull request body whose "why it is worth landing" section is empty.
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${body}\n`);
+    return 0;
+  } catch (error) {
+    writeFileSync(TABLE, held);
+    throw error;
+  }
+}
+
+/**
+ * THE RUN ID AND THE BODY PATH OUT OF A COMMAND LINE.
+ *
+ * `--body <path>` takes the next argument, so that argument must not also be read as the run id.
+ * The `bodyAt === -1` guard is load-bearing and is why this is a function with a test: with no
+ * `--body` at all, `indexOf` returns -1 and a bare `bodyAt + 1` excludes ARGUMENT ZERO - which is
+ * the report path in `e2e-durations.mjs <merged-report.json>`, the one mode whose positional is not
+ * preceded by a flag. Written that way first, it turned that whole mode into the usage error, with
+ * nothing failing anywhere.
+ */
+export function parseArgs(args) {
+  const bodyAt = args.indexOf('--body');
+  return {
+    bodyPath: bodyAt === -1 ? undefined : args[bodyAt + 1],
+    positional: args.find((a, i) => !a.startsWith('--') && (bodyAt === -1 || i !== bodyAt + 1)),
+  };
+}
+
+async function main() {
   const args = process.argv.slice(2);
   const table = readTable();
 
@@ -411,7 +743,7 @@ function main() {
     // report; saying the count out loud turns that into a refusal instead.
     measured(files.length, 'e2e spec files');
     const { unmeasured, stale } = drift(table.minutes, files);
-    const total = Object.values(table.minutes).reduce((a, b) => a + b, 0);
+    const total = totalOf(table.minutes);
     console.log(
       `e2e-durations: ${Object.keys(table.minutes).length} specs, ${total.toFixed(1)} min total, ` +
         `recorded ${table.source.recordedAt ?? '?'} from run ${table.source.run ?? '?'}.`,
@@ -444,12 +776,16 @@ function main() {
     return 0;
   }
 
-  const positional = args.find((a) => !a.startsWith('--'));
+  const { positional, bodyPath } = parseArgs(args);
+
+  if (args.includes('--refresh')) return refresh(positional, bodyPath);
 
   if (args.includes('--record')) return record(positional);
 
   if (!positional) {
-    console.error('usage: node scripts/e2e-durations.mjs [--check | --record [run-id] | <merged-report.json>]');
+    console.error(
+      'usage: node scripts/e2e-durations.mjs [--check | --record [run-id] | --refresh [run-id] [--body <path>] | <merged-report.json>]',
+    );
     return 1;
   }
   const minutes = minutesByFile(JSON.parse(readFileSync(positional, 'utf8')));
@@ -469,4 +805,6 @@ function main() {
 const isEntrypoint =
   Boolean(process.argv[1]) &&
   process.argv[1].replaceAll('\\', '/').toLowerCase().endsWith('e2e-durations.mjs');
-if (isEntrypoint) process.exit(main());
+// `main` is async only because `--refresh` reaches for the planner (`shardBalance`); every other
+// mode still returns its exit code synchronously and is awaited here for nothing.
+if (isEntrypoint) main().then((code) => process.exit(code));

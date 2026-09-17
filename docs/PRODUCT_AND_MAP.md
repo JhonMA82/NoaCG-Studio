@@ -38,7 +38,8 @@ owns the palette and records which shipped typefaces diverge from it, and why.
 
 Binding docs, read before generating or judging templates: **`docs/DESIGN_LANGUAGE.md`** (taste +
 motion + code style) and **`docs/GOALS.md`** (north star + what is NOT done - a landed goal moves
-verbatim to `docs/GOALS_ARCHIVE.md`, and GOALS.md stays under ~200 lines). **In GOALS.md, `## NOW`
+verbatim to `docs/GOALS_ARCHIVE.md`, and GOALS.md stays inside the line budget its own opening
+paragraph states, which `npm run check:goals-budget` enforces). **In GOALS.md, `## NOW`
 is the push and everything under `## NEXT`, `## THEN` and `## Parking lot` is PARKED** - parked
 work is not started because a doc describes it well, unless that section carves out an exception
 in its own text (the OGraf one does).

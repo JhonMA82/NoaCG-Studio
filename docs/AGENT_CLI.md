@@ -136,7 +136,7 @@ install script would turn `npx @noacg/cli` into a package that installs half-bui
 
 | Command | What it does |
 |---|---|
-| `noacg doctor` | Reports the browser it will use, the bridge it reaches at `NOACG_URL` and its protocol version, and whether a key is held for it (`whoami` asks the deployment if it is still valid). |
+| `noacg doctor` | Reports the browser it will use, the bridge it reaches at `NOACG_URL` and its protocol version, and whether a key is held for it (`whoami` asks the deployment if it is still valid). It also names an installed plugin whose `noacg-graphic` skill is BEHIND this CLI, and this CLI when it is behind npm's `latest` - both silent when there is nothing to update, and neither changes the exit code. |
 | `noacg types [--json]` | The graphic TYPES the deployment knows: fields (key, label, kind, role), operator events, designs, whether a neutral scaffold exists. Optional - an agent may author from scratch against the contract. |
 | `noacg scaffold --type <id> [--design <id>\|neutral] [--name N] [--set key=value ...] [--palette id] [--font id] [--zone z] --out <dir>` | A complete, valid graphic package from a type: a catalog chassis (a proven composition to restyle) or the NEUTRAL scaffold (the type's fields, machine, controls and runtime on a plain spine). |
 | `noacg scaffold --fields "Label:kind[=value],..." [--name N] --out <dir>` | A typeless graphic (`blank`) with exactly the fields you declare - every one an operator input, the implicit lifecycle machine. |
@@ -365,6 +365,19 @@ One documentation fix came out of it too: `cli/README.md` told the reader to edi
 `football-scoreboard.html`, and the file the scaffold writes is `football_scoreboard.html` - the
 html is named after the GRAPHIC, not the folder.
 
+### The second walk, 2026-09-15: two authored machines, and the last hop timed
+
+The 2026-09-09 walk scaffolded from a TYPE and stopped short of a player. The second one authored
+both machines by hand against the shipped skill and carried them all the way onto the in-app
+production page, so the untimed last hop above now has a number. The verbs came in at the same
+cost - `doctor` 2.1 s, `types` 1.7 s, `scaffold` 1.8-1.9 s, `validate --screenshots` 11.2 s,
+`inspect` 1.8 s, `screenshot` 4.0 s, `pack` 1.9 s, `save` refused in 0.3 s for want of a key - and
+**the operator's minute measured 56 seconds**, agent-driven, which is an upper bound on the
+product rather than a producer's pace. The whole account, the route to see it, and the defects
+it found - two fixed on the spot, three filed under `docs/backlog/` - are in
+`docs/acceptance/owner-queue/2026-09-15-agent-made-proof-case.md`; the fixture both graphics ship
+as is `e2e/fixtures/agent-made/`.
+
 ## The skill (`cli/skill/noacg-graphic/`)
 
 The contract TEXT, carried by all three entrances - not a fourth thing to install and not an
@@ -384,6 +397,19 @@ guidance - those live in `references/design-notes.md`, off by default, to be tes
 arm. With a design skill active, NoaCG's rules bind only for correctness, editability,
 compatibility and playout; the look is the agent's; page/responsive/mobile guidance does not
 apply to a fixed 1920x1080 frame.
+
+**Since 0.3.2 the skill also teaches an AUTHORED machine** (`references/contract.md` §5), which
+closes the gap `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §2c measured: the gates had been armed since
+2026-08-27 and the skill was the only thing still calling it a later capability. A type's machine
+stays the default and the first thing §5 says. When none fits, §5 gives the five declarations
+(fields with kinds, the machine, `machine.controls`, `calls` into the template's own JS outside
+the marked region, reported fields a data-only host writes), a worked machine with its controls
+block, and the three gates as steps 3 and 4 of the loop - validate with the machine checks and the
+bench, then `inspect` with the buttons SHOWN to the user. The gate words are pinned by
+`cli/test/unit.test.mjs`, which CI runs, so a rewrite that drops one fails there rather than on
+air.
+The SPX definition's `steps` is the author's to keep at `defaultPath.length - 1`: nothing
+recomputes it for a package edited on disk, and the OGraf `stepCount` is generated from it.
 
 The canonical source is the one under `cli/skill/`; the in-repo dogfooding adapters
 (`.agent-workflows/noacg-graphic.md`, `.claude/skills/noacg-graphic/`, `.agents/skills/noacg-graphic/`)
@@ -554,23 +580,79 @@ package-open sequence rather than sharing a core the way `save` and the regenera
 `--` is swallowed). The adapter
 triple is guarded by `scripts/check-shared-instructions.mjs` and never generated.
 
-**Also open, and the one with a date on it: a stale GLOBAL install wins over npx, silently.** This
-is what the old "until 0.3.0 is published" worry turned into. 0.3.0 has been on npm since
-2026-09-05, so a fresh machine gets it - measured 2026-09-10, `mcp-server.mjs` with no `@noacg/cli`
-on the box falls back to npx, says so on stderr, and answers `tools/list` with the single `noacg`
-tool. But `resolveCli()` prefers an installed copy over npx ON PURPOSE, to avoid npx's per-session
-cost, and it walks `PATH` to find one. So a machine that ever ran `npm i -g @noacg/cli` keeps that
-version. On this laptop the global is **0.2.0**, and the same probe against it returned the old
-**seven-tool** shape from the 83 MB server. `npm i -g @noacg/cli@latest` is the whole fix.
+**Closed: a stale GLOBAL install used to win over npx, silently.** This is what the old "until
+0.3.0 is published" worry turned into. 0.3.0 has been on npm since 2026-09-05, so a fresh machine
+gets it - measured 2026-09-10, `mcp-server.mjs` with no `@noacg/cli` on the box falls back to npx,
+says so on stderr, and answers `tools/list` with the single `noacg` tool. But `resolveCli()`
+prefers an installed copy over npx ON PURPOSE, to avoid npx's per-session cost, and it walks `PATH`
+to find one. So a machine that ever ran `npm i -g @noacg/cli` kept that version with nothing on
+screen saying so. On this laptop the global was **0.2.0** as of 2026-09-10, and the same probe
+against it returned the old **seven-tool** shape from the 83 MB server. `npm i -g
+@noacg/cli@latest` on 2026-09-16 brought this laptop to 0.3.3; the paragraph below covers the
+actual fix, which is the warning rather than the one-time install.
 
-What makes it hard to notice is which `doctor` you are told to run. `doctor` prints
+What made it hard to notice is which `doctor` you are told to run. `doctor` prints
 `cliVersion()`, the version of the copy EXECUTING it (`cli/src/commands/doctor.ts`), so a bare
 `noacg doctor` off a stale global does print 0.2.0 and would give the game away. But the docs
-prompt and this page both say `npx -y @noacg/cli doctor`, which fetches `latest` and reports THAT
-- 0.3.0 - while the MCP server goes on importing the global. The check everyone is told to run is
-the one that cannot see the problem. Filed with both measurements as
-`docs/backlog/a-stale-global-cli-wins-over-npx-silently.md`. Worth closing before the tool has
-users, because on this laptop it is already true.
+prompt and this page both say `npx -y @noacg/cli doctor`, which fetches `latest` and reports THAT,
+while the MCP server goes on importing the global. The check everyone is told to run was the one
+that could not see the problem.
+
+**Closed 2026-09-16, in `cli/plugin-mcp/mcp-server.mjs`.** The resolved copy's own version is now
+compared, off the startup critical path, against npm's `latest` (a cached registry read, once a
+day, 1.5 s timeout, never blocks startup or fails loudly offline) and a mismatch prints on the same
+stderr channel the npx-fallback notice already uses: `the installed @noacg/cli is 0.2.0; npm's
+latest is 0.3.3. Run npm i -g @noacg/cli@latest to update it.` The check runs only when `resolveCli`
+did NOT return the `NOACG_CLI` override path (a checkout under development is expected to differ
+from `latest`) - checking merely whether the env var is SET would miss a stale or deleted override
+falling through to a real resolve. The cache write is write-then-rename, because several
+`noacg-mcp` processes across this repo's own concurrent worktrees can race the same file past its
+day-old TTL, and `NOACG_CLI_LATEST_CACHE_FILE` lets a diagnostic run point at a scratch file instead
+of the one every session on the machine shares. What was
+`docs/backlog/a-stale-global-cli-wins-over-npx-silently.md` is closed on that fix.
+
+**Extended 2026-09-17 to the entrance people are actually told to run.** The registry read now
+lives in `cli/src/npmLatest.mjs`, and `cli/plugin-mcp/npm-latest.mjs` is a generated byte-identical
+copy of it (`cli/scripts/build-skill.mjs`, whose `--check` fails on drift) - a copy rather than an
+import from the resolved CLI, because a 0.2.0 that predates the check is exactly the copy it exists
+to warn about, so the checker has to be the component that is current. `noacg doctor` runs the same
+read (started before the browser launch, so it costs no wall clock) and prints an `update` line when
+the CLI executing it is BEHIND `latest` - `isBehind`, not `!==`, so a checkout built ahead of the
+published version says nothing. The launcher's own text, cache, timeout and its skip on the
+`NOACG_CLI` override are untouched.
+
+`doctor` still does not separately name what `resolveCli()` would pick; that half of the file's
+proposal is still undecided, not done. What it DOES now name is the skill - below.
+
+### The installed skill can be older than everything else
+
+A Claude Code or Codex marketplace never updates itself, and a plugin installed once keeps the
+skill text it shipped with. Measured on this laptop 2026-09-16: `noacg@noacg-studio` at **0.2.0**
+against a marketplace shipping 0.3.3, a `SKILL.md` eleven lines shorter than the repository's, and
+nothing anywhere saying so - the person most exposed being whoever installed earliest.
+`docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md` has the full reading.
+
+`noacg doctor` closes that on 2026-09-17 (`cli/src/skillVersion.ts`). It finds every installed copy
+of the skill on the machine and prints one that disagrees with the CLI running, with the exact
+command that fixes it:
+
+```
+skill        0.2.0 in Claude Code, but this CLI ships 0.3.3 - an installed plugin never updates itself
+             run: claude plugin marketplace update noacg-studio && claude plugin update noacg@noacg-studio
+```
+
+The version is read from the plugin manifest lying beside the skill on disk, and from nowhere else.
+The alternative the backlog names - have the skill's own command lines pass the version they were
+loaded from - was rejected because the skill text would then have to carry its version, so the check
+could only fire for people who had ALREADY updated to a version carrying it, which is everyone
+except the ones it is for. Reading the manifest works on the stale install that exists today.
+
+It also refuses to guess, in all three ways it could: no manifest beside the skill (a hand-copied
+`~/.codex/skills/noacg-graphic/`) means no claim, a cache directory's NAME is never used as a
+version, and a plugin with two versions cached and no install record naming the active one is
+ambiguous and therefore silent. The harness is named on the line rather than inferred from the
+environment - a subprocess cannot tell which agent invoked it (this laptop's sessions carry both
+`CLAUDECODE` and `CODEX_*`), and a wrong guess would print the wrong update command.
 
 Verified
 2026-08-22: `npm pack --dry-run` = 31 files (dist, skill, package.json, README, LICENSE); the plugin
@@ -607,6 +689,18 @@ no `--provenance` flag).
    from the registry - version, `latest`, the provenance attestation - and installs it with `npx` to
    ask its own version. `npm run release:cli -- --check` does the preflight and stops without
    touching anything.
+
+   **npm accepts a publish asynchronously, and the proof has to wait for it.** The publish PUT
+   comes back **202 Accepted** with "Your package is being processed and may take a few minutes to
+   become available", so the version is not readable the moment the run goes green. Measured
+   releasing 0.3.2 on 2026-09-15: the PUT returned 202 at 12:33:34 UTC, the script's single
+   immediate read answered 404, and the version appeared about two minutes later - so the release
+   printed `REFUSED - the run was green but @noacg/cli@0.3.2 is not on the registry` about a
+   publish that had worked perfectly. That sentence reads as a lost release and it was the
+   opposite, which is why the read now polls for six minutes before it refuses. The other half of
+   the fix is `npm run release:cli -- --verify-only`: it runs the post-publish proof against a
+   version that is ALREADY out and tags nothing, so a race, a dropped connection or a killed
+   terminal is answered by re-running the proof rather than by guessing from `npm view`.
 
    The publisher check is the one the 2026-09-09 failure needed. npm's stored organisation,
    repository and workflow filename cannot be read without an account credential, but the **last
@@ -795,3 +889,16 @@ production shows an input per field + Take/Update/Next/Out. No application code 
   `whoami` is closed in the same pass. The walk's third finding is a studio template fault rather
   than a CLI one and stays open in the backlog. Nothing about the package's shape, its verbs or
   its output contract changed, so 0.3.1 is a drop-in for anyone on 0.3.0.
+- **0.3.3 (2026-09-16): `login` exits.** Against `noacg.studio` on 2026-09-10, `login` minted the
+  key, stored it, printed its success line and then sat for 923 s until it was killed. The person
+  watching cannot tell that from a login that failed, so the likely reaction is to run it again and
+  mint a second key. The cause is a socket, and not the one it looks like: `server.close()` closes
+  connections that are IDLE in the HTTP sense, and a browser also opens a speculative connection it
+  never sends a request on. That one has no finished message, so it is not idle, survives the close
+  and holds the event loop - and nothing times it out, because closing the server also stops the
+  interval that enforces `headersTimeout` and `requestTimeout`. `login` now calls
+  `closeAllConnections()` beside `close()` on both paths. Measured on Node 24 with a browser-like
+  socket held open across the handoff: a successful login exits 0 about 0.3 s after the code
+  arrives, and a wait that runs out exits 1 within it with its giving-up line on stdout. Both are
+  pinned in `cli/test/unit.test.mjs` and were confirmed red against a build without the fix. The
+  300 s timeout was never implicated: a successful handoff cancels that timer by design.

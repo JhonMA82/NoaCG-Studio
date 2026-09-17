@@ -2,6 +2,13 @@
 
 **Filed:** 2026-09-08. **Source:** weekly quality review (measurement).
 
+**Fixed 2026-09-16** (steps 1 and 2 below): §5 now states the counting rule
+(`grep -c 'applyTemplate({ *\.\.\.template' <file>`) beside the three counts, records the current
+numbers (5, 6, 4), and gives full paths instead of stale line-number anchors. Step 3, a build gate
+that fails when a recorded count drifts from the measured one, is still open - it lands on its own
+branch, not folded into a doc fix. The history below is kept as the record of how the doc went
+wrong; treat the "What it would take" section's step 3 as the remaining work.
+
 ## Why
 
 §5 "UI thinness" carries the grandfathered offenders a session is meant to consult before deciding
@@ -68,3 +75,9 @@ a clean checkout of main.
 
 - 2026-09-08: 3 of 4 §5 rows misstate their own size (2 understate, 1 overstates); 3 of 3 line
   anchors stale.
+- 2026-09-15: unchanged. §5 still reads "13 inline sites", `:375`/`:388` and `:280`. The measured
+  counts are still 5, 6 and 4 (`grep -c 'applyTemplate({ *\.\.\.template'`), so 3 of 4 rows still
+  misstate and 3 of 3 anchors are stale. The §6 edge table checks out: all four rows still exist as
+  written, including the `model/wizard.ts` `export *` shim, which it calls "temporary, one
+  landing". Neither table records the fastest-growing no-JSX logic under `components/`, the 913
+  lines inside `MapSvgFieldsStep.tsx` (`split-map-svg-fields-step.md`).

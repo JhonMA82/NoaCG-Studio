@@ -12,6 +12,8 @@ behind a link. Every number in it names the command it came from.
    stay one line each - `/walk` carries the detail - it is the non-walk actions (a registry
    setting, a token to revoke, anything with a form to fill) that get every step written out.
 2. **Landed** - a one-line-per-branch table from `npm run jobs`: branch, commit, five words.
+   Separately report each SPEC parent's current acceptance status and unresolved IDs. Worker
+   completion/landing never implies parent completion; use `specs.md` before closing a feature.
 3. **Continue prompts, pasteable - only where the work is real.** One fenced block per session
    whose handoff leaves genuinely valuable follow-up, in the section-5 format, so the user can
    scroll and paste. **A finished session gets no prompt.** Never invent work to fill this section

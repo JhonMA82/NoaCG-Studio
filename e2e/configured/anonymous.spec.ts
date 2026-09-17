@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { dismissWizard, SUPABASE_URL } from './_helpers';
-import { enableAdvancedMode } from '../_create';
+import { createProject, enableAdvancedMode } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
+import { ACCOUNT_IS_FOR, NO_ACCOUNT_NEEDED } from '../../src/components/auth/accountCopy';
 
 // Era 5.6 — the open editor. With a backend CONFIGURED, an anonymous visitor can still do the whole
 // core workflow (create → preview → export) with no account; only the account features (cloud sync,
@@ -87,18 +88,74 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
     await expect(page.locator('.auth-status')).toHaveCount(0);
 
-    // AI is an account feature in hosted mode: the panel shows the sign-in prompt, not controls.
+    // WHAT THE ACCOUNT IS FOR, said at the moment we ask (owner, 2026-09-04: "I don't have a
+    // really good reason for people to be logged in"). The reason is ONE sentence
+    // (src/components/auth/accountCopy.ts), derived from what a signed-in visitor actually gets,
+    // and it is asserted as words as well as as the constant: an emptied constant would still
+    // equal itself. From the topbar there is no door, so the sentence is the whole answer and the
+    // no-wall line sits under it.
+    expect(ACCOUNT_IS_FOR).toMatch(/free account/);
+    expect(ACCOUNT_IS_FOR).toMatch(/any computer/);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    const card = page.locator('.auth-card');
+    await expect(card.getByTestId('auth-reason')).toHaveText(ACCOUNT_IS_FOR);
+    await expect(card.getByTestId('auth-account-for')).toHaveText(NO_ACCOUNT_NEEDED);
+    await card.locator('.gallery-close').click();
+    await expect(card).toHaveCount(0);
+
+    // AI is an account feature in hosted mode: the panel shows the sign-in prompt, not controls,
+    // and the prompt carries the same sentence under its own reason.
     await page.getByRole('button', { name: 'AI', exact: true }).click();
     await expect(page.getByTestId('signin-prompt')).toBeVisible();
+    await expect(page.getByTestId('signin-prompt').getByTestId('signin-prompt-for')).toHaveText(ACCOUNT_IS_FOR);
 
-    // Community opens the sign-in dialog, not an empty gallery.
+    // Community opens the sign-in dialog, not an empty gallery. Through a door the door's own
+    // reason leads and the sentence follows it, so a reader who came for the gallery still
+    // learns what the account buys beyond the gallery.
     await page.getByRole('button', { name: /Community/ }).click();
-    await expect(page.locator('.auth-card')).toBeVisible();
-    await expect(page.locator('.auth-card')).toContainText('community');
+    await expect(card).toBeVisible();
+    await expect(card.getByTestId('auth-reason')).toContainText('community');
+    await expect(card.getByTestId('auth-account-for')).toContainText(ACCOUNT_IS_FOR);
+    await expect(card.getByTestId('auth-account-for')).toContainText(NO_ACCOUNT_NEEDED);
 
     // Esc closes the dialog — signing in is always optional.
     await page.keyboard.press('Escape');
-    await expect(page.locator('.auth-card')).toHaveCount(0);
+    await expect(card).toHaveCount(0);
+  });
+
+  test('a session-expiry reopen says the reason and the no-wall line, not the free-account sentence', async ({ page }) => {
+    // docs/backlog/session-expired-reopen-shows-the-free-account-line.md. The dialog this event
+    // opens is answering a token refresh, not "why sign in at all" - the reader already has an
+    // account, so the sentence written for someone who has never signed in must not appear here,
+    // even though the event supplies a reason and every OTHER door with a reason shows it (the
+    // Community door above is the contrasting case: same shape, ACCOUNT_IS_FOR present).
+    await page.goto('/app');
+    // `page.evaluate` runs in the page immediately - it does not wait for anything, unlike a
+    // locator action. Dispatched before React has mounted and App.tsx's effect has attached its
+    // `spx-session-expired` listener, the event fires into an empty page and is gone; nothing
+    // reopens the dialog later; the assertions below then time out waiting for it. Waiting for the
+    // wizard first (every other test in this file reaches it through a locator action, which
+    // carries its own actionability wait) is what makes the dispatch land on a listening app.
+    await expect(page.locator('.wz-modal')).toBeVisible();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('spx-session-expired')));
+    const card = page.locator('.auth-card');
+    await expect(card).toBeVisible();
+    await expect(card.getByTestId('auth-reason')).toContainText('Your session expired');
+    await expect(card.getByTestId('auth-account-for')).toHaveText(NO_ACCOUNT_NEEDED);
+    await expect(card.getByTestId('auth-account-for')).not.toContainText(ACCOUNT_IS_FOR);
+    await expect(card.locator('.auth-submit')).toHaveText('Sign in');
+
+    // The other direction: the reader is NOT locked out of signup. If they toggle to "Create a
+    // free account" from this same dialog, they are now the someone the free-account sentence is
+    // for - the suppression must track what is ON SCREEN (the form mode), not just why the dialog
+    // first opened, or a person mid-signup from a resume gate would never see what the account
+    // buys them.
+    await card.locator('.auth-toggle', { hasText: 'Create a free account' }).click();
+    await expect(card.locator('.auth-submit')).toHaveText('Create account');
+    await expect(card.getByTestId('auth-account-for')).toContainText(ACCOUNT_IS_FOR);
+    await expect(card.getByTestId('auth-account-for')).toContainText(NO_ACCOUNT_NEEDED);
+    // And the reason line still names the expired session - toggling modes never loses it.
+    await expect(card.getByTestId('auth-reason')).toContainText('Your session expired');
   });
 
   test('the topbar says which account state it is in, not only what it offers', async ({ page }) => {
@@ -138,6 +195,19 @@ test.describe('anonymous visitor (open editor)', () => {
       expect(bar.rows, `signed-out topbar rows at ${width}px`).toBe(1);
       expect(bar.overflowPx, `signed-out topbar overflow at ${width}px`).toBeLessThanOrEqual(0);
     }
+  });
+
+  test('signed out, the save dialog says the graphic stays on this computer', async ({ page }) => {
+    // The state, said at the one moment it has a consequence. The topbar's "Not signed in" is
+    // the quietest thing on the bar by design, and the student the owner worries about (2026-09-10)
+    // is the one who never reads it and loses a lab session's work. A save is the moment they are
+    // looking. The signed-in half is signed-in-ux.spec.ts, and the offline suite pins that an
+    // offline build says neither (e2e/auth.spec.ts).
+    await createProject(page, 'Hairline');
+    await page.getByTestId('save-graphic').click();
+    const where = page.getByTestId('save-where');
+    await expect(where).toContainText('on this computer only');
+    await expect(where).not.toContainText('any computer you sign in on');
   });
 
   test('a dead reset link says so, and offers a new one', async ({ page }) => {

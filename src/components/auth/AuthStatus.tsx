@@ -4,6 +4,7 @@ import { useAuthState } from './useAuthState';
 import { useAuthUi } from './authUi';
 import { useRouter } from '../../app/router';
 import SettingsDialog from '../SettingsDialog';
+import { ACCOUNT_IS_FOR } from './accountCopy';
 
 /**
  * Topbar account control. Renders nothing in offline / self-host mode (no backend, no login
@@ -68,7 +69,7 @@ export default function AuthStatus() {
         >
           Not signed in
         </span>
-        <button className="auth-signin" onClick={() => openSignIn()} title="Sign in to save your work, share to the community, and use AI">
+        <button className="auth-signin" onClick={() => openSignIn()} title={ACCOUNT_IS_FOR}>
           Sign in
         </button>
       </span>
@@ -101,7 +102,7 @@ export default function AuthStatus() {
       <button
         className="avatar-btn"
         onClick={() => setMenuOpen((o) => !o)}
-        title={email ? `${email} — Home, profile & settings` : 'Account'}
+        title={email ? `${email}. Home, profile and settings` : 'Account'}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         data-testid="account-button"
@@ -121,7 +122,7 @@ export default function AuthStatus() {
             onClick={() => { setMenuOpen(false); navigate({ view: 'home', section: null }); }}
             data-testid="menu-home"
           >
-            Home — your work
+            Home - your work
           </button>
           <button role="menuitem" onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}>
             ⚙ Settings

@@ -2,6 +2,9 @@
 
 ## Big projects are phased, never one-shotted
 
+Use `specs.md` for the compact spec, acceptance ledger and convergence check. Existing goals
+and programme authority remain canonical; no second constitution or retrospective spec project.
+
 Owner, 2026-08-28, for the big roads ahead (the editor, the desktop client, broadcast-scale
 control): *"they can't be one-shotted… planned out step by step and implemented with care, one
 thing at a time"* - and *"we are not in a hurry. Enterprise software takes years."* The rules:
@@ -34,13 +37,14 @@ does not degrade; the written surface does - stale docs teach wrong things, cont
 the big picture smears across files until no session can hold it. The standing defences are
 structural (the instruction-chain byte RATCHET that only tightens, handoffs consumed not
 collected, backlog items that graduate or die, memory entries with exit conditions, and this
-system's own 200-line gate) - but defences that only fire locally miss global drift. GOALS.md's
-~200-line budget and its archive belong in that list only in INTENTION: nothing measures the
-budget, so the file drifts over and is pulled back by hand whenever a coherence round happens to
-look. It was 419 lines when `docs/backlog/goals-over-its-own-budget.md` was filed, 261 after the
-2026-08-30 round cut it, and over budget in both readings. **Quote the measurement, never the
-number** - a line count written into prose is stale within days, which this sentence proved by
-carrying 419 into 2026-09-02.
+system's own 200-line gate, and since 2026-09-16 `check:goals-budget`, which reads GOALS.md's cap
+out of GOALS.md's own opening sentence) - but defences that only fire locally miss global drift.
+GOALS.md's budget belonged in that list only in INTENTION for three rounds: nothing measured it, so
+the file drifted over and was pulled back by hand whenever a coherence round happened to look, four
+times in six weeks. The gate is what closed it; the ROUNDS did not, and a coherence round is the
+wrong instrument for a rule that can be counted. **Quote the measurement, never the number** - a
+line count written into prose is stale within days, which this sentence proved by carrying 419 into
+2026-09-02.
 
 So roughly **weekly, one wave carries a COHERENCE SESSION** - fresh context, no other task:
 
@@ -74,14 +78,16 @@ SESSION builds, or how a WAVE is planned? Only the second belongs here.
 1. **A hook**, where the mistake has a tool shape - it fires at the call, whether or not anyone
    read a contract (`scripts/hooks/`, `docs/AGENT_WORKFLOWS.md`). A hook that can false-positive is
    a warning; a refusal needs an exact test.
-2. **A script or a test**, where the fact can be measured - the tick, the drain, the plan check,
-   the receipts. A contract sentence about what a script does, or a number written into prose, is
-   a cache of the instrument; cite the instrument and its test instead. Six such caches went false
-   within a week of the split (`incidents.md`, "the four cached facts of 2026-09-02").
+2. **A script or a test**, where the fact can be measured or a script's claim can be pinned - the
+   tick, the drain, the plan check, the receipts. A contract sentence about what a script does, or
+   a number written into prose, is a cache of the instrument; cite the instrument and its test
+   instead. Six such caches went false within a week of the split (`incidents.md`, "the four
+   cached facts of 2026-09-02").
 3. **Durable state**, where a decision must outlive the session that made it - the wave-state file,
    a receipt, a ledger line.
-4. **Text, last, and by MOVING, never by adding.** The lesson edits the module that owns the rule,
-   its evidence goes to `incidents.md` in one dated entry, and a new rule names what it replaced
+4. **Text, last, and by MOVING, never by adding.** Text changes only for a judgement the master
+   itself has to make. The lesson edits the module that owns the rule, its evidence goes to
+   `incidents.md` in one dated entry, and a new rule names what it replaced
    or shrank - budget-neutral by default, and the report says so when nothing could be cut. The
    core changes only for a rule that fires before its module loads, and only against its gate.
    The gate counts the core and the common path; the branch modules (`night`, `recovery`, this
