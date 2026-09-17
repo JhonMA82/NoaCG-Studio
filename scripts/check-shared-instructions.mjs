@@ -143,7 +143,7 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'node scripts/handoff-drain.mjs',
       'node scripts/owner-receipts.mjs',
       "Landing authority belongs to GitHub's merge queue",
-      // Big prompts are the point: one branch, one gate, one landing instead of three.
+      // Keep each assignment bounded while workers choose its implementation.
       'A starting prompt is a bounded outcome',
       // The whole workflow rests on this: it assigns work and does none of it, and it never
       // reaches into another worktree - not to merge, not to check, not to tidy. Printing a merge

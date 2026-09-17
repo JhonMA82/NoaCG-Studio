@@ -38,9 +38,21 @@ row's empty worktree is launch infrastructure, not permission to edit or adopt s
 A Claude Agent's existing isolation mechanism stays as-is. A native Codex subagent needs absolute
 paths and every command's cwd set to its assignment; its tool does not itself provide isolation.
 
-Record letter, branch, absolute worktree, host, returned agent/job ID and result route BEFORE
-launching another row. Record the launch with `wave-launch` too. A returned ID is not completion.
-Only one coordinator owns a wave; a resumed turn reconciles existing IDs before launching anything.
+Record the returned launch identity with the existing ledger before launching another row:
+
+    node scripts/wave-launch.mjs record --letter <L> --branch <branch> --size <size> --plan <plan> --host <host> --worker-id <id> --worktree <absolute-path> --result-path <absolute-path>
+
+Send the returned ID to its worker. From its assigned checkout it reports meaningful transitions:
+
+    node scripts/wave-launch.mjs progress --worker-id <id> --state <running|ready|verifying|failed> --next-action <one-line-action> [--blocker <one-line-reason>]
+
+The command pins the current SHA and checks the recorded worktree/attempt. A report is a claim,
+not a gate verdict or proof of liveness. Jobs and GitHub still own verification and landing.
+Only one coordinator owns a wave. A fresh/resumed master starts with
+`node scripts/wave-recover.mjs --plan <plan> --json`: plan rows, identities, current refs, jobs,
+worker claims, deadlines and bounded event pointers, without transcripts. Reconcile the existing
+coordinator and worker IDs before acting; unknown ownership never frees capacity. Read individual
+prompts/results only when needed. This read-only projection neither claims nor launches a wave.
 Do not use app task creation to manufacture subagents; that surface is for user-requested tasks.
 App handoff moves an existing task and its git state, not a background worker's ownership record.
 

@@ -13,7 +13,7 @@
 // because nothing could tell it a small unit would have fitted. `wave-horizon.mjs` reads this
 // ledger; the live orchestrator appends one line per launch.
 //
-// One JSON line per launch in `<git-common-dir>/noacg-jobs/wave-launches.jsonl`, beside the job
+// One JSON line per launch or worker progress report in the shared launch ledger, beside the job
 // store and under its lifetime rules. Append-only, never edited. Re-launching a branch records
 // another attempt; it must never erase the time already spent on that task.
 
@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 import { jobsDir, ensureJobsDir, readJobs, readLandings } from './jobs-store.mjs';
 import { inStore, wavePlanFiles, wavePlansDir } from './wave-plan-store.mjs';
+import { git, samePath } from './worktree-cleanup-lib.mjs';
 
 export const LEDGER_VERSION = 1;
 export const LEDGER_FILE = 'wave-launches.jsonl';
@@ -33,7 +34,7 @@ export function ledgerPath(dir) {
   return path.join(dir, LEDGER_FILE);
 }
 
-export function readLaunches(dir) {
+function readRecords(dir) {
   const file = ledgerPath(dir);
   if (!existsSync(file)) return [];
   return readFileSync(file, 'utf8')
@@ -49,12 +50,63 @@ export function readLaunches(dir) {
     .filter((row) => row && row.branch && Number.isFinite(row.at));
 }
 
-export function recordLaunch(dir, { letter, branch, size, plan = null, now = Date.now() }) {
+export function readLaunches(dir) {
+  return readRecords(dir).filter((row) => !row.type || row.type === 'launch');
+}
+
+export function readProgress(dir) {
+  return readRecords(dir).filter((row) => row.v === LEDGER_VERSION && row.type === 'progress');
+}
+
+/** Select the newest report of the current attempt. Callers must also match its SHA. */
+export function progressFor(launch, reports) {
+  if (!launch) return null;
+  return reports.filter((row) => row.branch === launch.branch && row.launchAt === launch.at && row.workerId === launch.workerId)
+    .sort((a, b) => b.at - a.at)[0] ?? null;
+}
+
+export function currentProgress(launches, reports, branches) {
+  const latest = new Map([...launches].sort((a, b) => a.at - b.at).map((row) => [row.branch, row]));
+  return Object.fromEntries([...latest].flatMap(([branch, launch]) => {
+    const report = progressFor(launch, reports);
+    return report && report.sha === branches[branch]?.sha ? [[branch, report]] : [];
+  }));
+}
+
+/** A worker reports an outcome in the same ledger as its launch. This is a claim with a SHA,
+ * not verification or permission to land. An old attempt cannot report for a replacement. */
+export function recordProgress(dir, { branch, worktree, workerId, sha, state, nextAction, blocker = null, now = Date.now() }) {
+  const launch = readLaunches(dir).filter((row) => row.branch === branch).sort((a, b) => b.at - a.at)[0];
+  if (launch?.v !== LEDGER_VERSION || !launch?.workerId || launch.workerId !== workerId || !launch.worktree || !samePath(launch.worktree, worktree)) {
+    throw new Error('progress needs the current launch worker ID and assigned worktree');
+  }
+  if (!/^[a-f0-9]{40}$/.test(sha ?? '')) throw new Error('progress needs a full SHA');
+  if (!['running', 'ready', 'verifying', 'failed'].includes(state)) throw new Error('progress state must be running, ready, verifying or failed');
+  if (!nextAction?.trim()) throw new Error('progress needs --next-action');
+  for (const value of [nextAction, blocker]) {
+    if (value != null && (typeof value !== 'string' || value.length > 1000 || /[\r\n]/.test(value))) throw new Error('progress text must be one line, at most 1000 characters');
+  }
+  if (!Number.isFinite(now) || now < launch.at) throw new Error('progress timestamp precedes launch');
+  const row = { v: LEDGER_VERSION, type: 'progress', branch, at: now, launchAt: launch.at, workerId, sha, state, nextAction, blocker };
+  appendFileSync(ledgerPath(dir), `${JSON.stringify(row)}\n`, 'utf8');
+  return row;
+}
+
+export function recordLaunch(dir, { letter, branch, size, plan = null, host, workerId, worktree, resultPath, now = Date.now() }) {
   if (!branch || !/^[\w./-]+$/.test(branch)) throw new Error('record needs --branch <name>');
   if (!SIZES.includes(size)) throw new Error(`record needs --size one of ${SIZES.join(', ')}`);
   if (!Number.isFinite(now)) throw new Error('record needs a finite launch timestamp');
   ensureJobsDir(dir);
   const row = { v: LEDGER_VERSION, at: now, letter: letter ?? null, branch, size, plan };
+  // Optional identity facts extend v1; legacy receipts remain readable. They describe the
+  // returned launch, never prove that its worker is still alive or that its result is verified.
+  for (const [key, value] of Object.entries({ host, workerId, worktree, resultPath })) {
+    if (value !== undefined) {
+      if (typeof value !== 'string' || !value.trim()) throw new Error(`${key} must be nonempty text`);
+      if (['worktree', 'resultPath'].includes(key) && !path.isAbsolute(value)) throw new Error(`${key} must be absolute`);
+      row[key] = value;
+    }
+  }
   appendFileSync(ledgerPath(dir), `${JSON.stringify(row)}\n`, 'utf8');
   return row;
 }
@@ -130,6 +182,17 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
   }
   const command = argv[0];
   const json = argv.includes('--json');
+  if (command === 'progress') {
+    try {
+      const branch = git(['branch', '--show-current'], process.cwd());
+      const head = git(['rev-parse', 'HEAD'], process.cwd());
+      if (!branch.ok || !head.ok) throw new Error('cannot identify worker checkout');
+      const row = recordProgress(dir, { branch: branch.stdout.trim(), worktree: process.cwd(),
+        workerId: argValue(argv, '--worker-id'), sha: head.stdout.trim(), state: argValue(argv, '--state'),
+        nextAction: argValue(argv, '--next-action'), blocker: argValue(argv, '--blocker'), now });
+      process.stdout.write(`${JSON.stringify(row)}\n`); return 0;
+    } catch (error) { process.stderr.write(`wave-launch: ${error.message}\n`); return 2; }
+  }
   if (command === 'record') {
     // The plan check is the contract's choke point and this is the code one: a row can be launched
     // without anybody running the check, but no row is launched without being recorded here.
@@ -152,6 +215,10 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
         letter: argValue(argv, '--letter'),
         branch: argValue(argv, '--branch'),
         size: argValue(argv, '--size'),
+        host: argValue(argv, '--host'),
+        workerId: argValue(argv, '--worker-id'),
+        worktree: argValue(argv, '--worktree'),
+        resultPath: argValue(argv, '--result-path'),
         plan: planArg ?? (newest ? path.join(wavePlansDir(dir), newest) : null),
         now,
       });
@@ -182,6 +249,8 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
     return 0;
   }
   process.stdout.write('Usage: node scripts/wave-launch.mjs record --letter <L> --branch <name> --size small|standard|large [--plan <path>]\n'
+    + '       Identity fields: --host <host> --worker-id <id> --worktree <absolute-path> --result-path <absolute-path>\n'
+    + '       node scripts/wave-launch.mjs progress --worker-id <id> --state running|ready|verifying|failed --next-action <text> [--blocker <text>]\n'
     + '       node scripts/wave-launch.mjs list [--json]\n       node scripts/wave-launch.mjs durations [--json]\n');
   return command ? 2 : 0;
 }

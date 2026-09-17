@@ -41,11 +41,15 @@ export function parseArgs(argv) {
 }
 
 /** The lines one tick result should print. Pure, so the shape is testable without a tick. */
-export function linesFor(result, { lastError = null } = {}) {
+export function linesFor(result, { lastError = null, lastWarnings = [] } = {}) {
   if (!result.ok) {
     return result.error === lastError ? [] : [`WATCH ERROR - wave-tick failed: ${result.error}`];
   }
   const lines = result.events.map((event) => `tick ${result.tick}: ${event}`);
+  for (const warning of result.warnings ?? []) {
+    if (!lastWarnings.includes(warning)) lines.push(`WATCH WARNING - ${warning}`);
+  }
+  if (lastWarnings.length && !(result.warnings ?? []).length) lines.push('WATCH RECOVERED - observation warnings cleared');
   if (lastError) lines.unshift('WATCH RECOVERED - wave-tick answers again');
   return lines;
 }
@@ -59,7 +63,7 @@ export function runTick({ plan = null } = {}) {
   }
   try {
     const parsed = JSON.parse(run.stdout);
-    return { ok: true, tick: parsed.tick, events: parsed.events ?? [] };
+    return { ok: true, tick: parsed.tick, events: parsed.events ?? [], warnings: parsed.warnings ?? [] };
   } catch {
     return { ok: false, error: 'wave-tick printed something that was not JSON' };
   }
@@ -80,9 +84,11 @@ export async function main(argv = process.argv.slice(2)) {
     return 0;
   }
   let lastError = null;
+  let lastWarnings = [];
   for (;;) {
     const result = runTick({ plan: args.plan });
-    for (const line of linesFor(result, { lastError })) process.stdout.write(`${line}\n`);
+    for (const line of linesFor(result, { lastError, lastWarnings })) process.stdout.write(`${line}\n`);
+    if (result.ok) lastWarnings = result.warnings ?? [];
     lastError = result.ok ? null : result.error;
     if (args.once) return result.ok ? 0 : 1;
     await sleep(args.every * 1000);
