@@ -1,7 +1,7 @@
 # Brand creator implementation evidence
 
 The owner authorized the starter-collection/brand/editor route on 2026-09-17. Its detailed
-sequence lives in [the editor rebuild plan](../EDITOR_REBUILD_PLAN.md#template-first-creation-and-the-shared-brand-library).
+sequence lives in [the editor rebuild plan](../STARTER_COLLECTIONS_PLAN.md).
 
 ## Baseline
 

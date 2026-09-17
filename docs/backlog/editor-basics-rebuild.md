@@ -5,7 +5,7 @@ kind: ask
 raised: 2026-09-14
 state: active
 branch: codex/ograf-studio-architecture-research
-note: Home brand creator implemented and verified on 2026-09-17; direct editor application, collections, production handoff, animation baseline and rewrite remain outstanding.
+note: Animation contracts revised after independent review on 2026-09-17; baseline and implementation remain outstanding. Brand and collection work has a separate receipt.
 asked: "Paraphrase: create a plan to rebuild our editor using the OGraf Studio research because basic animation and keyframe editing do not feel good enough, then implement it."
 serves: P7
 size: large
@@ -24,10 +24,9 @@ add another inventory of capabilities or wait for the full-stack renderer progra
 
 ## What it would take
 
-The 2026-09-17 owner-approved route adds starter collections and one shared brand library:
-Home -> create brand -> choose collection -> customize -> production rundown. The first
-implementation slice is the independent Home brand creator and its reuse by the existing
-wizard; direct editor brand controls and collection-wide application follow.
+Brand creation and the collection-to-production route now have their own
+[plan](../STARTER_COLLECTIONS_PLAN.md) and [receipt](starter-collections.md).
+This receipt owns the animation editor; the dated decisions resolve the reviewed contract gaps.
 
 Execute [EDITOR_REBUILD_PLAN.md](../EDITOR_REBUILD_PLAN.md) in order: reproduce the current
 tasks and reference experience, establish shared interaction/transaction semantics, ship a

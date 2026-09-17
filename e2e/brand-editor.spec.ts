@@ -13,6 +13,29 @@ async function openCreator(page: Page) {
   await page.getByLabel('Brand name', { exact: true }).fill('Channel A');
 }
 
+test('rapid brand edits keep controls immediate and rebuild previews only after settling', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+  await openCreator(page);
+  await page.clock.pauseAt(new Date('2026-01-01T00:01:00Z'));
+  const preview = page.locator('.brand-preview-card iframe').first();
+  const before = await preview.getAttribute('srcdoc');
+  const accent = page.getByLabel('Accent value', { exact: true });
+  for (const colour of ['#112233', '#223344', '#334455']) {
+    await accent.fill(colour);
+    await expect(accent).toHaveValue(colour);
+    await page.clock.runFor(50);
+    expect(await preview.getAttribute('srcdoc')).toBe(before);
+  }
+  await page.clock.runFor(151);
+  await expect(preview).toHaveAttribute('srcdoc', /#334455/);
+  // Save uses the current draft even when the preview has not caught up.
+  await accent.fill('#556677');
+  await page.getByRole('button', { name: 'Save brand', exact: true }).click();
+  await expect(page.getByTestId('brand-editor')).toHaveCount(0);
+  await page.locator('.lib-row', { hasText: 'Channel A' }).getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(accent).toHaveValue('#556677');
+});
+
 test('create a brand without a graphic, preview it, edit it and reuse it in the wizard', async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));

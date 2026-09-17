@@ -5,7 +5,7 @@ PNG/SVG logo (300 KB limit), four colour roles, the shared bundled/uploaded-font
 notes and three real graphic previews. It persists the existing SavedLook record after
 durable confirmation, keeps a failed draft for retry, and refuses a stale edit. Existing
 shape tokens are preserved. Home's capture/apply/import routes remain available. This is
-the first starter-collection foundation in [EDITOR_REBUILD_PLAN.md](EDITOR_REBUILD_PLAN.md).
+the first starter-collection foundation in [STARTER_COLLECTIONS_PLAN.md](STARTER_COLLECTIONS_PLAN.md).
 Logo palette extraction, shape editing in the creator, the legacy-look offer, direct editor
 brand selection and production-wide application remain outstanding; the older scope below
 must not be read as a claim that those parts are implemented.
@@ -177,7 +177,9 @@ so they never see it). With zero brands the control is absent, not disabled (dec
   tab with the patch highlighted and undoable, as today.
 - **A production**: the production page gains "Apply brand to all graphics" - the same function
   over each saved graphic in the production, each write reported, the production's `brandId` set.
-  Undo is per graphic (the editor's history), so the button says how many it will touch first.
+  Use the previewed change set and guarded Revert in [STARTER_COLLECTIONS_PLAN.md](STARTER_COLLECTIONS_PLAN.md).
+  Editor history cannot undo library writes; retain durable pre-images and refuse to overwrite
+  subsequent edits. Report applied, skipped and unsupported targets before confirmation.
 
 ## 7. What a brand cannot reach, said where it would be expected
 

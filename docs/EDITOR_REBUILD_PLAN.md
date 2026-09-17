@@ -2,7 +2,7 @@
 
 **Implementation plan, 2026-09-14. Requested by the owner after the Studio research.**
 Planning was delivered first. On 2026-09-17 the owner authorized implementation, starting with
-the shared brand foundation for the starter-collection workflow below.
+the shared brand foundation in [STARTER_COLLECTIONS_PLAN.md](STARTER_COLLECTIONS_PLAN.md).
 The owner rejects the current editor's practical quality despite its advertised capabilities.
 That is the problem to solve. This is the next editor design direction within P7, not another
 claim that the existing editor is complete or a commitment to rebuild the renderer.
@@ -79,53 +79,9 @@ production safety and the requirement for real-user acceptance remain.
 
 ## 3. The workspace we will build
 
-### Template-first creation and the shared brand library
-
-Owner-approved scope, 2026-09-17: **Choose a NoaCG Starter Collection -> select/create a
-brand -> adjust graphics in the editor -> add to production -> rehearse and run.** Most
-users must finish this route without code or keyframes. The detailed animation workflow
-remains a second primary task in the same editor, not a separate product.
-
-Home's Brand looks becomes **Brands**, the library of named `SavedLook` records already
-used by the wizard. Complete the creator for name, logo, colours and fonts, with live
-graphic previews. Use the same form and brand application transform from the editor;
-do not create a second store or a collection-specific brand format. Capture from an open
-graphic remains available alongside creating a brand from scratch.
-
-Starter Collections are curated compatible designs, initially a lower third, headline,
-logo bug and holding/end screens. The collection picker previews the whole set and lets
-the user include only the graphics needed. Extend the existing kit creation path and
-production save path rather than introducing another grouping beside productions.
-Keep downloadable finished graphics packs interoperable with this route.
-
-Brand application uses declared palette/font/shape roles and logo slots. Preview changes
-across the selected set before applying. Unsupported artwork is identified; never imply
-an imported SVG's arbitrary fills were recoloured or invent a logo placement. A local
-graphic edit does not update the saved brand. Updating a saved brand does not modify
-finished or on-air graphics. Applying later is explicit and targets named graphics.
-
-The production action installs the selected graphics together, assigns sensible layers
-and creates a starter cue order. Cue-specific names/content reuse the same graphic rather
-than duplicating its design. Existing-production insertion previews additions, preserves
-existing cues and avoids duplicate installs on retry. Multi-graphic updates need a staged
-change set with undo and explicit durable-write outcomes before any success message.
-
-Implementation order for this route:
-
-1. **Shared brand foundation:** Home creator/editing and editor brand application, using
-   existing records, shared colour/font controls, bundled assets and durable save feedback.
-2. **Collection customization:** curated starter set, brand chooser/creation in context,
-   multi-preview and clearly scoped individual overrides. Reuse the first phase's form.
-3. **Production handoff:** selected-set installation and starter rundown through existing
-   kit/show paths, with safe retries, durable outcome reporting and rehearsal.
-4. **Acceptance and integration:** complete the route unaided in a proposed five minutes;
-   test logo/font export, long content, save/reopen, individual overrides, collection-wide
-   changes and actual production playback. This is an acceptance target, not a current claim.
-
-The brand foundation can start before the animation comparison because it does not change
-timeline/canvas interactions. Phase 0 remains mandatory before the animation rewrite.
-The Studio inspection requirement applies to comparable brand/token/property behaviour;
-NoaCG's production semantics continue to come from its own existing command path.
+The separate [Starter Collections plan](STARTER_COLLECTIONS_PLAN.md) owns template-first
+creation, the shared brand library and production installation. This plan owns animation
+editing quality in that same editor; neither workstream waits for the other's complete delivery.
 
 One persistent editing workspace, reachable by Edit from the graphic the user just created,
 imported or opened. Exact route wiring is part of Phase 0; this is not a claim of a new route.
@@ -197,8 +153,10 @@ Reject incompatible paste targets the same way. Dragging across cue boundaries i
 implicit reassignment of behaviour. A later explicit move-to-step command can handle it.
 
 Snap uses visual proximity to playhead, keys and segment edges; a pixel tolerance is converted
-through zoom. Alt temporarily bypasses snapping. Time remains source seconds; a frame ruler
-uses a verified document/output rate and never rewrites keys just because display units change.
+through zoom. Alt temporarily bypasses snapping. The ruler shows effective seconds; stored times remain speed-relative. Convert effective
+seconds to stored time by multiplying by speed, and back by dividing. A frame nudge is
+1/document-fps effective seconds (speed/document-fps stored seconds). Use the verified
+document/output rate; changing display units never rewrites keys.
 Zoom anchors to the pointer or playhead, with Fit always available. No automatic re-fit after
 the user deliberately zooms or pans.
 
@@ -214,9 +172,8 @@ the selected key; multi-key editing has an explicit scope. Hold must be implemen
 tested as a discontinuity, not approximated by a steep curve. Keep an existing custom ease
 intact even when the basic menu cannot edit it.
 
-Then add a focused cubic-Bezier editor with draggable handles, numeric values, reset and
-runtime/sampler parity. This intentionally revises the old blanket exclusion of a graph
-editor. It does not authorize expressions, arbitrary value graphs or a motion-path editor.
+A cubic-Bezier editor is later scope, outside this completion gate. Preserve existing custom
+eases without rewriting them; expressions and motion-path editing remain outside this plan.
 
 Keep the truthful broadcast clock: on-air waits have no fixed duration. A contiguous editing
 ruler may concatenate segments, but Hold is a boundary, not a timed clip. Moving a boundary
@@ -230,7 +187,7 @@ Stop preview pauses editing playback; Out runs the graphic's exit. Distinct labe
 transport stop from being mistaken for on-air exit. Scrubbing never increments scores,
 fires external effects or starts timers. Repeated seeks yield the same visual result.
 
-Ambient loops follow after the basic keyframe workflow: selected property, repeat/yoyo,
+Ambient-loop authoring is later scope, outside this completion gate: selected property, repeat/yoyo,
 period and activation explained visually. Prove finite-end/hold/exit/reset semantics using
 the existing loop primitive before extending it. A paused editing pose and a moving live
 hold must not fight for the same clock.
@@ -240,7 +197,7 @@ hold must not fight for the same clock.
 | Boundary | Keep or change | Required proof |
 |---|---|---|
 | Canonical source | Keep `SpxTemplate` and readable `NOACG_ANIM` | Visual edit -> source diff -> save -> reopen -> identical editable values |
-| Track schema | Start with current v2; independent tracks already exist | Unequal property keys, Hold/Bezier support, base inheritance, steps, loops and unknown values tested before proposing a schema extension |
+| Track schema | Start with current v2; independent tracks already exist | Unequal property keys, Hold support and existing custom-ease preservation, base inheritance, steps, loops and unknown values tested before proposing a schema extension |
 | Transform layer | Reuse/refactor `animEdit`, layout transforms and `timelineLens` | Pure transaction commands for add/move/delete/paste/ease/resize; validation before atomic commit |
 | Editor session | One selected target set, context, parked time, playback state and gesture transaction | No duplicate local authority that can disagree across panels; ephemeral gesture state is allowed |
 | Runtime and sampler | Reuse `animRuntime`, `animEval` and real preview; consolidate ease semantics | Inspector values and preview/export pixels agree at sampled times; no unsupported interpolation presented as exact |
@@ -259,6 +216,89 @@ behind a temporary development switch using the same source document. Existing s
 must open in both paths without format forks. Remove the old interaction path after acceptance;
 do not leave two permanent competing editors or maintain two mutation libraries.
 
+## Decisions, 2026-09-17
+
+These decisions incorporate the independent review of `97601da7` and the owner's approval
+of the follow-up. They specify work still to build, not capabilities already delivered.
+
+### Base layout for catalog elements
+
+Phase 1 builds commented per-element X/Y offset variables in the catalog style contract,
+with stable code-derived target identity. Canvas and Inspector use the same deterministic
+patch. Preserve assembler flex flow: offsets move rendered artwork without changing sibling
+layout; base translation composes separately with animated transforms. Define wrapper/pivot
+ownership in fixtures before changing the assembler. Keep imported `designLayout` placement
+support. Reject substituting an imported-only primary fixture: the catalog lower-third title
+must be movable in Layout without code. Unsupported handwritten layouts remain explicit.
+
+### Preview updates and revision ownership
+
+Before Phase 1 implementation, Phase 0 defines and fixtures a replace-animation-data command
+for supported keyframe-only edits in the running interpreter. It is derived from committed
+canonical source, never a second authoritative scene. Reject a full debounced iframe rebuild
+and a fixed 650 ms timer as the feedback mechanism for these edits. Other edits rebuild with
+a revision covering HTML, CSS, JS and asset paths AND contents, plus a monotonically ordered
+request id. Apply, readiness, seek and acknowledgement messages carry that identity; stale
+messages are dropped. Undo/redo use the same update path and re-seek the current parked time
+after readiness. Unsupported hot updates take the explicit rebuild path. Gesture previews
+are cancellable; pointer-up commits one source transaction. No old acknowledgement can
+restore stale selection or time. The Phase 1 slice must prove this protocol end to end.
+
+### Shared easing and Hold semantics
+
+Use one pure editor sampler module as the evaluation authority for supported named eases,
+with fixture parity against GSAP for every entry in `src/model/easings.ts`, including in/out
+variants and boundaries. Reject the current linear approximation for Inspector values on
+eased segments. Hold is an explicit serialized incoming-ease value: keep the previous value
+until the destination key time, then set instantly. The runtime interprets that discontinuity
+explicitly, never as a steep curve. Unsupported custom eases stay byte-preserved and are
+labelled unsupported by the sampler rather than falsely evaluated. Breaking schema changes
+require a version bump and read migration together; define fixtures before choosing one.
+
+### One displayed clock
+
+Use effective seconds on the ruler and document-fps frames for nudges, while storage remains
+speed-relative as specified in section 4. Reject mixing raw source seconds with displayed
+frame increments. Test speed 0.5, 1 and 2 at multiple fps, round trips, step-local boundaries,
+repeated nudges and speed changes. Changing speed changes playback duration, not stored keys.
+
+### Cancellation and the mode concept budget
+
+Escape restores the exact pre-drag source, selection and parked pose for timeline and canvas
+gestures; Phase 1 cannot exit without both. Layout/Animate deliberately reverses the
+2026-07-08 no-mode finding in `WYSIWYG_PLAN.md`: predictable base edits versus key insertion
+now outweigh the extra mode concept. Budget one context control, shared by both surfaces,
+not separate canvas auto-key and Inspector arming. The first-time-user walk must show users
+can predict where an edit goes. Reject an invisible distinction and do not treat this design
+choice as accepted usability until that walk passes.
+
+### Fixed benchmark and measurement
+
+Studio `3142fc7d02934494931eb14e7dc255393e4110d0` is the fixed comparison target.
+Phase 0 delivers a queued Playwright performance harness recording input-to-render latency,
+preview request/ack revisions, rAF intervals and long tasks inside the preview for the
+30-layer/300-key fixture. Count changed rendered poses as well as frames: a running rAF
+counter alone cannot prove useful feedback. Report distributions and worst stalls separately
+from rebuild duration, with machine/browser and production debounce settings recorded.
+Reject AI bench scripts or screenshots alone as latency evidence. Custom Bezier editing and
+new ambient-loop authoring are outside this gate; preserve existing behavior as regression.
+
+### Phase 0 defect inventory and owner walk
+
+Walk current `origin/main` with the owner and record the exact revision, then repeat the task
+on the fixed Studio reference. An automated walk can prepare it but cannot replace the owner
+observation of the blank stage. The six entries in `EDITOR_RESEARCH.md` section 1b are historical;
+this source audit is not a new claim of a browser reproduction:
+
+| Historical defect | Current code status and next proof |
+|---|---|
+| Space over stage swallowed | Code fix exists in `spaceKey.ts` and the stage key path; verify tap-to-play versus held pan in the owner walk. |
+| Finished run never reported | Closed in code by run-identity-guarded completion in `src/preview/simulatorRuntime.ts`; regression-check finished playback. |
+| Blank stage on owner's machine | Open, still needs reproduction in the owner's environment; do not invent a cause from headless success. |
+| Align and distribute absent | Open; inspect actual selection/layout reach before proposing a later tool. Not silently claimed by this rebuild. |
+| Branch phase cannot scrub | Closed in code through `src/blocks/timelineLens.ts` and simulator branch targeting; repeat branch seeks in baseline. |
+| Catalog per-element typography reach | Still limited to the emitted style contract; Phase 0 records supported fields, and Phase 2 exposes supported catalog typography through the Inspector with readable patches. |
+
 ## 6. Ordered implementation phases
 
 Each phase owns a bounded change and includes build/lint, appropriate mapped Playwright flows,
@@ -267,11 +307,11 @@ Do not declare a phase usable solely because automated checks pass.
 
 | Phase | Deliverable and starting code | Exit criteria / dependency |
 |---|---|---|
-| 0. Reproduce and establish the reference | Walk current editor and pinned Studio using the same lower third and SVG scoreboard. Record exact actions, video, failures, clicks and timings. Review existing canvas/timeline specs and `EDITOR_RESEARCH.md` defect receipts. | Concrete baseline, reference screenshots at both viewport sizes, agreed expected task outcomes. An unreproduced defect stays labelled unreproduced; do not invent its cause. No feature rewrite before this receipt. |
-| 1. Interaction and transaction foundation | Shared context/selection/time/gesture contract; layout-vs-animation transforms; readiness/revision handling. Work through existing store, canvas, `animEdit` and simulator seams. | Select a layer, move it in Layout, add two X keys in Animate, scrub, Escape and undo, with no unrelated edits. This is a working vertical slice, not a standalone design-system refactor. |
+| 0. Reproduce and establish the reference | Walk current editor and pinned Studio using the same lower third and SVG scoreboard. Record exact actions, video, failures, clicks and timings. Review existing canvas/timeline specs and `EDITOR_RESEARCH.md` defect receipts. | Owner walk on current main, performance harness, settled preview protocol, reference screenshots at both viewport sizes, agreed expected task outcomes. An unreproduced defect stays labelled unreproduced; do not invent its cause. No feature rewrite before this receipt. |
+| 1. Interaction and transaction foundation | Shared context/selection/time/gesture contract; layout-vs-animation transforms; catalog per-element base offsets and readiness/revision handling per decisions below. Work through existing store, canvas, `animEdit` and simulator seams. | Select a layer, move it in Layout, add two X keys in Animate, scrub, Escape-cancel a timeline key drag and a canvas drag, and undo/redo back to the parked pose, with no unrelated edits. This is a working vertical slice, not a standalone design-system refactor. |
 | 2. Basic editor replacement | Stable workspace, inspector values/diamonds, expanded property rows, independent opacity keys, numeric editing, reliable handles and transport. | Complete the primary task below from both supported source types. Save/reopen and exported playback agree. No graph editor or ambient-loop expansion before this passes. |
-| 3. Timing and easing quality | Multi-key selection, copy/paste, snap/zoom/nudge, collision rules, easing thumbnails/Hold and then Bezier controls. | Retiming X leaves opacity untouched; all easing samples agree with runtime; keyboard/mouse/touchpad and undo behave consistently. Phase 2 first. |
-| 4. Broadcast animation basics | Cue boundary editing, explicit scale timing, direct Out, finite-end loop authoring and update/behaviour coexistence. | A two-step reveal and looping scoreboard survive Next, data updates, exit during motion and replay. Preserve quiz/timer/dynamic-motion behaviour. Phase 3 first. |
+| 3. Timing and easing quality | Multi-key selection, copy/paste, snap/zoom/nudge, collision rules, easing thumbnails and Hold; no custom curve editor. | Retiming X leaves opacity untouched; all easing samples agree with runtime; keyboard/mouse/touchpad and undo behave consistently. Phase 2 first. |
+| 4. Broadcast animation basics | Cue boundary editing, explicit scale timing, direct Out, existing-loop lifecycle regression and update/behaviour coexistence. | A two-step reveal and looping scoreboard survive Next, data updates, exit during motion and replay. Preserve quiz/timer/dynamic-motion behaviour. Phase 3 first. |
 | 5. Adoption and removal | Make accepted workspace the default, remove replaced interaction code and stale instructions, update capability claims. | Real-user tasks pass; legacy/handwritten templates preserve source; exported packages pass target checks. Retain rollback through version control, not a permanent second UI. |
 
 The implementation can proceed through these phases without another research programme.
@@ -288,8 +328,9 @@ NoaCG must meet both the absolute thresholds below and a direct comparison with 
 Phase 0 establishes the reference version and baseline; the adoption phase reruns the same
 tasks in both editors on the same machine, browser and viewport with equivalent artwork
 and output requirements. Record setup/import work as part of the end-to-end workflow rather
-than hiding it outside the timed task. Refresh the reference revision at adoption and
-document any upstream changes that affect the comparison.
+than hiding it outside the timed task. Freeze Studio at
+`3142fc7d02934494931eb14e7dc255393e4110d0` for the whole gate. Later upstream changes
+belong in a separate backlog item and never move this acceptance target mid-implementation.
 
 Maintain a comparison row for each basic interaction listed in section 1 and for the full
 import-to-production task. Record completion, time, errors, assistance, responsiveness,
@@ -348,15 +389,15 @@ contract deliberately replaces it. Keep their underlying source/runtime safety a
 
 The owner has explicitly asked for this editor plan despite prior parked research labels.
 This plan completes that planning request and records the intended implementation sequence.
-Implementation was authorized on 2026-09-17 and starts with the shared brand library described
-above. The animation baseline and remaining phases are still outstanding; unrelated roadmap
+Implementation was authorized on 2026-09-17 and starts with the shared brand library in the separate Starter Collections plan. The animation baseline and remaining phases are still outstanding; unrelated roadmap
 programmes remain parked.
 CasparCG production reliability, working creation and SVG workflows remain immediate needs;
 this rebuild directly serves them. No native renderer or Server API build is a prerequisite.
 
 Basic text/shape/image editing and the imported SVG hierarchy belong in this editor. Full
 illustration tools, nested compositions, expressions, AE conversion, advanced motion paths
-and general collections authoring are later scope. Their absence must not postpone a good
+and general-purpose collection authoring are later scope; the curated Starter Collections route
+is separately authorized in its linked plan. Their absence must not postpone a good
 keyframe editor. Conversely, reaching a large feature count must not excuse failing the
 primary task.
 

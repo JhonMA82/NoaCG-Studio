@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProjectBrand } from '../../model/brand';
 import { createLook, loadLooks, upsertLook, type SavedLook } from '../../model/packets';
 import { commitDurableWrites } from '../../model/durableStore';
@@ -28,6 +28,12 @@ export default function BrandEditor({ initial, onSaved, onCancel }: {
 }) {
   const [name, setName] = useState(initial?.name ?? '');
   const [brand, setBrand] = useState<ProjectBrand>(() => initial ? structuredClone(initial.brand) : freshBrand());
+  const [previewBrand, setPreviewBrand] = useState(brand);
+  // Controls and Save use the current draft; expensive template/iframe work waits for quiet.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setPreviewBrand(brand), 150);
+    return () => window.clearTimeout(timer);
+  }, [brand]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -38,8 +44,8 @@ export default function BrandEditor({ initial, onSaved, onCancel }: {
   const previews = useMemo(() => PREVIEWS.flatMap((id) => {
     const variant = variantById(id);
     return variant ? [{ name: variant.name,
-      template: buildDraftTemplate(variant, mergeDraft(initialDraft(), brandPatch(brand))) }] : [];
-  }), [brand]);
+      template: buildDraftTemplate(variant, mergeDraft(initialDraft(), brandPatch(previewBrand))) }] : [];
+  }), [previewBrand]);
 
   const uploadLogo = async (file?: File) => {
     if (!file) return;

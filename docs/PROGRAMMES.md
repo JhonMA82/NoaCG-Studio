@@ -49,7 +49,7 @@ immediate steering document; this file carries the year's authorized work and it
 | P4 | Data & Automation | IDEA | design in Q1 windows; data-tree Phase 3 convergence before any connector |
 | P5 | Agent Platform | AUTHORIZED per item | the GOALS agent-door boxes; each new key scope and the npm publish are owner actions |
 | P6 | OGraf and Interoperability | AUTHORIZED | may start now; the NOW date (`docs/GOALS.md`, `## NOW`) is the forecast of when it matters, not a wait (owner 2026-09-03). The ladder is GOALS.md "NEXT - OGraf-first", unchanged |
-| P7 | Creation & Advanced Editor | DESIGN - failure analysis owner-confirmed | the owner read and confirmed the WYSIWYG_PLAN.md analysis 2026-09-01; attempt two spec'd as testable requirements, informed by P2 findings but NOT held for them (owner 2026-09-03: a date is not a gate); Jul-Aug 2027 is a forecast of when proving happens, not a wait |
+| P7 | Creation & Advanced Editor | ACTIVE for editor rebuild and Starter Collections (owner, 2026-09-17) | the owner read and confirmed the WYSIWYG_PLAN.md analysis 2026-09-01; attempt two spec'd as testable requirements, informed by P2 findings but NOT held for them (owner 2026-09-03: a date is not a gate); Jul-Aug 2027 is a forecast of when proving happens, not a wait |
 | H0 | Reliability (horizontal) | AUTHORIZED | stages attach where first needed; owns the soak driver and the fault harness |
 
 ## P1 Teams
@@ -168,12 +168,19 @@ the Studio research into a concrete basic-editor implementation sequence after t
 usability rejection. Planning is delivered; product implementation and user acceptance are
 not complete. [Receipt](backlog/editor-basics-rebuild.md).
 
+The owner authorized planning then implementation on 2026-09-17 and accepted the independent
+review follow-up. [STARTER_COLLECTIONS_PLAN.md](STARTER_COLLECTIONS_PLAN.md) independently owns
+brands, curated TemplatePack customization and production handoff; [its receipt](backlog/starter-collections.md)
+tracks that route. Animation quality stays in the editor rebuild receipt. Both share one editor,
+with separate phase exits; neither claims owner acceptance from a green build.
+
 Before major timeline or agent-authoring design, read the pinned Studio/Eyevinn comparison in
 [OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md). Its property-track and revision/evidence
 backlog items are design handoffs inside the existing code-as-truth direction, not a second
 scene-model programme (2026-09-13).
 
-State: DESIGN (owner-amended, 2026-09-01: design/research begins early, not in Jul-Aug).
+State: ACTIVE for the owner-authorized editor rebuild and Starter Collections (2026-09-17,
+recorded in their plans). Other advanced editor scope remains DESIGN.
 Incremental creation/import/preset work continues under existing plans. **The required failure
 account is written (2026-09-01): `docs/WYSIWYG_PLAN.md` "Why attempt one did not land"** - the
 editor was a destination no task led into, judged through front-door defects; what landed

@@ -1,0 +1,100 @@
+# Starter Collections and the shared brand library
+
+Owner-approved scope, 2026-09-17: **Choose a NoaCG Starter Collection -> select/create a
+brand -> adjust graphics in the editor -> add to production -> rehearse and run.** Most
+users must finish this route without code or keyframes. The detailed animation workflow
+remains a second primary task in the same editor, not a separate product.
+
+Home's Brand looks becomes **Brands**, the library of named `SavedLook` records already
+used by the wizard. Complete the creator for name, logo, colours and fonts, with live
+graphic previews. Use the same form and brand application transform from the editor;
+do not create a second store or a collection-specific brand format. Capture from an open
+graphic remains available alongside creating a brand from scratch.
+
+Starter Collections are curated compatible designs, initially a lower third, headline,
+logo bug and holding/end screens. The collection picker previews the whole set and lets
+the user include only the graphics needed. Extend the existing kit creation path and
+production save path rather than introducing another grouping beside productions.
+Keep downloadable finished graphics packs interoperable with this route.
+
+Brand application uses declared palette/font/shape roles and logo slots. Preview changes
+across the selected set before applying. Unsupported artwork is identified; never imply
+an imported SVG's arbitrary fills were recoloured or invent a logo placement. A local
+graphic edit does not update the saved brand. Updating a saved brand does not modify
+finished or on-air graphics. Applying later is explicit and targets named graphics.
+
+The production action installs the selected graphics together, assigns sensible layers
+and creates a starter cue order. Cue-specific names/content reuse the same graphic rather
+than duplicating its design. Existing-production insertion previews additions, preserves
+existing cues and avoids duplicate installs on retry. Multi-graphic updates use the previewed, revertible change set specified below, with
+explicit durable-write outcomes before any success message.
+
+Implementation order for this route:
+
+1. **Shared brand foundation:** Home creator/editing and editor brand application, using
+   existing records, shared colour/font controls, bundled assets and durable save feedback.
+2. **Collection customization:** curated starter set, brand chooser/creation in context,
+   multi-preview and clearly scoped individual overrides. Reuse the first phase's form.
+3. **Production handoff:** selected-set installation and starter rundown through existing
+   kit/show paths, with safe retries, durable outcome reporting and rehearsal.
+4. **Acceptance and integration:** complete the route unaided in a proposed five minutes;
+   test logo/font export, long content, save/reopen, individual overrides, collection-wide
+   changes and actual production playback. This is an acceptance target, not a current claim.
+
+The brand foundation can start before the animation comparison because it does not change
+timeline/canvas interactions. Phase 0 remains mandatory before the animation rewrite.
+The Studio inspection requirement applies to comparable brand/token/property behaviour;
+NoaCG's production semantics continue to come from its own existing command path.
+
+
+## Decisions, 2026-09-17
+
+This is an independently landable P7 workstream, linked to the
+[animation editor rebuild](EDITOR_REBUILD_PLAN.md). It reuses the same editor and canonical
+source, not a second editor. Home creation is implemented at `97601da7`; direct editor
+application, collection customization and production installation remain unbuilt.
+
+### Report application and preserve provenance
+
+Choose a result from `applyLookToTemplate` containing the resulting template plus applied,
+skipped and unsupported targets with reasons. Update all callers together when implementing
+this return-type change; do not silently count untouched SVG fills as applied. Add optional
+brand provenance to the saved graphic document: brand id and the exact role/target values
+last written, including bundled asset content identity. Compare those values with current
+source to identify individual overrides. Reapplication previews conflicts and preserves local
+overrides unless explicitly selected for replacement. Old graphics without provenance remain
+valid and require explicit application. Reject automatic propagation from saved-brand edits.
+The editor applies source, visible sample data and provenance as one reversible transaction.
+
+### Revert production changes without a library undo stack
+
+Choose an explicit previewed change set: target ids, before and after document snapshots,
+expected revisions and a durable operation identity. Persist the recovery record before any
+member write; track confirmed writes and refuse success while any write is unconfirmed.
+Retries reconcile the recorded operation instead of applying twice. Offer Revert using the
+before snapshots, but first compare each current document with the operation's after revision.
+Subsequent edits produce a conflict for review, never a silent overwrite. Record partial
+outcomes and retain recovery across reload. Reject the old promise that editor history can
+undo production library writes. Any new persisted recovery format must be versioned from its
+first implementation, with unknown versions read-only and no unversioned side store.
+
+### Reuse TemplatePack and stable installation identity
+
+A Starter Collection IS a `TemplatePack` from `src/templates/packs.ts`, curated configuration
+with its palette. Extend it rather than inventing another catalog. Saved installed graphics
+carry optional stable collection id and item id; their pair, scoped to the destination
+production, identifies an installation. Names remain editable labels. Match identity first;
+name fallback is only an explicit, unambiguous legacy adoption preview and records identity
+on confirmation. A same-name item from another collection is refused with an actionable
+rename/keep-both choice, never silently replaced or attached to existing cues. Preserve
+existing cues and map only confirmed installed ids into the new starter rundown. Repeated
+installation uses the same operation identity. Reject name-based upsert as the default.
+
+### Acceptance and scope
+
+Use the existing four-step order above; no new implementation phase is introduced. Each
+slice needs mapped browser checks, durable-write failure/retry evidence and its own owner
+acceptance route. Include multiple collections with identical graphic names, renamed items,
+legacy adoption, interrupted installation, later edits before revert, unsupported artwork,
+brand asset replacement and exported font/logo portability. The five-minute route remains
+an acceptance target, not a measured result. Automatic brand following remains later scope.
