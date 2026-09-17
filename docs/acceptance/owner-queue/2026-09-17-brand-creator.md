@@ -23,4 +23,5 @@ Choose a font, Save brand, then New graphic -> Start from a template -> choose t
 Does seeing the three examples make it easy to understand the look being created? At laptop
 size, are the colour/font controls and the preview column comfortable to use? The functional
 save/reopen/refusal checks are automated; this item asks whether the result feels good enough.
-Saving changes to a brand leaves existing graphics unchanged.
+Saving changes to a brand leaves existing graphics unchanged. Rapid colour edits update the
+controls immediately and refresh the three previews after a short pause (150 ms).

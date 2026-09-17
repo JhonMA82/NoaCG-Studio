@@ -3,9 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-14
-state: active
-branch: codex/ograf-studio-architecture-research
-note: Animation contracts revised after independent review on 2026-09-17; baseline and implementation remain outstanding. Brand and collection work has a separate receipt.
+state: advanced
+note: Animation contracts revised after independent review in 888cc6cd; baseline and implementation remain outstanding. Brand and collection work has a separate receipt.
 asked: "Paraphrase: create a plan to rebuild our editor using the OGraf Studio research because basic animation and keyframe editing do not feel good enough, then implement it."
 serves: P7
 size: large

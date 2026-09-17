@@ -3,9 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-17
-state: active
-branch: codex/ograf-studio-architecture-research
-note: Home brand creation implemented at 97601da7; editor apply, collection customization and production handoff remain outstanding.
+state: advanced
+note: Home brand creation implemented at 97601da7, preview debounce and collection contracts in 888cc6cd; editor apply, collection customization and production handoff remain outstanding.
 asked: "Provide reusable graphics that users can quickly brand, customize in the editor and bring into a production rundown. Reuse Home brands."
 serves: P7
 size: large

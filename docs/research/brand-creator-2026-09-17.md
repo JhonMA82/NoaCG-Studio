@@ -46,3 +46,23 @@ The first complete attempt exposed an expired delegation-effort trial; its separ
 
 Human usability, collection-wide editing, production installation and animation comparison
 remain outstanding. See the [acceptance route](../acceptance/owner-queue/2026-09-17-brand-creator.md).
+
+## Review follow-up, 2026-09-17
+
+The independent review found that every colour input rebuilt all three previews. A queued
+browser regression (`j-1293`) reproduced the immediate srcdoc change before the fix.
+An earlier probe (`j-1292`) failed in its clock setup before reaching the assertion; that is
+not product evidence. After a 150 ms preview-only debounce, all five brand-editor tests
+passed (`j-1294`), including immediate controls and saving the latest draft before the
+preview catches up. Effect cleanup cancels superseded timers and unmounted drafts.
+
+The review's architectural findings are decisions in the animation and Starter Collections
+plans. They are not new product implementation or proof of animation parity. Current main
+was integrated before final verification; the overlapping high-effort trial fix was retained
+from main after a read-only conflict consultation. The completed one-editor planning receipt
+is closed; the two implementation receipts remain open.
+
+Final integrated verification: `npm run build` exited 0 (1,798 passing script tests, one
+skipped). Queued `npm run test:e2e:integration` (`j-1295`) passed all 1,122 browser tests
+and its separate 35-test catalog gate. Screenshots were inspected at both target sizes.
+No configured live-service or hardware acceptance is claimed by this offline feature slice.

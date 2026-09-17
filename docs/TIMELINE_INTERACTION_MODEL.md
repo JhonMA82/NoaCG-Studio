@@ -2,7 +2,7 @@
 
 **Proposed successor, 2026-09-14:** [EDITOR_REBUILD_PLAN.md](EDITOR_REBUILD_PLAN.md) specifies
 the owner-requested usability rebuild. It proposes explicit Layout/Animate context, consistent
-key insertion, focused Bezier editing and more explicit retiming semantics. This document
+key insertion and more explicit retiming semantics; custom Bezier editing is later scope. This document
 continues to describe the current contract until each replacement ships and updates it.
 
 **Status: adopted 2026-07-11 as the binding interaction contract for the editing
