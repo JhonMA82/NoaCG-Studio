@@ -54,7 +54,30 @@ export const STATE_VERSION = 2;
 /** No commit for this long, on a clean unqueued branch ahead of main, is worth a delta line. */
 export const QUIET_MINUTES = 30;
 
+/**
+ * Refs GitHub's merge queue creates and deletes by itself. They are branches in every git sense -
+ * ahead of main when the group is building, contained in it once the group merges - so the
+ * inventory below counted each one and the delta fired NEW BRANCH and then LANDED for it.
+ *
+ * Measured on the tick log for the 2026-09-16 night: 126 of 497 event lines, a quarter of every
+ * wake-up the watch Monitor delivered to the live orchestrator session, were the queue's own
+ * plumbing announcing itself. Nothing can be done about such a branch and nothing should be: it is
+ * not a row, it has no session, and it lands whatever is in it without anybody deciding to.
+ */
+export const QUEUE_REF_PREFIX = 'gh-readonly-queue/';
+
 // ── Pure decisions ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Is this branch one the wave should watch at all?
+ *
+ * `main` and `HEAD` are not rows; the merge queue's temporary refs are not rows either. Kept pure
+ * and exported so the rule is pinned by a test rather than by the shape of a `for` loop.
+ */
+export function watchedBranch(name) {
+  if (!name || name === 'main' || name === 'HEAD') return false;
+  return !name.startsWith(QUEUE_REF_PREFIX);
+}
 
 export function parseArgs(argv) {
   const args = { fetch: true, json: false, quietMinutes: QUIET_MINUTES, statePath: null, wavePlan: null, help: false };
@@ -366,7 +389,7 @@ function branchInventory() {
     if (full === 'refs/remotes/origin/HEAD') continue;
     const remote = ref.startsWith('origin/');
     const name = remote ? ref.slice('origin/'.length) : ref;
-    if (name === 'main' || name === 'HEAD') continue;
+    if (!watchedBranch(name)) continue;
     // A local ref wins over the remote one of the same name: it is the one a worktree can hold.
     if (remote && byName.has(name)) continue;
     byName.set(name, { name, sha, lastCommitMs: Number(committed) * 1000, remoteOnly: remote });

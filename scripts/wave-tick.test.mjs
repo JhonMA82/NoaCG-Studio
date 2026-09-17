@@ -20,11 +20,24 @@ import {
   parseArgs,
   persistTick,
   summaryLine,
+  watchedBranch,
   wavePlanFresh,
 } from './wave-tick.mjs';
 
 const NOW = Date.parse('2026-09-01T22:00:00Z');
 const MINUTE = 60_000;
+
+test('the merge queue\'s own temporary refs are not branches this wave watches', () => {
+  // Real names from the 2026-09-16 tick log, where they were a quarter of every wake-up.
+  assert.equal(watchedBranch('gh-readonly-queue/main/pr-320-dede9dde20bf346e9913a14ca365c9f29e92096a'), false);
+  assert.equal(watchedBranch('gh-readonly-queue/main/pr-319-67a678849051bbe8a6947096500d22b300794053'), false);
+  // A row is still a row, including one whose name merely mentions the queue.
+  assert.equal(watchedBranch('claude/tm-one-edit-one-write'), true);
+  assert.equal(watchedBranch('claude/d-queue-walks-itself'), true);
+  assert.equal(watchedBranch('main'), false);
+  assert.equal(watchedBranch('HEAD'), false);
+  assert.equal(watchedBranch(''), false);
+});
 
 test('worker state changes produce one delta and unchanged reports stay quiet', () => {
   const report = { state: 'ready', sha: 'a'.repeat(40), nextAction: 'review result' };
