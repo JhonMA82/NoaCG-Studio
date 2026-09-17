@@ -1079,7 +1079,8 @@ function summarize(job) {
 //
 // Nothing here pins the MODEL: `--model` is forwarded when a caller names one, and with none the
 // CLI uses its own default, which is `gpt-6-astra` as of 0.154.0-alpha.6.
-export const DEFAULT_EFFORT = 'medium';
+// Restored on 2026-09-17 after the trial expired; no quality evidence justifies an extension.
+export const DEFAULT_EFFORT = 'high';
 export const DEFAULT_EFFORT_REVIEW_ON = '2026-09-16';
 
 /** Pure half of launch(): split argv into forwarded flags and the prompt, injecting the effort
