@@ -1,7 +1,8 @@
 # Rebuild the basic graphic editor around a dependable animation workflow
 
 **Implementation plan, 2026-09-14. Requested by the owner after the Studio research.**
-The immediate deliverable of this task is this plan. Product implementation has not started.
+Planning was delivered first. On 2026-09-17 the owner authorized implementation, starting with
+the shared brand foundation for the starter-collection workflow below.
 The owner rejects the current editor's practical quality despite its advertised capabilities.
 That is the problem to solve. This is the next editor design direction within P7, not another
 claim that the existing editor is complete or a commitment to rebuild the renderer.
@@ -77,6 +78,54 @@ ordinary editing feel good is now an explicit goal. Source authority, source pre
 production safety and the requirement for real-user acceptance remain.
 
 ## 3. The workspace we will build
+
+### Template-first creation and the shared brand library
+
+Owner-approved scope, 2026-09-17: **Choose a NoaCG Starter Collection -> select/create a
+brand -> adjust graphics in the editor -> add to production -> rehearse and run.** Most
+users must finish this route without code or keyframes. The detailed animation workflow
+remains a second primary task in the same editor, not a separate product.
+
+Home's Brand looks becomes **Brands**, the library of named `SavedLook` records already
+used by the wizard. Complete the creator for name, logo, colours and fonts, with live
+graphic previews. Use the same form and brand application transform from the editor;
+do not create a second store or a collection-specific brand format. Capture from an open
+graphic remains available alongside creating a brand from scratch.
+
+Starter Collections are curated compatible designs, initially a lower third, headline,
+logo bug and holding/end screens. The collection picker previews the whole set and lets
+the user include only the graphics needed. Extend the existing kit creation path and
+production save path rather than introducing another grouping beside productions.
+Keep downloadable finished graphics packs interoperable with this route.
+
+Brand application uses declared palette/font/shape roles and logo slots. Preview changes
+across the selected set before applying. Unsupported artwork is identified; never imply
+an imported SVG's arbitrary fills were recoloured or invent a logo placement. A local
+graphic edit does not update the saved brand. Updating a saved brand does not modify
+finished or on-air graphics. Applying later is explicit and targets named graphics.
+
+The production action installs the selected graphics together, assigns sensible layers
+and creates a starter cue order. Cue-specific names/content reuse the same graphic rather
+than duplicating its design. Existing-production insertion previews additions, preserves
+existing cues and avoids duplicate installs on retry. Multi-graphic updates need a staged
+change set with undo and explicit durable-write outcomes before any success message.
+
+Implementation order for this route:
+
+1. **Shared brand foundation:** Home creator/editing and editor brand application, using
+   existing records, shared colour/font controls, bundled assets and durable save feedback.
+2. **Collection customization:** curated starter set, brand chooser/creation in context,
+   multi-preview and clearly scoped individual overrides. Reuse the first phase's form.
+3. **Production handoff:** selected-set installation and starter rundown through existing
+   kit/show paths, with safe retries, durable outcome reporting and rehearsal.
+4. **Acceptance and integration:** complete the route unaided in a proposed five minutes;
+   test logo/font export, long content, save/reopen, individual overrides, collection-wide
+   changes and actual production playback. This is an acceptance target, not a current claim.
+
+The brand foundation can start before the animation comparison because it does not change
+timeline/canvas interactions. Phase 0 remains mandatory before the animation rewrite.
+The Studio inspection requirement applies to comparable brand/token/property behaviour;
+NoaCG's production semantics continue to come from its own existing command path.
 
 One persistent editing workspace, reachable by Edit from the graphic the user just created,
 imported or opened. Exact route wiring is part of Phase 0; this is not a claim of a new route.
@@ -299,7 +348,9 @@ contract deliberately replaces it. Keep their underlying source/runtime safety a
 
 The owner has explicitly asked for this editor plan despite prior parked research labels.
 This plan completes that planning request and records the intended implementation sequence.
-It does not start implementation in this task or move unrelated roadmap programmes forward.
+Implementation was authorized on 2026-09-17 and starts with the shared brand library described
+above. The animation baseline and remaining phases are still outstanding; unrelated roadmap
+programmes remain parked.
 CasparCG production reliability, working creation and SVG workflows remain immediate needs;
 this rebuild directly serves them. No native renderer or Server API build is a prerequisite.
 

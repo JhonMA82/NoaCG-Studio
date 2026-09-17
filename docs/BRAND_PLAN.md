@@ -1,5 +1,15 @@
 # Brands - your own look, chosen per graphic
 
+**Implementation update, 2026-09-17:** Home now offers New brand and Edit, with a name,
+PNG/SVG logo (300 KB limit), four colour roles, the shared bundled/uploaded-font picker,
+notes and three real graphic previews. It persists the existing SavedLook record after
+durable confirmation, keeps a failed draft for retry, and refuses a stale edit. Existing
+shape tokens are preserved. Home's capture/apply/import routes remain available. This is
+the first starter-collection foundation in [EDITOR_REBUILD_PLAN.md](EDITOR_REBUILD_PLAN.md).
+Logo palette extraction, shape editing in the creator, the legacy-look offer, direct editor
+brand selection and production-wide application remain outstanding; the older scope below
+must not be read as a claim that those parts are implemented.
+
 **Status: binding plan, owner-directed 2026-09-05. Level 1 is wave work; level 2 is parked and
 described in section 9. Row 1 of section 10 (the MODEL and the wizard CHOOSER) landed
 2026-09-06 - sections 3 and 5, plus the logo half of section 6's one-graphic apply; the CREATOR

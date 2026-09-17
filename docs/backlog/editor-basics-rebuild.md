@@ -3,8 +3,9 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-14
-state: advanced
-note: Concrete rebuild plan delivered; baseline walk and product implementation remain unstarted.
+state: active
+branch: codex/ograf-studio-architecture-research
+note: Home brand creator implemented and verified on 2026-09-17; direct editor application, collections, production handoff, animation baseline and rewrite remain outstanding.
 asked: "Paraphrase: create a plan to rebuild our editor using the OGraf Studio research because basic animation and keyframe editing do not feel good enough, then implement it."
 serves: P7
 size: large
@@ -22,6 +23,11 @@ experience. The owner's request is to improve the basics using Studio as the ref
 add another inventory of capabilities or wait for the full-stack renderer programme.
 
 ## What it would take
+
+The 2026-09-17 owner-approved route adds starter collections and one shared brand library:
+Home -> create brand -> choose collection -> customize -> production rundown. The first
+implementation slice is the independent Home brand creator and its reuse by the existing
+wizard; direct editor brand controls and collection-wide application follow.
 
 Execute [EDITOR_REBUILD_PLAN.md](../EDITOR_REBUILD_PLAN.md) in order: reproduce the current
 tasks and reference experience, establish shared interaction/transaction semantics, ship a

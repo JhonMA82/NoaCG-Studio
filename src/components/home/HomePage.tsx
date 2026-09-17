@@ -51,7 +51,7 @@ const SECTIONS: { id: Section; label: string; icon: ReactNode }[] = [
   { id: 'productions', label: 'Productions', icon: <IconTv /> },
   { id: 'graphics', label: 'Graphics', icon: <IconGrid /> },
   { id: 'videos', label: 'Videos', icon: <IconFilm /> },
-  { id: 'looks', label: 'Brand looks', icon: <IconPalette /> },
+  { id: 'looks', label: 'Brands', icon: <IconPalette /> },
 ];
 
 /**

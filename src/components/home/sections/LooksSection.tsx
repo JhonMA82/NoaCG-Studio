@@ -14,14 +14,16 @@ import { commitDurableWrites } from '../../../model/durableStore';
 import { getDefaultBrandId, setDefaultBrand } from '../../../model/brand';
 import { slug } from '../../../model/slug';
 import { IconDownload, IconPalette, IconUpload } from '../../icons';
+import BrandEditor from '../../brand/BrandEditor';
 
-/** The Brand looks section — moved verbatim from HomePage (step 8's split), emoji → icons. */
+/** Shared brand library: create independently or capture the open graphic's look. */
 export default function LooksSection({ looks, onChanged, onDone }: { looks: SavedLook[]; onChanged: () => void; onDone: () => void }) {
   const template = useTemplateStore((s) => s.template);
   const applyTemplate = useTemplateStore((s) => s.applyTemplate);
   const setActiveTab = useTemplateStore((s) => s.setActiveTab);
   const setSampleValue = useTemplateStore((s) => s.setSampleValue);
   const [newLookName, setNewLookName] = useState('');
+  const [editing, setEditing] = useState<SavedLook | 'new' | null>(null);
   // WHICH look new graphics start from, as a POINTER rather than a copy (model/brand.ts): the
   // row that owns it wears the star, and pressing "Use for new graphics" on another row moves
   // it. Held in state so the star moves on the press instead of on the next visit.
@@ -40,14 +42,23 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
     onChanged();
   };
 
+  if (editing) return <BrandEditor initial={editing === 'new' ? undefined : editing}
+    onCancel={() => setEditing(null)} onSaved={(look) => {
+      setEditing(null);
+      setNote(`✓ Saved "${look.name}". Choose it when creating a graphic, or apply it to an existing one.`);
+      onChanged();
+    }} />;
+
   return (
     <>
-      <h2><IconPalette size={18} /> Brand looks</h2>
+      <h2><IconPalette size={18} /> Brands</h2>
       <p className="hint">
-        A look = colors + typeface + shape (corner radius, blur, edge, accent weight, tracking)
-        captured as a named brand. Apply it to the graphic open in the editor, or use it as the
-        default for new graphics. A design only takes the parts it actually uses.
+        Save your logo, colours and typeface once, then choose your brand for new graphics.
+        Apply it to the open graphic when you want. Editing a saved brand leaves existing graphics unchanged.
       </p>
+      <div className="row" style={{ marginBottom: 16 }}>
+        <button className="primary" onClick={() => setEditing('new')}>New brand</button>
+      </div>
       <div className="row">
         <input
           className="grow"
@@ -56,9 +67,10 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
           onChange={(e) => setNewLookName(e.target.value)}
         />
         <button
-          className="primary"
-          onClick={() => {
+          onClick={async () => {
             addLook(newLookName || 'My look', captureLookFromTemplate(template));
+            const failure = await commitDurableWrites();
+            if (failure) { setNote(failure); onChanged(); return; }
             setNewLookName('');
             setNote('✓ Look saved from the graphic open in the editor.');
             onChanged();
@@ -93,7 +105,9 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
             </strong>
             <span className="muted">{look.brand.customFont?.family ?? look.brand.fontId ?? ''}</span>
           </div>
+          {look.brand.logo && <img className="brand-list-logo" src={String(look.brand.logo.data)} alt={`${look.name} logo`} />}
           <div className="lib-actions">
+          <button onClick={() => setEditing(look)}>Edit</button>
           <button
             onClick={() => {
               const next = applyLookToTemplate(template, look.brand);
