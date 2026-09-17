@@ -16,6 +16,7 @@ import test from 'node:test';
 import { MERGE_PATCH_CONFORMANCE } from './merge-patch-conformance.mjs';
 
 const sql = await readFile(new URL('../supabase/migrations/0048_production_data_tree.sql', import.meta.url), 'utf8');
+const sql60 = await readFile(new URL('../supabase/migrations/0060_operator_data_patch.sql', import.meta.url), 'utf8');
 
 test('0048 embeds the SHARED merge-patch conformance table, case for case', () => {
   const block = /\$cases\$([\s\S]*?)\$cases\$/.exec(sql);
@@ -62,6 +63,65 @@ test('the write path is update-only: no other command type can be emitted', () =
   assert.deepEqual([...new Set(emitted)], ['update'], 'the data path emitted a command other than `update`');
 });
 
+test('merge, resolve, diff and append exist ONCE, and both doors are thin wrappers over it', () => {
+  // 0060 moved that paragraph into `control_data_apply`. Two copies of it would drift, and the
+  // copy that forgets "a path that disappeared writes nothing" blanks a live graphic. A migration
+  // file is immutable history, so 0048 still CONTAINS the old body - what has to stay true is that
+  // the doors 0060 leaves behind do not, which is what this reads.
+  assert.match(sql60, /create or replace function public\.control_data_apply\(/i);
+  for (const door of ['control_data_patch', 'control_data_patch_by_slug']) {
+    const body = new RegExp(String.raw`create or replace function public\.${door}\([\s\S]*?\$\$;`, 'i').exec(sql60);
+    assert.ok(body, `${door} is not defined in 0060`);
+    assert.match(body[0], /public\.control_data_apply\(/, `${door} must delegate rather than merge`);
+    for (const owned of ['jsonb_merge_patch', 'production_data_resolve', 'insert into public.control_events']) {
+      assert.doesNotMatch(
+        body[0],
+        new RegExp(owned.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+        `${door} carries its own ${owned} - that paragraph belongs to control_data_apply alone`,
+      );
+    }
+  }
+});
+
+test('the OPERATOR door may only move values the production has BOUND', () => {
+  // The slug is a shared operating link, not the owner's key. Before 0060 it reached only the
+  // append-only command log; a door forwarding an arbitrary merge patch would let anyone holding
+  // it delete a production's authored tree with `{"match": null}`, which no surface would report
+  // and no later row could undo. A press can only ever name a bound path, so nothing else is
+  // allowed - and the ONE exception is an array, because merge-patch cannot address an element.
+  const body = /create or replace function public\.control_data_patch_by_slug\([\s\S]*?\$\$;/i.exec(sql60)[0];
+  assert.match(body, /production_data_patch_paths\(/, 'the door must read what the patch names');
+  assert.match(body, /not a bound path/, 'the door must refuse a path nothing binds');
+  // The carve-out has THREE conditions and every one of them is a hole if it goes. The type, or a
+  // scalar replaces a whole branch. The prefix comparison, or the caller's own key is run as a
+  // LIKE pattern and `{"%": [1]}` matches every dotted binding there is. The numeric segment, or
+  // an array over a branch a binding descends into BY NAME empties it - the same destruction as
+  // `{"match": null}`, and silent, because the bound leaves are then gone from the resolve and no
+  // `update` row says anything happened.
+  assert.match(body, /jsonb_typeof\(p\.value\) = 'array'/, "the carve-out must be the array's alone");
+  assert.match(
+    body,
+    /starts_with\(f\.value, p\.path \|\| '\.'\)/,
+    'the carve-out must compare prefixes, never run the caller\'s key as a LIKE pattern',
+  );
+  assert.match(
+    body,
+    /split_part\(substr\(f\.value, length\(p\.path\) \+ 2\), '\.', 1\) ~ '\^\[0-9\]\+\$'/,
+    'the carve-out belongs to a binding that reaches through an INDEX and to no other',
+  );
+  assert.doesNotMatch(body, /f\.value like /, 'a LIKE here takes the caller\'s key as a pattern');
+  // The FEED's door keeps no such restriction: a data key is the owner's own and says "write this
+  // production's state". Asserting the absence is what stops the two doors being levelled by a
+  // later edit in either direction.
+  const feed = /create or replace function public\.control_data_patch\(p_key[\s\S]*?\$\$;/i.exec(sql60)[0];
+  assert.doesNotMatch(feed, /not a bound path/);
+  const check = sql60.slice(sql60.lastIndexOf('do $$'));
+  for (const refused of ['{"match":null}', '{"match":"gone"}', '{"weather":{"temp":4}}', '{"match":[]}', '{"%":[1]}']) {
+    assert.ok(check.includes(refused), `the self-check never tries ${refused} against the operator door`);
+  }
+  assert.match(check, /\{"drivers":\[\{"gap":"\+1\.204"\}\]\}/, 'the self-check must prove an indexed binding still writes');
+});
+
 test('the patch RPC locks the row before merging', () => {
   // Without FOR UPDATE the merge is a read-modify-write across serverless instances, and two
   // feeds racing on one production silently lose an update - the whole reason the merge is in
@@ -72,7 +132,7 @@ test('the patch RPC locks the row before merging', () => {
 });
 
 test('the patch RPC keeps both rate gates, counted against what it is about to write', () => {
-  const body = /create or replace function public\.control_data_patch[\s\S]*?\$\$;/i.exec(sql)[0];
+  const body = /create or replace function public\.control_data_apply[\s\S]*?\$\$;/i.exec(sql60)[0];
   // A patch can write several rows, so a gate comparing only the trailing count would let one
   // call overshoot the cap by the number of graphics it touches.
   assert.match(body, /v_recent \+ v_pending > 50/, 'the 50-per-5s command cap must account for this call');
@@ -90,4 +150,69 @@ test('the self-check CALLS every body it adds, not just the catalogs', () => {
   ]) {
     assert.ok(check.includes(fn), `the self-check never calls ${fn} - it would prove shape, not behaviour`);
   }
+});
+
+// ── 0060: the OPERATOR's door on the same tree ──────────────────────────────────────────────
+
+test('only a FEED spends the ingest budget, and both doors meet the command cap', () => {
+  const body = /create or replace function public\.control_data_apply[\s\S]*?\$\$;/i.exec(sql60)[0];
+  // The 25-per-5s budget exists so a feed cannot leave the operator unable to act. Charging an
+  // operator's own press to it inverts exactly that: a saturated feed would refuse their score.
+  assert.match(body, /p_src = 'api' and v_ingest \+ v_pending > 25/, 'only a feed spends the ingest budget');
+  // The log's own cap is not anybody's privilege - it is what the log can carry.
+  const fifty = /if (.*)v_recent \+ v_pending > 50/.exec(body);
+  assert.ok(fifty, 'the 50-per-5s command cap is gone');
+  assert.equal(fifty[1].trim(), '', 'the 50-per-5s command cap must apply to BOTH doors');
+});
+
+test('0060 writes update rows and nothing else, on either door', () => {
+  // The same promise 0048 makes, one credential further out: a door must not become an operator
+  // command road with different gates. A branch emitting play/stop/next would be exactly that.
+  const emitted = [...sql60.matchAll(/jsonb_build_object\(\s*'t'\s*,\s*'(\w+)'/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(emitted)], ['update'], '0060 emitted a command other than `update`');
+});
+
+test('0060 keeps the internal body shut and the operator doors open', () => {
+  // `control_data_apply` takes a SHOW ID, so being handed one IS the authorization: a client able
+  // to call it could patch any production whose id it guessed. The two slug doors are the
+  // opposite case - operating a production needs no account (the ?control= posture, 0008).
+  assert.match(sql60, /revoke execute on function public\.control_data_apply\([^)]*\) from public, anon, authenticated;/i);
+  for (const fn of ['control_data_patch_by_slug', 'control_data_by_slug']) {
+    assert.match(
+      sql60,
+      new RegExp(String.raw`grant execute on function public\.${fn}\([^)]*\) to anon, authenticated`, 'i'),
+      `${fn} must be callable by a signed-out operator page`,
+    );
+  }
+});
+
+test('0060 keeps the feed door at its exact published signature', () => {
+  // api/_lib/dataIngest.ts calls rpc('control_data_patch', { p_key, p_patch }). `create or
+  // replace` cannot rename an argument at all, so a change here does not break the caller
+  // quietly - it fails to apply. This guard is about the OTHER half: nothing may drop it.
+  assert.match(sql60, /create or replace function public\.control_data_patch\(p_key text, p_patch jsonb\)/i);
+  assert.doesNotMatch(sql60, /drop function[^\n]*control_data_patch/i, '0060 must not drop the shipped door');
+});
+
+test("0060's self-check drives a real production through BOTH doors", () => {
+  const check = sql60.slice(sql60.lastIndexOf('do $$'));
+  for (const fn of [
+    'public.control_data_patch(',
+    'public.control_data_patch_by_slug(',
+    'public.control_data_by_slug(',
+    'public.control_data_apply(',
+  ]) {
+    assert.ok(check.includes(fn), `0060's self-check never calls ${fn} - it would prove shape, not behaviour`);
+  }
+  // The claim AC-7 actually makes is that ONE press moves EVERY graphic bound to that value. A
+  // check with a single bound graphic would pass without ever testing it, so the fixture has to
+  // point two different graphics at one path.
+  const bindings = /'(\{"Board":[^']*\})'::jsonb/.exec(check);
+  assert.ok(bindings, "0060's self-check no longer sets up a bindings fixture");
+  const paths = Object.values(JSON.parse(bindings[1])).flatMap((fields) => Object.values(fields));
+  assert.ok(
+    Object.keys(JSON.parse(bindings[1])).length > 1 && new Set(paths).size < paths.length,
+    'two graphics must bind the SAME path, or "every graphic bound to it follows" is never tested',
+  );
+  assert.match(check, /expected 2/, 'the self-check must assert the row count a shared value produces');
 });

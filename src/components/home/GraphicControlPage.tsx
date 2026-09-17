@@ -28,6 +28,9 @@ import {
 import { addGraphicToShow, createShowNamedChecked } from '../../model/shows';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import { openGraphicById, useSaveUi } from '../../store/saveActions';
+import { graphicWhenSynced } from '../../backend/graphicWhenSynced';
+import { useAuthUi } from '../auth/authUi';
+import { useAuthState } from '../auth/useAuthState';
 import { setFieldDefault } from '../../blocks/edit';
 import { parseAnimData } from '../../blocks/animData';
 import {
@@ -90,8 +93,44 @@ export default function GraphicControlPage({ id }: { id: string }) {
   /** The topbar's "+ Production" picker. */
   const [addProdOpen, setAddProdOpen] = useState(false);
 
-  // Re-read when the route id changes (Back/Forward between two panels).
-  useEffect(() => setDoc(graphicById(id)), [id]);
+  // Re-read when the route id changes (Back/Forward between two panels), and ASK THE CLOUD when
+  // this browser has never pulled that record. A control panel is reached by link as often as by
+  // click - the production page prints them, and a graphic an agent saved is minutes old - so
+  // "not in the local library" is not the same as "no such graphic" (backend/graphicWhenSynced.ts
+  // carries the reasoning, and App.tsx's `#/graphic/<id>` effect asks the same question).
+  const [lookup, setLookup] = useState<'found' | 'looking' | 'unknown' | 'needs-sign-in'>(() =>
+    graphicById(id) ? 'found' : 'looking',
+  );
+  /** What the last lookup for this id answered, so a re-run on sign-in does not ask the cloud a
+   *  second time for an answer it already has. */
+  const lookupRef = useRef<{ id: string; status: 'looking' | 'found' | 'unknown' | 'needs-sign-in' } | null>(null);
+  // `signedIn` is a DEPENDENCY, not decoration: the panel below offers a sign-in when the lookup
+  // needs one, and without this the reader signs in and the offer stays on screen for ever
+  // because nothing asks again. Only that answer is worth asking again for, so the effect
+  // returns early on every other one.
+  const { signedIn } = useAuthState();
+  useEffect(() => {
+    const local = graphicById(id);
+    if (local) {
+      setDoc(local);
+      setLookup('found');
+      return;
+    }
+    if (lookupRef.current?.id === id && lookupRef.current.status !== 'needs-sign-in') return;
+    lookupRef.current = { id, status: 'looking' };
+    setDoc(null);
+    setLookup('looking');
+    let live = true;
+    void graphicWhenSynced(id).then((found) => {
+      lookupRef.current = { id, status: found.status };
+      if (!live) return; // the reader left while the cloud was answering
+      setDoc(found.status === 'found' ? found.doc : null);
+      setLookup(found.status === 'found' ? 'found' : found.status);
+    });
+    return () => {
+      live = false;
+    };
+  }, [id, signedIn]);
 
   // FIT THE GRAPHIC TO THE STAGE, like the editor canvas and the Home card do. A template's
   // elements are placed in px against its own resolution, so rendering a 1920×1080 document
@@ -286,10 +325,30 @@ export default function GraphicControlPage({ id }: { id: string }) {
           <span className="tpl-name">Control panel</span>
         </header>
         <div className="home-body">
-          <main className="home-content">
-            <h2>Graphic not found</h2>
-            <p className="hint">It may have been deleted, or it lives in another browser profile.</p>
-            <button className="primary" onClick={() => navigate({ view: 'home', section: null })}>← Home</button>
+          <main className="home-content" data-testid="control-lookup">
+            {lookup === 'looking' ? (
+              <>
+                <h2>Opening…</h2>
+                <p className="hint">Looking for this graphic in your account.</p>
+              </>
+            ) : lookup === 'needs-sign-in' ? (
+              <>
+                <h2>Sign in to open this panel</h2>
+                <p className="hint">This graphic is saved in an account. Sign in and it opens here.</p>
+                <button
+                  className="primary"
+                  onClick={() => useAuthUi.getState().openSignIn('Sign in to open this control panel.')}
+                >
+                  Sign in
+                </button>
+              </>
+            ) : (
+              <>
+                <h2>Graphic not found</h2>
+                <p className="hint">It may have been deleted, or it lives in another browser profile.</p>
+                <button className="primary" onClick={() => navigate({ view: 'home', section: null })}>← Home</button>
+              </>
+            )}
           </main>
         </div>
       </div>
@@ -691,6 +750,10 @@ export default function GraphicControlPage({ id }: { id: string }) {
                   <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
                     {btns.map((b) => {
                       const legal = isEventLegal(legality, b.event, machineState);
+                      // Empty when everything the press moves is a hidden holder (the
+                      // reported-field pattern), and the payload wording is then what the
+                      // operator needed anyway.
+                      const moved = adjustWords(b);
                       return (
                         <button
                           key={b.event}
@@ -700,8 +763,8 @@ export default function GraphicControlPage({ id }: { id: string }) {
                           title={
                             !legal
                               ? `"${b.event}" has no arrow out of the current state, so the graphic would drop it`
-                              : movedKeys(b).length > 0
-                                ? `Fires "${b.event}" and moves ${adjustWords(b)} with it`
+                              : moved
+                                ? `Fires "${b.event}" and moves ${moved} with it`
                                 : b.payload?.length
                                   ? active
                                     ? `Fires "${b.event}" with ${payloadWords(b)} from “${active.label}”`

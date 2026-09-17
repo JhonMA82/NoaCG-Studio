@@ -138,11 +138,12 @@ Budget, recomputed before every start and never cached:
 - **Night (00:00-07:00 Helsinki): 2.0.** Two suites, or one suite plus a night's worth of
   landings draining beside it rather than behind it.
 - **A free-RAM floor overrides the clock in both directions.** Below the floor nothing new starts,
-  however many slots the schedule allows. Ship the floor at 4 GB and tune it from the log.
-  `NOACG_JOBS_FREE_MB` retunes it; a runner keeps the environment it started with, so restart it
-  after changing. The floor scales with the job's cost - a full 4 GB for a suite, 2 GB for one
-  browser page, 600 MB for a landing - and one scheduling pass subtracts what it has already let
-  through, so two jobs cannot both be admitted against the same free-memory reading.
+  however many slots the schedule allows. The floor scales with the job's cost, and one scheduling
+  pass subtracts what it has already let through, so two jobs cannot both be admitted against the
+  same free-memory reading. **Since 2026-09-16 there are two floors and presence picks one**:
+  3.0 GB while nobody is at the machine, 4.0 GB while somebody may be - see "What a job actually
+  costs in RAM" below for where those numbers come from and "Presence" for how it is declared.
+  `NOACG_JOBS_FREE_MB` still overrides, and pins both.
 - **Work started outside the queue still counts.** Another coding agent - Codex, or a hand-run
   command - never touches `jobs.mjs` and is invisible to the queue, but it IS visible to
   `activeRuns()`, which only ever reports browser work. Each such run costs a full
@@ -313,8 +314,79 @@ memory the machine happens to have.
    `e2e/_offline-guard.ts`, which has capped the other waiter for the same resource since
    2026-08-21 - and points at the queue instead of stalling.
 
+## Presence
+
+**Who is at the machine is the one scheduling input this box cannot read for itself.** Free memory,
+the clock and the process table are all measurable. Whether somebody is sitting in front of the
+laptop is not - `ram-reclaim.mjs` established that much, since `MainWindowHandle` reads 0 even for
+apps with a visible window. So presence is DECLARED:
+
+```
+npm run jobs -- presence away      # nobody at the keyboard: the floor drops to 3.0 GB
+npm run jobs -- presence present   # back at the desk: 4.0 GB again, at once
+npm run jobs -- presence           # what the scheduler currently believes, and until when
+```
+
+It is a file beside the jobs (`presence.json`), not an environment variable, because the runner
+re-reads it on every scheduling pass. That is the difference that matters: a runner keeps the
+environment it was spawned with, so the old way to loosen the floor was to stop the runner and
+start another one by hand - the person who wanted more memory had to stop the thing using it.
+
+**A declaration expires after twelve hours.** An `away` left set on Friday evening is not knowledge
+on Monday morning; it is a stale guess, and acting on it spends the machine out from under whoever
+just sat down. Anything the store cannot read as a live declaration - no file, a torn write, a
+misspelt state, an expired window, a caller that passes no presence at all - reads as `present`,
+which is the answer that cannot hurt anybody.
+
+**A job held by the stricter floor says what would release it**, so a wait during a day wave is
+answerable rather than silent:
+
+```
+#1  j-1187  only 3.5 GB RAM free, needs 4.0 - the machine is marked in use, which keeps a
+            gigabyte free; `npm run jobs -- presence away` starts it now
+```
+
+Presence moves the floor and nothing else. The concurrency budget above is still the clock's: an
+away day runs the one suite the clock allows, and an away night the two - never more because
+nobody is home.
+
+## What a job actually costs in RAM
+
+**Measured 2026-09-16, 13:30-13:45 UTC**, on the 15.9 GB laptop (16236 MB visible), with six agent
+sessions live and the owner away. Taken with `Get-CimInstance Win32_OperatingSystem` for free
+physical memory and `Get-Process` working sets, sampled every 5 s across a running queue job. This
+section exists because the store asked for it for a week: the 4 GB floor called itself a starting
+point and nothing had measured what a run costs.
+
+| What | Measured |
+| --- | --- |
+| Total physical memory | 16236 MB |
+| Free, six sessions live, no queue job | 6.4-6.7 GB |
+| Free, same six sessions, one walk running | 5.0-6.2 GB, low sample 4988 MB |
+| One browser walk (`save-to-air-bench`, cost 0.5) | **~1.4 GB peak** - 965 MB across five `chrome-headless-shell` processes, plus a ~0.4 GB dev server |
+| Six agent sessions and their subprocesses | 3310 MB working set, ~550 MB each |
+| Desktop apps that are not agent work | 3114 MB - the Codex/ChatGPT app 1020, Wispr Flow 583, Antigravity, WD Discovery, the scanners |
+
+**What that says about the floor.** The floor times the job's cost should be what the job takes.
+A walk measured 1.4 GB at 0.5, so a suite-equivalent is about 3 GB - which is the away floor,
+3072 MB. Every cost class then lands on its own measurement rather than a guess: a walk is charged
+1536 MB against a measured 1.4 GB, and a landing 461 MB against the few hundred megabytes
+`gh run watch` uses. The 2026-09-09 reading of two suites leaving "under 2 GB free" on a box that
+idles near 6.5 GB agrees - about 2.3 GB a suite, so 3072 keeps a margin.
+
+**What the extra gigabyte in the 4096 floor is.** Admitting a suite at exactly 4096 leaves about
+1 GB free, and that gigabyte is the room the person at the keyboard gets. It is not part of the
+job's cost, which is why it is dropped the moment nobody is there. The owner's "I need 4 GB of RAM
+probably, maybe" (2026-09-15) is about his own working room, not about what a run needs.
+
+**How to retune this.** Re-run the measurement rather than re-deriving it: sample free memory
+while a known-cost job runs, and read the browser family's working set at its peak. The number to
+move is `POLICY.freeMemFloorMb` in `scripts/jobs-store.mjs`, and a new measurement replaces the
+table above with its own date.
+
 ## Tuning
 
-`NOACG_JOBS_FREE_MB` overrides the RAM floor for a runner. The 4 GB default is a starting point,
-not a measurement; set it from what the logs say a run actually costs. A runner keeps the
-environment it was started with, so change it and restart the runner.
+`NOACG_JOBS_FREE_MB` overrides the RAM floor for a runner and pins BOTH presence states - an
+explicit operator override is not something a presence flag should be able to loosen or tighten. A
+runner keeps the environment it was started with, so change it and restart the runner. Presence
+itself needs no restart; that is the whole reason it is a file.

@@ -49,7 +49,11 @@ via `updatePassword` + sign out) renders nothing offline and waits through 'load
 EXPIRED session (a signed-in to signed-out transition that was not the user's own Sign out -
 backend/auth's consume-once deliberate-sign-out flag, checked in syncController) dispatches
 `spx-session-expired`; App.tsx answers with openSignIn + a reason naming that local work is
-safe. Offline pins in e2e/auth.spec.ts; the real flows in e2e/configured/account.spec.ts.
+safe, on the `'resume'` intent (authUi.ts) - the reader already has an account, so
+SignInDialog suppresses the free-account sentence (`ACCOUNT_IS_FOR`) for as long as the form
+stays on the signin/reset side; toggling to signup restores it, because that reader IS creating
+an account. Offline pins in e2e/auth.spec.ts; the real flows in e2e/configured/account.spec.ts;
+the dialog copy itself in e2e/configured/anonymous.spec.ts.
 
 AGENT ACCESS (docs/AGENT_SAVE.md): **AgentAccessConsent** is the `?agent=…` QUERY route App.tsx
 renders INSTEAD of the studio (beside `?control=`): `noacg login` opened it; it asks ONE

@@ -20,3 +20,9 @@ Read `docs/metrics/2026-09-13-orchestrator-durable-recovery.md` for evidence and
 - Failed observations are visible; repeated unchanged warnings and reports stay quiet.
 - The same procedure works in Codex and Claude, refills useful independent work, and finishes
   through GitHub's merge queue with successful main CI. Local tests do not prove that live shift.
+
+## Landing integration, 2026-09-17
+
+The live restart/refill test remains outstanding. Integration with the new SPEC acceptance
+ledger keeps parent acceptance separate from branch landing in recovery output. Also verify
+that a landed slice with open parent criteria leads to bounded gap work, not parent completion.

@@ -33,6 +33,8 @@ import { showFieldReferenceMd, type ProductionFieldGraphic } from './fieldRefere
 import { addLocalControlBundle } from './localControl';
 import { EXPORT_TARGETS } from './registry';
 import { emitGraphic, renderShowControlPanelHtml } from '../control/controlPanelHtml';
+import { arrangeFor } from '../control/controlModel';
+import { readPublishedProfile } from '../model/profile';
 import { renderProductionControllerHtml, type EmittedCue } from '../control/productionControllerHtml';
 import { stripHostedReceiver } from '../control/hostedReceiver';
 // The library->air gate (docs/ARCHITECTURE.md §3, export -> validation): a production export is
@@ -272,11 +274,29 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
       renderProductionControllerHtml({
         show: show.name,
         graphics: panelGraphics.map(({ template, entries }, i) => ({
-          ...emitGraphic(template, null, { inlineAssets: true, entries }),
+          // The production's ARRANGE for this graphic, baked at export (§6e: ARRANGE renders on
+          // all three deployments). Keyed by the POOL graphic's name, the same key the bindings
+          // and the published panel use — not by the template's, which an imported graphic may
+          // have renamed out from under the show.
+          //
+          // `arrangeFor` applies the version gate itself, which matters most here: a profile a
+          // newer build wrote would otherwise be baked into a package that runs offline, with no
+          // way to correct it and no build in it that understands the rules it was arranged by.
+          ...emitGraphic(template, null, {
+            inlineAssets: true,
+            entries,
+            arrange: arrangeFor(show.profile, show.graphics[i]?.name),
+          }),
           file: `${slug(template.name)}/${slug(template.name)}.html`,
           layer: showGraphicLayer(show.graphics[i]),
         })),
         cues,
+        // WHETHER, never WHAT (§6f). The package carries one boolean so it can say the line, and
+        // none of the combined controls themselves — no names, no steps, no timings. Through
+        // `readPublishedProfile` for the same reason `arrangeFor` is: a profile a newer build
+        // wrote must degrade here to "no combined controls", not to a claim this build cannot
+        // stand behind, and a package runs offline with no way to correct it later.
+        combined: (readPublishedProfile(show.profile)?.combine ?? []).length > 0,
         width: first?.resolution.width ?? 1920,
         height: first?.resolution.height ?? 1080,
       }),

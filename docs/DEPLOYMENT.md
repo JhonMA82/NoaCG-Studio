@@ -117,7 +117,7 @@ The cost and capacity policy for the Pro account is
 
 ## Alerting (rolling issues - one per failure class, no duplicates)
 
-Nine self-closing rolling issues, all following the weekly-audit pattern (one open issue,
+Ten self-closing rolling issues, all following the weekly-audit pattern (one open issue,
 one comment per newly failing commit, the same commit never alerts twice, auto-closed by
 the next healthy state):
 
@@ -132,6 +132,7 @@ the next healthy state):
 | `Configured suite is not running on its schedule` | nightly-drift: the same belt for configured-suite |
 | `Catalog gates are not running on their schedule` | nightly-drift: the same belt for the catalog gates |
 | `Weekly dependency audit is red` | weekly-audit (Mondays): a new high/critical advisory |
+| `E2E durations refresh is red` | e2e-durations-refresh (Mondays): the measured shard table could not be re-recorded |
 
 **They are read back where somebody is already looking.** Filing an alarm and reading it are
 two different mechanisms, and for a long time only the first existed: `scripts/main-health.mjs`

@@ -1,9 +1,10 @@
-import { test, expect, type Page, type Route } from '@playwright/test';
+import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { createProject } from './_create';
 import { settleDurableWrites } from './_durable';
 import { relayServe, routeOrigin } from './_relay';
+import { importProofCase } from './_proofCase';
 
 // The production page's GRAPHIC ACTIONS block (docs/PLAYOUT_DASHBOARD.md §8): the machine's
 // ⚡ buttons rendered from the metadata that travels inside the template, greyed by the
@@ -1163,4 +1164,772 @@ test.describe('the cue editor groups fields by what they belong to', () => {
     // …and the same call still groups a real board, so this is a rule and not a switched-off one.
     expect(decided.sided).toBe(3);
   });
+});
+
+// ── ARRANGE, the production control profile's presentation half ───────────────────────────────
+// docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b, AC-5 of docs/work-specs/control-panel-any-graphic.
+// The football principle: the operator should understand the show, not the software. A graphic
+// declares twelve controls at equal weight and one production presses four of them.
+//
+// THE LINE THESE CASES GUARD is that ARRANGE is presentation and NOTHING else. A hidden control
+// is still guarded by the machine's own table and a renamed one still greys by it, which is why
+// the hidden button below is asserted DISABLED and then ENABLED rather than merely present — a
+// profile that could change legality would be the behaviour the whole design refuses.
+
+test('the Controls panel arranges the ⚡ block, and deleting the profile puts the generated one back', async ({ page }) => {
+  await createProject(page, { name: 'Club Scorebug' });
+  await productionFor(page, 'Club Match');
+
+  // The generated panel first, so what the profile changes is measured against it: six controls
+  // in the author's two sections, no pinned row and no drawer.
+  const actions = page.getByTestId('cue-actions');
+  await expect(actions.locator('h4', { hasText: 'Clock' })).toBeVisible();
+  await expect(page.getByTestId('cue-actions-pinned')).toHaveCount(0);
+  await expect(page.getByTestId('cue-actions-more')).toHaveCount(0);
+  await expect(page.getByTestId('cue-action-clockStop')).toHaveText('⚡ Stop clock');
+
+  // AUTHOR IT THROUGH THE PANEL, not through the model: the panel and the block it authors are
+  // one feature, and a profile written straight into the record would pass over the half an
+  // operator actually touches.
+  const panel = page.getByTestId('controls-panel');
+  await panel.locator('summary').click();
+  await expect(panel.getByTestId('controls-list')).toBeVisible();
+  await panel.getByTestId('controls-pin-clockStart').click();
+  // Rename AND hide the same control, because the two questions are one: does the word the
+  // production chose follow the control into the drawer, and is it still the same control.
+  // The name commits on BLUR, not per keystroke: trimming every keystroke made the box refuse a
+  // space, so "Stop the clock" could not be typed at all. Pressing Enter is the same commit.
+  await panel.getByTestId('controls-name-clockStop').fill('Stop the clock');
+  await panel.getByTestId('controls-name-clockStop').press('Enter');
+  await panel.getByTestId('controls-hide-clockStop').click();
+
+  // PINNED: above the fold, out of its section, still in the block.
+  const pinned = page.getByTestId('cue-actions-pinned');
+  await expect(pinned.getByTestId('cue-action-clockStart')).toBeVisible();
+  // HIDDEN: behind one collapsed drawer, wearing the production's own word.
+  const more = page.getByTestId('cue-actions-more');
+  await expect(more.getByTestId('cue-action-clockStop')).toHaveText('⚡ Stop the clock');
+  // …and out of the Clock section, rather than drawn twice.
+  await expect(actions.locator('.pd-actions-section', { hasText: 'Clock' }).getByTestId('cue-action-clockStop')).toHaveCount(0);
+
+  // STILL GUARDED BY THE SAME TABLE. Stop clock has no arrow out of "armed", so the hidden,
+  // renamed button is disabled exactly as the visible one was — and starting the clock enables
+  // it. This is the assertion that says ARRANGE moved presentation and not behaviour.
+  await page.getByTestId('verb-take').click();
+  const hiddenStop = more.getByTestId('cue-action-clockStop');
+  await expect(hiddenStop).toBeDisabled();
+  await page.getByTestId('cue-action-clockStart').click();
+  await expect(page.getByTestId('machine-state-chip')).toContainText(/running/i);
+  await expect(hiddenStop).toBeEnabled();
+
+  // DELETE IS ONE ACTION and leaves the COMPLETE generated panel (docs/CONTROL_PANEL_ROAD.md §3).
+  await panel.getByTestId('controls-delete-profile').click();
+  await expect(page.getByTestId('cue-actions-pinned')).toHaveCount(0);
+  await expect(page.getByTestId('cue-actions-more')).toHaveCount(0);
+  await expect(actions.locator('.pd-actions-section', { hasText: 'Clock' }).getByTestId('cue-action-clockStop')).toHaveText(
+    '⚡ Stop clock',
+  );
+  // The record goes back to having no profile at all, rather than to an empty one: a production
+  // that never had a profile and one whose profile was deleted must be byte-identical, or every
+  // surface downstream grows a second "no profile" to recognise.
+  const stored = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows().find((s) => s.name === 'Club Match')!;
+    return { hasKey: 'profile' in show, profile: show.profile ?? null };
+  });
+  expect(stored.hasKey, 'delete must remove the key, not leave an empty profile').toBe(false);
+  expect(stored.profile).toBeNull();
+});
+
+test('the EXPORTED controller carries the arrangement, and a deleted profile exports the generated panel byte for byte', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(180_000);
+  // The third deployment (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e: ARRANGE renders on all three,
+  // because it is presentation and the exported page is built from the same generator). It is
+  // resolved at GENERATION time rather than re-derived in the package's own JS, so what this
+  // asserts is both halves: that the zip carries the arrangement, and that the page draws it.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+
+  const exported = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const shows = await import('/src/model/shows.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { withGraphicArrange } = await import('/src/model/profile.ts');
+    // sb08 Club Scorebug: the same clock machine the in-app case above arranges, so the two
+    // deployments are measured on ONE graphic rather than on two that happen to agree.
+    const tpl = variantById('sb08')!.create({});
+    const { doc } = createGraphic(tpl, { name: 'Club Scorebug' });
+    const show = shows.createShowNamed('Club Match');
+    shows.addGraphicToShow(show.id, tpl, { graphicId: doc!.id });
+    const seeded = shows.loadShows().find((s) => s.id === show.id)!;
+    shows.updateShowCue(show.id, seeded.cues![0].id, { label: 'Kick off' });
+
+    /** A freshly built package's files, folder prefix stripped (it is named after the show). */
+    const packageFor = async (id: string) => {
+      const zip = await buildShowZipFor(shows.loadShows().find((s) => s.id === id)!, 'html-overlay');
+      const files: Record<string, string> = {};
+      for (const n of Object.keys(zip.files)) {
+        if (!zip.files[n].dir && /\.(html|json)$/.test(n)) {
+          files[n.replace(/^[^/]+\//, '')] = await zip.file(n)!.async('string');
+        }
+      }
+      return files;
+    };
+
+    // (1) No profile — the panel every profile-less package has always had.
+    const generated = (await packageFor(show.id))['controller.html'];
+
+    // (2) With one. The pool graphic's NAME is the key, the same one the bindings and the
+    //     published panel use — not the template's, which an import may have renamed.
+    const arrange = () =>
+      withGraphicArrange(undefined, shows.loadShows().find((s) => s.id === show.id)!.graphics[0].name, {
+        clockStart: { pinned: true },
+        clockStop: { name: 'Stop the clock', hidden: true },
+      });
+    shows.setShowProfile(show.id, arrange());
+    const withProfile = await packageFor(show.id);
+
+    // (3) Deleted — which must restore (1) exactly, on the surface furthest from the panel that
+    //     deleted it. Re-applied afterwards so the loaded package below is the arranged one.
+    shows.deleteShowProfile(show.id);
+    const restored = (await packageFor(show.id))['controller.html'];
+    shows.setShowProfile(show.id, arrange());
+
+    return { generated, arranged: withProfile['controller.html'], restored, files: withProfile };
+  });
+
+  // THE ZIP CARRIES IT. The arrangement is baked as data, so a package opened with no network
+  // and no NoaCG anywhere near it still shows the production's own panel.
+  expect(exported.arranged).toContain('Stop the clock');
+  expect(exported.generated).not.toContain('Stop the clock');
+  // AND DELETING RESTORES IT BYTE FOR BYTE. Not "renders the same": the same bytes, because the
+  // whole promise of the profile is that removing it leaves nothing behind.
+  expect(exported.restored).toBe(exported.generated);
+
+  // THE PAGE DRAWS IT. A zip carrying the right data and a page that ignores it look identical
+  // from here, which is why the arranged package is actually loaded and read.
+  const { serve } = relayServe(new Map(Object.entries(exported.files)));
+  const origin = 'http://arranged-host.local';
+  const ctl = await context.newPage();
+  await routeOrigin(ctl, origin, serve);
+  await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
+  await ctl.locator('.cue', { hasText: 'Kick off' }).click();
+
+  // Pinned above the fold, out of its section; hidden behind the one drawer, wearing the
+  // production's word; the rest of the generated panel untouched under them.
+  await expect(ctl.locator('.events-pinned button', { hasText: 'Start clock' })).toBeVisible();
+  const drawer = ctl.locator('.events-more');
+  await expect(drawer.locator('summary')).toHaveText('More (1)');
+  await expect(drawer.locator('button', { hasText: 'Stop the clock' })).toHaveCount(1);
+  await expect(ctl.locator('#editor-events h4', { hasText: 'Match' })).toBeVisible();
+  await expect(ctl.locator('#editor-events button', { hasText: 'Full time' })).toBeVisible();
+});
+
+// ── COMBINED CONTROLS (AC-6 of docs/work-specs/control-panel-any-graphic) ────────────────────
+//
+// The proof case's one press: "reveal the performer, then three seconds later the +1s for whoever
+// was right" (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6c, first row). The owner made that example
+// EVIDENCE for a general capability rather than the workflow being designed around, so what these
+// pin is the primitive: several related rows from one press, a delayed follow-up, a per-press
+// choice, and a cancel — none of it a programming system.
+//
+// It is composed here through the UI rather than seeded into the record, because "composed in the
+// room's minute" is the claim, and a profile written by a test proves nothing about the panel that
+// has to write it on 2026-10-20.
+//
+// THE ASSERTIONS ARE THE WIRE, the way the ± live-numbers pair above is: the activity feed's own
+// rows (one per step, in order) and the figures the PROGRAM monitors are actually showing. A
+// button that counts down and sends the wrong payload looks identical from the DOM of the button.
+
+/** Pick one step in the composer and add it. `control` is the combined control's id, or `new` for
+ *  the one being made — the panel keys its pickers the same way. */
+async function addStep(
+  page: Page,
+  control: string,
+  step: { target: string; action: string; after?: string; ask?: 'on' | 'off' },
+): Promise<void> {
+  await page.getByTestId(`combine-target-${control}`).selectOption(step.target);
+  await page.getByTestId(`combine-action-${control}`).selectOption(step.action);
+  if (step.after) await page.getByTestId(`combine-after-${control}`).fill(step.after);
+  if (step.ask) await page.getByTestId(`combine-ask-${control}`).selectOption(step.ask);
+  await page.getByTestId(`combine-add-step-${control}`).click();
+}
+
+/** Take both boards on air and leave the VOTES cue selected, which is where the operator's minute
+ *  starts (plan §3c). */
+async function bothOnAir(page: Page): Promise<void> {
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('machine-state-chip')).toHaveText('Votes');
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('machine-state-chip')).toContainText('Board');
+  await cues.nth(0).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('machine-state-chip')).toHaveText('Votes');
+}
+
+test('a combined control sends one row per step, waits, and counts the wait down on its button', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await importProofCase(page);
+
+  // ── COMPOSE IT, in the Controls panel under the block it will appear in ──
+  await page.getByTestId('controls-panel').locator('summary').click();
+  await page.getByTestId('combine-new').click();
+  await page.getByTestId('combine-new-name').fill('Reveal + points');
+  // Step 1: the reveal, immediately, on the votes board.
+  await addStep(page, 'new', { target: 'graphic:Votes board', action: 'reveal' });
+  // Steps 2-6: the five +1s on the OTHER board, the first of them three seconds later and every
+  // one offered as a tick that starts OFF. The cross-graphic step is the case §6c refused to
+  // special-case, and it is composed here exactly as a same-graphic one would be.
+  for (const n of [1, 2, 3, 4, 5]) {
+    await addStep(page, 'combined-1', {
+      target: 'graphic:Totals board',
+      action: `plus${n}`,
+      after: n === 1 ? '3' : undefined,
+      ask: 'off',
+    });
+  }
+  await expect(page.getByTestId('combine-steps-combined-1').locator('li')).toHaveCount(6);
+  // The order IS the meaning, so the list says it back in the order it will run.
+  await expect(page.getByTestId('combine-step-combined-1-0')).toContainText('Reveal performer');
+  await expect(page.getByTestId('combine-step-combined-1-1')).toContainText('after 3 s');
+  await page.getByTestId('controls-panel').locator('summary').click();
+
+  // ── IT RENDERS IN THE ⚡ BLOCK, under its own section, and it is GREY ──
+  const combined = page.getByTestId('combined-press-combined-1');
+  await expect(page.getByTestId('cue-actions-combined').locator('h4')).toHaveText('Combined');
+  await expect(combined).toHaveText('⚡ Reveal + points');
+  // GREY WHILE THE FIRST STEP IS ILLEGAL (§6b), and it says which step and why. The five later
+  // steps are illegal too — the totals board is not up either — and that is deliberately NOT what
+  // decides: a walk's later steps are routinely illegal at the moment the first one is pressed.
+  await expect(combined).toBeDisabled();
+  await expect(combined).toHaveAttribute('title', /first step cannot go.*Votes board.*not on air/);
+
+  // Five ticks, one per panelist, each naming its own panelist rather than reading "+1" five times.
+  const asks = page.getByTestId('combined-asks-combined-1').locator('label');
+  await expect(asks).toHaveCount(5);
+  await expect(asks.first()).toContainText('Panelist 1');
+
+  await bothOnAir(page);
+  await expect(combined).toBeEnabled();
+
+  const votes = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="7"]');
+  const totals = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="8"]');
+  await expect(totals.locator('#f5')).toHaveText('0');
+  await expect(totals.locator('#f6')).toHaveText('0');
+
+  // ── TICK TWO OF THE FIVE, AND PRESS ──
+  await page.getByTestId('combined-ask-combined-1-1').locator('input').check();
+  await page.getByTestId('combined-ask-combined-1-2').locator('input').check();
+  await page.getByTestId('action-log').locator('summary').click();
+  await combined.click();
+
+  // THE FIRST STEP WENT AT ONCE. The reveal is on the wire before anything waits, which is what
+  // makes a combined control usable as the one press an operator makes on the beat.
+  await expect(page.getByTestId('machine-state-chip')).toHaveText('Revealed');
+  await expect(votes.locator('#f16')).toHaveText('revealed');
+  await expect(page.getByTestId('action-log-row').first()).toContainText('Fired “reveal”');
+  // …and nothing else has. The three unticked +1s never go at all; the two ticked ones are still
+  // three seconds away.
+  await expect(totals.locator('#f5')).toHaveText('0');
+
+  // THE ARMED WAIT IS VISIBLE — the half that keeps this on the right side of the no-second-clock
+  // ruling (owner 2026-08-09; plan §6d). The button counts down and wears the on-air accent.
+  await expect(combined).toHaveClass(/pd-combined-waiting/);
+  // The figure itself, with its unit: a bare number after the control's name reads as part of
+  // the name, which is what this said on the surface before it grew the separator.
+  await expect(combined).toContainText(/· \ds$/);
+  await expect(combined).toHaveAttribute('title', /cancel.*2 steps still to send/);
+
+  // ── THE TAIL, THREE SECONDS LATER ──
+  await expect(totals.locator('#f5')).toHaveText('1', { timeout: 8_000 });
+  await expect(totals.locator('#f6')).toHaveText('1');
+  // The three panelists nobody ticked did not move. The tick is the whole of what one press may
+  // vary by, and it is a tick rather than a value.
+  await expect(totals.locator('#f7')).toHaveText('0');
+  await expect(totals.locator('#f8')).toHaveText('0');
+  await expect(totals.locator('#f9')).toHaveText('0');
+  // ONE ROW PER STEP, in order, on the one command log. Newest first, so the second +1 leads.
+  const rows = page.getByTestId('action-log-row');
+  await expect(rows.nth(0)).toContainText('Fired “plus2”');
+  await expect(rows.nth(1)).toContainText('Fired “plus1”');
+  await expect(rows.nth(2)).toContainText('Fired “reveal”');
+  // The run is over: the button is a button again.
+  await expect(combined).not.toHaveClass(/pd-combined-waiting/);
+
+  // THE CUE KEPT THE FIGURES AIR SHOWS, so the next ⟳ Take or ✎ Update cannot regress them — the
+  // same write-back a single ⚡ press does, reached here through a graphic that is not even the
+  // one selected.
+  await page.getByTestId('cue-list').locator('.pd-cue').nth(1).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('cue-field-f5')).toHaveValue('1');
+  await expect(page.getByTestId('cue-field-f6')).toHaveValue('1');
+  await page.getByTestId('verb-update').click();
+  await expect(totals.locator('#f5')).toHaveText('1');
+
+  // ── GREY AGAIN once the first step has no arrow left ──
+  await page.getByTestId('cue-list').locator('.pd-cue').nth(0).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('machine-state-chip')).toHaveText('Revealed');
+  await expect(combined).toBeDisabled();
+  await expect(combined).toHaveAttribute('title', /no arrow out of/);
+});
+
+test('a press on the countdown cancels the unsent tail, and so does Out', async ({ page }) => {
+  test.setTimeout(120_000);
+  await importProofCase(page);
+
+  // A two-step control: the reveal now, one +1 five seconds later. Five rather than three so the
+  // cancel has room to happen on a loaded machine without racing the wait it is cancelling.
+  await page.getByTestId('controls-panel').locator('summary').click();
+  await page.getByTestId('combine-new').click();
+  await page.getByTestId('combine-new-name').fill('Reveal then point');
+  await addStep(page, 'new', { target: 'graphic:Votes board', action: 'reveal' });
+  await addStep(page, 'combined-1', { target: 'graphic:Totals board', action: 'plus1', after: '5' });
+  await page.getByTestId('controls-panel').locator('summary').click();
+
+  await bothOnAir(page);
+  const totals = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="8"]');
+  const combined = page.getByTestId('combined-press-combined-1');
+  await page.getByTestId('action-log').locator('summary').click();
+  await combined.click();
+  await expect(combined).toHaveClass(/pd-combined-waiting/);
+
+  // THE COUNTDOWN IS THE CANCEL. One control shows the wait and stops it, rather than a second
+  // control beside it — which is what makes an armed wait something an operator can actually
+  // stand down under pressure.
+  await combined.click();
+  await expect(combined).not.toHaveClass(/pd-combined-waiting/);
+  await expect(page.getByTestId('action-log-row').first()).toContainText('cancelled, 1 step not sent');
+
+  // …and it stays unsent. The assertion has to outlive the wait it cancelled, or it would pass
+  // against a cancel that only hid the countdown.
+  await page.waitForTimeout(7_000);
+  await expect(totals.locator('#f5')).toHaveText('0');
+
+  // OUT IS THE OTHER STOP (§6b: "any Out ... cancels what has not been sent"). The reveal is spent
+  // now, so the control is grey — ⟳ RE-TAKE puts the votes board back at the start of its walk,
+  // which is what an operator does between songs anyway. Not ⟳ TAKE: that control is a TOGGLE and
+  // would take the live cue straight off air.
+  await page.getByTestId('verb-retake').click();
+  await expect(page.getByTestId('machine-state-chip')).toHaveText('Votes');
+  await combined.click();
+  await expect(combined).toHaveClass(/pd-combined-waiting/);
+  await page.getByTestId('verb-out').click();
+  await expect(combined).not.toHaveClass(/pd-combined-waiting/);
+  // The whole feed rather than its first row: the cancel is written the moment the gesture
+  // happens and the Out's own command row lands on top of it a beat later, which is the honest
+  // order — the tail is stood down before anything goes to the wire, not after a round trip.
+  await expect(page.getByTestId('action-log')).toContainText(
+    'Out cancelled 1 unsent step of “Reveal then point”',
+  );
+  await page.waitForTimeout(7_000);
+  await expect(totals.locator('#f5')).toHaveText('0');
+});
+
+test('a step the machine would drop is dropped alone, and the feed says which', async ({ page }) => {
+  test.setTimeout(120_000);
+  await importProofCase(page);
+
+  // Reveal now; then, three seconds later, a SECOND reveal beside a +1. By the time the pair
+  // fires the votes board is already revealed and has no arrow left, so the machine would drop
+  // that row — and the +1 beside it must still land. That is the rule in §6b: a dropped step is
+  // dropped ALONE, the rest proceed, and the feed says which one did not apply.
+  await page.getByTestId('controls-panel').locator('summary').click();
+  await page.getByTestId('combine-new').click();
+  await page.getByTestId('combine-new-name').fill('Double reveal');
+  await addStep(page, 'new', { target: 'graphic:Votes board', action: 'reveal' });
+  await addStep(page, 'combined-1', { target: 'graphic:Votes board', action: 'reveal', after: '3' });
+  await addStep(page, 'combined-1', { target: 'graphic:Totals board', action: 'plus1' });
+  await page.getByTestId('controls-panel').locator('summary').click();
+
+  await bothOnAir(page);
+  const totals = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="8"]');
+  await page.getByTestId('action-log').locator('summary').click();
+  await page.getByTestId('combined-press-combined-1').click();
+  await expect(page.getByTestId('machine-state-chip')).toHaveText('Revealed');
+
+  // The +1 beside the dropped reveal landed.
+  await expect(totals.locator('#f5')).toHaveText('1', { timeout: 8_000 });
+  // And the feed names the step that did not apply, the control it belongs to, and why — rather
+  // than leaving an operator to notice that one of six things quietly did not happen.
+  const feed = page.getByTestId('action-log');
+  await expect(feed).toContainText('“Double reveal” skipped');
+  await expect(feed).toContainText('no arrow out of “Votes board”');
+});
+
+test('the EXPORTED controller says where its combined controls run, and carries none of them', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(180_000);
+  // §6f, THE ONE PLACE THE PORTABILITY LINE NEEDED DRAWING (owner, 2026-09-15, ALIGN-2026-09-15-3).
+  // ARRANGE renders on all three deployments because it is presentation of the graphic's own
+  // contract. COMBINE does not cross into this one: a sequencer with delays and ticks, inlined a
+  // second time in vanilla JS, is exactly the second production runtime the owner refused. So the
+  // package degrades HONESTLY — one line where the Combined section sits on the two hosted
+  // surfaces — rather than silently, which is what it did before: the buttons the production had
+  // composed were simply not there and nothing said why.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+
+  const exported = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const shows = await import('/src/model/shows.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { withGraphicArrange } = await import('/src/model/profile.ts');
+    // sb08 Club Scorebug, the same graphic the arrangement case above exports, so the two halves
+    // of §6f are measured on one package rather than on two that happen to agree.
+    const tpl = variantById('sb08')!.create({});
+    const { doc } = createGraphic(tpl, { name: 'Club Scorebug' });
+    const show = shows.createShowNamed('Club Match');
+    shows.addGraphicToShow(show.id, tpl, { graphicId: doc!.id });
+    const seeded = shows.loadShows().find((s) => s.id === show.id)!;
+    shows.updateShowCue(show.id, seeded.cues![0].id, { label: 'Kick off' });
+    const graphic = seeded.graphics[0].name;
+
+    /** A freshly built package's files, folder prefix stripped (it is named after the show). */
+    const packageFor = async () => {
+      const zip = await buildShowZipFor(shows.loadShows().find((s) => s.id === show.id)!, 'html-overlay');
+      const files: Record<string, string> = {};
+      for (const n of Object.keys(zip.files)) {
+        if (!zip.files[n].dir && /\.(html|json)$/.test(n)) {
+          files[n.replace(/^[^/]+\//, '')] = await zip.file(n)!.async('string');
+        }
+      }
+      return files;
+    };
+
+    // (1) No profile at all.
+    const none = (await packageFor())['controller.html'];
+    // (2) A profile with an ARRANGE and NO combined control. The flag is about COMBINE, not about
+    //     having a profile — a production that only renamed a button must not grow the line.
+    shows.setShowProfile(show.id, withGraphicArrange(undefined, graphic, { clockStart: { pinned: true } }));
+    const arrangeOnly = (await packageFor())['controller.html'];
+    // (3) And one that composed a control: two steps, one of them delayed and offered as a tick.
+    shows.setShowProfile(show.id, {
+      v: 1,
+      arrange: {},
+      combine: [
+        {
+          id: 'c1',
+          name: 'Kick off sequence',
+          steps: [
+            { kind: 'event', graphic, control: 'clockStart' },
+            { kind: 'event', graphic, control: 'clockStop', after: 3, ask: { default: true } },
+          ],
+        },
+      ],
+    });
+    const files = await packageFor();
+    return { none, arrangeOnly, files, withCombine: files['controller.html'] };
+  });
+
+  // WHETHER, NEVER WHAT. The zip carries one boolean: not the control's name, not its steps, not
+  // its timings, and not the profile's `combine` array in any form. A package that carried the
+  // sequence and could not run it would be the worse half of both answers.
+  expect(exported.withCombine).toContain('"combined":true');
+  expect(exported.withCombine).not.toContain('Kick off sequence');
+  expect(exported.withCombine).not.toContain('"combine"');
+  expect(exported.none).toContain('"combined":false');
+  expect(exported.arrangeOnly).toContain('"combined":false');
+
+  // THE PAGE DRAWS IT. A zip carrying the right flag and a page that ignores it look identical
+  // from here, which is why the package is actually loaded and read.
+  const { serve } = relayServe(new Map(Object.entries(exported.files)));
+  const origin = 'http://combine-line-host.local';
+  const ctl = await context.newPage();
+  await routeOrigin(ctl, origin, serve);
+  await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
+  await ctl.locator('.cue', { hasText: 'Kick off' }).click();
+
+  // The line, word for word as §6f writes it, where the Combined section sits on the other two
+  // surfaces — so an operator taught on those looks in the right place and is told.
+  await expect(ctl.locator('#events-combined')).toHaveText(
+    'This production’s combined controls run from its hosted control page',
+  );
+  // …and nothing else of COMBINE: no button, no countdown, no tick.
+  await expect(ctl.locator('#editor-events button', { hasText: 'Kick off sequence' })).toHaveCount(0);
+  await expect(ctl.locator('#editor-events input[type="checkbox"]')).toHaveCount(0);
+  // The generated panel under it is untouched: this is a degradation of the production's own
+  // buttons, never of the graphic's.
+  await expect(ctl.locator('#editor-events button', { hasText: 'Start clock' })).toBeVisible();
+});
+
+// ── THE TWO SPACE MODES (owner, 2026-09-10, docs/PLAYOUT_DASHBOARD.md §2 "Two Space modes"). ──
+//
+// A two-cue rundown of one lower third, driven from the keys the way an operator drives it.
+// Both modes are pinned on this page; the exported controller has its own copy of the decision
+// and is pinned below it; the hosted page reads the same table (hosted-control.spec.ts).
+
+/** A production of two cues on one lower third, named so the rundown reads in order. */
+async function twoCueRundown(page: Page): Promise<Locator> {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Evening News');
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await page.getByTestId('cue-label').fill('Anna');
+  await expect(rows.first()).toContainText('Anna');
+  await page.getByTestId('add-cue').click();
+  await expect(rows).toHaveCount(2);
+  await page.getByTestId('cue-label').fill('Ben');
+  await expect(rows.nth(1)).toContainText('Ben');
+  // The verb keys stand down while a field has focus; the walk below is from the rundown.
+  await page.getByTestId('cue-label').blur();
+  return rows;
+}
+
+test('SPACE previews first: the cursor previews nothing, SPACE stages, SPACE airs, SPACE cuts back to PREVIEW', async ({
+  page,
+}) => {
+  const rows = await twoCueRundown(page);
+  const previewWhat = page.getByTestId('preview-what');
+  const take = page.getByTestId('verb-take');
+  const chip = page.getByTestId('live-cue-chip');
+  const mode = page.getByTestId('space-mode');
+
+  // Unchecked is the default, and today's behaviour: Ben was selected by adding him, so he is
+  // on PREVIEW.
+  await expect(mode).not.toBeChecked();
+  await expect(previewWhat).toHaveText('Ben');
+  await mode.check();
+  await expect(mode).toBeChecked();
+  // Switching keeps the picture still: what the operator was looking at stays on PREVIEW.
+  await expect(previewWhat).toHaveText('Ben');
+
+  // THE CURSOR IS ONLY A CURSOR. Up to Anna: she is selected, Ben is still on PREVIEW, and the
+  // button says what the next press does. (Focus is still on the checkbox after the click; a
+  // checkbox is not typing, so the keys stay the verbs' - `typingInto` in playoutKeys.ts.)
+  await page.keyboard.press('ArrowUp');
+  await expect(rows.nth(0)).toHaveClass(/selected/);
+  await expect(rows.nth(0)).not.toHaveClass(/on-pvw/);
+  await expect(rows.nth(1)).toHaveClass(/on-pvw/);
+  await expect(previewWhat).toHaveText('Ben');
+  await expect(take).toHaveText(/→ PREVIEW/);
+  await expect(page.locator('.pd-editor-kicker')).toHaveText(/SELECTED CUE · 1/);
+
+  // SPACE stages. Nothing airs; the press was a verb, not a second flip of the checkbox.
+  await page.keyboard.press('Space');
+  await expect(mode).toBeChecked();
+  await expect(rows.nth(0)).toHaveClass(/on-pvw/);
+  await expect(rows.nth(1)).not.toHaveClass(/on-pvw/);
+  await expect(previewWhat).toHaveText('Anna');
+  await expect(chip).toContainText('nothing on air');
+  await expect(take).toHaveText(/⟳ TAKE/);
+  await expect(page.locator('.pd-editor-kicker')).toHaveText(/PREVIEW CUE · 1/);
+
+  // SPACE airs, and the cue STAYS on PREVIEW so the next press is the off half of the toggle.
+  await page.keyboard.press('Space');
+  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(chip).toContainText('Anna');
+  await expect(previewWhat).toHaveText('Anna');
+  await expect(take).toHaveText(/■ TAKE OFF/);
+
+  // SPACE takes it off and leaves it on PREVIEW.
+  await page.keyboard.press('Space');
+  await expect(rows.nth(0)).not.toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/on-pvw/);
+  await expect(chip).toContainText('nothing on air');
+
+  // THE MIXER CUT from a cue the cursor had left. Anna back on air; Ben staged beside her (she
+  // stays up - PREVIEW is a check, not a tally); back to Anna, and SPACE takes her off AND puts
+  // her on PREVIEW in Ben's place.
+  await page.keyboard.press('Space');
+  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Space');
+  await expect(rows.nth(1)).toHaveClass(/on-pvw/);
+  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(previewWhat).toHaveText('Ben');
+  await page.keyboard.press('ArrowUp');
+  await expect(take).toHaveText(/■ TAKE OFF/);
+  await page.keyboard.press('Space');
+  await expect(rows.nth(0)).not.toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/on-pvw/);
+  await expect(rows.nth(1)).not.toHaveClass(/on-pvw/);
+  await expect(previewWhat).toHaveText('Anna');
+  await expect(chip).toContainText('nothing on air');
+
+  // The habit survives a reload; the PREVIEW does not, because a check of what is about to air
+  // is not something to trust from before the page went away.
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('space-mode')).toBeChecked();
+  await expect(page.getByTestId('preview-what')).toHaveText('nothing in preview');
+  await expect(page.locator('.pd-pvw .pd-frame-empty')).toContainText('SPACE on the selected cue');
+  await expect(page.getByTestId('verb-take')).toHaveText(/→ PREVIEW/);
+});
+
+test('the default SPACE mode is unchanged: selecting previews, SPACE airs, SPACE takes off', async ({ page }) => {
+  const rows = await twoCueRundown(page);
+  const previewWhat = page.getByTestId('preview-what');
+  const take = page.getByTestId('verb-take');
+  await expect(page.getByTestId('space-mode')).not.toBeChecked();
+
+  // Walking the rundown IS previewing: the arrow moves the amber tally with the cursor.
+  await page.keyboard.press('ArrowUp');
+  await expect(rows.nth(0)).toHaveClass(/selected/);
+  await expect(rows.nth(0)).toHaveClass(/on-pvw/);
+  await expect(rows.nth(1)).not.toHaveClass(/on-pvw/);
+  await expect(previewWhat).toHaveText('Anna');
+  // There is no PREVIEW face in this mode: the first press airs.
+  await expect(take).toHaveText(/⟳ TAKE/);
+  await page.keyboard.press('Space');
+  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(take).toHaveText(/■ TAKE OFF/);
+  await page.keyboard.press('Space');
+  await expect(rows.nth(0)).not.toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/on-pvw/);
+
+  // The two modes are the same table on every surface - the decision itself, pinned once.
+  const table = await page.evaluate(async () => {
+    const { spaceAction } = await import('/src/components/playoutKeys.ts');
+    const states = [
+      { live: false, previewed: false },
+      { live: false, previewed: true },
+      { live: true, previewed: true },
+      { live: true, previewed: false },
+    ];
+    return {
+      take: states.map((s) => spaceAction('take', s)),
+      previewThenTake: states.map((s) => spaceAction('preview-then-take', s)),
+    };
+  });
+  expect(table.take).toEqual(['take', 'take', 'take-off', 'take-off']);
+  expect(table.previewThenTake).toEqual(['preview', 'take', 'take-off', 'take-off']);
+});
+
+test('the EXPORTED controller carries both SPACE modes, read off the relay: preview stream first, then program', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(180_000);
+  // The third surface, with its own copy of the decision (docs/CONTROL_PANEL_PARITY.md). Its
+  // PREVIEW is a real second stream, so "on PREVIEW" is a row on the wire and the assertions
+  // read the wire: which STREAM each `cue` tally row went to, and in what order.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const b64 = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const shows = await import('/src/model/shows.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const tpl = variantById('lt01')!.create({});
+    const { doc } = createGraphic(tpl, { name: 'Hairline' });
+    const show = shows.createShowNamed('Evening News');
+    shows.addGraphicToShow(show.id, tpl, { graphicId: doc!.id });
+    const first = shows.loadShows().find((s) => s.id === show.id)!;
+    shows.updateShowCue(show.id, first.cues![0].id, { label: 'Anna' });
+    shows.addShowCue(show.id, first.graphics[0].id, { label: 'Ben' });
+    // A THIRD cue on a SECOND graphic (its own layer), for the cross-graphic half below.
+    const tpl2 = variantById('lt02')!.create({});
+    const { doc: doc2 } = createGraphic(tpl2, { name: 'Second strap' });
+    shows.addGraphicToShow(show.id, tpl2, { graphicId: doc2!.id });
+    const withSecond = shows.loadShows().find((s) => s.id === show.id)!;
+    shows.updateShowCue(show.id, withSecond.cues![2].id, { label: 'Cara' });
+    const fresh = shows.loadShows().find((s) => s.id === show.id)!;
+    const zip = await buildShowZipFor(fresh, 'html-overlay');
+    return zip.generateAsync({ type: 'base64' });
+  });
+
+  const zip = await JSZip.loadAsync(b64, { base64: true });
+  const files = new Map<string, string>();
+  for (const n of Object.keys(zip.files)) {
+    if (!zip.files[n].dir && /\.(html|json)$/.test(n)) files.set(n.replace(/^[^/]+\//, ''), await zip.file(n)!.async('string'));
+  }
+  const { serve, rows } = relayServe(files);
+  const origin = 'http://evening-host.local';
+  const ctl = await context.newPage();
+  await routeOrigin(ctl, origin, serve);
+  await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
+  await expect(ctl.locator('#mode')).toContainText('SHOW');
+
+  /** The tally rows so far, as `stream:on|off`, oldest first. Both cues are one graphic, so the
+   *  stream and the direction are the whole story. */
+  const tallies = () =>
+    rows
+      .filter((r) => (r.msg as { t: string }).t === 'cue')
+      .map((r) => `${r.stream}:${(r.msg as { cue: string | null }).cue === null ? 'off' : 'on'}`);
+  const anna = ctl.locator('.cue', { hasText: 'Anna' });
+  const ben = ctl.locator('.cue', { hasText: 'Ben' });
+  const take = ctl.locator('#v-take');
+  const mode = ctl.locator('#space-mode');
+
+  // DEFAULT MODE: the page opens with the first cue selected, and selecting a row previews it.
+  await expect(mode).not.toBeChecked();
+  await ben.click();
+  await expect(ben).toHaveClass(/on-pvw/, { timeout: 10_000 });
+  expect(tallies()).toEqual(['preview:on']);
+  await expect(take).toHaveText(/⟳ TAKE/);
+
+  // PREVIEW-THEN-TAKE. Selecting Anna sends nothing; the button says the next press previews.
+  await mode.check();
+  await expect(mode).toBeChecked();
+  await anna.click();
+  await expect(anna).toHaveClass(/selected/);
+  await expect(take).toHaveText(/→ PREVIEW/);
+  expect(tallies()).toEqual(['preview:on']);
+
+  // SPACE stages: one preview-stream tally, no program row. The press was a verb, and the
+  // checkbox is still checked - it gave the keys back on its own click.
+  await ctl.keyboard.press('Space');
+  await expect(anna).toHaveClass(/on-pvw/, { timeout: 10_000 });
+  await expect(mode).toBeChecked();
+  expect(tallies()).toEqual(['preview:on', 'preview:on']);
+  await expect(take).toHaveText(/⟳ TAKE/);
+
+  // SPACE airs; SPACE takes off. Both program-stream rows, and PREVIEW keeps the cue.
+  await ctl.keyboard.press('Space');
+  await expect(anna).toHaveClass(/on-air/, { timeout: 10_000 });
+  await expect(take).toHaveText(/■ TAKE OFF/);
+  await ctl.keyboard.press('Space');
+  await expect(anna).not.toHaveClass(/on-air/, { timeout: 10_000 });
+  await expect(anna).toHaveClass(/on-pvw/);
+  expect(tallies()).toEqual(['preview:on', 'preview:on', 'program:on', 'program:off']);
+
+  // THE MIXER CUT from a cue the cursor left: Anna on air, Ben staged over her on PREVIEW (same
+  // graphic, same layer), back to Anna, SPACE. Program goes off, and Anna returns to PREVIEW
+  // with a preview-stream row of her own, because Ben had taken that stream from her.
+  await ctl.keyboard.press('Space');
+  await expect(anna).toHaveClass(/on-air/, { timeout: 10_000 });
+  await ctl.keyboard.press('ArrowDown');
+  await expect(ben).toHaveClass(/selected/);
+  await ctl.keyboard.press('Space');
+  await expect(ben).toHaveClass(/on-pvw/, { timeout: 10_000 });
+  await expect(anna).toHaveClass(/on-air/);
+  await ctl.keyboard.press('ArrowUp');
+  await expect(take).toHaveText(/■ TAKE OFF/);
+  await ctl.keyboard.press('Space');
+  await expect(anna).not.toHaveClass(/on-air/, { timeout: 10_000 });
+  await expect(anna).toHaveClass(/on-pvw/);
+  await expect(ben).not.toHaveClass(/on-pvw/);
+  expect(tallies().slice(-3)).toEqual(['preview:on', 'program:off', 'preview:on']);
+
+  // THE OWNER'S GESTURE AS FAST AS A HAND MAKES IT: two presses inside this page's 400 ms log
+  // poll, on a fresh cue. "On PREVIEW" is held the moment the preview rows are sent, so the
+  // second press AIRS. Read back off the poll instead, both presses previewed and nothing aired.
+  await ctl.keyboard.press('ArrowDown');
+  await expect(ben).toHaveClass(/selected/);
+  await ctl.keyboard.press('Space');
+  await ctl.keyboard.press('Space');
+  await expect(ben).toHaveClass(/on-air/, { timeout: 10_000 });
+  expect(tallies().slice(-2)).toEqual(['preview:on', 'program:on']);
+
+  // CROSS-GRAPHIC: staging Cara (a second graphic on its own layer) REPLACES Ben on PREVIEW -
+  // the strap leaves the preview stream - and coming back to Ben reads as not previewed, the
+  // answer the React pages give from their single staged id.
+  const cara = ctl.locator('.cue', { hasText: 'Cara' });
+  await ctl.keyboard.press('Space');
+  await expect(ben).not.toHaveClass(/on-air/, { timeout: 10_000 });
+  await cara.click();
+  await ctl.keyboard.press('Space');
+  await expect(cara).toHaveClass(/on-pvw/, { timeout: 10_000 });
+  await expect(ben).not.toHaveClass(/on-pvw/);
+  expect(tallies().slice(-2)).toEqual(['preview:off', 'preview:on']);
+  await ben.click();
+  await expect(take).toHaveText(/→ PREVIEW/);
 });

@@ -1,13 +1,15 @@
 // The IMPORT-GRAPHIC road's part of the draft (docs/WORKFLOW_ARCHITECTURE.md §5.5): the
 // erase, placed-field and SVG mapping state the raster and SVG import steps hold, the
 // behaviour bindings and their gap checks, and the build passes that turn all of it into
-// real placed fields and DesignSvg options. The WizardDraft record that carries this state
+// real placed fields and DesignSvg options. The SvgImportDraft record that carries this state
 // is ./core.ts, which is the one caller of the build passes.
 
-import type { SpxTemplate } from '../../../model/types';
+import type { AssetFile, SpxTemplate } from '../../../model/types';
 import { addPlacedLine } from '../../../blocks/designLayout';
 import { applyPlacedFieldSpecs } from '../../../blocks/designFields';
 import type {
+  DesignArt,
+  DesignSvg,
   DesignSvgAlign,
   DesignSvgBehaviour,
   DesignSvgExtra,
@@ -21,7 +23,68 @@ import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../..
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
 import { recipeById } from '../../../templates/behaviours/registry';
 import { BEHAVIOUR_WORDS, rowKeys } from '../../../templates/behaviours/recipe';
-import type { WizardDraft } from '../draft/core';
+
+/**
+ * THE IMPORT-GRAPHIC ROAD'S SLICE OF THE WIZARD DRAFT.
+ *
+ * Every field below is a shape THIS file declares, so it is declared here too: `SvgImportDraft`
+ * (../draft/core.ts) extends this rather than restating it, and the capability's own passes
+ * take `SvgImportDraft` rather than the whole record. That is what lets them say, in their
+ * signature, exactly how much of the draft they read - and it is the `draftSlice` shape
+ * docs/WORKFLOW_ARCHITECTURE.md §5.5 wizard rows 5 and 6 nest the draft into.
+ *
+ * It stays a SUPERSET of what any one pass reads: the raster half (designArt, designOriginal,
+ * designErases, designKeepBakedText, designFields) is the Prepare and Text steps' state and
+ * belongs to the same road, so splitting it finer would draw a line no step stands on.
+ */
+export interface SvgImportDraft {
+  /** The artwork the graphic IS, in the Import Graphic flow (measured at import). */
+  designArt: DesignArt | null;
+  /** The untouched upload, kept so an erase re-runs from clean pixels (never compounds). */
+  designOriginal: AssetFile | null;
+  /** The applied baked-text erases (Prepare step), in the order they were marked; [] = none.
+   *  A design usually has more than one piece of baked text — a name AND a title, a scoreline
+   *  AND a clock — so each marked region is its own erase, and each seeds its own field(s). */
+  designErases: DesignEraseState[];
+  /** The user's declared answer that the artwork's baked text is INTENTIONAL (a wordmark, a
+   *  deliberate slogan) — or that there is none. It lives on the draft rather than in the
+   *  Prepare step's state so the answer survives leaving the step: Prepare stops re-proposing
+   *  and the Text step's still-baked note stands down. Cleared by a fresh drop and by
+   *  answering "yes, mark it". */
+  designKeepBakedText: boolean;
+  /** The Text step's placed fields (Import Graphic). Ordered; each becomes a real placed
+   *  field at build, AFTER the erase-seeded ones. */
+  designFields: DesignFieldSpec[];
+  /** The imported SVG (the SVG road, docs/SVG_IMPORT_PLAN.md): sanitized + inventoried at
+   *  drop, width/height already fitted to the frame. null outside svg mode. */
+  designSvg: SvgImportResult | null;
+  /** The mapping step's working state, one row per detected text layer: which become
+   *  operator fields, and their edited labels/samples. Initialized from the inventory
+   *  (all ON — or only the `f:`-prefixed ones when any layer opted in by name). */
+  svgFields: SvgFieldDraft[];
+  /** The mapping step's picture rows, one per `<image>` layer: OFF by default (most
+   *  pictures inside a design are the artwork, not a slot), ON = a filelist field whose
+   *  value swaps the node's href. */
+  svgImages: SvgImageDraft[];
+  /** The mapping step's outlined-text rows, one per glyph-shaped group: OFF by default,
+   *  ON = the group is hidden and a placed HTML field stands in for it (plan §1.A). */
+  svgOutlines: SvgOutlineDraft[];
+  /** The BEHAVIOUR bound to the artwork, or null for the ordinary in/out graphic the importer
+   *  has always produced. Proposed from the layer names at drop, and freely re-picked. */
+  svgBehaviour: SvgBehaviourDraft | null;
+  /** The SWITCHES and CHOICES on the artwork's hidden layers (docs/SVG_BEHAVIOUR_PLAN.md §7c),
+   *  one entry per layer the reader gave a use. Proposed from `show:` / `choice:` names at
+   *  drop; every hidden layer no recipe claimed is offered the same two answers in the step. */
+  svgExtras: SvgExtraDraft[];
+  /** Does the graphic HUG its text — one rectangle widening so a longer value fits at full
+   *  size (plan §3)? Off is the graphic that declares a STAGE, which is every board and
+   *  every scorebug; on is the lower third whose banner is as wide as the name on it. */
+  svgStretch: SvgStretchDraft;
+  /** Per referenced font family: how it resolves. Bundled faces auto-match by name at drop;
+   *  the mapping step offers the Google fetch or an upload for the rest. An entry with
+   *  neither source is UNRESOLVED — created anyway, with a warning. */
+  svgFonts: SvgFontDraft[];
+}
 
 /** ONE applied baked-text erase: the marked rectangle (in the artwork's SOURCE pixels) and
  *  the sampling verdict it ran with. Its measured ink seeds a real text field per LINE it
@@ -492,11 +555,27 @@ export interface SvgStretchDraft {
    * this feature was written under (owner walk, 2026-09-03, on the answer count).
    */
   perPanel?: Record<string, SvgStretchMode>;
+  /**
+   * HOW FAR A BOX MAY GROW, per box and per axis (docs/TEXT_BOX_BINDING.md, rung 4).
+   *
+   * The value is the margin the growing edge must LEAVE on the side it grows towards, as a
+   * fraction of the frame on that axis - the same number `DesignSvgGrowth.cap` carries, because
+   * the step writes it and the runtime reads it and a second spelling is how the cap line on the
+   * preview and the limit on air drift apart.
+   *
+   * Absent means the design's own margin mirrored, which is what the runtime has always derived
+   * (`svgGrowCap`) - so an import nobody dragged a cap line on emits the bytes it always did.
+   * Keyed by the BOX for the reason `perPanel` is: growth is something a rectangle does for
+   * whatever text sits inside it. Keyed by AXIS under it because a box told to get wider AND
+   * taller is two rules, and a cap belongs to one of them - the reader who pulls the bottom
+   * limit in has said nothing about how wide the box may get.
+   */
+  caps?: Record<string, { x?: number; y?: number }>;
 }
 
 /** Does this marker still name something in the file? A follower the reader declared and then
  *  dropped a NEW file over must not travel into the graphic as a rule pointing at nothing. */
-export function svgCandidateExists(draft: WizardDraft, candidateId: string): boolean {
+function svgCandidateExists(draft: SvgImportDraft, candidateId: string): boolean {
   const s = draft.designSvg;
   if (!s) return false;
   return [...s.candidates, ...s.images, ...s.outlines, ...s.groups, ...s.shapes].some(
@@ -512,7 +591,7 @@ export function svgCandidateExists(draft: WizardDraft, candidateId: string): boo
  * `undefined` rather than `[]` in that case, because an untouched import has to emit the bytes
  * it emitted before the question was ever asked.
  */
-export function hiddenSvgLayers(draft: WizardDraft): DesignSvgHidden[] | undefined {
+function hiddenSvgLayers(draft: SvgImportDraft): DesignSvgHidden[] | undefined {
   const gone = draft.svgFields
     .filter((f) => !f.on && f.whenOff === 'remove')
     .map((f) => ({ candidateId: f.candidateId }));
@@ -534,7 +613,7 @@ export function hiddenSvgLayers(draft: WizardDraft): DesignSvgHidden[] | undefin
  * new shape. Nothing is emitted where no plate ends up with a rule, which is every board, every
  * scorebug, and every import from before any of this existed.
  */
-export function svgGrowthOptions(draft: WizardDraft): DesignSvgGrowth[] | undefined {
+function svgGrowthOptions(draft: SvgImportDraft): DesignSvgGrowth[] | undefined {
   const shapes = draft.designSvg?.shapes ?? [];
   if (shapes.length === 0) return undefined;
   const graphicWide = draft.svgStretch.on ? draft.svgStretch.shapeId : null;
@@ -579,15 +658,25 @@ export function svgGrowthOptions(draft: WizardDraft): DesignSvgGrowth[] | undefi
   for (const shape of shapes) {
     for (const axis of axesOf.get(shape.id) ?? []) {
       const carries = shape.id === graphicWide && axis === carrier;
-      rows.push({ candidateId: shape.id, axis, ...(carries ? followers : {}) });
+      // THE CAP RIDES ITS OWN ROW, and only where the reader moved it: a box whose limit is
+      // still the design's own margin mirrored emits no `cap` at all, and the runtime derives
+      // the same number it always derived.
+      const cap = draft.svgStretch.caps?.[shape.id]?.[axis];
+      rows.push({
+        candidateId: shape.id,
+        axis,
+        ...(cap != null ? { cap } : {}),
+        ...(carries ? followers : {}),
+      });
     }
   }
   return rows;
 }
 
 /** The ladder rung a stored axis means. The draft has always held the axis; the rung is how a
- *  person picks, and a per-plate override is stored as the rung it was picked as. */
-function modeOfAxis(axis: 'x' | 'y' | 'xy' | undefined): SvgStretchMode {
+ *  person picks, and a per-plate override is stored as the rung it was picked as. Exported so
+ *  the step reads one box's answer with the same function the emitter writes it with. */
+export function modeOfAxis(axis: 'x' | 'y' | 'xy' | undefined): SvgStretchMode {
   return axis === 'y' ? 'grow-y' : axis === 'xy' ? 'grow-xy' : 'grow-x';
 }
 
@@ -635,7 +724,7 @@ export interface SvgFontDraft {
  * Data tab and canvas text tools use. The rect is in the artwork's SOURCE pixels; placement
  * is design px, so the fitToFrame ratio maps between them (the retina case).
  */
-export function withEraseSeedFields(template: SpxTemplate, draft: WizardDraft): SpxTemplate {
+function withEraseSeedFields(template: SpxTemplate, draft: SvgImportDraft): SpxTemplate {
   const art = draft.designArt;
   if (!art || draft.designErases.length === 0) return template;
   const k = art.width / (art.sourceWidth ?? art.width);
@@ -747,7 +836,7 @@ function seedTitle(index: number): string {
  * sanctioned deviation from preview == created code (docs/IMPORT_MVP.md): the demo exists
  * exactly so the user can verify the guides before creating.
  */
-export function withStretchDemoLine(template: SpxTemplate, draft: WizardDraft): SpxTemplate {
+function withStretchDemoLine(template: SpxTemplate, draft: SvgImportDraft): SpxTemplate {
   const art = draft.designArt;
   const hz = art?.stretch?.horizontal;
   if (!art || !hz || draft.designErases.length > 0) return template; // the erase-seeded fields are the demo
@@ -774,7 +863,7 @@ export function withStretchDemoLine(template: SpxTemplate, draft: WizardDraft): 
  * ONE DECIDER FOR BOTH BEHAVIOURS, because there is one rule: the step's sentence and
  * `svgBehaviourOption`'s refusal must never be able to disagree about what will happen.
  */
-export function behaviourBindingGaps(draft: WizardDraft): string[] {
+export function behaviourBindingGaps(draft: SvgImportDraft): string[] {
   const behaviour = draft.svgBehaviour;
   if (!behaviour) return [];
   if (behaviour.kind === 'poll') return pollBindingGaps(behaviour);
@@ -798,7 +887,7 @@ export function behaviourBindingGaps(draft: WizardDraft): string[] {
  * minimum. Everything optional stays the beginner path: a survey with no strikes drawn still
  * reveals and adds up.
  */
-function recipeBindingGaps(draft: WizardDraft, behaviour: SvgRecipeDraft): string[] {
+function recipeBindingGaps(draft: SvgImportDraft, behaviour: SvgRecipeDraft): string[] {
   const recipe = recipeById(behaviour.recipe);
   if (!recipe) return [`a behaviour NoaCG knows (“${behaviour.recipe}” is not one)`];
   const on = draft.svgFields.filter((f) => f.on);
@@ -872,7 +961,7 @@ function pollBindingGaps(poll: SvgPollDraft): string[] {
  * scores, corrects and resets - it simply plays nothing while it does, which is the beginner path
  * the quiz and the poll both keep.
  */
-function scoreBindingGaps(draft: WizardDraft, score: SvgScoreDraft): string[] {
+function scoreBindingGaps(draft: SvgImportDraft, score: SvgScoreDraft): string[] {
   const gaps: string[] = [];
   const on = draft.svgFields.filter((f) => f.on);
   const field = (candidateId: string) => on.find((f) => f.candidateId === candidateId);
@@ -912,7 +1001,7 @@ function scoreBindingGaps(draft: WizardDraft, score: SvgScoreDraft): string[] {
  * choice is one section higher up, on the clock layer's own row, and a reader told "which layer
  * is the clock" would look for a picker in front of them that does not exist.
  */
-function timerBindingGaps(draft: WizardDraft, timer: SvgTimerDraft): string[] {
+function timerBindingGaps(draft: SvgImportDraft, timer: SvgTimerDraft): string[] {
   const gaps: string[] = [];
   const on = draft.svgFields.filter((f) => f.on);
   if (!on.some((f) => f.kind === 'countdown')) {
@@ -958,7 +1047,7 @@ export function extraLayerName(label: string): string {
  * rather than compiled into a choice with one button. Absent when there are none, so an untouched
  * import builds the bytes it built before the question existed.
  */
-export function svgExtrasOptions(draft: WizardDraft): DesignSvgExtra[] | undefined {
+function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
   const exists = (id: string) => draft.designSvg?.groups.some((g) => g.id === id) ?? false;
   const out: DesignSvgExtra[] = [];
   for (const e of draft.svgExtras) {
@@ -976,7 +1065,7 @@ export function svgExtrasOptions(draft: WizardDraft): DesignSvgExtra[] | undefin
 }
 
 /** One line saying what the graphic DOES, for the Finish step and the mapping step's summary. */
-export function behaviourSummary(draft: WizardDraft): string {
+export function behaviourSummary(draft: SvgImportDraft): string {
   const parts: string[] = [];
   const behaviour = draft.svgBehaviour;
   if (behaviour) {
@@ -1009,7 +1098,7 @@ export function behaviourSummary(draft: WizardDraft): string {
  * Returns null unless the binding is usable — `behaviourBindingGaps` is the one place that
  * decides, so the step can SAY what is missing with the same rule that drops it.
  */
-export function svgBehaviourOption(draft: WizardDraft): DesignSvgBehaviour | null {
+function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
   const behaviour = draft.svgBehaviour;
   if (!behaviour) return null;
   if (behaviourBindingGaps(draft).length > 0) return null;
@@ -1211,7 +1300,7 @@ export function proposeSvgBehaviour(svg: SvgImportResult): SvgBehaviourDraft | n
  * is what keeps "the position shown in the wizard" and "the final editor/preview/export"
  * one and the same thing by construction.
  */
-export function withDesignFieldSpecs(template: SpxTemplate, draft: WizardDraft): SpxTemplate {
+function withDesignFieldSpecs(template: SpxTemplate, draft: SvgImportDraft): SpxTemplate {
   if (draft.designFields.length === 0) return template;
   // The shared applier (blocks/designFields.ts) - the same sequence the Pro reconstruction
   // compiler runs, so a placed spec means one thing everywhere.
@@ -1230,9 +1319,9 @@ export function withDesignFieldSpecs(template: SpxTemplate, draft: WizardDraft):
  * text arrives in the project's heading face, at the size, place, colour and alignment the
  * shapes had. The sizing rules are withEraseSeedFields's, for the same reasons it states.
  */
-export function withSvgOutlineFields(
+function withSvgOutlineFields(
   template: SpxTemplate,
-  draft: WizardDraft,
+  draft: SvgImportDraft,
   // PREVIEW ONLY (see WizardOptions.previewMarkers): the stand-in wears the replaced group's
   // candidate marker, so the mapping step's hover highlight points at the live text rather
   // than at shapes the template has hidden. The group itself gives its marker up for this
@@ -1294,5 +1383,93 @@ export function withSvgOutlineFields(
       };
     }
   }
+  return next;
+}
+
+// ── THE TWO DOORS THE SHARED DRAFT TAKES ────────────────────────────────────────────────────
+// Everything above is the capability's own; these two are what `../draft/core.ts` calls, and
+// they are deliberately the whole of it. Nine functions used to cross here, and the cost was
+// not the count - it was that the CALLER held the knowledge joining them: which layers become
+// numbered fields, and which order the template passes run in. Both facts now sit with the
+// code that decides them, and adding a tenth answer to the mapping step changes one file.
+
+/**
+ * WHAT THE MAPPED SVG BECOMES (docs/SVG_IMPORT_PLAN.md): the whole `designSvg` option block,
+ * or undefined outside the SVG road.
+ *
+ * THE FIELD LIST IS THE ONE THING HERE THAT IS ORDER-SENSITIVE. A field's id is its POSITION in
+ * this filtered list, so the filter, the markup binding and the control page agree only while
+ * exactly one place builds it. That is why the poll filter is applied here rather than by
+ * unticking the row in the step: a layer a poll drives is a display target, and the round
+ * writes its wording, its figure and its count. A second writer on the same node would have the
+ * operator watching their own typing be overwritten.
+ */
+export function svgDesignOptions(draft: SvgImportDraft): DesignSvg | undefined {
+  const svg = draft.designSvg;
+  if (!svg) return undefined;
+  const pollDriven = pollDrivenLayers(draft.svgBehaviour);
+  return {
+    markup: svg.markup,
+    width: svg.width,
+    height: svg.height,
+    fields: draft.svgFields
+      .filter((f) => f.on && !pollDriven.has(f.candidateId))
+      .map((f) => ({
+        candidateId: f.candidateId,
+        title: f.title.trim() || 'Text',
+        sample: f.sample,
+        numeric: f.numeric,
+        countdown: f.kind === 'countdown',
+        // Both ABSENT unless set, for the same reason `hidden` is: an untouched import must
+        // build the bytes it built before the alignment grid existed.
+        ...(f.align ? { align: f.align } : {}),
+        ...(f.keepNudge ? { nudge: true } : {}),
+      })),
+    images: draft.svgImages
+      .filter((f) => f.on)
+      .map((f) => ({ candidateId: f.candidateId, title: f.title.trim() || 'Picture' })),
+    // Only a MEASURED outline can be replaced: its field needs the box, and hiding the shapes
+    // without a stand-in would simply lose the designer's text.
+    outlines: draft.svgOutlines
+      .filter((f) => f.on && f.box)
+      .map((f) => ({ candidateId: f.candidateId })),
+    // The layers the author said to take OFF the artwork. Left ABSENT where nobody said so,
+    // rather than emitted empty: an untouched import must build the same bytes it built before
+    // the question existed.
+    hidden: hiddenSvgLayers(draft),
+    behaviour: svgBehaviourOption(draft) ?? undefined,
+    extras: svgExtrasOptions(draft),
+    // A growth rule travels only when it is both ON and pointed at a shape that still exists:
+    // a half-answered picker must never become a graphic that resizes at random.
+    growth: svgGrowthOptions(draft),
+    fonts: draft.svgFonts.map((f) => ({
+      family: f.family,
+      fontId: f.fontId ?? undefined,
+      customFont: f.customFont ?? undefined,
+    })),
+  };
+}
+
+/**
+ * EVERY PLACED LINE THE IMPORT ROAD ADDS, in the one order that is correct.
+ *
+ * The order IS the contract, because each pass numbers its fields after the last one's: the
+ * erase-seeded fields (what the Prepare step removed from the pixels) come first, then the
+ * stand-ins for outlined glyph groups, then the lines the reader drew in the Text and mapping
+ * steps. Run them the other way round and every id shifts, which moves the operator's inputs
+ * under their fingers and re-points the markup bindings at the wrong layers.
+ *
+ * The demo line is LAST and is preview-only: `create()` never passes `stretchDemo`, so the
+ * created project never carries it.
+ */
+export function withSvgImportPasses(
+  template: SpxTemplate,
+  draft: SvgImportDraft,
+  opts: { stretchDemo?: boolean; previewMarkers?: boolean } = {},
+): SpxTemplate {
+  let next = withEraseSeedFields(template, draft);
+  next = withSvgOutlineFields(next, draft, opts.previewMarkers);
+  next = withDesignFieldSpecs(next, draft);
+  if (opts.stretchDemo) next = withStretchDemoLine(next, draft);
   return next;
 }

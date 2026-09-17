@@ -276,6 +276,51 @@ export async function rowLayerName(row: Locator, candidateId: string): Promise<s
   return (await row.locator(`[data-testid="map-svg-driven-${candidateId}"] strong`).textContent()) ?? '';
 }
 
+/**
+ * WHAT ONE BOX DOES WITH A LONG VALUE, on the checklist heading that names it
+ * (docs/TEXT_BOX_BINDING.md, rung 4). Growth is chosen per box and the shape is never asked
+ * for, because the row IS the shape - so this is where the graphic-wide picker used to be.
+ *
+ * BY POSITION IN THE CHECKLIST, which is the artwork's own order: the marker ids behind the
+ * headings are the importer's business, and a spec spelling them out would be testing the
+ * inventory rather than the control.
+ */
+export function boxGrow(page: Page, n = 0): Locator {
+  return page.getByTestId('map-svg-fields').locator('[data-testid^="map-svg-box-grow-"]').nth(n);
+}
+
+/** Every box's answer at once, for a claim about all of them ("this board must not move"). */
+export function boxGrows(page: Page): Locator {
+  return page.getByTestId('map-svg-fields').locator('[data-testid^="map-svg-box-grow-"]');
+}
+
+/** The answer on the box holding a given row, for a file with several boxes where the claim is
+ *  about one line's own plate. */
+export function boxGrowOf(page: Page, candidateId: string): Locator {
+  return page
+    .locator('.map-svg-box-group', { has: page.getByTestId(`map-svg-row-${candidateId}`) })
+    .locator('[data-testid^="map-svg-box-grow-"]');
+}
+
+/**
+ * THE ANSWER THE STEP ARRIVED AT, as a claim about the FILE: the box that grows and the name it
+ * is headed with, or 'shrink' where none does. A corpus sidecar's `growth` column is one answer
+ * per file, and a file on that corpus has at most one growing box.
+ *
+ * `named` is the heading's TITLE, which carries the layer's own name and its drawn size - the
+ * pair a sidecar can be checked against, where the visible heading is the reader's name for it.
+ */
+export async function growthNow(page: Page): Promise<{ mode: string; named: string }> {
+  const selects = boxGrows(page);
+  for (let i = 0; i < (await selects.count()); i += 1) {
+    const mode = await selects.nth(i).inputValue();
+    if (mode === 'shrink') continue;
+    const head = selects.nth(i).locator('xpath=..');
+    return { mode, named: `${(await head.getAttribute('title')) ?? ''} ${(await head.textContent()) ?? ''}` };
+  }
+  return { mode: 'shrink', named: '(no box grows)' };
+}
+
 /** The candidate id of the mapping row for the layer the DESIGNER named, so a test names their
  *  own layer rather than a position in the checklist. */
 export async function rowLabelled(page: Page, label: RegExp): Promise<string> {

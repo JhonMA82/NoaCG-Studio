@@ -17,6 +17,8 @@ TOUCHES <files>   MINTS <slot, or ->
 GOAL   One sentence: what is true when this is done.
 WHY    The real problem it solves, or the goal it serves.
 READ   file, file, file.
+SPEC   docs/work-specs/<slug>/work.json AC-1,AC-2 (substantial work only; omit otherwise)
+SIZE   small or standard (substantial work; decompose large autonomously)
 DELEGATE <if used: pool, tools/read-write mode, absolute worktree, result route; evidence in GOAL/GATE>
 CORE   The coherent outcome that must stand on its own; optional tail only if time remains.
        Investigate, choose implementation, verify and repair within TOUCHES.
@@ -69,16 +71,22 @@ QUEUE  Then, as your LAST THREE actions and in this order:
 - **READ points, it never summarizes.** Name the files; the session reads them at current HEAD.
 - **TRAPS carries only what exists nowhere but a chat.** A trap already in a repo file gets a
   pointer. Reprinting an area contract is how these get fat.
-- **A starting prompt owns a coherent outcome, not a prescribed implementation.** Keep related
-  phases on one branch, commit verified phases, queue once. The worker chooses the steps.
 - Confirm the assigned branch and worktree before editing. Rename only a harness-created
   temporary branch; native Codex worktrees already carry the assigned branch (`hosts.md`).
 - At meaningful state changes, use `wave-launch progress` from the assigned checkout with the
   recorded `--worker-id`, `--state`, `--next-action` and optional `--blocker` (see `hosts.md`).
   These SHA-bound claims feed the existing tick; ready never means independently verified.
-- **CORE says where a long session may stop.** A prompt with six steps and no stated core is a
-  prompt that lands nothing when step four goes wrong.
-- **GATE is `npm run build` plus CI**; add a local browser job only for what CI cannot do.
+- **A starting prompt is a bounded outcome**, possibly several related steps in one `TOUCHES`
+  set. If discovery, implementation and verification cannot fit, split before dispatch using
+  `specs.md`; size `large` is a decomposition signal, not a launchable SPEC task.
+- **CORE is an independently verifiable stop**, not permission to drop required behaviour.
+  Preserve unfinished acceptance in the ledger and gap work in the wave; a landed slice is not a done parent.
+- **GATE is `npm run build` plus CI**; add a local browser job only for what CI cannot do. When a
+  GATE spells out a queued run, the COMMAND comes FIRST and the flags after it -
+  `node scripts/jobs.mjs add "npx playwright test <spec> --workers 1" --cost 0.5`. The
+  flag-before-command form prints usage and adds nothing, quietly enough to read as a queue that
+  refused; seven consecutive handoffs (HC to HJ, 2026-09-15 and -16) reported being given the
+  wrong order, so write it out rather than leaving each row to rediscover `jobs.mjs`'s usage line.
 - **QUEUE is mandatory on every prompt and is the last thing in it**, because the session running
   it may never see this file. Landing is serialized, not permissioned: a finished session queues
   itself and the machine-wide queue lands it - gated on CI, one branch at a time, pushing when it
@@ -105,10 +113,9 @@ QUEUE  Then, as your LAST THREE actions and in this order:
 - **A continuation prompt printed only in chat does not exist.** The handoff FILE is the one
   channel the next orchestrator reads. Chat is for the human watching; the file is for the system.
 - A row that **delegates** says so and names its fallback pool, on `routing.md`'s terms (step 3).
-- **A prompt that sanctions a fan-out says: collect results via FILES at agreed paths, never wait
-  on notifications.** A launched session never receives its own subagents' completion
-  notifications - they route to this orchestrator, which relays any stray report to the owning
-  session. Paid for twice; evidence: `incidents.md` "the fan-out that waited on notifications".
+- **Delegates write findings and evidence to agreed FILES before returning.** Return only task,
+  outcome, artifact paths, unresolved acceptance IDs and next action (target 200 words). Route
+  stray notifications to the owner via the existing relay; do not paste investigation logs.
 
 ## The confirmation pass - one sweep, before the plan ships
 

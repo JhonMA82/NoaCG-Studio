@@ -67,6 +67,7 @@
         <a href="#audience">Audience join pages</a>
         <a href="#behaviour">Graphics with behaviour</a>
         <a href="#data">Live data</a>
+        <a href="#data-example">One show, worked through</a>
         <p class="group">For developers</p>
         <a href="#claude-code">Coding agents &amp; the CLI</a>
       </nav>
@@ -1470,6 +1471,12 @@ CG 1-20 STOP</code></pre>
             <li><strong>A presenter view</strong> (a separate link) shows the host what is coming
               without giving them operator controls.</li>
           </ul>
+          <p>
+            No Twitch channel and no YouTube channel is the normal case, and it costs you
+            nothing here.
+            <a href="#audience-no-chat">An audience with no Twitch and no YouTube</a> walks the
+            whole road on one small show, from publishing to a vote on air.
+          </p>
         </section>
 
         <!-- ═══════════════════════ BEHAVIOUR ═══════════════════════ -->
@@ -1566,6 +1573,333 @@ CG 1-20 STOP</code></pre>
               Node connector polling Open-Meteo. The full reference, limits and error shapes are in
               <a href="https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/DATA_API.md">DATA_API.md</a>.</li>
           </ul>
+          <p>
+            None of the three says what any of it is <em>for</em>.
+            <a href="#data-example">One show, worked through</a> is the same machinery with a
+            real rundown around it.
+          </p>
+        </section>
+
+        <!-- ═══════════════════════ ONE SHOW ═══════════════════════
+             #data-example and #audience-no-chat are addresses: the app's own Data tab links
+             here, and so do the Live data and Audience sections above. They survive a
+             restructure even if the headings around them change.
+
+             This section EXTENDS those two; it never restates them. Every screen below was
+             built in the running app by `node scripts/docs-shots.mjs` (blocks 4 to 9) and
+             photographed there, so a reader who follows the steps lands on the pictures. When
+             one of these surfaces changes, re-run that script. Never hand-capture a
+             replacement: a stale screenshot cannot fail a build, and this is the one section
+             whose whole promise is that the screens look like this.
+        -->
+        <section id="data-example">
+          <h2>One show, worked through</h2>
+          <p>
+            Production data, bindings and tables all answer the same question. Where does the
+            number on screen come from? They are much easier to tell apart with a rundown around
+            them, so here is a small one. <strong>Hall Cup</strong> is a school sports night with
+            four graphics, one data tree, one table and a hall full of phones. Everything
+            below is that show, photographed as it was built.
+          </p>
+
+          <h3 id="example-pool">The four graphics</h3>
+          <p>
+            Make each one from the catalog. On the wizard's <strong>Finish</strong> step the
+            <strong>Production</strong> box is where the graphic goes: for the first, choose
+            <strong>&#65291; New production&hellip;</strong> and call it <strong>Hall Cup</strong>;
+            for the other three, pick Hall Cup out of the same list.
+          </p>
+          <div class="doc-table"><table>
+            <tr><th>Graphic</th><th>Catalog category</th><th>What it asks you to type</th></tr>
+            <tr><td><strong>Match Strip</strong><br /><small>the bug that stays up</small></td>
+              <td>Scoreboards</td>
+              <td>Team A, Score A, Team B, Score B</td></tr>
+            <tr><td><strong>Quiet Score</strong><br /><small>the card you cut to at half time</small></td>
+              <td>Scoreboards</td>
+              <td>Team A, Score A, Team B, Score B</td></tr>
+            <tr><td><strong>House Wire</strong><br /><small>the ticker along the bottom</small></td>
+              <td>Tickers</td>
+              <td>Ticker items, Label, Scroll speed (%)</td></tr>
+            <tr><td><strong>House Strap</strong><br /><small>the name under an interviewee</small></td>
+              <td>Lower thirds</td>
+              <td>Name, Title</td></tr>
+          </table></div>
+          <p>
+            Those field names matter more than they look. They are the words the rest of this
+            example binds by, which is also why the two scoreboards use the same four.
+          </p>
+
+          <h3 id="example-tree">The tree: what the whole show knows</h3>
+          <p>
+            Open the production and go to its <strong>Data</strong> tab. Press
+            <strong>&#9662; Raw JSON</strong>, paste this in, and press <strong>Apply
+            JSON</strong>.
+          </p>
+          <pre><code>{
+  "match": { "teamA": "Otava", "scoreA": 2, "teamB": "Karhut", "scoreB": 1 },
+  "tickerItems": [
+    "Junior final starts at 19:30",
+    "Canteen closes at 20:00",
+    "The bus home leaves from gate 4"
+  ]
+}</code></pre>
+          <figure class="doc-shot">
+            <img src="/docs/data-tree.png" width="1668" height="635" loading="lazy"
+              alt="The Production data panel listing five values with their paths: match.teamA, match.scoreA, match.teamB, match.scoreB and tickerItems." />
+            <figcaption>
+              <strong>Five values, five addresses.</strong> The panel flattens whatever you paste
+              into one row per value, and the grey text on the left is the address of that row.
+            </figcaption>
+          </figure>
+          <p>
+            That address is a <strong>path</strong>. Dots walk down the tree, so the number 2
+            lives at <code>match.scoreA</code> and the three ticker lines live together at
+            <code>tickerItems</code>. You never have to paste JSON to get one. The row at the
+            bottom adds a path and a value by hand, and a path that does not exist yet is created
+            on the way down.
+          </p>
+          <ul>
+            <li><strong>The type is kept.</strong> <code>4</code> is a number, <code>true</code>
+              is a boolean, <code>[1, 2]</code> is a list, and anything else is text. Number rows
+              get &minus; and + buttons. A list is one line per item, which is exactly what a
+              ticker's text box takes.</li>
+            <li><strong>This is state, not a command.</strong> Nothing on this panel plays, stops
+              or takes a graphic. That is the whole rule of <a href="#data">Live data</a>, and it
+              is what lets a feed run all night without ever airing anything.</li>
+            <li><strong>Keep the numbers you want to start from.</strong>
+              <strong>&#11015; Save as seed</strong> writes the current tree onto the production
+              itself, and <strong>&#10226; Reset to seed</strong> puts it back. Worth doing
+              before the first rehearsal, because the live tree is otherwise this browser's own
+              until the production is published.</li>
+          </ul>
+
+          <h3 id="example-bindings">The bindings: which field reads which path</h3>
+          <p>
+            A path does nothing on its own. A <strong>binding</strong> is what points one field
+            of one graphic at one path. Scroll to <strong>Bindings</strong> and press
+            <strong>Bind all by title</strong>.
+          </p>
+          <figure class="doc-shot">
+            <img src="/docs/data-bindings.png" width="1668" height="1083" loading="lazy"
+              alt="The Bindings list: both scoreboards bound to the same four paths and House Wire's Ticker items bound to tickerItems, each reading its value back, with House Strap's two fields left unbound." />
+            <figcaption>
+              <strong>Nine bound, four left alone.</strong> Both scoreboards landed on the same
+              four paths, because they ask for the same four things. The right-hand column is
+              what each field is showing at this moment, so a mistyped path reads as a blank here
+              instead of as a mystery on air.
+            </figcaption>
+          </figure>
+          <p>
+            It matched by the words. "Score A" found <code>match.scoreA</code> because the last
+            part of that path is the field's own title once case, spaces and punctuation are
+            ignored, and "Ticker items" found <code>tickerItems</code> the same way. Nothing was
+            guessed. Where two paths match one title the row stays empty and says which two it
+            found, because a binding that is right half the time is worse than a box you fill in
+            once.
+          </p>
+          <p>
+            The strap's <strong>Name</strong> and <strong>Title</strong> matched nothing, and
+            that is the correct answer rather than a gap. A guest's name is not something the
+            whole show shares. Click any row's box to pick a path out of the list, or type one,
+            and press the <strong>&#10005;</strong> twice to unbind it again.
+          </p>
+
+          <h3 id="example-air">One value, every graphic</h3>
+          <p>
+            Press + beside <code>match.scoreA</code> on the Data tab. Both scoreboards now say 3,
+            whichever of them is on air and whichever was cued first. That is what binding is
+            for. The score is the show's, not any one cue's, and nobody has to remember to retype
+            it on the half-time card.
+          </p>
+          <p>
+            You do not have to leave the Playout tab to move it either. A bound field is shown
+            there read-only, with the path it follows beside it, and the
+            <strong>&plusmn; LIVE NUMBERS</strong> row underneath moves the shared value with one
+            press.
+          </p>
+          <figure class="doc-shot">
+            <img src="/docs/data-cue.png" width="1103" height="1077" loading="lazy"
+              alt="The Match Strip cue on the Playout tab: four read-only fields each labelled with the production-data path it follows, and a row of plus and minus buttons for Score A and Score B." />
+            <figcaption>
+              <strong>The same values, on the operator's screen.</strong> The chain and the path
+              mean the box is not yours to type in. It says what the tree says. The presses under
+              it act on air immediately, and nothing else about the graphic changes.
+            </figcaption>
+          </figure>
+          <p>
+            Where the tree lives depends on one thing. An unpublished production keeps it in the
+            browser you are sitting at, which is why the seed is worth saving. A
+            <a href="#dashboard">published</a> production keeps it with the production, so every
+            operator and every feed is looking at the same numbers, and the
+            <a href="#data-api">Data API</a> writes into exactly this tree.
+          </p>
+
+          <h3 id="example-tables">The table: rows an operator picks from</h3>
+          <p>
+            Hall Cup interviews three people, and their names belong to no particular moment in
+            the show. That is what a <strong>table</strong> is for. It is a bank of rows,
+            nothing is live about it, and an operator loads the row they want when they want it.
+          </p>
+          <p>
+            Under <strong>Tables</strong>, choose <strong>Line-up / roster</strong> and press
+            <strong>&#65291; New table</strong>. Call it Interviews. The shape arrives with
+            Name, Number and Position; rename <strong>Position</strong> to
+            <strong>Title</strong>, remove <strong>Number</strong>, and type the rows.
+          </p>
+          <figure class="doc-shot">
+            <img src="/docs/data-table.png" width="1668" height="555" loading="lazy"
+              alt="The Interviews table on the Data tab: two columns called Name and Title, with three rows of guests." />
+            <figcaption>
+              <strong>Two columns, three rows.</strong> The column names are not decoration. They
+              are the strap's field titles, which is the whole of how a row finds its way into a
+              graphic.
+            </figcaption>
+          </figure>
+          <p>
+            The binding is the words again. A column called Title loads into the field called
+            Title, a column matching nothing is carried along and ignored, and a field no column
+            names keeps whatever it had. That is why a spreadsheet already using your field names
+            needs no mapping step: <strong>&#11014; Import CSV / JSON</strong> takes it as it is,
+            and says afterwards which of its columns actually matched. <strong>&#11015; Blank
+            CSV</strong> goes the other way and hands you a file with the right header row to
+            fill in.
+          </p>
+          <p>
+            Now go back to the <strong>Playout</strong> tab and select the House Strap cue. It
+            has grown a <strong>Load data row</strong> control. Picking a guest fills the cue you
+            are editing, which is the preview, and nothing more. The name reaches air when you
+            press <strong>&#10227; Take</strong>, like everything else.
+          </p>
+
+          <h3 id="example-which">Which of the two you want</h3>
+          <div class="doc-table"><table>
+            <tr><th></th><th>Production data</th><th>Tables</th></tr>
+            <tr><td>What it holds</td><td>One value that is true right now</td>
+              <td>Many rows, none of them current</td></tr>
+            <tr><td>Who writes it</td><td>An operator, a feed, or the Data API</td>
+              <td>You, or a spreadsheet you import</td></tr>
+            <tr><td>How a graphic gets it</td><td>A binding, and then always</td>
+              <td>An operator loads a row into one cue</td></tr>
+            <tr><td>Changing it</td><td>Moves every bound graphic at once</td>
+              <td>Changes nothing until a row is loaded</td></tr>
+            <tr><td>Hall Cup uses it for</td><td>The score and the ticker lines</td>
+              <td>The guest list</td></tr>
+          </table></div>
+          <p>
+            A score belongs in the tree because two graphics show it and it changes while one of
+            them is on air. A guest's name belongs in a table because only one graphic ever shows it
+            and the operator decides which one. When both would work, the question that settles
+            it is whether more than one graphic needs the same value at the same time.
+          </p>
+
+          <!-- THE SECOND HALF. Kept in this section rather than in #audience because it is the
+               same production: the reader has Hall Cup open, and an audience is the next thing
+               it grows. #audience states the capability and its rules; this states the road. -->
+          <h3 id="audience-no-chat">An audience with no Twitch and no YouTube</h3>
+          <p>
+            The first panel on the Audience tab is <strong>Chat sources</strong>, and it asks for
+            a Twitch channel or a YouTube video. Most people running a hall, a classroom or a
+            club night have neither, and they are not missing anything. Those two are a way of
+            pulling an <em>existing</em> chat into the same inbox. The room's own page is the
+            intake, and it is what Hall Cup uses.
+          </p>
+          <p>
+            Add two more graphics to the production first, both from the catalog:
+            <strong>House Question</strong> (Audience &amp; questions) for the messages, and
+            <strong>House Vote</strong> (Live votes) for the poll. Then:
+          </p>
+          <ol>
+            <li><strong>Publish the production.</strong> Nothing audience-related exists before
+              you do. An unpublished production shows <strong>&#9654; Start
+              production</strong> in the header and has no links to give out at all. Publishing
+              is free and needs an account.</li>
+            <li><strong>Take the audience link.</strong> <strong>Links</strong> in the header,
+              then <strong>Audience link</strong>. It reads
+              <code>noacg.studio/join/&lt;name&gt;</code>, and the name came from the
+              production's own name at that first publish. The <strong>Readable name</strong> row
+              below it changes the name to something you can say out loud. Do that before you
+              hand the link out, because a new name stops the old one working.</li>
+            <li><strong>Give it to the room.</strong> Read it out, put it on a holding slide, or
+              print a QR code of it. There is no app to install and nothing to sign in to, which
+              is the point.</li>
+            <li><strong>Open the door.</strong> On the Audience tab, tick <strong>Accepting
+              messages</strong>. Until you do, every phone that has the link says the production
+              is not taking part right now. Hall Cup leaves the mode beside it on
+              <strong>Questions</strong>; <strong>Comments</strong> is the same door asking for
+              something shorter. Worth knowing before you pick. The heading on the viewer's page
+              reads "Send us your question" in both, and nothing changes it yet.</li>
+          </ol>
+          <figure class="doc-shot phone">
+            <img src="/docs/audience-join.png" width="1140" height="1332" loading="lazy"
+              alt="The viewer's page on a phone: the production name, the heading Send us your question, a box for a name, a box for the question, and a Send button." />
+            <figcaption>
+              <strong>The whole of what the room gets.</strong> A name they can leave blank, a
+              box, and Send. This is the page itself, not a mock-up of it. The studio draws the
+              same thing under <strong>What viewers see</strong> on the Audience tab, from the
+              same code the phones run.
+            </figcaption>
+          </figure>
+          <p>
+            Nothing a viewer sends can air by itself. Every arrival lands in the inbox on that
+            same tab, where an operator edits a broadcast version of it, which never touches what
+            was actually sent, and presses <strong>&rarr; Send to rundown</strong>. That adds an
+            ordinary cue to the House Question graphic, and the cue goes to air on Take like any
+            other. There is no setting anywhere that skips those two steps.
+          </p>
+          <figure class="doc-shot">
+            <img src="/docs/audience-inbox.png" width="1662" height="425" loading="lazy"
+              alt="The moderation inbox: filter tabs reading Inbox, Approved, Shortlist and All, then two arrivals, each with an editable name and message and a row of buttons ending in Send to rundown." />
+            <figcaption>
+              <strong>The inbox, and the only road out of it.</strong> The two boxes on each row
+              are the broadcast version, yours to tidy. Shortlist, Approve and Reject sort the
+              pile; Now and Next point the presenter's own screen at one; Send to rundown is the
+              only one that reaches the rundown, and even that does not reach air.
+            </figcaption>
+          </figure>
+          <p>
+            <strong>Rehearse it before the room exists.</strong> On an unpublished production the
+            bar carries <strong>&#10227; Simulate 3 arrivals</strong>, which invents submissions
+            so you can practise the whole moderation round with nobody watching. The rows it
+            makes say "(rehearsal)" in their own text, so they cannot be mistaken for anybody's
+            words. The button is absent on a published production, because there a real audience
+            is sending.
+          </p>
+
+          <h4 id="example-vote">Putting a vote to the room</h4>
+          <p>
+            Type a question under <strong>Put a question to the room</strong>, give it two to
+            eight options on their own lines, and press <strong>Open voting</strong>. Every phone
+            holding the link switches to the ballot at once, and a viewer can change their mind
+            while it is open.
+          </p>
+          <figure class="doc-shot">
+            <img src="/docs/audience-vote.png" width="1626" height="245" loading="lazy"
+              alt="An open poll on the Audience tab: the question, its three options with a bar and a count each, and the buttons that stage the counts to a graphic or close the voting." />
+            <figcaption>
+              <strong>The counts live here and nowhere else.</strong> The join page never shows a
+              tally, in any mode. The reveal is a graphic, on air, at the moment the operator
+              chooses.
+            </figcaption>
+          </figure>
+          <p>
+            <strong>Stage counts to a graphic</strong> writes the question, the options and the
+            numbers into a cue for House Vote, and Take airs it. Press it again while the round is
+            still open and that same cue is updated rather than duplicated, so the rundown does not fill up with one row
+            per refresh. The figures on air move when the operator shows the result, not while
+            the room is still voting, which is what keeps a reveal a reveal. A board you
+            <a href="#svg-vote">drew yourself</a> can carry a <strong>Live figures</strong> layer,
+            and the Audience tab then offers a tick box to run the percentages live instead. A
+            catalog board like House Vote has no such layer, so the tick box is not on screen
+            for this show.
+          </p>
+          <p class="callout truth">
+            <span class="lbl">What was and was not run</span>
+            Everything in this section was driven in the studio: the tree, the bindings, the table
+            and its load, the inbox, and a vote from opening it to staging the counts. The one
+            step taken on trust is the published <code>noacg.studio/join/&lt;name&gt;</code>
+            link itself, which needs an account and the hosted backend. The page a phone loads
+            there is the page in the picture above, drawn by the same code.
+          </p>
         </section>
 
         <!-- ═══════════════════════ AGENTS ═══════════════════════ -->
@@ -1757,6 +2091,168 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
             vMix overlay, H2R and LiveOS. The full reference is
             <a href="https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/AGENT_CLI.md">AGENT_CLI.md</a>.
           </p>
+        </section>
+
+        <!-- ═══════════════════ THE 25 SEPTEMBER SESSION ═══════════════════ -->
+        <!--
+             Two one-page indexes for the live session of 25 September 2026, one per audience
+             (docs/DEMO_2026-09-25.md, beat G2). They are anchored sections on this page rather
+             than a page of their own for three reasons: they link into the guides above by
+             anchor, so there is one copy of every instruction; they print from a browser with
+             no build step; and a new public URL is a scope edge that goes back to the owner
+             (docs/PROGRAMMES.md, the rules block).
+
+             They are deliberately NOT in the left nav, which carries main topics only
+             (src/docs/AGENTS.md). Their address is what the deck and the demo script print, and
+             a dated workshop index would be noise in the nav for every other reader.
+
+             One sheet each is the point, and the print rules in src/docs/docs.css do it with
+             `:target`: /docs#session-student prints that index and nothing else. e2e/docs.spec.ts
+             pins both halves, because a handout that prints the whole manual is worse than none.
+        -->
+        <section id="session-student" class="one-pager">
+          <p class="kicker">For the room</p>
+          <h2>25 September: your index</h2>
+          <p>
+            The road in order, the page behind each step, and the work you take home.
+            <span class="print-note">To print it on a sheet of its own, open
+            <a class="plain-url" href="#session-student">noacg.studio/docs#session-student</a> and
+            press Ctrl+P. The address is what selects it, so the rest of these guides stay out of
+            the print.</span>
+          </p>
+
+          <p class="two-urls">
+            The studio: <a class="plain-url" href="/app"><strong>noacg.studio/app</strong></a><br />
+            These guides: <a class="plain-url" href="/docs"><strong>noacg.studio/docs</strong></a>
+          </p>
+
+          <h3>Road 1: your own graphic</h3>
+          <ol class="road">
+            <li>Draw it in Illustrator, Figma or Inkscape, or take one of ours. The file has to
+              obey <a href="#svg-rules">five rules</a>, and your app has its own
+              <a href="#svg-export">export settings</a>.</li>
+            <li>Drop it: <strong>New graphic</strong>, then <strong>Import graphic</strong>. The
+              same road walked slowly is
+              <a href="#first-graphic">your first graphic, step by step</a>.</li>
+            <li>Fields: your layer names become the names the operator reads, and every text layer
+              is on. <a href="#svg-layers">What each layer becomes</a>.</li>
+            <li>Type a name longer than you drew for. The panel widens, then the text wraps, and
+              only then does it shrink. One dropdown on the field row decides which.</li>
+            <li>Fonts: a bundled face, the Google library, or your own licensed file uploaded.
+              <a href="#svg-fonts">Fonts</a>.</li>
+            <li>Finish: name it, then <strong>Add to the production</strong>.
+              <strong>Create project</strong> in the footer does not save, so do not use it.</li>
+          </ol>
+
+          <h3>Road 2: your coding agent</h3>
+          <ol class="road">
+            <li>With no agent at all: <code>scaffold</code>, <code>validate</code> and
+              <code>save</code>, three commands in your own terminal.
+              <a href="#agent-setup">The reference</a> has them.</li>
+            <li>With Claude Code or Codex: <a href="#agent-install">paste one prompt</a>, then
+              <a href="#agent-loop">describe the graphic you want</a>.</li>
+            <li><code>noacg login</code> opens one consent page and <code>noacg save</code> puts
+              the graphic in your library. After you press Allow the terminal goes quiet: the key
+              is already stored, and Ctrl+C is safe.</li>
+          </ol>
+
+          <h3>On air</h3>
+          <ol class="road">
+            <li>Your library row, <strong>+ Production</strong>, a cue, then
+              <strong>Start production</strong>. Behind <strong>Links</strong> are the output URL
+              and the control URL. <a href="#dashboard">The playout dashboard</a>.</li>
+            <li>Take, Update and Out from the dashboard. Something you type waits until you press
+              Update. Open the control URL on a phone and that phone is a second operator.</li>
+          </ol>
+
+          <h3>The take-home: a quiz template and a scoreboard</h3>
+          <p>
+            In small groups, in Illustrator, two pieces each: a lower-third quiz template and a
+            scoreboard. Start them in the room and finish them in your own time. Draw both to the
+            five rules and name every layer. Two files in the
+            <a href="https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/svg-samples/README.md">practice library</a>
+            are the ones to open first: <code>quiz-board.svg</code> draws one hidden layer per
+            moment, meaning picked, right, wrong and locked in, and <code>scorebug.svg</code>
+            carries every field type the import can propose.
+          </p>
+          <p>
+            <strong>Where the finished files go.</strong> Export each piece as SVG with the
+            settings for your app, and email both to
+            <a href="mailto:contact.noacg@gmail.com">contact.noacg@gmail.com</a> with your group's
+            name in the subject. Send the Illustrator files as well if you want notes on the
+            drawing itself. Import them yourself at <a class="plain-url" href="/app">noacg.studio/app</a> first:
+            importing, editing and exporting need no account, so you can see what your layer names
+            became and rename the ones that read wrong before you send anything. Every file that
+            arrives is imported here and run in a production, and you get back what each layer
+            became and which names to change. If your board runs end to end we will ask whether we
+            may add it to the practice library with your names on it.
+          </p>
+        </section>
+
+        <section id="session-owner" class="one-pager">
+          <p class="kicker">Running order</p>
+          <h2>25 September: who drives what, and when</h2>
+          <p>
+            Ninety minutes. A beat that runs long is cut at the next beat's boundary rather than
+            stretched. <span class="print-note">To print it on a sheet of its own, open
+            <a class="plain-url" href="#session-owner">noacg.studio/docs#session-owner</a> and press
+            Ctrl+P.</span>
+          </p>
+
+          <div class="doc-table"><table>
+            <tr><th>Time</th><th>Beat</th><th>Who drives</th></tr>
+            <tr>
+              <td>0:00, 10 min</td>
+              <td>Opening: what NoaCG is, and the two roads as one picture</td>
+              <td>Host, on the deck</td>
+            </tr>
+            <tr>
+              <td>0:10, 20 min</td>
+              <td>Road 1: one simple lower third, imported and played</td>
+              <td>The room, on their own laptops</td>
+            </tr>
+            <tr>
+              <td>0:30, 25 min</td>
+              <td>Drawing: small groups start the quiz template and the scoreboard</td>
+              <td>The groups</td>
+            </tr>
+            <tr>
+              <td>0:55, 25 min</td>
+              <td>Road 2: the CLI with no agent, then one agent end to end</td>
+              <td>Host on screen, the room alongside</td>
+            </tr>
+            <tr>
+              <td>1:20, 10 min</td>
+              <td>On air, and the close: a production, its output URL, take and update, then both
+                of these indexes</td>
+              <td>The room, with the host pointing</td>
+            </tr>
+          </table></div>
+
+          <h3>What to say out loud</h3>
+          <ul>
+            <li><strong>Sign-up.</strong> The dialog says "Check your email to confirm your
+              account". Confirmation is off and the account works at once, so ignore that
+              line.</li>
+            <li><strong>Where air stops today.</strong> The hosted NoaCG player. No OBS on a
+              laptop, no CasparCG server in the room, no playout configuration. That is a separate
+              studio session.</li>
+            <li><strong>Create project.</strong> The wizard footer's button hands the graphic to
+              the editor without saving it. Both doors on Finish save first.</li>
+            <li><strong>Fonts.</strong> A licensed face takes the upload road. A Google family is
+              fetched while you design and embedded, so the export touches no network.</li>
+            <li><strong>After Allow.</strong> <code>noacg login</code> stores the key and then
+              stays open instead of exiting. Ctrl+C at that point is safe.</li>
+            <li><strong>The link <code>save</code> prints.</strong> It lands on Home with the
+              graphic in Recent graphics. Say "it is in your library" and open it from there.</li>
+            <li><strong>The clock, as two numbers.</strong> 24.8 seconds of tool time for the seven
+              local verbs, and 9.3 seconds for <code>save</code> into the live library. Two runs on
+              two days, so say both numbers and do not round them up to minutes.</li>
+            <li><strong>If the venue network blocks the app</strong>, run the session off a phone
+              hotspot.</li>
+            <li><strong>Before the room leaves</strong>, point at the student index and say that
+              the take-home is emailed in.</li>
+          </ul>
         </section>
       </div>
     </div>

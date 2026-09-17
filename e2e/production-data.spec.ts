@@ -3,6 +3,7 @@ import { createProject } from './_create';
 import { openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
 import { parkFocusOffControls } from './_keys';
+import { PRODUCTION_DATA_KEY } from '../src/model/productionState';
 
 // The production DATA workspace (docs/INTERACTIVE_PLAYOUT_PLAN.md D3/D6): the show's own
 // tables, edited on the Data tab, loaded into CUES on the Playout tab by deliberate operator
@@ -720,4 +721,382 @@ test('the playout column stays hidden behind the Data workspace, rundown include
   }
   // Still MOUNTED, which is the other half of the contract: hidden, never unmounted.
   expect(await data.locator('.pd-rail').count()).toBe(1);
+});
+
+// ── AC-7: a stepper on a BOUND field moves the shared value ──────────────────────────────────
+
+/** A second graphic into the production this page already holds, on its own layer. */
+async function addSecondGraphic(page: Page, variant: string, production: string): Promise<void> {
+  await createProject(page, { name: variant });
+  await page.getByTestId('dock-tab-control').click();
+  const section = page.locator('.panel-section', { hasText: 'Productions' });
+  // A fresh document remounts the panel, so the production has to be re-picked by name.
+  const value = await section.locator('select option', { hasText: production }).getAttribute('value');
+  await section.locator('select').selectOption(value!);
+  await section.getByRole('button', { name: '+ Add current' }).click();
+  await expect(section.locator('.status-ok')).toContainText('is in the production');
+  await section.getByTestId('open-production-page').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+}
+
+test('a ± press on a bound field moves the shared value, and every graphic bound to it follows', async ({ page }) => {
+  // THE BUG THIS CLOSES (docs/PRODUCTION_DATA_PLAN.md §2.9): the ± stepper wrote ONE field on ONE
+  // graphic, so on a production where two graphics show the same score the operator moved one of
+  // them and the next write of the shared value put it back. Phase 3 makes the press move the
+  // VALUE, and both graphics follow through the diff that already existed.
+  //
+  // A big score strip and a small bug, both showing the home score, is the shape the owner asked
+  // for on 2026-09-15: a score entered once shows everywhere. Both scoreboard families call the
+  // home score `f1` (src/templates/scoreboards/shared.ts), so one path binds the same slot twice.
+  await createProject(page, { name: 'House Score' });
+  await productionFor(page, 'Derby Data');
+  await addSecondGraphic(page, 'Club Scorebug', 'Derby Data');
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(2);
+
+  // ── ONE value, bound on BOTH graphics ──
+  const data = await openWorkspace(page, 'data');
+  await addValue(data, 'match.home.score', '0');
+  await data.getByTestId('bind-House Score-f1').fill('match.home.score');
+  await data.getByTestId('bind-Club Scorebug-f1').fill('match.home.score');
+  await expect(data.getByTestId('bind-value-House Score-f1')).toHaveText('0');
+  await expect(data.getByTestId('bind-value-Club Scorebug-f1')).toHaveText('0');
+  await settleDurableWrites(data);
+
+  // ── Both on air, each on its own layer ──
+  await page.getByTestId('verb-take').click();
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  const strip = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="20"]');
+  const bug = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="21"]');
+  await expect(strip.locator('#f1')).toHaveText('0');
+  await expect(bug.locator('#f1')).toHaveText('0');
+
+  // The bound field reads out rather than editing, on the cue whose ± is about to be pressed:
+  // there is no box to type a value into that nothing would ever air (§2.7).
+  await expect(page.getByTestId('cue-bound-f1')).toBeVisible();
+  await expect(page.getByTestId('cue-field-f1')).toHaveCount(0);
+
+  // ── THE PRESS. One ± on the bug, and the STRIP moves too. ──
+  await page.getByTestId('live-number-f1-up').click();
+  await expect(bug.locator('#f1')).toHaveText('1');
+  await expect(strip.locator('#f1')).toHaveText('1');
+  // It moved the VALUE, not the field: the tree is what both are reading.
+  await expect(data.getByTestId('data-value-match.home.score')).toHaveValue('1');
+  // …and it stayed a NUMBER, so a feed writing the same path does not find a string there.
+  await expect(data.getByTestId('data-row-match.home.score')).toContainText('number');
+
+  // ── An UNBOUND number field on the same graphic is exactly what it always was: one partial
+  //    update to this graphic alone, mirrored into its own cue. ──
+  const awayBefore = Number((await bug.locator('#f3').textContent()) ?? 0);
+  const stripAway = await strip.locator('#f3').textContent();
+  await page.getByTestId('live-number-f3-up').click();
+  await expect(bug.locator('#f3')).toHaveText(String(awayBefore + 1));
+  await expect(strip.locator('#f3')).toHaveText(stripAway ?? '');
+  await expect(page.getByTestId('cue-field-f3')).toHaveValue(String(awayBefore + 1));
+  // The shared value did not move for it.
+  await expect(data.getByTestId('data-value-match.home.score')).toHaveValue('1');
+});
+
+test('an adjust on a bound field patches the tree, and the event still fires', async ({ page }) => {
+  // The second half of AC-7. A scoreboard's GOAL carries `adjust: { f1: 1 }`, so the press used to
+  // ride the new figure as the event's payload and mirror it into the cue. With f1 bound, the
+  // figure is not this graphic's to carry: the event fires on its own and the score arrives as the
+  // tree's own update row, on every graphic bound to the path.
+  await createProject(page, { name: 'House Score' });
+  await productionFor(page, 'Goal Data');
+  await addSecondGraphic(page, 'Club Scorebug', 'Goal Data');
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+
+  const data = await openWorkspace(page, 'data');
+  await addValue(data, 'match.home.score', '2');
+  await data.getByTestId('bind-House Score-f1').fill('match.home.score');
+  await data.getByTestId('bind-Club Scorebug-f1').fill('match.home.score');
+  await settleDurableWrites(data);
+
+  await page.getByTestId('verb-take').click();
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await cues.nth(0).locator('.pd-cue-label').click();
+  const strip = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="20"]');
+  const bug = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="21"]');
+  await expect(strip.locator('#f1')).toHaveText('2');
+  await expect(bug.locator('#f1')).toHaveText('2');
+
+  // GOAL: the flag plays on the strip AND the shared figure moves on both.
+  await page.getByTestId('cue-action-goalA').click();
+  await expect(page.getByTestId('machine-state-chip')).toContainText('Flag');
+  await expect(strip.locator('#f1')).toHaveText('3');
+  await expect(bug.locator('#f1')).toHaveText('3');
+  await expect(data.getByTestId('data-value-match.home.score')).toHaveValue('3');
+
+  // The cue did NOT take the figure: a bound field is never a cue value, so taking this cue again
+  // airs the tree rather than re-airing whatever the press happened to leave behind.
+  const stored = await page.evaluate(() => {
+    const shows = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as {
+      name: string;
+      cues: { values: Record<string, string> }[];
+    }[];
+    return shows.find((s) => s.name === 'Goal Data')?.cues.map((c) => c.values.f1 ?? null) ?? [];
+  });
+  expect(stored).not.toContain('3');
+  await page.getByTestId('verb-take').click();
+  await expect(strip.locator('#f1')).toHaveText('3');
+});
+
+// ── AC-8: "Bind all by title" accepts every unambiguous suggestion in one press ──────────────
+
+test('Bind all by title binds every unambiguous title in one press, and leaves the ambiguous one bound-empty with a reason', async ({ page }) => {
+  // Two graphics sharing a scoreboard family (both title f1 "Score A" and f0 "Team A" -
+  // src/templates/scoreboards/shared.ts), so their matching titles are meant to bind in one
+  // press rather than one field at a time.
+  await createProject(page, { name: 'House Score' });
+  await productionFor(page, 'Derby Bindings');
+  await addSecondGraphic(page, 'Club Scorebug', 'Derby Bindings');
+
+  const data = await openWorkspace(page, 'data');
+  // The tab explains itself before anything is pressed: a closed drawer for the three blocks,
+  // and the button's rule on the line under the heading it sits beside. Both are copy a student
+  // reads once, so the spec pins that they are there and what they claim, not their wording.
+  const explain = data.getByTestId('data-explain');
+  await expect(explain).toBeVisible();
+  await expect(explain).not.toHaveAttribute('open');
+  await expect(explain.locator('a')).toHaveAttribute('href', '/docs#data-example');
+  await expect(data.getByTestId('bind-all-rule')).toContainText('exactly one path');
+  await addValue(data, 'match.scoreA', '10');
+  // Two leaves end in "teamA" - an ambiguous title, on purpose - so the button must leave it
+  // unbound rather than guess.
+  await addValue(data, 'match.teamA', 'Home');
+  await addValue(data, 'results.teamA', 'Away');
+
+  // ── The per-graphic button: House Score's Score A binds, its Team A stays unbound and says
+  //    why, and the fields with no matching leaf at all (Team B, Score B) carry no note. ──
+  await data.getByTestId('bind-all-House Score').click();
+  await expect(data.getByTestId('bind-all-note-House Score')).toContainText('1 field bound');
+  await expect(data.getByTestId('bind-House Score-f1')).toHaveValue('match.scoreA');
+  await expect(data.getByTestId('bind-House Score-f0')).toHaveValue('');
+  const ambiguous = data.getByTestId('bind-ambiguous-House Score-f0');
+  await expect(ambiguous).toContainText('match.teamA');
+  await expect(ambiguous).toContainText('results.teamA');
+  await expect(data.getByTestId('bind-ambiguous-House Score-f2')).toHaveCount(0);
+  await expect(data.getByTestId('bind-ambiguous-House Score-f3')).toHaveCount(0);
+  // The second graphic is untouched by the first graphic's button.
+  await expect(data.getByTestId('bind-Club Scorebug-f1')).toHaveValue('');
+
+  // ── The whole-production button reaches every graphic at once, including the one whose
+  //    button was never pressed. ──
+  await data.getByTestId('bind-all-production').click();
+  await expect(data.getByTestId('bind-all-note-production')).toContainText('1 field bound');
+  await expect(data.getByTestId('bind-Club Scorebug-f1')).toHaveValue('match.scoreA');
+  await expect(data.getByTestId('bind-ambiguous-Club Scorebug-f0')).toContainText('match.teamA');
+
+  // A second press finds nothing left unbound and unambiguous: an already-bound field is never
+  // re-suggested, so the button is idempotent rather than something to press exactly once.
+  await data.getByTestId('bind-all-production').click();
+  await expect(data.getByTestId('bind-all-note-production')).toContainText('Nothing left to bind');
+
+  // ── ONE GRID. The rows on this tab are each their own grid, and until 2026-09-16 their tracks
+  //    depended on the row's own content, so on a wide screen the path box started at a
+  //    different x on a row with a Suggest button, a row with an ambiguity note and a plain row.
+  //    Measured as geometry over the mixed shape this test has just built: value rows above
+  //    (text and number leaves, so with and without steppers), binding rows below (bound,
+  //    ambiguous and empty). Every box shares one left edge across BOTH blocks, and every
+  //    delete button one right edge. ──
+  await data.setViewportSize({ width: 1440, height: 900 });
+  const edges = await data.evaluate(() => {
+    const lefts = (selector: string) =>
+      Array.from(document.querySelectorAll(selector)).map((el) => Math.round(el.getBoundingClientRect().left));
+    const rights = (selector: string) =>
+      Array.from(document.querySelectorAll(selector)).map((el) => Math.round(el.getBoundingClientRect().right));
+    return {
+      boxLefts: [...lefts('.pd-live-row > input'), ...lefts('.pd-bind-row > input')],
+      deleteRights: [...rights('.pd-live-row > .pd-live-del'), ...rights('.pd-bind-row > .pd-live-del')],
+    };
+  });
+  expect(edges.boxLefts.length).toBeGreaterThan(6);
+  expect(new Set(edges.boxLefts).size, `path boxes start at ${edges.boxLefts.join(', ')}`).toBe(1);
+  expect(edges.deleteRights.length).toBeGreaterThan(3);
+  expect(new Set(edges.deleteRights).size, `delete buttons end at ${edges.deleteRights.join(', ')}`).toBe(1);
+  await expect(data.getByTestId('bind-House Score-f1')).toHaveValue('match.scoreA');
+});
+
+// ── ONE EDIT, ONE WRITE ─────────────────────────────────────────────────────────────────────
+//
+// THE COUNT IS THE CLAIM. A value box used to call the tree writer on every `input` event, so a
+// twelve-character team name was twelve persists and twelve wire updates. Published, that is
+// twelve HTTP PATCHes against an ingest budget of 25 per 5 s: the run 429s, and the failure
+// handler answers by pulling the server's OLDER tree back in - which lands in the box the
+// operator is still typing into. Unpublished it is twelve read-modify-writes of every
+// production's tree, plus an update row per bound graphic each time.
+//
+// PERSISTS ARE THE ONE NUMBER WORTH COUNTING, because everything downstream hangs off them: the
+// wire update fires from `resolved`, which only moves when the tree moves, and on a published
+// production the persist IS the PATCH. Offline a persist is a `localStorage` write, so the probe
+// wraps `setItem` and counts the writes to the production-data key.
+
+/** Count every write to the production data key, in every page opened after this call. */
+async function countPersists(page: Page): Promise<void> {
+  await page.context().addInitScript((key: string) => {
+    // GUARDED WHOLE, the way e2e/_storage.ts explains: an init script runs inside the sandboxed
+    // preview iframes too, where touching a storage API can throw, and an uncaught error there
+    // lands in the page-error listeners other specs assert empty.
+    try {
+      const w = window as unknown as { __dataPersists?: number };
+      w.__dataPersists = 0;
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (this: Storage, k: string, value: string) {
+        if (k === key) w.__dataPersists = (w.__dataPersists ?? 0) + 1;
+        return setItem.call(this, k, value);
+      };
+    } catch {
+      /* no storage to wrap here */
+    }
+  }, PRODUCTION_DATA_KEY);
+}
+
+/** Zero it, so the count is the gesture under test and not the setup that preceded it. */
+async function resetPersists(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    (window as unknown as { __dataPersists?: number }).__dataPersists = 0;
+  });
+}
+
+/**
+ * The panel commits an edit after this long without a keystroke (`EDIT_SETTLE_MS` in
+ * src/components/home/useDeferredEdits.ts). The tests need it for one reason only: to say what a
+ * SLOW machine is allowed to cost. See `expectOneEditOneWrite`.
+ */
+const SETTLE_MS = 500;
+
+/**
+ * Assert what ONE edit cost, without pinning how fast the machine running the test is.
+ *
+ * The claim is one write per edit rather than one per character, and on any healthy run `allowed`
+ * is 1, which is that claim exactly. A runner that stalls mid-word genuinely made two edits - the
+ * settle timer fired between two keystrokes, exactly as an operator pausing would make it - so
+ * the budget grows by one per settle window the typing actually spanned, and never comes anywhere
+ * near the one-per-character count these tests exist to refuse (twelve, and five, before this).
+ */
+async function expectOneEditOneWrite(page: Page, typedMs: number): Promise<void> {
+  const count = await page.evaluate(() => (window as unknown as { __dataPersists?: number }).__dataPersists ?? 0);
+  const allowed = 1 + Math.floor(typedMs / SETTLE_MS);
+  expect(
+    count,
+    `one edit must cost one write; typing took ${typedMs}ms, so at most ${allowed} settle${allowed === 1 ? '' : 's'} could have fired`,
+  ).toBeLessThanOrEqual(allowed);
+}
+
+/** Type into a focused box and say how long it took, so the count above can be judged. */
+async function typeAndTime(type: () => Promise<void>): Promise<number> {
+  const started = Date.now();
+  await type();
+  return Date.now() - started;
+}
+
+/** The value the persisted tree holds at `path`, or null - read from storage, not from the box,
+ *  so the assertion is about what LANDED rather than about what is on screen. */
+async function persistedValue(page: Page, path: string): Promise<unknown> {
+  return await page.evaluate(([key, p]: [string, string]) => {
+    const store = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown>;
+    const tree = Object.values(store)[0];
+    let node: unknown = tree;
+    for (const step of p.split('.')) {
+      if (!node || typeof node !== 'object') return null;
+      node = (node as Record<string, unknown>)[step];
+    }
+    return node ?? null;
+  }, [PRODUCTION_DATA_KEY, path] as [string, string]);
+}
+
+test('typing a value costs ONE persist for the whole edit, not one per character', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Rate Budget');
+  await countPersists(page);
+  const data = await openWorkspace(page, 'data');
+  await addValue(data, 'match.home.name', 'Suomi');
+
+  // The gesture: select the whole value and retype it, character by character, the way an
+  // operator correcting a team name does. `pressSequentially` is the point - `fill` sets the
+  // value in one event and so cannot tell the two behaviours apart.
+  const box = data.getByTestId('data-value-match.home.name');
+  await resetPersists(data);
+  await box.click();
+  await box.press('ControlOrMeta+a');
+  const typedMs = await typeAndTime(() => box.pressSequentially('Helsinki IFK'));
+  await expect(box).toHaveValue('Helsinki IFK');
+  await box.blur();
+
+  // Waiting for the tree is what makes the count honest: poll until the edit has LANDED, then
+  // ask how many writes it took to get there.
+  await expect.poll(() => persistedValue(data, 'match.home.name')).toBe('Helsinki IFK');
+  await expectOneEditOneWrite(data, typedMs);
+});
+
+test('an operator who types and walks away still has the value persisted', async ({ page }) => {
+  // THE TRAP THE DEBOUNCE MUST NOT SPRING. Committing on blur alone would leave a typed value in
+  // a box nobody ever leaves - the operator types the new clock and turns back to the desk - so
+  // the timer commits it unattended, and what it commits is the LAST keystroke.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Walk Away');
+  await countPersists(page);
+  const data = await openWorkspace(page, 'data');
+  await addValue(data, 'match.clock', '12:31');
+
+  const box = data.getByTestId('data-value-match.clock');
+  await resetPersists(data);
+  await box.click();
+  await box.press('ControlOrMeta+a');
+  const typedMs = await typeAndTime(() => box.pressSequentially('20:00'));
+  await expect(box, 'nothing may move the focus out of the box').toBeFocused();
+  await expect.poll(() => persistedValue(data, 'match.clock')).toBe('20:00');
+  await expectOneEditOneWrite(data, typedMs);
+});
+
+test('a refresh arriving mid-word never overwrites the box under the cursor', async ({ page }) => {
+  // THE REVERT HAZARD. The tree moves under a box that is being typed into - a feed tick, a
+  // second operator, or this page's own recovery after a refused write - and the box is a
+  // CONTROLLED input, so whatever the tree now says lands in it mid-word. THE RULE: a box holding
+  // an uncommitted edit shows what was typed and nothing else, until that edit is committed.
+  //
+  // THE PROBE is the PLAYOUT tab writing the same path. Offline that is the same door a server
+  // refresh comes through - ProductionPage's `storage` listener - and it costs one `evaluate`,
+  // which neither fronts a tab nor moves the focus, so the box under test keeps its caret.
+  //
+  // It runs WHILE the word is still being typed, because an uncommitted edit is only
+  // uncommitted for as long as the typing keeps it so. Awaiting the write and then typing would
+  // be a race against this panel's own settle timer; typing THROUGH the write is not.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Mid Word');
+  const dataOne = await openWorkspace(page, 'data');
+  await addValue(dataOne, 'match.home.name', 'Suomi');
+
+  const box = dataOne.getByTestId('data-value-match.home.name');
+  await box.click();
+  await box.press('ControlOrMeta+a');
+  await box.pressSequentially('Hels');
+  await expect(
+    box,
+    `a box with an uncommitted edit says so - unless the machine stalled past the ${SETTLE_MS}ms settle window between the last keystroke and this assertion`,
+  ).toHaveAttribute('data-dirty', 'true');
+
+  await Promise.all([
+    page.evaluate((key: string) => {
+      const store = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<
+        string,
+        { match?: { home?: { name?: string } } }
+      >;
+      const tree = store[Object.keys(store)[0]];
+      if (!tree?.match?.home) throw new Error('the production tree is not where this probe expects it');
+      tree.match.home.name = 'Norge';
+      localStorage.setItem(key, JSON.stringify(store));
+    }, PRODUCTION_DATA_KEY),
+    box.pressSequentially('inki', { delay: 100 }),
+  ]);
+
+  // The word is whole: nothing that arrived while it was being typed reached the box.
+  await expect(box, 'the arriving write must not reach a box under the cursor').toHaveValue('Helsinki');
+  await box.blur();
+  await expect(box).toHaveValue('Helsinki');
+  // …and the edit wins its own path when it commits, over the value that arrived meanwhile.
+  await expect.poll(() => persistedValue(dataOne, 'match.home.name')).toBe('Helsinki');
 });

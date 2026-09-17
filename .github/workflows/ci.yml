@@ -365,6 +365,19 @@ jobs:
           # handoffs deep). The fork point is an ancestor of HEAD whatever came before, so the
           # plan is the same honest answer every time: this branch's whole work, plus what main
           # brought in since the fork. It can only plan MORE than `before`, never less.
+          #
+          # IT STAYS UNCONDITIONAL, re-measured 2026-09-16. The proposal was to apply the fork
+          # point only when no finished run exists for `before`, and to ask `gh run list` which.
+          # That condition can do exactly one thing: hand the base back to `before` in the case it
+          # judges safe - which plans LESS than the fork point - and it buys that with an API call
+          # on the critical path of every branch push. There is nothing for it to win, because the
+          # fork point is already the honest answer when the earlier run DID finish.
+          # The measurement behind the re-read: of 158 branch push runs in the week to 2026-09-16,
+          # 12 were green straight after a cancelled run on the same branch, and 4 of those ran no
+          # E2E shard. All 4 measured from here and planned `mode: none` over docs, handoffs,
+          # `.gitignore` and scripts the app never loads. No false green among them. Run
+          # 34574967445, filed as proof this was still broken, is this block working: base
+          # dbcc88b9, two markdown files in the whole branch diff, `mode: none`.
           if [ "$EVENT" = "push" ] && [ "$REF" != "refs/heads/main" ] \
             && git rev-parse --verify --quiet origin/main >/dev/null; then
             FORK="$(git merge-base origin/main HEAD 2>/dev/null || true)"

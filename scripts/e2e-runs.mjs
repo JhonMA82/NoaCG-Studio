@@ -29,6 +29,7 @@
 //   node scripts/e2e-runs.mjs            list active runs; exit 1 if any, 0 if none
 //   node scripts/e2e-runs.mjs --json     the same as one machine-readable object
 //   node scripts/e2e-runs.mjs --wait     block until no run is active, then exit 0
+//   node scripts/e2e-runs.mjs --diagnose [--json]  sample advisory holder evidence (5 seconds)
 //   node scripts/e2e-runs.mjs --orphans  list browser/worker processes and DEV SERVERS with no
 //                                        live CLI to belong to
 //   node scripts/e2e-runs.mjs --kill-orphans   close them, freeing the RAM and the e2e port
@@ -147,14 +148,15 @@ function posixNodeProcesses() {
 export function allProcesses() {
   if (process.platform !== 'win32') return [];
   const script =
-    '@(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate) | ' +
+    '@(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate,KernelModeTime,UserModeTime) | ' +
     'ConvertTo-Json -Depth 3 -Compress';
   const res = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], {
     encoding: 'utf8',
     windowsHide: true,
     maxBuffer: 64 * 1024 * 1024,
+    timeout: 10_000, // A diagnostic must return unknown if the OS query stalls.
   });
-  if (res.status !== 0 || !res.stdout?.trim()) return [];
+  if (res.status !== 0 || res.stderr?.trim() || !res.stdout?.trim()) return [];
   try {
     const rows = JSON.parse(res.stdout);
     return (Array.isArray(rows) ? rows : [rows]).map((r) => ({
@@ -166,6 +168,8 @@ export function allProcesses() {
       // `orphanedCodexTrees` refuses to kill a pid whose start time is not the one that was
       // recorded, so this field is what makes a recorded kill safe hours after the recording.
       createdMs: msFromCimDate(r.CreationDate),
+      cpuSeconds: r.KernelModeTime != null && r.UserModeTime != null
+        ? (Number(r.KernelModeTime) + Number(r.UserModeTime)) / 10_000_000 : null,
     }));
   } catch {
     return [];
@@ -390,6 +394,90 @@ export function describeRuns(runs) {
     .join('\n');
 }
 
+/** Diagnostic policy only. None of these values decide ownership, scheduling or cleanup. */
+export const HOLDER_SAMPLE_MS = 5_000;
+export const HOLDER_MIN_AGE_MS = 10 * 60_000;
+const BROWSER = /^(?:chrome(?:-headless-shell)?|chromium|msedge|firefox|webkit.*|MiniBrowser|playwright)(?:\.exe)?$/i;
+
+/** A successful full OS table is required to claim absence of browser descendants. */
+export function holderSample() {
+  const processes = allProcesses();
+  return { at: Date.now(), complete: process.platform === 'win32' && processes.length > 0, processes };
+}
+
+/**
+ * Advisory classification over two full snapshots. CPU is a delta for the SAME identities,
+ * including every descendant, never cumulative lifetime CPU and never evidence of death.
+ * A changed tree or inaccessible row is unknown, rather than assumed idle.
+ */
+export function diagnoseHolders(runs, before, after, {
+  minAgeMs = HOLDER_MIN_AGE_MS, minWindowMs = HOLDER_SAMPLE_MS, maxWindowMs = 120_000,
+  maxCpuSeconds = 0.05,
+} = {}) {
+  const windowMs = after?.at - before?.at;
+  const identity = (p) => p && Number.isFinite(p.createdMs) && Number.isFinite(p.cpuSeconds)
+    && p.cpuSeconds >= 0 && typeof p.name === 'string' && p.name.length > 0;
+  const family = (sample, run) => {
+    const root = sample.processes.find((p) => p.pid === run.pid);
+    if (!identity(root) || root.createdMs !== run.startedAt || root.createdMs > sample.at) return null;
+    if (new Set(sample.processes.map((p) => p.pid)).size !== sample.processes.length) return null;
+    const rows = [root, ...descendantsOf([run.pid], sample.processes)];
+    if (rows.some((p) => !identity(p))) return null;
+    // descendantsOf intentionally skips impossible parent links. In a diagnostic those links
+    // mean incomplete evidence, not proof that the omitted child does not exist.
+    const ids = new Set(rows.map((p) => p.pid));
+    if (ids.has(root.ppid) || rows.some((p) => p.pid === p.ppid)) return null;
+    if (sample.processes.some((p) => ids.has(p.ppid) && !ids.has(p.pid))) return null;
+    return rows;
+  };
+  return runs.map((run) => {
+    const result = { pid: run.pid, root: run.root, ageMs: after?.at - run.startedAt,
+      windowMs, cpuDeltaSeconds: null, descendantCount: null, browserPids: null,
+      status: 'unknown', reason: 'missing or incomplete process samples' };
+    if (!before?.complete || !after?.complete
+      || !Array.isArray(before.processes) || !Array.isArray(after.processes)) return result;
+    const first = family(before, run), last = family(after, run);
+    if (!first || !last) return { ...result, reason: 'missing or recycled process identity, CPU or descendant evidence' };
+    const previous = new Map(first.map((p) => [p.pid, p]));
+    if (first.length !== last.length || last.some((p) => previous.get(p.pid)?.createdMs !== p.createdMs)) {
+      return { ...result, reason: 'descendant identities changed between samples' };
+    }
+    const deltas = last.map((p) => p.cpuSeconds - previous.get(p.pid).cpuSeconds);
+    if (deltas.some((delta) => !Number.isFinite(delta) || delta < 0)) return { ...result, reason: 'invalid CPU delta' };
+    result.cpuDeltaSeconds = deltas.reduce((sum, delta) => sum + delta, 0);
+    result.descendantCount = last.length - 1;
+    result.browserPids = last.slice(1).filter((p) => BROWSER.test(p.name)).map((p) => p.pid);
+    if (!Number.isFinite(windowMs) || windowMs < minWindowMs || windowMs > maxWindowMs) {
+      return { ...result, reason: 'sample window outside diagnostic bounds' };
+    }
+    if (result.ageMs < 0) return { ...result, reason: 'invalid process age' };
+    if (result.ageMs < minAgeMs) return { ...result, status: 'young', reason: 'holder is still young' };
+    if (result.browserPids.length) return { ...result, status: 'browser-active', reason: 'browser descendants are present' };
+    if (result.cpuDeltaSeconds > maxCpuSeconds) return { ...result, status: 'cpu-active', reason: 'holder or descendants used CPU during the window' };
+    // Only another, identity-confirmed holder can explain a blockingRuns wait. A sweep never
+    // waits in globalSetup, and blockingRuns' sweep case must not excuse a self-wait.
+    const others = runs.filter((other) => other.pid !== run.pid && family(before, other) && family(after, other));
+    const blockers = run.kind === 'run' ? blockingRuns(others, run) : [];
+    if (blockers.length) return { ...result, status: 'waiting', reason: `yields to other holder pid ${blockers.map((p) => p.pid).join(', ')}` };
+    return { ...result, status: 'suspected-idle', reason: 'sustained low CPU with no browser descendants; advisory only, not an orphan or permission to terminate' };
+  });
+}
+
+/** Short status output shares the exact evidence exposed in JSON. */
+export function describeHolderDiagnostics(diagnostics) {
+  return diagnostics.map((d) => `  - pid ${d.pid}: ${d.status}; age ${Number.isFinite(d.ageMs) ? Math.round(d.ageMs / 1000) + 's' : 'unknown'}; `
+    + `CPU delta ${d.cpuDeltaSeconds === null ? 'unknown' : d.cpuDeltaSeconds.toFixed(3) + 's'} over ${d.windowMs}ms; `
+    + `descendants ${d.descendantCount ?? 'unknown'}, browsers ${d.browserPids?.length ?? 'unknown'}; ${d.reason}`).join('\n');
+}
+
+/** Explicit status reads pay one bounded window; no scheduler or cleanup caller uses this. */
+export async function sampleHolderDiagnostics(runs = activeRuns({})) {
+  if (!runs.length) return [];
+  const before = holderSample();
+  await new Promise((done) => setTimeout(done, HOLDER_SAMPLE_MS));
+  return diagnoseHolders(runs, before, holderSample());
+}
+
 /** The Vite dev server, however it was launched (`npx vite`, the `.bin` shim, a direct node call). */
 const DEV_SERVER = /node_modules[/\\]+(?:\.bin[/\\]+\.{2}[/\\]+)?vite[/\\]+bin[/\\]+vite\.js/;
 
@@ -454,7 +542,8 @@ export function orphanedDevServers(processes, root = repoRoot) {
 // it. Measured that evening on this laptop: 47 node.exe holding 2.3 GB, of which 30 belonged to
 // three delegations that had finished 6, 8 and 13 hours earlier. One family is a broker, a
 // `codex.js app-server`, a `codex.exe`, and the MCP servers that codex.exe starts - about 450 MB,
-// resident forever, on a 16 GB machine whose job queue refuses to start work below a 4 GB floor.
+// resident forever, on a 16 GB machine whose job queue refuses to start work below a free-RAM
+// floor of 3.0 to 4.0 GB, depending on whether anybody is at the machine.
 //
 // WHY THE PARENT CHAIN CANNOT BE THE ANSWER, and this is the whole reason the record exists. Half
 // of every family is ALREADY severed: the broker spawns its app-server through a shell, that
@@ -659,11 +748,10 @@ function isRecorded(live, owned) {
  * reads it, because the job store is its business and not this module's. With none, the codex
  * half of the answer is empty, which is the fail-closed direction: no record, no candidate.
  */
-export function orphanProcesses({ delegations = [] } = {}) {
-  const runsExist = nodeProcesses().some((p) => RUNNER.test(p.command));
-  const workers = nodeProcesses().filter((p) => WORKER.test(p.command));
-  const shells = browserShells();
-  const table = allProcesses();
+export function orphanProcesses({ delegations = [], nodes = nodeProcesses(), shells = browserShells(), table = allProcesses() } = {}) {
+  // Sweeps own browser descendants too. CPU diagnostics never enter this decision.
+  const runsExist = nodes.some((p) => RUNNER.test(p.command) || SWEEP.test(p.command));
+  const workers = nodes.filter((p) => WORKER.test(p.command));
   const servers = orphanedDevServers(table);
   // A live Playwright CLI says nothing about a Codex delegation, so it does not gate this half.
   // The Playwright leftovers are proved orphaned by the ABSENCE of a CLI; a delegation tree is
@@ -697,6 +785,13 @@ function browserShells() {
 if (process.argv[1] && normalize(process.argv[1]) === normalize(fileURLToPath(import.meta.url))) {
   const args = process.argv.slice(2);
 
+  if (args.includes('--diagnose')) {
+    const diagnostics = await sampleHolderDiagnostics();
+    console.log(args.includes('--json') ? JSON.stringify({ diagnostics })
+      : describeHolderDiagnostics(diagnostics) || 'No browser-driving holders.');
+    process.exit(0); // information only, never a scheduling verdict
+  }
+
   if (args.includes('--orphans')) {
     const { workers, shells, servers } = orphanProcesses();
     const mb = shells.reduce((sum, s) => sum + s.mb, 0);
@@ -709,7 +804,7 @@ if (process.argv[1] && normalize(process.argv[1]) === normalize(fileURLToPath(im
       `Orphaned from a killed or crashed run: ${workers.length} worker process(es), ` +
         `${shells.length} browser shell(s) holding ~${mb} MB, and ${servers.length} dev server(s).` +
         serverLines +
-        '\nNo Playwright CLI is running, so nothing will reap these. ' +
+        '\nNo browser-driving run is present, so nothing will reap these. ' +
         'A dev server left here also holds its checkout\'s e2e PORT, which is what makes the next ' +
         'run refuse to start. Close them with:\n' +
         '  node scripts/e2e-runs.mjs --kill-orphans',
@@ -723,7 +818,7 @@ if (process.argv[1] && normalize(process.argv[1]) === normalize(fileURLToPath(im
       console.log('Nothing to clean up.');
       process.exit(0);
     }
-    // Only ever reached when NO Playwright CLI is running, so none of these can belong to a
+    // Only ever reached when NO browser-driving run is present, so none of these can belong to a
     // live run - that check is the whole safety argument for killing anything here. A dev
     // server clears a second bar on top of it: its launch chain has no living owner either,
     // so it is not somebody's `npm run dev` or a preview the tools started.

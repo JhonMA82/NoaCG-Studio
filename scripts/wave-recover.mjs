@@ -9,6 +9,7 @@ import { inStore, wavePlanFiles, wavePlansDir } from './wave-plan-store.mjs';
 import { parseWaveTable, parsePromptBlocks } from './wave-plan-check.mjs';
 import { parseWindowStart, parseWindowEnd } from './wave-horizon.mjs';
 import { git, samePath, worktreeEntries } from './worktree-cleanup-lib.mjs';
+import { planAcceptance, checkWorkFile } from './work-spec.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const newest = (rows) => [...rows].sort((a, b) => b.enqueuedAt - a.enqueuedAt)[0];
@@ -84,12 +85,15 @@ export function branchFacts(root = ROOT, jobs = []) {
   return facts;
 }
 
-export function recoverWave({ dir, plan, branches, now = Date.now() }) {
+export function recoverWave({ dir, plan, branches, root = ROOT, now = Date.now() }) {
   if (!inStore(plan, dir)) throw new Error('plan must be in the shared wave-plan store');
   const text = readFileSync(plan, 'utf8');
   const parsed = parseWaveTable(text);
   if (parsed.problems.length) throw new Error(parsed.problems.join('; '));
   const rows = recoverRows({ text, plan, branches, launches: readLaunches(dir), progress: readProgress(dir), jobs: readJobs(dir), landings: readLandings(dir) });
+  // Branch execution and parent acceptance have different authorities. Reuse the tick's
+  // acceptance reader so recovery never silently closes a parent whose slice landed.
+  const features = planAcceptance(text, { check: (record) => checkWorkFile(record, { root }) });
   const end = parseWindowEnd(text);
   const eventPath = path.join(dir, 'wave-tick-events.log');
   const snapshotPath = path.join(dir, 'wave-tick-state.json');
@@ -100,11 +104,12 @@ export function recoverWave({ dir, plan, branches, now = Date.now() }) {
   } catch { /* Missing/corrupt observation is explicitly unknown; it cannot authorize dispatch. */ }
   return {
     plan, readOnly: true, window: { startsAt: parseWindowStart(text), endsAt: end, expired: end === null ? null : now >= end },
-    observation, rows,
+    observation, rows, features,
     context: { planBytes: Buffer.byteLength(text), promptBytes: [...parsePromptBlocks(text).values()].reduce((sum, block) => sum + Buffer.byteLength(block.text), 0) },
     // This bounded tail is for diagnosis, not a replay cursor or a completion counter.
     recentEvents: existsSync(eventPath) ? readFileSync(eventPath, 'utf8').trim().split('\n').slice(-12) : [],
-    nextAction: 'reconcile the existing coordinator and worker IDs; refresh tick/CI before acting; never infer an idle slot from unknown',
+    nextAction: 'reconcile the existing coordinator and worker IDs; refresh tick/CI before acting; never infer an idle slot from unknown'
+      + (features.length ? '; inspect parent acceptance and preserve open criteria in bounded gap work before claiming parent completion' : ''),
   };
 }
 
@@ -123,6 +128,7 @@ export function main(argv = process.argv.slice(2)) {
     else {
       process.stdout.write(`${result.plan}\nWindow expired: ${result.window.expired ?? 'unknown'}; observation: ${result.observation?.at ?? 'unknown'}; plan ${result.context.planBytes} bytes\n`);
       for (const row of result.rows) process.stdout.write(`${row.letter} ${row.state} ${row.branch ?? '?'} ${row.sha ?? '?'} - ${row.goal}\n  owner ${row.owner.host ?? '?'}/${row.owner.workerId ?? '?'}; ${row.nextAction}\n`);
+      for (const feature of result.features) process.stdout.write(`Parent ${feature.record}: ${feature.status}; open ${feature.openCriteria.join(', ') || '-'}; ${feature.problems} problem(s), ${feature.gaps} gap(s)\n`);
       process.stdout.write(`${result.nextAction}\n`);
     }
     return 0;

@@ -18,8 +18,9 @@ session and a second one on 2026-09-02 (below).
 ## Why
 
 This is a 16 GB laptop and the number of sessions a wave can run is set by free RAM, nothing
-else. The job queue refuses to start work below a 4.0 GB floor (`POLICY.freeMemFloorMb` in
-`scripts/jobs-store.mjs`), and on the night this was written two catalog jobs sat refused at
+else. The job queue refuses to start work below a free-RAM floor (`POLICY.freeMemFloorMb` in
+`scripts/jobs-store.mjs`; 4.0 GB when this was written, and since 2026-09-16 3.0 GB whenever the
+machine is declared away), and on the night this was written two catalog jobs sat refused at
 "only 3.1 GB RAM free, needs 4.0" while four sessions were open. A sibling session's gates were
 idle for want of memory that no process was doing anything with.
 
@@ -142,4 +143,6 @@ Measured 2026-09-02, 16.2 GB total and 5.5 GB free, four sessions and a live e2e
 
 The ASUS virtual pet was not running at measurement time; it is on the list so it is covered when
 it is. The RAM economics behind the 3-4 session ceiling were measured on 2026-08-28 and the floor
-they feed is `POLICY.freeMemFloorMb` in `scripts/jobs-store.mjs`.
+they feed is `POLICY.freeMemFloorMb` in `scripts/jobs-store.mjs`. That floor was measured itself on
+2026-09-16 - `docs/JOB_RUNNER_PLAN.md`, "What a job actually costs in RAM" - and a session now costs
+about 550 MB here, which is the number to plan a wave's size against.

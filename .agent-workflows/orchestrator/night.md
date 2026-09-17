@@ -53,11 +53,11 @@ chain instead of by pre-approval:
   what catches the belief being wrong, and what it finds goes in the continuation's own handoff
   either way.
 - **A continuation is a FRONTIER row the landing just uncovered, and nothing else.** Its GOAL and
-  WHY come from the landed handoff's own "what is left"; that why traces to `## NOW`, an ACTIVE
+  WHY use the handoff's "what is left" as evidence, checked against its active spec and `## NOW`, an ACTIVE
   programme, an owner receipt or the wave's stated goals; its files are free; and it waits on no
   human - an item that needs a ruling, a walk, a payment or a credential goes to needs-you in the
-  report, never continued around. The loop writes the prompt in the section-5 format, quoting the
-  handoff's why verbatim, and names its POOL like any row. Work whose why the loop cannot trace is
+  report, never continued around. The loop writes the prompt in the section-5 format, preserving
+  the spec's acceptance IDs when present, and names its POOL. Work whose why the loop cannot trace is
   a candidate row in the report, never a launch - the north star is what keeps an unattended loop
   from optimising toward nowhere.
 - **Bounds:** chain depth at most 2 from any owner-started session; total continuations per wave
@@ -98,8 +98,10 @@ Each tick, in this order, and nothing else:
    durable state before acting. Stdout can be lost to compaction - the morning report reads that log, not the loop's
    memory. The script observes and never acts - launching, holding and every judgement stay in
    this session.
-2. Read the delta. What refused, and which kind (`report.md`); what landed; who is waiting. A
-   stalled worker is REPORTED, never killed - but its slot counts as free when launching cohort
+2. Read the delta. What refused, and which kind (`report.md`); what landed; who is waiting.
+   `PARENT OPEN` or open-parent summary means acceptance is unfinished even if its workers landed:
+   plan the next bounded gap row under `specs.md` and use the existing refill controls below.
+   A stalled worker is REPORTED, never killed - but its slot counts as free when launching cohort
    rows, so one hung session cannot park the rest of the night behind it.
    **A branch tip that has stopped moving is NOT the stall signal**, and reading it as one has
    already produced a wrong diagnosis (`incidents.md` "the seven-hour hang that was not one"). The

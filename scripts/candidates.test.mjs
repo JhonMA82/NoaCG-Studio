@@ -48,6 +48,14 @@ test('no Candidates section parses to nothing', () => {
 const durations = { small: { n: 6, p90: 70 }, standard: { n: 6, p90: 200 }, large: { n: 0, p90: null } };
 const latency = { gate: { n: 10, p90: 12 }, wait: { n: 10, p90: 6 } };
 
+test('oversized work requests autonomous decomposition without starving a bounded candidate', () => {
+  const rows = parseCandidates(TABLE); rows[0].size = 'large';
+  const result = evaluate(rows, { entries: [], durations, latency, remainingMin: 1200 });
+  assert.equal(result.results[0].heldOn, 'decompose');
+  assert.match(result.results[0].reason, /autonomously split/);
+  assert.equal(result.pick.letter, 'N');
+});
+
 test('with room for everything the pick is the first candidate in the planner\'s order', () => {
   const { pick } = evaluate(parseCandidates(TABLE), { entries: [], durations, latency, remainingMin: 300 });
   assert.equal(pick.letter, 'M'); // standard needs 200+12+6+30=248 <= 300

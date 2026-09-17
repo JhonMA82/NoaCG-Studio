@@ -10,8 +10,9 @@ says *"the home score is 4"* and never *"sb03 is on air"*.
 - **Phase 2 SHIPPED and APPLIED** - migration `0048` is pushed to the linked project, and
   `PATCH /api/data/patch` + `GET /api/data/state` are live on the existing catch-all. Authoring
   detail is **§13**; what applying it proved, and the live walk, is **§14**.
-- **Phase 3** (the client following the server tree, controller convergence, `liveData.ts`
-  retirement) is still design only - §4 and §14's "still open".
+- **Phase 3, the stepper half, SHIPPED 2026-09-16** - a ± press and an event's `adjust` on a bound
+  field move the shared value on both dashboards (§2.9, migration 0060). The rest of Phase 3 - bind
+  all by title, and `liveData.ts`'s retirement - is still open (§14's "still open").
 
 Read `docs/CLOUD_PLAYOUT.md` (§7 is the ingress doctrine), `docs/DATA_API.md` (the shipped
 first slice) and `docs/INTERACTIVE_PLAYOUT_PLAN.md` D3/D5 first - this plan is a thin layer
@@ -207,6 +208,42 @@ verified surface across **three** renderers (two React, one vanilla in
 
 **Phase 1:** data-scoped steppers live in the Data panel. The field-scoped stepper stays for
 unbound fields, unchanged. **Converge in Phase 3**, once bindings have run a real show.
+
+> **CONVERGED 2026-09-16** (`38277938`), which is the half of Phase 3 this section owns. On both
+> dashboards a ± press and an event's `adjust` on a bound field move the shared value; an unbound
+> field keeps the field stepper; the exported controller, which carries no tree, is untouched.
+> Row 10 of `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5 - bind all by title - is still open.
+
+**What converging actually needed, beyond the branch in the two press handlers.**
+
+- **The press boundary is a rule of its own, and it is the inverse of §2.4.** A press computes a
+  STRING, because that is what a field holds; the tree is JSON. `retypeLeaf` reads the string back
+  into the type the leaf already had, so an operator's bump cannot turn a feed's number into a
+  string or a `lines` array into one joined line. Guessing the type from the TEXT - which is what
+  `reparseLeaf` does for a value box, correctly - would make a jersey number `07` become 7.
+- **A binding may name an array element, and merge-patch cannot address one.** `patchForPath`
+  answers null for `drivers.0.gap` by design (§2.5), so a press building its patch that way would
+  silently do nothing on a legitimate binding. `withTreeWrites` walks the tree with `setPath` and
+  lets `replacementPatch` say the difference; an indexed binding costs a whole-array patch, which
+  is the RFC's limit and not a bug in the press.
+- **A bound field leaves the field road entirely.** It is off the event's payload, out of the cue
+  mirror and out of the hosted staging buffer - §2.7 with nowhere left to leak. A control whose
+  every moved field is bound fires BARE, and its figures arrive as the tree's own update rows.
+- **The two budgets were conflated and are not any more.** `control_data_patch` marks its rows
+  `src:'api'` and charges them to the 25-per-5-s ingest cap, whose whole purpose is that the
+  operator keeps the rest. An operator's press charged to it would let a saturated feed refuse the
+  operator's own score. Migration 0060 marks an operator's rows `src:'operator'`, which spend only
+  the production's ordinary 50-per-5-s allowance.
+- **The hosted page had no route to the tree at all.** It holds a control slug and no data key, and
+  `control_show_by_slug` returned neither `data` nor `bindings`. 0060 adds `control_data_by_slug`
+  and `control_data_patch_by_slug` on that slug, which widens nothing: the same slug already
+  appends `update` rows to any graphic through `control_send_many`, and a patch resolves to
+  exactly those rows. It also closed a §2.7 hole that surface had from the start - its ⟳ Take sent
+  the cue over the staging buffer with no bound overlay, so its own press was regressed by the
+  next Take.
+- **A page must follow ANY `src`, not `api` alone.** The in-app page re-read the tree when a FEED
+  wrote. A press on a phone writes `src:'operator'`, and missing it would leave the app airing a
+  stale figure on its next Take.
 
 ---
 
@@ -690,3 +727,47 @@ same page already holds, which can play, stop and clear graphics.
   (§14) - plus the RLS grant the key read depends on, read from 0008. The uncovered part is the
   wiring in `ProductionPage`, and the way to close it is an owner opening a published
   production's Data tab and watching a `scripts/weather-feed.mjs` tick land in it.
+
+## 16. The mechanism finally has a user-facing example (2026-09-16)
+
+Everything above is the plan's own vocabulary: tree, leaf, path, binding, resolve, patch. None of
+it had ever been written down for the person who has to USE it, and the owner's read on
+2026-09-16 was the predictable one: *"the production data, the bindings, and the tables are a bit
+confusing. How are those supposed to be used?"*
+
+`/docs#data-example` is the answer, and it is deliberately ONE small show rather than a second
+reference. "Hall Cup" carries two scoreboards, a ticker and a name strap; the tree holds
+`match.scoreA` and a `tickerItems` list; `Bind all by title` binds nine of the thirteen fields and
+leaves four alone; a table called Interviews fills the strap a row at a time. The second
+scoreboard is there because the headline claim - one value moves every graphic that reads it -
+cannot be SHOWN by a pool where no two graphics ever want the same number. Seven screenshots,
+all captured from the running app by `node scripts/docs-shots.mjs` (blocks 4 to 9) against that
+exact production, so a reader who copies the JSON lands on the pictures.
+
+**The distinction the section exists to draw** is the one §2.8 states architecturally and nobody
+outside this file had ever been told: production data is the one thing that is true right now and
+wires itself into graphics, and a table is a bank of candidate rows an operator picks from.
+Tables were not documented on `/docs` at all before this.
+
+**Two facts a reader needs that this plan implies rather than states.** An unpublished
+production's tree is this browser's localStorage (`model/productionState.ts`), so `⬇ Save as
+seed` is what makes values travel with the production; published, the server's copy is the
+authority and every operator shares it. Both are now on the public page in those words.
+
+**The same defect, found twice in one night, and the better fix won.** Photographing the Data tab
+showed `.pd-bind-row` and `.pd-live-row` were both five-track grids that their own rows only ever
+filled four of: a bound binding row has no suggestion, and a text leaf has no ± stepper, so in
+each case the delete ✕ fell into a wide `fr` track and drew as a slab tens of pixels left of the
+✕ on the row above it. Every row also sized its own columns from its own content, so the path
+inputs never lined up.
+
+The Data-tab row (`0e49eeec`, `524d9b96`, `70b878a6`) found the same thing independently, from
+the other direction, and landed first with a deeper repair: the delete button PINNED to the last
+track on both rules, and the label and path columns lifted into `--pd-label-col` /
+`--pd-path-col` on `.pd-live` so the tree and the bindings agree with EACH OTHER rather than each
+being internally straight, plus an `fr` fallback for both under 900px. That is the version in the
+tree; the screenshot row's own placement-by-class fix was dropped whole at the merge rather than
+reconciled, because it was the same diagnosis and the narrower answer.
+
+**Nothing in `e2e/` measures either rule's geometry**, which is why a defect this visible survived
+in both. Two rows had to look at the screen on the same night to find it.

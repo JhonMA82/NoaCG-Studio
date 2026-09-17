@@ -6,7 +6,7 @@ import { localWorkers } from './scripts/e2e-workers.mjs';
 // user experiences it. Run with `npm run test:e2e`.
 // The port comes from scripts/dev-port.mjs (5174 in the main checkout, a stable per-worktree
 // port in a linked worktree), so parallel worktrees never reuse each other's servers.
-const base = `http://localhost:${devPort()}`;
+const base = `http://127.0.0.1:${devPort()}`;
 const isCi = Boolean(process.env.CI);
 
 // THE BLOB FILE MUST BE UNIQUE PER SHARD, and only Playwright's own `--shard=i/n` makes it so on
@@ -103,7 +103,7 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run dev',
+    command: 'npm run dev -- --host 127.0.0.1',
     url: base,
     reuseExistingServer: true,
     timeout: 60_000,

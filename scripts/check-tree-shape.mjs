@@ -55,7 +55,12 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   'docs.html', 'e2e',
   'eslint.config.js', 'index.html', 'join.html', 'ograf.html', 'output.html', 'package-lock.json',
   'package.json', 'packs', 'player-host', 'playwright.catalog.config.ts', 'playwright.config.ts',
-  'playwright.live.config.ts', 'privacy.html', 'public', 're-design', 'render-worker', 'scripts', 'src',
+  'playwright.live.config.ts',
+  // The deployed site's own tiny suite (playwright.production.config.ts): it points a browser at
+  // https://noacg.studio rather than at anything local, which is a tier the three configs above
+  // cannot cover, so it sits beside them rather than inside e2e/.
+  'playwright.production.config.ts',
+  'privacy.html', 'public', 're-design', 'render-worker', 'scripts', 'src',
   'supabase', 'terms.html', 'tsconfig.api.json', 'tsconfig.json', 'vercel.json', 'vite.config.ts',
 ]);
 

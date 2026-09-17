@@ -41,13 +41,13 @@ export default defineConfig({
   use: {
     // The live suite runs beside the offline one, so it takes the dev port's odd neighbour
     // (5175 in the main checkout; per-worktree otherwise — see scripts/dev-port.mjs).
-    baseURL: `http://localhost:${livePort()}`,
+    baseURL: `http://127.0.0.1:${livePort()}`,
     trace: 'on-first-retry',
   },
   projects: [{ name: 'configured', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: `vite --port ${livePort()} --strictPort`,
-    url: `http://localhost:${livePort()}`,
+    command: `vite --host 127.0.0.1 --port ${livePort()} --strictPort`,
+    url: `http://127.0.0.1:${livePort()}`,
     reuseExistingServer: true,
     timeout: 60_000,
     // NO Supabase override here (unlike the offline config): Vite loads VITE_SUPABASE_URL / _ANON_KEY

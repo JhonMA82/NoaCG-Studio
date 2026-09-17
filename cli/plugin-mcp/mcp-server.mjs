@@ -15,10 +15,18 @@
 // fresh user with no global install must still get a working server, and for them this stays
 // exactly as expensive as the plugin already was, never more.
 
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+// The staleness check (docs/backlog/a-stale-global-cli-wins-over-npx-silently.md): an installed
+// copy wins over npx silently, so a machine that ran `npm i -g @noacg/cli` once keeps that version
+// forever with nothing on screen saying so. One cached registry read fixes that. The read itself
+// lives in npm-latest.mjs, which `noacg doctor` runs too - a GENERATED copy of cli/src/npmLatest.mjs
+// (cli/scripts/build-skill.mjs writes it; its `--check` fails if the two drift). It is a copy and
+// not an import from the resolved CLI on purpose: the CLI being checked may predate the check.
+import { fetchLatestVersion } from './npm-latest.mjs';
 
 const BIN = 'noacg';
 const ENTRY = path.join('@noacg', 'cli', 'dist', 'index.js');
@@ -76,10 +84,45 @@ function resolveCli() {
   return null;
 }
 
+/** The version `entry` (`.../@noacg/cli/dist/index.js`) belongs to, read from that package's own
+ *  `package.json`, or null if it cannot be read - never a reason to stop resolving the CLI. */
+function readOwnVersion(entry) {
+  try {
+    const pkgPath = path.join(path.dirname(entry), '..', 'package.json');
+    return JSON.parse(readFileSync(pkgPath, 'utf8')).version ?? null;
+  } catch {
+    return null;
+  }
+}
+
 const extra = process.argv.slice(2);
 const cli = resolveCli();
 
 if (cli) {
+  // Say what is about to import, so a stale global install is visible instead of silent (the
+  // defect docs/backlog/a-stale-global-cli-wins-over-npx-silently.md describes). Skipped only when
+  // `cli` actually IS the `NOACG_CLI` override (a checkout under active development is expected to
+  // differ from npm's latest) - not merely when the env var is set, because a stale or deleted
+  // override path falls through to a normal resolve inside `resolveCli`, and the copy that gets
+  // imported then is one this check should cover. `resolveCli` returns the override path verbatim
+  // when it uses it, so comparing against the result says the same thing its own check does,
+  // without re-deriving it. Run in the background so a slow or unreachable registry cannot add real
+  // time to startup: the warning, if any, may print a beat after the CLI is already live.
+  if (cli !== process.env.NOACG_CLI) {
+    const ownVersion = readOwnVersion(cli);
+    if (ownVersion) {
+      fetchLatestVersion().then((latest) => {
+        if (latest && latest !== ownVersion) {
+          process.stderr.write(
+            `[noacg] the installed @noacg/cli is ${ownVersion}; npm's latest is ${latest}. Run\n`
+              + '[noacg] `npm i -g @noacg/cli@latest` to update it.\n',
+          );
+        }
+      }).catch(() => {
+        // A version check must never surface as an error - see fetchLatestVersion's own contract.
+      });
+    }
+  }
   // `dist/index.js` runs its own `main()` on import and reads `process.argv.slice(2)`, so hand it
   // the argv it would have had as a real command. One process from here on.
   process.argv = [process.execPath, cli, 'mcp', ...extra];

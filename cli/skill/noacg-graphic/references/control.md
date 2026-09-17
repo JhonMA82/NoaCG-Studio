@@ -16,8 +16,9 @@ contract describes. `noacg inspect <dir>` prints exactly that panel.
 
 A graphic with no explicit machine (most) gets the implicit one: its fields, the lifecycle verbs,
 no ⚡ buttons - the correct, honest surface for a field-driven graphic. A graphic with actions
-takes its machine from its TYPE (`noacg scaffold --type …`), and the machine travels INSIDE the
-template, so an exported control page keeps its buttons with no registry to ask.
+takes its machine from its TYPE (`noacg scaffold --type …`), or authors one under the three gates
+(`references/contract.md` §5), and the machine travels INSIDE the template, so an exported control
+page keeps its buttons with no registry to ask.
 
 Rules that follow: **data updates never cause transitions** (typing a new score repaints a number
 and moves nothing); **a state's WORD is a field, the state is not** (the machine says "live", the

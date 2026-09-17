@@ -6,8 +6,9 @@ date: 2026-09-05
 
 Which of the name and the avatar survives a narrow bar is a design default and the item argues it:
 the avatar is the door. The half that was genuinely his - whether there is a good reason to sign
-in at all - is parked with his words on docs/backlog/signed-in-looks-identical-to-signed-out.md,
-which is where a parked ask belongs.
+in at all - was parked with his words on `docs/backlog/signed-in-looks-identical-to-signed-out.md`,
+and landed on 2026-09-16 as `2026-09-16-si-what-an-account-is-for.md` in this directory, which
+closed that file; the original text below still names the closed file, as it was written.
 
 It stays here until an agent drives the route below and records what it saw. Its original
 text follows, unchanged; the re-kinding rules are in `docs/acceptance/OWNER_QUEUE.md`.

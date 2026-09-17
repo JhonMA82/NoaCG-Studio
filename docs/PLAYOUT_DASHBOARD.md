@@ -10,6 +10,12 @@ artefacts and are no longer in the repository), and the four INTERACTIVE bluepri
 | Hosted control page | `src/components/HostedControlPage.tsx` | hosted log |
 | Exported controller | `src/control/productionControllerHtml.ts` | the bundled local relay |
 
+**One deliberate difference, ruled 2026-09-15** (`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6f): the
+production control profile's ARRANGE renders on all three, and its COMBINE renders on the two
+hosted pages only. The exported controller says in one line that a production's combined
+controls run from its hosted page, rather than carrying a second sequencer in vanilla JS. Shared
+production data likewise stays on the hosted pages; the exported controller carries no tree.
+
 Before this contract they were three different products: the exported one had PREVIEW/PROGRAM
 monitors and a blue accent, the hosted one had no monitors at all and stacked one tall card per
 graphic, the in-app one had a single preview and reordered layers with arrows. A student who
@@ -253,14 +259,17 @@ Two columns. **The PAGE is the only scroller; every block on it is content-sized
   it RE-TOOK, so one surface had two behaviours and the label read wrong to a hand already on
   the key). Following SPX, one control turns a graphic on and off: it reads **⟳ TAKE `SPACE`**
   off air and **■ TAKE OFF `SPACE`** while that cue is live, and the click does exactly what the
-  press does. `0` means Out from either state.
+  press does. `0` means Out from either state. **Since 2026-09-16 the operator can choose a second
+  mode for this one control** - SPACE previews first, then airs - and the button wears a third
+  face for it; §2f is the contract.
 - **RE-TAKE is a SECONDARY control** — Take on a cue that is already live: it sends the cue's
   current values and replays the entrance, which is the graphic's own reset. That makes it the
   gesture for airing the NEXT row onto a layer that is already up (load the row, `R`), which is
   how the quiz bank walks. Its own button and its own key, never the primary button's live state. Like every other verb it stays in place and greys out when it
   does not apply, so nothing on the bar moves sideways at the moment a cue goes live.
-- **`↑`/`↓` walk the rundown**, selecting a cue exactly as clicking it does (to PREVIEW; nothing
-  airs). With the toggle, that makes the whole surface operable from the keys alone — which is
+- **`↑`/`↓` walk the rundown**, selecting a cue exactly as clicking it does (to PREVIEW in the
+  default mode, a cursor move in the other - §2f; nothing airs either way). With the toggle,
+  that makes the whole surface operable from the keys alone — which is
   also what makes a **Stream Deck** work today, since one is a keyboard emulator by default. A
   dedicated plugin (WebSocket, live button state) is a separate project and is not started.
 - **The keymap is ONE module, `src/components/playoutKeys.ts`**, read by both React surfaces
@@ -365,6 +374,84 @@ docs/CONTROL_PANEL_PARITY.md §4.
 
 **Still open**: a shared title PREFIX ("Team …", "Score …") as a weaker grouping for what the side
 rule refuses. Nothing in the catalog needs it today, which is why it is not written.
+
+### 2f. Two Space modes - the operator's checkbox (owner 2026-09-10, built 2026-09-16)
+
+**The ask, in his words** (`docs/OWNER_RULINGS.md` ALIGN-2026-09-10-3): *"I think we need to have
+a checkbox for this so the operator can choose for themselves. One is that you press Space and it
+goes to the preview and then you press Space again and it goes to program. That would mean that
+when you go up and down the queue list, nothing gets automatically put into the preview. If the
+graphic that you have chosen is selected in the queue list and it's in the program, then when you
+press space again, it disappears from the program and is just in the preview. It works like a cut
+button on a mixer."* The other mode is today's toggle, unchanged.
+
+**The setting.** A checkbox, **`SPACE` previews first**, in the verb bar under the on-air chip on
+all three surfaces (`components/SpaceModeToggle.tsx`, and the controller's own copy). It sits
+beside the key it changes, not on a settings screen, for the reason the playout layer sits in the
+cue editor: the operator decides this with a hand on the key. Unchecked is the default. It is a
+person's habit, so it is a device-level preference, `spaceMode` on `model/prefs.ts` beside the
+other workflow defaults - per browser, never synced, unversioned: one word with a safe default,
+and an unknown value reads as the default (`control/spaceMode.ts asSpaceMode`). The in-app and
+hosted pages share it on one machine, read when a page opens and deliberately not followed live
+across tabs (a mode arriving from another tab would move PREVIEW under an operator mid-show);
+the exported controller keeps its own store on the relay's origin. The phone hides the checkbox
+with the on-air chip: the mode names a key a phone does not have, and the TAKE button still
+follows whatever a wider window set.
+
+**The model (binding). SPACE always acts on the SELECTED cue, and reads that cue's state alone:**
+
+| the selected cue is | `take` (default) | `preview-then-take` |
+|---|---|---|
+| on air | off air | off air, **and it becomes the cue on PREVIEW** |
+| on PREVIEW, off air | airs | airs, and **stays on PREVIEW** |
+| neither | cannot happen: selection is preview | **goes to PREVIEW**; nothing airs |
+
+- **"On PREVIEW" is ONE cue on every surface, the last one put there, held synchronously** -
+  page state on the React surfaces, a `stagedId` on the exported controller set the moment the
+  preview rows are sent, never read back off its 400 ms log poll (a decision that waited for the
+  poll previewed twice under the owner's two-press gesture and aired nothing). It is never
+  stored: a check of what is about to air does not survive a reload, so a reloaded page starts
+  with PREVIEW empty ("nothing in preview") and the button reading **→ PREVIEW**. The exported
+  controller's PREVIEW is still the real second stream, one tally per layer; in
+  `preview-then-take` mode staging stops the other graphics on that stream so it shows the one
+  cue the label names, exactly as the React monitors do, and in `take` mode the stream keeps its
+  accumulating behaviour, which SPACE never consults.
+- **Staging REPLACES what was on PREVIEW.** A replaced cue that is on air stays on air: PREVIEW
+  is a check, never a tally. So the cut from a cue the cursor had left - Anna on air, Ben staged,
+  back to Anna, SPACE - takes Anna off and puts her on PREVIEW in Ben's place.
+- **Off-air is one press in both modes, on purpose.** A hand that learned "SPACE takes a live cue
+  off" in one mode must never find a second press between it and a clean screen in the other.
+  `0` still means Out from either state and never touches PREVIEW.
+- **The editor follows the SELECTION on all three surfaces** - what the exported controller has
+  always done - and the PREVIEW monitor follows only the staged cue. The kicker reads **EDITING
+  SELECTED CUE** while the cursor is ahead of the monitor, PREVIEW CUE once SPACE has caught it
+  up; the too-long warning is shown only when the edited cue is the one PREVIEW measured; the
+  hosted page's live-edit refreshes PREVIEW only while the edited cue is on it.
+- **The button IS the key, so it has three faces**, all from one decision (`spaceAction`):
+  **→ PREVIEW** (amber, the preview colour - never red, because the press airs nothing),
+  **⟳ TAKE** and **■ TAKE OFF**. Ticking the box stages what was on PREVIEW so the picture stands
+  still; unticking makes the selection the preview again.
+- **A checkbox is not typing.** The verb keys stand down while the operator types, and a checkbox
+  is an `INPUT` that keeps focus after a click, so the SPACE after ticking one (this box, or a
+  toggle field in the cue editor) flipped it back instead of taking. `typingInto` in
+  `components/playoutKeys.ts`, and the controller's copy of the rule, now count only inputs
+  that take text; the verb handler's `preventDefault` is what stops the native toggle.
+
+**Why this reading of "a cut button on a mixer".** A mixer's cut swaps PVW and PGM in one press.
+His first two sentences make airing a separate press from previewing, so the swap's forward half
+is not what he asked for; its return half is exactly his third sentence - what leaves PROGRAM
+lands on PREVIEW. That is the cut here. A reading where SPACE on a live cue only staged it, and a
+second press took it off, was rejected for the off-air reason above.
+
+**Where it is decided, and pinned.** `control/spaceMode.ts` holds the decision (`spaceAction`),
+the three faces' words (`SPACE_FACES`), the checkbox's tooltip and the empty-PREVIEW label;
+`components/playoutKeys.ts` hands them to the React surfaces (`takeFace`, `useSpaceMode`), and
+`control/productionControllerHtml.ts` interpolates them into the exported controller at
+generation time, the decision as the table of its eight outcomes (`spaceActionTable`) - nothing
+about the mode is written twice. Both modes are pinned
+on the in-app page and the exported controller in `e2e/production-controls.spec.ts`, the storage
+contract in `e2e/hosted-control.spec.ts`, and the hosted page's own walk in
+`e2e/configured/hosted-space-modes.spec.ts`.
 
 ## 3. Layout — phone
 
@@ -485,8 +572,28 @@ is a control that will not be used.
 - **Both React surfaces carry the whole block** — header, snap, section grouping, help line.
   The hosted page used to render the ⚡ buttons as one flat row with no snap at all, which put
   the recovery control on every surface EXCEPT the one being operated from a phone, away from
-  the machine running the renderer. Sections come from `controlModel.ts controlSections`, the
+  the machine running the renderer. Sections come from `controlModel.ts arrangeControls`, the
   author's own `machine.controls` metadata, grouped identically by all three deployments.
+
+**A PRODUCTION MAY ARRANGE THE BLOCK, and only the block.** The control profile's ARRANGE half
+(`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6b) orders, renames, pins and hides the ⚡ controls per
+pool graphic: a pinned control sits above a hairline at the top, the rest keep their author's
+sections under it, and a hidden one goes behind one collapsed **More** — behind, not gone, because
+the machine still accepts it and an operator who needs it mid-show must not have to go back to the
+authoring panel. One function decides it for all three deployments (`arrangeControls`), and the
+exported controller reads the answer BAKED AT EXPORT rather than re-deriving it, because an
+arrangement is authored state that cannot change while a package is offline. Nothing about a press
+changes: the declaration still carries the payload, and the same table still greys the button, so a
+hidden control is guarded exactly as a shown one is. The production page's **Controls** panel, under
+this block, is where it is authored, and deleting the profile is one action that restores the
+generated panel everywhere.
+
+**The field bands are NOT arrangeable, deliberately.** §2e's grouping stays DERIVED from the field
+titles, on the owner's 2026-08-21 rule and its own next sentence — *"we have no idea what kinds of
+graphics we will have in the future"*. ARRANGE is keyed by control id and has no vocabulary for a
+field at all, which is what keeps that true by construction rather than by agreement. A production
+that wants its fields in a different order has found a request about the GRAPHIC, not about the
+show.
 
 ## 7c. The ± LIVE NUMBERS block — the one data write that airs immediately
 
@@ -529,10 +636,98 @@ cue, so a name reached air letter by letter, while the editor's own header promi
 push live on ✎ Update"), and a cue that is on both streams shows the STAGED version on PVW while
 PGM keeps what is aired.
 
+**A BOUND FIELD TAKES THE OTHER ROAD** (2026-09-16, `docs/PRODUCTION_DATA_PLAN.md` §2.9). When the
+production has bound a field to its data tree, the figure is not that graphic's to own: it is one
+shared value several graphics follow. So on the two REACT surfaces a ± press - and an ⚡ event's
+`adjust` on the same field - patches the tree instead of writing the field, and every graphic bound
+to that path follows through the diff production data already had. Three things follow:
+
+- the press counts from the TREE, never from the wire or the cue, because a feed may have moved the
+  value since either was written;
+- nothing is mirrored into the cue or into the hosted staging buffer, since a bound field is never a
+  cue value (§2.7) - which is also why the box reads out with its path instead of editing;
+- an event whose every moved field is bound fires BARE, and its figures arrive as the tree's own
+  update rows.
+
+**The EXPORTED controller is untouched by that**, and deliberately: it carries no tree and no
+bindings, so its field stepper is the field stepper described above
+(`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6f, the owner's 2026-09-15 boundary ruling). An unbound field
+is unchanged on all three.
+
 Pinned by `e2e/production-controls.spec.ts`: "± LIVE NUMBERS bumps a figure on air" for the
 React surfaces, and "± LIVE NUMBERS on the EXPORTED controller" for the package — that one reads
 the rows off the relay and asserts the PAYLOAD SHAPE, because what an exported surface puts on
 the wire is the contract, and a screen that looks right can still ship the wrong payload.
+
+## 7d. COMBINED controls — one press, several rows, some of them later
+
+The third section of the ⚡ block, and the only one a PRODUCTION makes rather than a graphic
+(`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6b; the format is `src/model/profile.ts`, the runtime
+`src/control/combine.ts`). A combined control is a name and an ordered list of STEPS, each of them
+exactly one thing this surface can already send: an operator event on a named pool graphic, a
+lifecycle verb on a cue, or a data patch. It cannot invent an event, and there is no condition, no
+comparison, no variable, no loop and no wall clock — the format refuses those by name.
+
+- **One row per step, on the one command log**, sent as a single batch and attributed to the
+  operator who pressed. A step the machine would drop is dropped ALONE: the rest proceed, and the
+  activity feed names the step, the control it belongs to, and why it did not apply.
+- **A step is resolved when it FIRES, not when the button was pressed.** A delayed `+1` therefore
+  reads the figure on the wire at that moment and counts from what the audience is looking at. The
+  moved figures are mirrored back into the target graphic's on-air cue, exactly as a single ⚡ press
+  does, so ⟳ Take and ✎ Update cannot regress them.
+- **`after N s` waits, visibly.** The button counts the wait down and wears the on-air accent while
+  it does. A step marked `after 0` (or unmarked) fires WITH the step before it, and the waits
+  ACCUMULATE — "five reveals a beat apart" is five steps each marked `after 2 s`. What it costs,
+  stated so nobody meets it live: **the wait lives in the browser tab that pressed.** Reloading that
+  tab loses whatever has not been sent, nothing is retried behind anyone's back, and the operator
+  presses it again by hand. The button's own hint says so.
+- **The countdown IS the cancel.** Pressing an armed control stands the rest of it down, and so
+  does any Out on this surface — one control shows the wait and stops it, rather than a second
+  control beside it. The feed says what was dropped and by which gesture.
+- **`ask` offers a step as a tick beside the button**, with a declared default. It is a tick and
+  never a value: the whole of what one press may vary by is which of its steps go.
+- **It greys while its FIRST step is illegal**, and the hover says which step and why. Not while
+  any step is: a walk's later steps are routinely illegal at the moment the first is pressed, which
+  is what the walk is for, and a button greyed by a step three seconds in the future would be
+  unpressable all night.
+
+**Where it renders.** The two NoaCG-hosted surfaces — the in-app production page and the hosted
+control page — under a **Combined** heading at the foot of the ⚡ block, drawn by one component
+(`src/components/control/CombinedButton.tsx`) over one resolver (`src/control/combineSend.ts`), so
+neither can grow a second opinion about what a `+1` carries. On the hosted page the rows go out
+through the batch RPC every verb there uses, attributed to whoever pressed, and a moved figure is
+mirrored into the SHARED staging buffer rather than into a stored cue — that is where an
+operator's values live on that surface, and it is what makes every open page count from the same
+figure. Its baseline is the WIRE, so a delayed step fired from one phone counts from what another
+operator's press just put up.
+
+**The EXPORTED production controller does not get it.** A sequencer with delays and ticks, inlined
+a second time in vanilla JS, is the second production runtime the owner ruled against on 2026-09-15
+(§6f of the plan). Where a production has combined controls the package shows one line where the
+Combined section would be — *“This production's combined controls run from its hosted control
+page”* — and carries nothing else of them: the zip holds one boolean, never a control's name, its
+steps or its timings. ARRANGE does render on all three, because it is presentation of the contract
+rather than behaviour above it.
+
+**Against the no-second-clock ruling (§8a, ruling 2, owner 2026-08-09).** That ruling forbids a
+per-play timer FIELD that could disagree with an arrow's authored `after` INSIDE a graphic. A
+combined control's wait is the controller pacing its own sends: it never touches a graphic's timer,
+the graphic still sees ordinary rows arriving in order, and the armed wait is visible and
+cancellable, which is the other half of the same ruling.
+
+**Authored on the production page**, in the Controls panel under this block: name it, then add
+steps by picking what each acts on, what it sends, its wait and whether it is a tick. Every box but
+the name and the seconds is a SELECT over what the production already declares, which is what makes
+"a profile can only combine what a graphic exposes" a mechanism rather than a rule. A patch step's
+values are not composed there and deliberately so — that would be a text box taking a value.
+
+Pinned by `e2e/production-controls.spec.ts`: the proof case composed, pressed with two of five
+ticks on and read off the wire; the countdown cancel and the Out cancel; a dropped step landing
+beside one that proceeded; and the exported controller's line, with the package checked for the
+absence of everything else. The hosted half is pinned by `e2e/hosted-control.spec.ts` over the
+PUBLISHED bytes — the wire baseline, the drop report and the greying — as far as an offline spec
+reaches: that page cannot be mounted without a configured backend, so its ⚡ Combined section is
+step 9 of the live-verify checklist in `docs/CONTROL_LAYER.md` with the rest of that surface.
 
 ## 8. Built to grow (interactive graphics)
 

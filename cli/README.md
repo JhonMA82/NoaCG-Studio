@@ -79,6 +79,11 @@ claude plugin install noacg@noacg-studio
 
 For the MCP server on its own: `claude mcp add noacg -- npx -y @noacg/cli mcp`.
 
+**A plugin installed earlier does not update itself**, so the skill text it carries stays the
+version you installed until you say otherwise: `claude plugin marketplace update noacg-studio &&
+claude plugin update noacg@noacg-studio` brings it current, and `noacg doctor` names the installed
+version whenever it is behind the CLI you are running.
+
 **Codex**: the same plugin, from the same repository. `codex plugin add` installs the skill, so
 there is nothing to copy by hand; `codex plugin add noacg-mcp@noacg-studio` adds the optional
 always-on server the same way.
@@ -87,6 +92,9 @@ always-on server the same way.
 codex plugin marketplace add NoaCG/NoaCG-Studio
 codex plugin add noacg@noacg-studio
 ```
+
+The same goes for Codex, in its own spelling: `codex plugin marketplace upgrade noacg-studio &&
+codex plugin add noacg@noacg-studio`.
 
 On a Codex without `codex plugin`, do it the long way instead: copy `skill/noacg-graphic/` from
 this package (or `cli/plugin/skills/noacg-graphic/` in the repo) to `~/.codex/skills/noacg-graphic/`,
@@ -110,7 +118,7 @@ npx @noacg/cli save ./football-scoreboard
 
 | Command | What it does |
 |---|---|
-| `doctor` | Which browser and which NoaCG deployment (`NOACG_URL`) this tool will use, the bridge version it found, and whether a key is held. |
+| `doctor` | Which browser and which NoaCG deployment (`NOACG_URL`) this tool will use, the bridge version it found, and whether a key is held - plus a line for an installed plugin whose skill is behind this CLI, and one for a CLI behind npm's `latest`. Both silent when there is nothing to update. |
 | `types` | The graphic types the deployment knows: fields, operator events, designs, neutral scaffold. |
 | `scaffold --type <id> [--design <id>\|neutral] [--name N] [--set key=value]... --out <dir>` | A complete, valid package from a type: a catalog chassis or the NEUTRAL scaffold (fields, machine, controls and runtime on a plain spine). |
 | `scaffold --fields "Label:kind[=value],..." [--name N] --out <dir>` | A typeless graphic with exactly the fields you declare. |

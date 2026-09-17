@@ -38,7 +38,7 @@ window.SPXGCTemplateDefinition = {
   "playserver": "OVERLAY", "playchannel": "1", "playlayer": "7", "webplayout": "7",
   "out": "manual",          /* or "none", or a number of ms to auto-clear */
   "dataformat": "json", "uicolor": "7",
-  "steps": "1",             /* derived from the ANIMATION data after validate; leave "1" */
+  "steps": "1",             /* the walk's length: `defaultPath.length - 1`, so "1" with no machine (§5d) */
   "DataFields": [
     { "field": "f0", "ftype": "textfield", "title": "Team A", "value": "HOME" },
     { "field": "f1", "ftype": "number",    "title": "Score A", "value": "0" },
@@ -123,7 +123,184 @@ A graphic's operator surface is derived from the graphic: fields become inputs, 
 machine's operator EVENTS become buttons (`references/control.md`). A plain graphic needs no
 machine - the implicit one gives Take/Update/Next/Out. A graphic with actions (a scoreboard's flag,
 a countdown's pause) takes them from its TYPE: `noacg scaffold --type <id>` brings the machine and
-its runtime; you restyle around it. Authoring your own machine is a later capability.
+its runtime; you restyle around it. **Start from a type whenever one fits** - its machine is
+already proven on air and you write none of it.
+
+When no type fits, author the machine yourself. That is a real capability, not a workaround, and
+using it is usually the difference between a graphic an operator can drive and one they cannot: a
+from-scratch graphic with no machine ends up carrying "revealed" as a field somebody has to type,
+which validates cleanly and still leaves the operator unable to DO what the brief meant.
+
+### 5a. The three gates
+
+An authored machine ships through three gates, and they are steps 3 and 4 of the loop in
+`SKILL.md` - none of them optional:
+
+1. **`noacg validate` passes, and you read its MACHINE findings.** Two of them are ERRORS and
+   block the save: a default path that is not connected, and a lifecycle edge off its canonical
+   seat. Two are WARNINGS: an unreachable state, and a `machine.controls` entry naming an event
+   no arrow fires. **That second warning is the likeliest hand-authoring mistake there is** -
+   misspell the event and validate reports no error at all while the ⚡ button is silently never
+   rendered. Zero errors is not this gate; zero errors plus no machine warning you cannot explain
+   is.
+2. **`noacg inspect` prints the panel and you SHOW the user the buttons.** A human confirms the
+   operator surface before it is saved. A clean validate never proves the buttons are the ones
+   the brief needs; only somebody reading them does.
+3. **Every operator arrow gets walked.** The bench does this for you, inside `validate`: one
+   press per (from-state, event) pair, each made from the arrow's own from-state, and the pose it
+   produces measured for collisions and overflow. So a state only a button can reach is checked,
+   and a control legal from three states is pressed three times rather than once. Two things still
+   bound it, and both say so out loud rather than staying quiet:
+   - a ceiling of 24 arrows. Past it the bench names every arrow it left unpressed as one
+     `bench-events-skipped` warning - press those by hand, or carry fewer (a panel an operator
+     can read is smaller than 24 buttons anyway);
+   - it does not run at all if you passed `--no-bench`, or if the safety screen refused to
+     execute the template. Both are reported as a `bench-skipped` NOTE, which is not a pass.
+
+   Read what the bench reports before calling this gate passed. `bench-events-skipped` on a
+   machine you expected walked whole means one of two things: too many arrows, or a from-state the
+   bench could not enter - and the second is a real defect, an arrow nobody can ever press.
+
+### 5b. What a machine-bearing graphic declares
+
+Five things, all in the graphic's own code, none of them UI. You never write a panel: every
+surface derives one from this list.
+
+1. **Fields, with kinds.** One DataField per thing an operator or a foreign host may change.
+   A `hidden` field is a holder the runtime reads and nobody draws.
+2. **A machine** in `NOACG_ANIM.machine`: groups, states, arrows. Operator arrows become
+   buttons, timer arrows advance by themselves. The guard is STRUCTURAL and that is the whole
+   guard - an event with no arrow from the current state is dropped, and the panel greys the
+   button for the same reason. There is no expression language and never will be.
+3. **Controls metadata** (`machine.controls`), per event: the operator's word for it, its
+   section and order, what rides it (`payload`), what it moves (`adjust`), what it sets
+   (`set`), what it appends or takes back (`add`/`remove`), whether it is `destructive`. This
+   is what makes a goal one press and a reset red.
+4. **Calls into the graphic's own runtime.** A state's timeline may `call` a function the
+   template defines OUTSIDE the marked region - a comparison, a sort, a paint. That is the
+   graphic's own logic and it belongs there. The ban on an expression language is a ban in the
+   CONTRACT; it never stopped a template from having JavaScript.
+5. **Reported fields for anything a foreign host must reach.** If a controller that can only
+   send data must be able to change a fact, that fact is a field the runtime reads back on
+   `update()`, and the button that changes it `set`s the same field. That is what keeps a
+   generic OGraf host able to drive the graphic from data updates alone, with no return channel.
+
+**Parameterize with data, not states.** "Answer B selected" is ONE `selected` state plus a
+field - never four near-identical states. State counts stay small; data carries the variation.
+
+### 5c. A worked machine
+
+An award reveal: the nominees go up, one press lights the winner. One group, three states on the
+default path plus the `off` rest, one operator arrow.
+
+**Everything between `var NOACG_ANIM = {` and its `};` is STRICT JSON**, so the two comment lines
+below belong ABOVE that line and never inside the braces. One `//` in there costs you the
+timeline and the Inspector: `validate` reports `anim-data` and `bench-editability`, the graphic
+still plays and exports, and the studio shows its motion read-only. Write the explanation above
+the block, where it is also easier to read.
+
+```jsonc
+// inside var NOACG_ANIM = { … }, beside "steps" - which holds three timelines here,
+// "Nominees", "Winner" and "Out", one per waypoint and in walk order.
+"machine": {
+  "groups": [
+    {
+      "id": "main",
+      "initial": "off",
+      "defaultPath": ["nominees", "winner", "out"],
+      "states": [
+        { "id": "off", "name": "Off" },
+        { "id": "nominees", "name": "Nominees" },
+        { "id": "winner", "name": "Winner" },
+        { "id": "out", "name": "Out" }
+      ],
+      "transitions": [
+        { "from": "nominees", "to": "winner", "trigger": "operator", "event": "reveal" }
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "event": "reveal",
+      "label": "Reveal winner",
+      "section": "Award",
+      "order": 1,
+      "payload": ["f4"],
+      "set": { "f5": "winner" }
+    }
+  ]
+}
+```
+
+**`defaultPath[i]` IS `steps[i]`** - the binding is positional, so `defaultPath.length` must
+equal `steps.length` and a path state never carries an inline `timeline`. An off-path branch
+state carries its own (`state.timeline`); a state with neither is pose-only and plays nothing.
+`initial` sits OUTSIDE the path: `off` is a rest, not a waypoint.
+
+The `winner` step fires the graphic's own logic at its moment, and `markWinner` is defined in
+`template.js` after `/* == END ANIMATION == */`, so the timeline never rewrites it:
+
+```jsonc
+{ "name": "Winner", "duration": 0.6, "ease": "power2.out",
+  "calls": [ { "time": 0, "call": "markWinner" } ],
+  "layers": { ".graphic-box": { "scale": [ { "time": 0, "value": 1 }, { "time": 0.18, "value": 1.03 } ] } } }
+```
+
+`call` is a bare function NAME, never an expression and never arguments - the interpreter looks
+it up on `window` at fire time.
+
+Fields 4 and 5 are read by the runtime and never drawn, so they are holders rather than masked
+spans, hidden by a CLASS RULE and never an inline `display: none` (the editor clears inline
+props and the value would appear on screen):
+
+```html
+<div id="f4" class="noacg-data-source">A</div>
+<div id="f5" class="noacg-data-source">nominees</div>
+```
+
+```css
+.noacg-data-source { display: none; }
+```
+
+`f5` (`"ftype": "hidden"`, title "Shown") is the REPORTED field, and the read-back is the whole
+mechanism rather than a nicety. The ⚡ button fires the arrow and `set`s `f5` to `winner` in the
+same press. A host that can only send data writes `f5` itself, and `update()` obeys it:
+
+```js
+function update(data) {
+  var fields = (typeof data === 'string') ? JSON.parse(data) : data;
+  for (var key in fields) { var el = document.getElementById(key); if (el) setFieldValue(el, fields[key]); }
+  var shown = document.getElementById('f5');                                  // the read-back
+  if (shown && shown.textContent === 'winner') markWinner();
+}
+```
+
+Guard the lookup like every other one. An unguarded `getElementById(...).textContent` throws
+before anything repaints if the holder is ever renamed or dropped, and on air that is a graphic
+frozen on stale data rather than one degrading quietly.
+
+Both roads reach one result, which is why the graphic obeys a stranger's renderer that has no way
+to send an event. The fact is the CONTROLLER's and the graphic renders it - never the other way
+round, because there is no return channel to ask down.
+
+**Declare it properly and the bench stays quiet about it.** A reported field's value reaches no
+pixels by design, and `bench-field-unpainted` exempts a `hidden` field whose element carries
+`class="noacg-data-source"` for exactly that reason (R4 of `docs/OGRAF_STATE_IN_FIELDS.md`: a
+reported field is hidden and input-only, never a drawn element). Drop either half - a `textfield`
+instead of `hidden`, or a holder with no class - and the finding is back, correctly: that shape is
+an ordinary field nobody drew. Never satisfy it by drawing the field on screen.
+
+### 5d. The default path is the compatibility contract
+
+`play/next/stop/update` alone must still walk the whole graphic, because that is all a playout
+server has. Here ⟳ Take shows the nominees, » Next fires `reveal` (the same arrow the ⚡ button
+fires), ■ Out clears. A button an operator can press is never the ONLY way to reach a state that
+the show needs.
+
+Keep the SPX definition's `steps` in step with the walk: it is `defaultPath.length - 1` (two,
+here), and the OGraf manifest's `stepCount` is generated from it. Nothing recomputes it for you
+when you add a waypoint by hand, and a graphic that under-reports it tells a dumb host there is
+no Continue to press - so the reveal never happens on that host.
 
 ## 6. Frame, safety, legibility
 

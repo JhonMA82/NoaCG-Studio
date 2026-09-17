@@ -9,6 +9,8 @@ import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
 import { parseAnimData } from '../blocks/animData';
 import { deriveMachine, machineControls, type ControlButton } from '../blocks/animMachine';
 import { slug } from '../model/slug';
+import { readPublishedProfile } from '../model/profile';
+import { splitBoundWrites, type PressVerb, type TreeWrite } from '../model/productionData';
 
 /** Map an SPX ftype to a control kind. The non-data ftypes carry no control at all.
  *  Exported for the OGraf exporter, which records the kind as a per-property vendor hint so
@@ -195,6 +197,69 @@ export function movedKeys(button: MovingButton): string[] {
   ];
 }
 
+/**
+ * WHICH KIND OF MOVE a press makes on one field, for the tree's benefit.
+ *
+ * A bound field's press writes production data rather than the field (plan §2.9), and the tree
+ * is JSON: `retypeLeaf` keeps whatever type the leaf already had, but a path that does not exist
+ * yet has no type to keep and the VERB is the only honest answer. An `adjust` is arithmetic and
+ * starts a number; an `add`/`remove` is a list and starts an array; a `set` writes the figure the
+ * control declares and starts a string.
+ */
+export function pressVerb(button: MovingButton, key: string): PressVerb {
+  if (button.adjust && key in button.adjust) return 'adjust';
+  if ((button.add && key in button.add) || (button.remove && key in button.remove)) return 'list';
+  return 'set';
+}
+
+/** Everything one press of an event button produces, once the production's BINDINGS are applied. */
+export interface PressSend {
+  /** What rides the event. `undefined` fires it bare, which is what a press whose every moved
+   *  field is bound does: those figures arrive as the tree's own update rows instead. */
+  payload: Record<string, string> | undefined;
+  /** The UNBOUND fields the press moved - what the surface writes back into its own state (the
+   *  in-app cue, the hosted staging buffer) so the next press does not count from a stale one. */
+  fields: Record<string, string>;
+  /** The BOUND fields it moved, as writes of the SHARED value. Nothing here touches a cue. */
+  tree: TreeWrite[];
+}
+
+/**
+ * WHAT ONE PRESS CARRIES, SPLIT BY WHETHER THE PRODUCTION HAS BOUND THE FIELD.
+ *
+ * `eventPayload` above answers "what rides" for a surface with no production behind it - the
+ * editor's Control tab, the exported panel. A DASHBOARD has a production, and a production can
+ * say that a field is not this graphic's to carry at all: it is one shared value several graphics
+ * follow (docs/PRODUCTION_DATA_PLAN.md §2.9). Three surfaces then have to agree on the same three
+ * answers - what still rides, what is written back locally, what moves the tree - and they had
+ * three copies of it, which is the shape `combineSend.ts`'s own header calls out as how two
+ * surfaces come to disagree on air.
+ *
+ * `valueOf` stays the SURFACE's answer to "what does this field read right now", because that
+ * genuinely differs: a bound field reads the tree, a moved unbound one reads the wire, one the
+ * press only reads is the cue's. `bound` is field id -> production-data path, empty for the
+ * productions that have bound nothing - and then every answer here is what it was before shared
+ * values existed.
+ */
+export function pressSend(
+  button: ControlButton,
+  bound: Record<string, string>,
+  valueOf: (key: string) => string | number | undefined,
+): PressSend {
+  const isBound = (key: string) => Object.prototype.hasOwnProperty.call(bound, key) && !!bound[key];
+  const payload = eventPayload(button, valueOf);
+  // Only what actually rode: an `add` whose source box was empty moves nothing, and writing an
+  // empty string back for it would wipe the list the press left alone.
+  const moved = Object.fromEntries(
+    movedKeys(button)
+      .filter((key) => payload?.[key] !== undefined)
+      .map((key) => [key, payload![key]]),
+  );
+  const { fields, tree } = splitBoundWrites(moved, bound, (key) => pressVerb(button, key));
+  const rides = Object.fromEntries(Object.entries(payload ?? {}).filter(([key]) => !isBound(key)));
+  return { payload: Object.keys(rides).length > 0 ? rides : undefined, fields, tree };
+}
+
 /** The field ids a press READS without moving them - the sources an `add` or a `remove` takes
  *  its line from. A surface whose values live in an entry or a cue needs to know these ride
  *  from the same place a payload field would, so the Guess box the operator just typed into is
@@ -206,40 +271,180 @@ export function sourceKeys(button: Pick<ControlButton, 'add' | 'remove'>): strin
 /** What a press MOVES, in the OPERATOR'S words ("Score A +1", "Score A to 0", "Guess into
  *  Revealed letters"), for the button hints - `labelOf` resolves a field id to its label, the
  *  way every surface words a payload. Every road is worded here, so a reset's hint says what
- *  it will do rather than nothing. */
+ *  it will do rather than nothing.
+ *
+ *  A FIELD WITH NO OPERATOR WORD IS NOT DESCRIBED, and the empty string is a real answer. A
+ *  `set` onto a HIDDEN holder is the graphic's own bookkeeping - the reported field a foreign
+ *  host writes (`cli/skill/noacg-graphic/references/contract.md` §5c) is exactly this - and the
+ *  operator neither sees it nor types into it, so `labelOf` has nothing for it. Printing the raw
+ *  key instead put `moves f16 to revealed with it` on the proof case's own Reveal button, which
+ *  is the one thing docs/PLAYOUT_DASHBOARD.md §7b says a hint must never do. Every graphic the
+ *  skill teaches an agent to build carries such a holder, so this is the common case rather than
+ *  an edge one. Callers treat '' as "nothing worth saying" and fall through to the payload
+ *  wording, which is what the operator actually needed: *carrying this cue's Correct*. */
 export function adjustWords(
   button: MovingButton,
   labelOf: (key: string) => string | undefined,
 ): string {
-  const name = (key: string) => labelOf(key) ?? key;
+  // `add`/`remove` move a line INTO or OUT OF a list, and the list is the half the operator
+  // recognises - so the destination decides whether there is a sentence at all. An unnameable
+  // SOURCE (a hidden holder, which the contract allows as a word source) becomes "a line":
+  // dropping the whole phrase would take the nameable list down with it.
+  const listPhrase = (key: string, source: string, joiner: string) => {
+    const list = labelOf(key);
+    return list ? [`${labelOf(source) ?? 'a line'} ${joiner} ${list}`] : [];
+  };
   return [
-    ...Object.entries(button.adjust ?? {}).map(
-      ([key, delta]) => `${name(key)} ${delta > 0 ? '+' : ''}${delta}`,
-    ),
-    ...Object.entries(button.set ?? {}).map(([key, value]) => `${name(key)} to ${value || '(empty)'}`),
-    ...Object.entries(button.add ?? {}).map(([key, source]) => `${name(source)} into ${name(key)}`),
-    ...Object.entries(button.remove ?? {}).map(([key, source]) => `${name(source)} out of ${name(key)}`),
+    ...Object.entries(button.adjust ?? {}).flatMap(([key, delta]) => {
+      const label = labelOf(key);
+      return label ? [`${label} ${delta > 0 ? '+' : ''}${delta}`] : [];
+    }),
+    ...Object.entries(button.set ?? {}).flatMap(([key, value]) => {
+      const label = labelOf(key);
+      return label ? [`${label} to ${value || '(empty)'}`] : [];
+    }),
+    ...Object.entries(button.add ?? {}).flatMap(([key, source]) => listPhrase(key, source, 'into')),
+    ...Object.entries(button.remove ?? {}).flatMap(([key, source]) => listPhrase(key, source, 'out of')),
   ].join(', ');
 }
 
+// ── ARRANGE: how the controls a graphic declares are GROUPED AND ORDERED for an operator ─────
+//
+// Two things decide this, and one function answers both. The AUTHOR's own `machine.controls`
+// metadata gives every button a section and a declared order; that half is shared because the
+// in-app page grouped and the hosted page rendered one flat wall, so a quiz's eight actions
+// arrived unsorted on the smallest screen of the three. The PRODUCTION's profile then arranges
+// what the author declared (model/profile.ts, docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b).
+//
+// It is PRESENTATION and nothing else: the declaration travels through untouched, so a hidden
+// control is still guarded by the same `isEventLegal` table and a renamed one still greys by it.
+// `arrangeControls(buttons, undefined)` is the generated panel, which is what deleting a profile
+// has to leave behind on all three deployments.
+
+/** One control as a production PRESENTS it. */
+export interface ArrangedControl {
+  /** The DECLARATION, untouched. Legality, payload, adjust and destructive are all read from
+   *  here, which is what makes the profile unable to change what a press does. */
+  button: ControlButton;
+  /** The word the operator reads: the profile's `name`, else the control's declared label. */
+  label: string;
+}
+
+/** The controls of one graphic, split the three ways a surface draws them. */
+export interface ArrangedControls {
+  /** Above the fold, flat and unsectioned — the handful this show actually uses (the football
+   *  principle: the operator should understand football, not the graphics software). A pinned
+   *  control is LIFTED out of its section rather than repeated in it. */
+  pinned: ArrangedControl[];
+  /** The rest, grouped by the section each control ends up in, in first-seen order, with
+   *  everything the author left undeclared under "Actions". */
+  sections: [string, ArrangedControl[]][];
+  /** The hidden ones. They are out of the panel's flow, and every surface puts them behind a
+   *  COLLAPSED "More" rather than dropping them: hiding a control is a production saying "not
+   *  in my way", and an operator who needs one mid-show must not have to open the authoring
+   *  panel to reach it. Empty for a production that hid nothing. */
+  more: ArrangedControl[];
+}
+
+/** One control's presentation, as ARRANGE stores it (`model/profile.ts` `ArrangeEntry`). Spelled
+ *  out here rather than imported so this module keeps its own list of what it reads. */
+export interface ArrangeRead {
+  order?: number;
+  section?: string;
+  name?: string;
+  hidden?: boolean;
+  pinned?: boolean;
+}
+
 /**
- * The buttons grouped by their author-declared SECTION, in first-seen order, with everything
- * undeclared under "Actions".
+ * One pool graphic's arrangement out of a production's profile, or undefined when there is none.
  *
- * Shared because it decides what an operator sees: the in-app page grouped and the hosted page
- * rendered one flat wall of buttons, so a quiz's eight actions arrived unsorted on the smallest
- * screen of the three. Grouping is the author's own metadata (`machine.controls`) and belongs to
- * every surface that draws the buttons.
+ * IT TAKES THE PROFILE AS STORED and applies the version gate itself, which is the whole reason
+ * every surface goes through here. `readPublishedProfile` answers null both for "no profile" and
+ * for "a profile a newer build wrote", and a surface that reaches into `show.profile.arrange`
+ * directly skips that: a v2 profile is read-only at both write doors and correctly ignored on the
+ * hosted page, but it would still order, rename and hide buttons wherever it was read raw — and
+ * one show rendering two different panels on two surfaces is exactly what the gate exists to
+ * prevent. Passing an already-read profile costs nothing; reading twice is idempotent.
+ *
+ * A pool graphic's NAME is then somebody's typed text, so a bare `arrange[name]` answers a
+ * function for a graphic called `constructor` — `model/profile.ts` `own()` exists for exactly
+ * this and says what it measured.
  */
-export function controlSections(buttons: ControlButton[]): [string, ControlButton[]][] {
-  const sections: [string, ControlButton[]][] = [];
-  for (const b of buttons) {
-    const key = b.section ?? 'Actions';
-    const bucket = sections.find(([s]) => s === key);
-    if (bucket) bucket[1].push(b);
-    else sections.push([key, [b]]);
+export function arrangeFor(
+  profile: unknown,
+  graphic: string | null | undefined,
+): Record<string, ArrangeRead> | undefined {
+  const arrange = readPublishedProfile(profile)?.arrange;
+  if (!arrange || !graphic || !Object.prototype.hasOwnProperty.call(arrange, graphic)) return undefined;
+  return arrange[graphic];
+}
+
+/**
+ * THE ONE ARRANGEMENT RULE, which all three dashboard deployments call.
+ *
+ * `arrange` is the profile's entry map for ONE pool graphic (control id -> presentation), or
+ * undefined for "no profile" — and undefined must give the generated panel back unchanged,
+ * because that is what deleting a profile means on every surface.
+ *
+ * ORDER, precisely: a control carrying `order` sorts before one that does not, ties and the
+ * unordered rest keeping their DECLARED order. That is the reading the format states ("lower
+ * first; controls with no `order` follow in declared order") and it is what makes dragging one
+ * control to the top a one-key change rather than a renumbering of the whole list.
+ *
+ * HIDDEN beats PINNED, because the two disagree only through a hand-edited profile and "not in
+ * my way" is the safer of the two to honour. The authoring panel clears the pin when it hides.
+ */
+export function arrangeControls(
+  buttons: ControlButton[],
+  arrange: Record<string, ArrangeRead> | undefined,
+): ArrangedControls {
+  // A control id is somebody's typed event name, so the lookup must not answer a function for a
+  // control called `constructor` — the same guard `model/profile.ts` `own()` exists for.
+  const entryFor = (event: string): ArrangeRead =>
+    arrange && Object.prototype.hasOwnProperty.call(arrange, event) ? arrange[event] ?? {} : {};
+
+  const resolved = buttons.map((button, declaredAt) => {
+    const entry = entryFor(button.event);
+    return {
+      button,
+      label: entry.name || button.label,
+      section: entry.section || button.section || 'Actions',
+      hidden: entry.hidden === true,
+      pinned: entry.hidden !== true && entry.pinned === true,
+      order: entry.order,
+      declaredAt,
+    };
+  });
+
+  // One sort for every bucket below, so pinned, sectioned and hidden controls all read in the
+  // same order the production dragged them into. A control with no `order` sorts as if it had an
+  // infinite one, which puts every numbered control first and leaves the rest — all equal, all
+  // infinite — in declared order on the tie.
+  resolved.sort((a, b) => {
+    const ao = a.order ?? Infinity;
+    const bo = b.order ?? Infinity;
+    return ao === bo ? a.declaredAt - b.declaredAt : ao - bo;
+  });
+
+  const pinned: ArrangedControl[] = [];
+  const more: ArrangedControl[] = [];
+  const sections: [string, ArrangedControl[]][] = [];
+  for (const r of resolved) {
+    const control: ArrangedControl = { button: r.button, label: r.label };
+    if (r.hidden) {
+      more.push(control);
+      continue;
+    }
+    if (r.pinned) {
+      pinned.push(control);
+      continue;
+    }
+    const bucket = sections.find(([s]) => s === r.section);
+    if (bucket) bucket[1].push(control);
+    else sections.push([r.section, [control]]);
   }
-  return sections;
+  return { pinned, sections, more };
 }
 
 /** One group's states, for the recovery snap picker: every state is enterable by SNAP by

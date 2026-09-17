@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 /** The breathing room kept against the viewport edge. The GAP between the button and its menu
  *  is not a constant here: it is MEASURED off the drawn menu (see below), so a surface with a
@@ -105,7 +105,9 @@ export default function LibMenu({
   // A document listener has no such shadow, so one press closes the standing menu AND does
   // what it was aimed at. The HOST is inside: the trigger owns its own open state, and closing
   // here would race its toggle into reopening what the press meant to shut.
-  useEffect(() => {
+  // Bind before the first paint of an opened menu. A passive effect leaves a small input window
+  // where an immediate Escape can miss the listener and the next toggle closes the menu instead.
+  useLayoutEffect(() => {
     if (!open) return;
     const outside = (e: Event) => {
       const host = menuRef.current?.parentElement;

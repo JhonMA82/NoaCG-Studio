@@ -38,8 +38,11 @@ const {
   reparseLeaf,
   replacementPatch,
   resolveBindings,
+  retypeLeaf,
   setPath,
+  splitBoundWrites,
   suggestPath,
+  withTreeWrites,
 } = mod;
 
 test('merge-patch conformance table (TypeScript side)', () => {
@@ -233,4 +236,91 @@ test('a clock string is never mistaken for a number', () => {
   // 12:31 must survive as text; a value box that "helpfully" parsed it would air 12.
   assert.equal(parseLiteral('12:31'), '12:31');
   assert.equal(parseLiteral('+1.231'), '+1.231');
+});
+
+// ── The press boundary: a control surface writing BACK into the tree (§2.9's Phase 3) ────
+
+test('retypeLeaf keeps the type the leaf already had', () => {
+  // The press hands over a STRING because that is what a field holds. What lands in the tree has
+  // to be what a feed would have written, or the shape of `control_shows.data` depends on who
+  // moved the value last.
+  assert.equal(retypeLeaf(4, '5', 'adjust'), 5);
+  assert.equal(retypeLeaf('4', '5', 'adjust'), '5');
+  assert.equal(retypeLeaf(true, 'false', 'set'), false);
+  assert.deepEqual(retypeLeaf(['a', 'b'], 'a\nb\nc', 'list'), ['a', 'b', 'c']);
+  assert.deepEqual(retypeLeaf([1, 2], '1\n2\n3', 'list'), [1, 2, 3]);
+  assert.deepEqual(retypeLeaf(['a'], '', 'list'), []);
+});
+
+test('an EMPTY list is still a list, which is the state a list starts a show in', () => {
+  // `isLeafValue([])` is false on purpose - an empty array writes nothing into a field, which is
+  // what stops a board going blank - and reading that "no" as "not an array" turned the FIRST
+  // press on a bingo board's `called` from [] into the string "K7". Every press after that
+  // appended to a string, and only a tree that never started empty stayed an array.
+  assert.deepEqual(retypeLeaf([], 'K7', 'list'), ['K7']);
+  assert.deepEqual(withTreeWrites({ called: [] }, [{ path: 'called', text: 'K7', verb: 'list' }]), { called: ['K7'] });
+  assert.deepEqual(withTreeWrites({ called: ['K7'] }, [{ path: 'called', text: 'K7\nB2', verb: 'list' }]), {
+    called: ['K7', 'B2'],
+  });
+});
+
+test('a jersey number stays text, because the TEXT is not where the type comes from', () => {
+  // reparseLeaf reads the type out of the text, which is right for a value box (the operator is
+  // saying what they mean) and wrong for a press (the type is already known). 07 + 1 must not
+  // silently become the number 8 on a path a feed writes as a string.
+  assert.equal(retypeLeaf('07', '8', 'adjust'), '8');
+  assert.equal(reparseLeaf('07', '8'), 8);
+});
+
+test('a leaf that is not there yet takes the type the PRESS implies', () => {
+  assert.equal(retypeLeaf(undefined, '1', 'adjust'), 1);
+  assert.equal(retypeLeaf(undefined, 'Final', 'set'), 'Final');
+  assert.deepEqual(retypeLeaf(undefined, 'K7', 'list'), ['K7']);
+  // Arithmetic that did not produce a number stays text rather than becoming NaN, which is not
+  // JSON at all.
+  assert.equal(retypeLeaf(undefined, 'x', 'adjust'), 'x');
+});
+
+test('withTreeWrites applies in order, so one press can move a path twice', () => {
+  const tree = { match: { home: { score: 4 } } };
+  const next = withTreeWrites(tree, [
+    { path: 'match.home.score', text: '5', verb: 'adjust' },
+    { path: 'match.home.score', text: '6', verb: 'adjust' },
+  ]);
+  assert.deepEqual(next, { match: { home: { score: 6 } } });
+  assert.deepEqual(tree, { match: { home: { score: 4 } } }, 'the tree handed in must not be mutated');
+});
+
+test('withTreeWrites reaches an ARRAY ELEMENT, which a merge patch cannot address', () => {
+  // `drivers.0.gap` is the plan's own example of a binding. patchForPath answers null for it by
+  // design, so a press that built its patch that way would silently do nothing.
+  assert.equal(patchForPath('drivers.0.gap', 'LEADER'), null);
+  assert.deepEqual(
+    withTreeWrites({ drivers: [{ gap: 'x' }, { gap: 'y' }] }, [{ path: 'drivers.1.gap', text: '+1.2', verb: 'set' }]),
+    { drivers: [{ gap: 'x' }, { gap: '+1.2' }] },
+  );
+});
+
+test('splitBoundWrites sends a bound key to the tree and leaves every other key alone', () => {
+  const split = splitBoundWrites(
+    { f1: '5', f2: 'Finland', f3: 'a\nb' },
+    { f1: 'match.home.score', f3: 'headlines' },
+    (key) => (key === 'f1' ? 'adjust' : 'list'),
+  );
+  assert.deepEqual(split.fields, { f2: 'Finland' });
+  assert.deepEqual(split.tree, [
+    { path: 'match.home.score', text: '5', verb: 'adjust' },
+    { path: 'headlines', text: 'a\nb', verb: 'list' },
+  ]);
+});
+
+test('a production that has bound nothing splits nothing - the old road, exactly', () => {
+  const values = { f1: '5', f2: '3' };
+  for (const paths of [undefined, {}]) {
+    const split = splitBoundWrites(values, paths, () => 'adjust');
+    assert.deepEqual(split.fields, values);
+    assert.deepEqual(split.tree, []);
+  }
+  // A graphic name or a field id is somebody's typed text: an inherited key is not a binding.
+  assert.deepEqual(splitBoundWrites({ constructor: '5' }, {}, () => 'adjust').fields, { constructor: '5' });
 });

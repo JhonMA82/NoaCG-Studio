@@ -11,7 +11,7 @@ import { localWorkers } from './scripts/e2e-workers.mjs';
 // Run with `npm run test:e2e:catalog`. Same offline pinning as the default suite (no backend,
 // no AI provider) - the tripwire only exercises src/validation/runtimeBench.ts against
 // src/templates/catalog.ts, so it needs nothing else from the app.
-const base = `http://localhost:${devPort()}`;
+const base = `http://127.0.0.1:${devPort()}`;
 export default defineConfig({
   testDir: './e2e/catalog',
   timeout: 30_000,
@@ -35,7 +35,7 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run dev',
+    command: 'npm run dev -- --host 127.0.0.1',
     url: base,
     reuseExistingServer: true,
     timeout: 60_000,

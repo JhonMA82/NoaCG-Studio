@@ -25,7 +25,7 @@ import { commitStagedSelection } from '../../ai/preferences';
 import { formatTemplate } from '../../format/formatCode';
 import { paletteById } from '../../model/wizard';
 import { SVG_CANDIDATE_ATTR } from '../../assets/svgImport';
-import WizardPreview, { type PreviewBoxOverlay } from './WizardPreview';
+import WizardPreview, { type PreviewBoxOverlay, type PreviewGrowCap } from './WizardPreview';
 import BrandLogo from '../BrandLogo';
 import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import EntryStep from './steps/EntryStep';
@@ -323,6 +323,18 @@ export default function CreationWizard() {
   // what the preview's box overlay draws (docs/TEXT_BOX_BINDING.md). Held beside the hover for
   // the same reason and measured by the step, which is the one holding the artwork.
   const [svgBoxOverlay, setSvgBoxOverlay] = useState<PreviewBoxOverlay | null>(null);
+  // HOW FAR EACH GROWING BOX MAY REACH - one draggable line per box (docs/TEXT_BOX_BINDING.md,
+  // rung 4). Measured and worded by the step, drawn on the preview, and moved back through the
+  // handler beside it, which is held in a REF for the reason the draw handler is: its closure
+  // reads the draft, so it is a fresh function on every keystroke.
+  const [svgGrowCaps, setSvgGrowCaps] = useState<PreviewGrowCap[]>([]);
+  const svgCapRef = useRef<((id: string, margin: number) => void) | null>(null);
+  const armSvgCap = useCallback((handler: ((id: string, margin: number) => void) | null) => {
+    svgCapRef.current = handler;
+  }, []);
+  const onSvgCapDrag = useCallback((id: string, margin: number) => {
+    svgCapRef.current?.(id, margin);
+  }, []);
   // The mapping step's "draw a field" handler while it is armed (plan §6a step 3). The handler
   // itself lives in a REF and only the armed/not-armed answer is state: the step re-reports it
   // on every render (its closure reads the draft, so its identity changes with every keystroke),
@@ -2189,6 +2201,8 @@ export default function CreationWizard() {
                 onDraft={patch}
                 onHover={setSvgHoverId}
                 onBoxOverlay={setSvgBoxOverlay}
+                onGrowCaps={setSvgGrowCaps}
+                onArmCap={armSvgCap}
                 onArmDraw={armSvgDraw}
                 onArmPick={armSvgPick}
               />
@@ -2409,6 +2423,12 @@ export default function CreationWizard() {
                   ? {
                       highlightSelector: svgHoverId ? `[${SVG_CANDIDATE_ATTR}="${svgHoverId}"]` : null,
                       boxOverlay: svgBoxOverlay,
+                      // The growth limits, and the artwork they are fractions OF. The rule's own
+                      // cap is measured against the artwork's frame (`svgGrowCap`), so the line
+                      // has to be drawn against exactly that element and no other.
+                      growCaps: svgGrowCaps,
+                      capIn: '.imported-design-art',
+                      onCapDrag: onSvgCapDrag,
                       // The ARTWORK's own rect is the space a drawn box is reported in — the one
                       // the step turns into design px (plan §6a step 3). Tracked for the whole
                       // step, so the first drag after arming has a rect to measure against.

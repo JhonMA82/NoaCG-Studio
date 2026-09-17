@@ -11,6 +11,12 @@
 // sprint ends.
 export const FOCUS = [
   'agent-access.spec.ts',
+  // THE AGENT ROAD'S OWN PANEL. Every other control-panel spec drives a graphic the studio built
+  // from a type; this one drives the proof case an agent AUTHORED against the shipped skill
+  // (e2e/fixtures/agent-made/README.md), so it is the only thing that would catch the derived
+  // panel quietly stopping at the machines the studio writes. It also carries the transport
+  // layout pin, which needs a viewport the suite's default is below.
+  'agent-made-graphics.spec.ts',
   'analytics.spec.ts',
   'advanced-mode.spec.ts',
   'auth.spec.ts',
@@ -174,6 +180,13 @@ export const CONFIGURED_TRIGGERS = [
   // records that the bar was already 24px over at 1366 before its 1400px step was added.
   /^src\/components\/auth\/AuthStatus\.tsx$/,
   /^src\/styles\/(auth|app-shell|mobile)\.css$/,
+  // WHAT AN ACCOUNT IS FOR, and where a save goes in each state. The dialog and the inline gate
+  // only render with a backend, so the sentence they carry (accountCopy.ts) and its two shapes
+  // are pinned in e2e/configured/anonymous.spec.ts alone; the save dialog's signed-in and
+  // signed-out lines are pinned in signed-in-ux.spec.ts and anonymous.spec.ts, and offline
+  // auth.spec.ts can only pin that it says neither.
+  /^src\/components\/auth\/(accountCopy\.ts|SignInDialog\.tsx|SignInPrompt\.tsx)$/,
+  /^src\/components\/save\/SaveDialogs\.tsx$/,
   /^api\/_lib\/me\/(agentKeys|graphics|graphicShape)\.ts$/,
   /^api\/_lib\/(principal|agentAccessStore)\.ts$/,
   /^api\/me\/\[\.\.\.path\]\.ts$/,

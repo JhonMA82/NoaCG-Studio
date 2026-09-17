@@ -64,6 +64,7 @@ Layers of documentation, top to bottom:
 | `MODEL_ROUTE_AUDITS.md` | The register of hand-performed audits behind `APPROVED_MODEL_CATALOG` - how a ZDR audit is done, and one section per audited route. A `zdrAvailable: true` entry with nothing here is an unbacked privacy claim. |
 | `DATA_API.md` | The Production Data API, for the external integrator: per-production data key, `POST /api/data/update`, field-label mapping, ordering guarantees, rate limits, curl examples. The server-side ingress of `CLOUD_PLAYOUT.md` §7. |
 | `AGENT_CLI.md` | The agent door: the `noacg` CLI + MCP server, the `/bridge` page it drives, the dual graphic package (SPX sources + generated OGraf half), the contract-only skill, containment. |
+| `AGENT_DOOR_AUDIT.md` | The agent door walked as a stranger on 2026-09-16 against the published 0.3.3: the install, the authoring chain leg by leg with timings, the SVG road, the one-sentence road, the MCP entrance and Codex, each claim carrying the command that produced it and each gap marked UNVERIFIED. A DATED measurement, not a standing contract - re-walk it rather than trusting it once the CLI or the plugin moves. |
 | `AGENT_SAVE.md` | How an agent's CLI saves into a user's library: scoped agent keys + the permission vocabulary, the loopback one-time-code handoff, `POST /api/me/graphics` (the server never executes template code), the error table, and the library->air gates at publish and export. |
 | `SPORTSDB.md` | The TheSportsDB connector: what the free V1 API actually offers (verified, incl. why it is NOT a real-time scoring feed), the normalized sports contract, the production-data patch it emits, and the one write call still blocked on the production-data contract. |
 | `EXPORT_TARGETS_RESEARCH.md` | Where exports run: shipped targets + the doctrine for adding one. |
@@ -86,7 +87,7 @@ Layers of documentation, top to bottom:
 | `AI_LITE_PROMOTION.md` | Lite route promotion policy: eligibility gates (thresholds owner-TODO), ranking, the proposed-route output, and the manual broadcast verification checklist. |
 | `AI_LITE_PLAN.md` | ACTIVE PLAN: how Lite gets good and stays inside the ~€0.01 budget - what the 2026-08-07 switch-on and first real round measured, the route table with live prices, what the model decides vs the platform, why the judge stays off, and the build order. |
 | `ACCEPTANCE_SPX_CASPARCG.md` | OPEN manual checklist: the parts of acceptance only a real SPX/CasparCG stack can prove. Not yet run. |
-| `GOALS.md` | THE ONE ROADMAP: the north star, the business posture, and only what is NOT done. The ~200-line budget is stated in its own opening paragraph; a landed goal moves verbatim to `GOALS_ARCHIVE.md`. `## NOW` is the push and everything below it is parked, except to the extent an ACTIVE programme in `PROGRAMMES.md` states. |
+| `GOALS.md` | THE ONE ROADMAP: the north star, the business posture, and only what is NOT done. Its line budget is stated once, in its own opening paragraph, which `npm run check:goals-budget` reads; a landed goal moves verbatim to `GOALS_ARCHIVE.md`. `## NOW` is the push and everything below it is parked, except to the extent an ACTIVE programme in `PROGRAMMES.md` states. |
 | `PROGRAMMES.md` | THE REGISTER, ratified 2026-09-01: which long-running programmes the owner has authorized, each programme's state, entry conditions, scope edges and reopen triggers. Only the owner writes AUTHORIZED; the orchestrator advances ACTIVE programmes without per-step permission. The argument and claims are `NORTH_STAR_2027.md`. |
 | `VERIFICATION.md` | The full verification procedure behind root `AGENTS.md`'s rules: which suite to run, why the pre-merge gate lives in CI rather than the laptop, how a run is read job-by-job, and what each catalog gate measures. |
 | `WORKFLOW_ARCHITECTURE.md` | The development workflow for 12+ parallel sessions: the measured bottlenecks (landing on one laptop, the full suite per landing, contracts growing 8 KB a day, single-line registries), the target architecture (cloud landing queue, validation tiers, compiled contracts from `contracts/rules/`, the `learn` write path, the orchestrator's role), the source-modularity audit, the staged plan and the acceptance metrics. |
@@ -140,6 +141,7 @@ Layers of documentation, top to bottom:
 | `INTERACTIVE_PLAYOUT_PLAN.md` | The durable tracker for the interactive-playout program: the controlled quiz workflow, the generic sports controller, the public audience page (Phase 5), moderation, and polls. |
 | `PRODUCTION_DATA_PLAN.md` | A production as a TREE OF LIVE VALUES its graphics read from, so an external system says "the home score is 4" and never "sb03 is on air". |
 | `CONTROL_PANEL_ROAD.md` | A PLAN, rewritten 2026-08-28 from the owner's brief. It builds nothing: how a user's own graphic gets a control panel, restated as a road. |
+| `CONTROL_PANEL_ANY_GRAPHIC.md` | A PLAN, 2026-09-15: one control-panel approach for any graphic - catalog, imported SVG, agent-made, foreign OGraf. The control contract is the answer; the agent road must be taught to write it; the production control profile is two primitives, ARRANGE and COMBINE. Proves the Elämäni biisi case on paper and says what must exist by 2026-10-20. |
 | `DESIGN_RULES_PLAN.md` | RATIFIED PLAN 2026-08-18: legible, robust, airable BY MEASUREMENT - the owner's brief mapped onto the architecture that exists, and sequenced. |
 | `EDITOR_RESEARCH.md` | The direction document for the NoaCG authoring system, written to the owner's master brief (2026-08-28). Second edition; it replaces the first entirely. |
 | `BEHAVIOUR_AUTHORING_RESEARCH.md` | The P2 standing research thread, round 1 (2026-09-01): why the node editor failed as a non-programmer authoring surface, six candidate interaction models with a shortlist of two, the eight-brief challenge-graphic set every candidate is proven against, and the round-2 protocol with its evidence gate. Mockups in `docs/design/behaviour-authoring/`. |
@@ -147,6 +149,8 @@ Layers of documentation, top to bottom:
 | `ORCHESTRATION_NEXT.md` | RATIFIED 2026-09-01 with corrections: the master stays `opus high` and Opus is also a major worker pool; Fable consults; both Antigravity pools exploited, Codex availability-routed; verification layers by risk; a ledger routes delegation. Three phases, evidence-gated. |
 | `ORCHESTRATOR_SIMPLIFICATION.md` | The review after the 2026-09-04 night wave: what carried eleven landings and is protected, why the loop stopped with 40 percent of the night unused, and the architecture that replaces it - one thin live session, a planner run as a subagent, workers owning a unit end to end, an event-driven refilling loop, and the landing queue unchanged. |
 | `ORCHESTRATION_REVIEW.md` | The 2026-09-02 fresh-eyes review of the modular orchestrator: the Phase A verdict written before any edit (the common path is ~590 lines, not 170; four more cached facts), the comparison against Pocock's agent-writing principles, and the before/after behavioural evaluation. |
+| `ORCHESTRATOR_SPEC_REVIEW.md` | Symphony, Spec Kit and context/harness review; preserved orchestration invariants, bounded specs/tasks, evidence convergence, implementation and rollout limits. |
+| `work-specs/README.md` | Compact feature specs and versioned task/evidence records for substantial work; shared by Codex and Claude Code. |
 | `CATALOG_EXPANSION_PLAN.md` | The 2026-07-30 executive decision: the catalog does not primarily need more lower thirds, it needs coverage of complete production packages. |
 | `AI_LITE_BRAND_PLAN.md` | Lite brand graphics - beat free templates or ship nothing. Its own §2 value gate FAILED on the owner's blind ballot (2026-08-14); REVIVED by owner decision 2026-08-15 with a re-run of that same gate as the bar. |
 | `VERCEL_PRO_NO_OVERAGE_PLAN.md` | The operating plan for using the Pro subscription fully while keeping the bill at the fixed platform fee. Review on a Vercel pricing change or before enabling another paid service. |
@@ -204,9 +208,10 @@ Layers of documentation, top to bottom:
 ## Where the roadmap lives
 
 `GOALS.md` is the ONE roadmap — never duplicate it into a second file. It holds only what is
-**not done**, inside the ~200-line budget its own opening paragraph states, so it can be read in
-one sitting. When a goal lands, move its entry verbatim into `GOALS_ARCHIVE.md` (the complete
-shipped record, with dates and rationale) and delete it from `GOALS.md`. When the direction
+**not done**, inside the line budget its own opening paragraph states — the one place that number
+lives, and the one `npm run check:goals-budget` reads — so it can be read in one sitting. When a
+goal lands, move its entry verbatim into `GOALS_ARCHIVE.md` (the complete shipped record, with
+dates and rationale) and delete it from `GOALS.md`. When the direction
 changes, rewrite `GOALS.md`; the archive keeps the history. Plans get their own doc only while
 they need design rationale; when they finish, they move to the historical table above.
 

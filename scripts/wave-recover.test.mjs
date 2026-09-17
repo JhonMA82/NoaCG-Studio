@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { recoverRows, recoverWave, branchFacts } from './wave-recover.mjs';
 import { recordLaunch, recordProgress, readLaunches, readProgress, currentProgress } from './wave-launch.mjs';
 import { ensureWavePlansDir } from './wave-plan-store.mjs';
+import { digest } from './work-spec.mjs';
 
 const text = `Window starts: 2026-09-13T10:00:00Z
 Window ends: 2026-09-13T12:00:00Z
@@ -23,6 +24,31 @@ QUEUE queue-merge
 `;
 const sha = 'a'.repeat(40);
 const input = { text, plan: path.resolve('plan'), launches: [{ letter: 'A', branch: 'codex/a', at: 1, plan: path.resolve('plan') }], jobs: [], landings: [], branches: { 'codex/a': { sha, inMain: true } } };
+
+test('landed slices retain open or invalid parent acceptance during recovery', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'wave-recover-parent-'));
+  try {
+    const plan = path.join(ensureWavePlansDir(dir), '2026-09-13-day-wave-plan.local.md');
+    const record = 'docs/work-specs/outcome/work.json';
+    const spec = '# Outcome\n### AC-1: Integrated scenario\n';
+    mkdirSync(path.join(dir, 'docs/work-specs/outcome'), { recursive: true });
+    writeFileSync(path.join(dir, 'docs/work-specs/outcome/spec.md'), spec);
+    writeFileSync(path.join(dir, record), JSON.stringify({ version: 2, specSha256: digest(spec), authority: { source: 'owner request', status: 'agreed' } }));
+    writeFileSync(plan, text.replace('GOAL Deliver outcome', `SPEC ${record} AC-1\nGOAL Deliver outcome`));
+    recordLaunch(dir, { letter: 'A', branch: 'codex/a', size: 'small', plan, now: 1 });
+    writeFileSync(path.join(dir, 'landed.jsonl'), JSON.stringify({ branch: 'codex/a', at: 2, sha }) + '\n');
+    const options = { dir, plan, root: dir, branches: input.branches };
+    const result = recoverWave(options);
+    assert.equal(result.rows[0].state, 'landed');
+    assert.equal(result.features[0].status, 'open');
+    assert.deepEqual(result.features[0].openCriteria, ['AC-1']);
+    assert.match(result.nextAction, /before claiming parent completion/);
+    writeFileSync(path.join(dir, record), '{bad');
+    assert.equal(recoverWave(options).features[0].status, 'invalid');
+    writeFileSync(plan, text);
+    assert.deepEqual(recoverWave(options).features, []);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
 
 test('empty branch at main and unknown owner do not claim completion or free capacity', () => {
   const [row] = recoverRows(input);

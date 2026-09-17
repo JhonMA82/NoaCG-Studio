@@ -225,7 +225,16 @@ export async function checkTemplateLegibility(
       doc.fonts.ready.then(() => undefined),
       new Promise<void>((resolve) => { setTimeout(resolve, 1200); }),
     ]);
-    await new Promise<void>((resolve) => { requestAnimationFrame(() => requestAnimationFrame(() => resolve())); });
+    // Two frames for the first paint to land - CAPPED, because a page that is hidden, occluded
+    // or in a background tab throttles requestAnimationFrame to never. Uncapped, this promise
+    // simply never settled there: the export panel rendered zero legibility warnings, and
+    // nothing distinguished that from a graphic with no legibility problems. Measured
+    // 2026-09-17 driving the app with the browser pane hidden - a design that genuinely warns
+    // twice showed nothing, while the same measurement called directly returned both rows.
+    await Promise.race([
+      new Promise<void>((resolve) => { requestAnimationFrame(() => requestAnimationFrame(() => resolve())); }),
+      new Promise<void>((resolve) => { setTimeout(resolve, 300); }),
+    ]);
     return designRulesWarnings(doc, template, settings);
   } catch {
     return [];

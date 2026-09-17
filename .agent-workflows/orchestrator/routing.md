@@ -45,7 +45,8 @@ mechanisms; this module owns the choice. Claude's existing Agent and rescue rout
 
 Done when each row has a capable execution route, a pool and justified effort; each economy note
 from `node scripts/wave-plan-check.mjs` is answered. No blanket requirement to keep Claude busy,
-nor to empty another pool merely because it has allowance.
+nor to empty another pool merely because it has allowance - and a wave where every row is Opus by
+omission has skipped this step (`incidents.md` "the ten rows that all went to Opus").
 
 ## Effort and evidence
 
