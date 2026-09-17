@@ -3,6 +3,7 @@ import { createProject } from './_create';
 import { openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
 import { parkFocusOffControls } from './_keys';
+import { PRODUCTION_DATA_KEY } from '../src/model/productionState';
 
 // The production DATA workspace (docs/INTERACTIVE_PLAYOUT_PLAN.md D3/D6): the show's own
 // tables, edited on the Data tab, loaded into CUES on the Playout tab by deliberate operator
@@ -917,4 +918,185 @@ test('Bind all by title binds every unambiguous title in one press, and leaves t
   expect(edges.deleteRights.length).toBeGreaterThan(3);
   expect(new Set(edges.deleteRights).size, `delete buttons end at ${edges.deleteRights.join(', ')}`).toBe(1);
   await expect(data.getByTestId('bind-House Score-f1')).toHaveValue('match.scoreA');
+});
+
+// ── ONE EDIT, ONE WRITE ─────────────────────────────────────────────────────────────────────
+//
+// THE COUNT IS THE CLAIM. A value box used to call the tree writer on every `input` event, so a
+// twelve-character team name was twelve persists and twelve wire updates. Published, that is
+// twelve HTTP PATCHes against an ingest budget of 25 per 5 s: the run 429s, and the failure
+// handler answers by pulling the server's OLDER tree back in - which lands in the box the
+// operator is still typing into. Unpublished it is twelve read-modify-writes of every
+// production's tree, plus an update row per bound graphic each time.
+//
+// PERSISTS ARE THE ONE NUMBER WORTH COUNTING, because everything downstream hangs off them: the
+// wire update fires from `resolved`, which only moves when the tree moves, and on a published
+// production the persist IS the PATCH. Offline a persist is a `localStorage` write, so the probe
+// wraps `setItem` and counts the writes to the production-data key.
+
+/** Count every write to the production data key, in every page opened after this call. */
+async function countPersists(page: Page): Promise<void> {
+  await page.context().addInitScript((key: string) => {
+    // GUARDED WHOLE, the way e2e/_storage.ts explains: an init script runs inside the sandboxed
+    // preview iframes too, where touching a storage API can throw, and an uncaught error there
+    // lands in the page-error listeners other specs assert empty.
+    try {
+      const w = window as unknown as { __dataPersists?: number };
+      w.__dataPersists = 0;
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (this: Storage, k: string, value: string) {
+        if (k === key) w.__dataPersists = (w.__dataPersists ?? 0) + 1;
+        return setItem.call(this, k, value);
+      };
+    } catch {
+      /* no storage to wrap here */
+    }
+  }, PRODUCTION_DATA_KEY);
+}
+
+/** Zero it, so the count is the gesture under test and not the setup that preceded it. */
+async function resetPersists(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    (window as unknown as { __dataPersists?: number }).__dataPersists = 0;
+  });
+}
+
+/**
+ * The panel commits an edit after this long without a keystroke (`EDIT_SETTLE_MS` in
+ * src/components/home/useDeferredEdits.ts). The tests need it for one reason only: to say what a
+ * SLOW machine is allowed to cost. See `expectOneEditOneWrite`.
+ */
+const SETTLE_MS = 500;
+
+/**
+ * Assert what ONE edit cost, without pinning how fast the machine running the test is.
+ *
+ * The claim is one write per edit rather than one per character, and on any healthy run `allowed`
+ * is 1, which is that claim exactly. A runner that stalls mid-word genuinely made two edits - the
+ * settle timer fired between two keystrokes, exactly as an operator pausing would make it - so
+ * the budget grows by one per settle window the typing actually spanned, and never comes anywhere
+ * near the one-per-character count these tests exist to refuse (twelve, and five, before this).
+ */
+async function expectOneEditOneWrite(page: Page, typedMs: number): Promise<void> {
+  const count = await page.evaluate(() => (window as unknown as { __dataPersists?: number }).__dataPersists ?? 0);
+  const allowed = 1 + Math.floor(typedMs / SETTLE_MS);
+  expect(
+    count,
+    `one edit must cost one write; typing took ${typedMs}ms, so at most ${allowed} settle${allowed === 1 ? '' : 's'} could have fired`,
+  ).toBeLessThanOrEqual(allowed);
+}
+
+/** Type into a focused box and say how long it took, so the count above can be judged. */
+async function typeAndTime(type: () => Promise<void>): Promise<number> {
+  const started = Date.now();
+  await type();
+  return Date.now() - started;
+}
+
+/** The value the persisted tree holds at `path`, or null - read from storage, not from the box,
+ *  so the assertion is about what LANDED rather than about what is on screen. */
+async function persistedValue(page: Page, path: string): Promise<unknown> {
+  return await page.evaluate(([key, p]: [string, string]) => {
+    const store = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown>;
+    const tree = Object.values(store)[0];
+    let node: unknown = tree;
+    for (const step of p.split('.')) {
+      if (!node || typeof node !== 'object') return null;
+      node = (node as Record<string, unknown>)[step];
+    }
+    return node ?? null;
+  }, [PRODUCTION_DATA_KEY, path] as [string, string]);
+}
+
+test('typing a value costs ONE persist for the whole edit, not one per character', async ({ page }) => {
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Rate Budget');
+  await countPersists(page);
+  const data = await openWorkspace(page, 'data');
+  await addValue(data, 'match.home.name', 'Suomi');
+
+  // The gesture: select the whole value and retype it, character by character, the way an
+  // operator correcting a team name does. `pressSequentially` is the point - `fill` sets the
+  // value in one event and so cannot tell the two behaviours apart.
+  const box = data.getByTestId('data-value-match.home.name');
+  await resetPersists(data);
+  await box.click();
+  await box.press('ControlOrMeta+a');
+  const typedMs = await typeAndTime(() => box.pressSequentially('Helsinki IFK'));
+  await expect(box).toHaveValue('Helsinki IFK');
+  await box.blur();
+
+  // Waiting for the tree is what makes the count honest: poll until the edit has LANDED, then
+  // ask how many writes it took to get there.
+  await expect.poll(() => persistedValue(data, 'match.home.name')).toBe('Helsinki IFK');
+  await expectOneEditOneWrite(data, typedMs);
+});
+
+test('an operator who types and walks away still has the value persisted', async ({ page }) => {
+  // THE TRAP THE DEBOUNCE MUST NOT SPRING. Committing on blur alone would leave a typed value in
+  // a box nobody ever leaves - the operator types the new clock and turns back to the desk - so
+  // the timer commits it unattended, and what it commits is the LAST keystroke.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Walk Away');
+  await countPersists(page);
+  const data = await openWorkspace(page, 'data');
+  await addValue(data, 'match.clock', '12:31');
+
+  const box = data.getByTestId('data-value-match.clock');
+  await resetPersists(data);
+  await box.click();
+  await box.press('ControlOrMeta+a');
+  const typedMs = await typeAndTime(() => box.pressSequentially('20:00'));
+  await expect(box, 'nothing may move the focus out of the box').toBeFocused();
+  await expect.poll(() => persistedValue(data, 'match.clock')).toBe('20:00');
+  await expectOneEditOneWrite(data, typedMs);
+});
+
+test('a refresh arriving mid-word never overwrites the box under the cursor', async ({ page }) => {
+  // THE REVERT HAZARD. The tree moves under a box that is being typed into - a feed tick, a
+  // second operator, or this page's own recovery after a refused write - and the box is a
+  // CONTROLLED input, so whatever the tree now says lands in it mid-word. THE RULE: a box holding
+  // an uncommitted edit shows what was typed and nothing else, until that edit is committed.
+  //
+  // THE PROBE is the PLAYOUT tab writing the same path. Offline that is the same door a server
+  // refresh comes through - ProductionPage's `storage` listener - and it costs one `evaluate`,
+  // which neither fronts a tab nor moves the focus, so the box under test keeps its caret.
+  //
+  // It runs WHILE the word is still being typed, because an uncommitted edit is only
+  // uncommitted for as long as the typing keeps it so. Awaiting the write and then typing would
+  // be a race against this panel's own settle timer; typing THROUGH the write is not.
+  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Mid Word');
+  const dataOne = await openWorkspace(page, 'data');
+  await addValue(dataOne, 'match.home.name', 'Suomi');
+
+  const box = dataOne.getByTestId('data-value-match.home.name');
+  await box.click();
+  await box.press('ControlOrMeta+a');
+  await box.pressSequentially('Hels');
+  await expect(
+    box,
+    `a box with an uncommitted edit says so - unless the machine stalled past the ${SETTLE_MS}ms settle window between the last keystroke and this assertion`,
+  ).toHaveAttribute('data-dirty', 'true');
+
+  await Promise.all([
+    page.evaluate((key: string) => {
+      const store = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<
+        string,
+        { match?: { home?: { name?: string } } }
+      >;
+      const tree = store[Object.keys(store)[0]];
+      if (!tree?.match?.home) throw new Error('the production tree is not where this probe expects it');
+      tree.match.home.name = 'Norge';
+      localStorage.setItem(key, JSON.stringify(store));
+    }, PRODUCTION_DATA_KEY),
+    box.pressSequentially('inki', { delay: 100 }),
+  ]);
+
+  // The word is whole: nothing that arrived while it was being typed reached the box.
+  await expect(box, 'the arriving write must not reach a box under the cursor').toHaveValue('Helsinki');
+  await box.blur();
+  await expect(box).toHaveValue('Helsinki');
+  // …and the edit wins its own path when it commits, over the value that arrived meanwhile.
+  await expect.poll(() => persistedValue(dataOne, 'match.home.name')).toBe('Helsinki');
 });

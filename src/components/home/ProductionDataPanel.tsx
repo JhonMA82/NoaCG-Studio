@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import {
   deletePath,
   flattenLeaves,
+  formatValue,
+  getPath,
   matchTitle,
   parseDataTree,
   parseLiteral,
@@ -16,6 +18,7 @@ import { setFieldBinding, setFieldBindings, setShowSeedData, type Show } from '.
 import { fieldDescriptors } from '../../control/controlModel';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { copyLink } from './copyLink';
+import { useDeferredEdits } from './useDeferredEdits';
 
 /**
  * THE MANUAL DATA PLAYGROUND (docs/PRODUCTION_DATA_PLAN.md §3) — the production's live data
@@ -52,7 +55,10 @@ export default function ProductionDataPanel({
   const [rawOpen, setRawOpen] = useState(false);
   const [rawText, setRawText] = useState('');
   const [rawError, setRawError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  /** The one line this panel says back, and whether it is good news. ONE state rather than two,
+   *  so a red line and a green one can never be on screen together - which they were, the moment
+   *  any note was set outside `write()`. */
+  const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
   /** The data key is hidden until asked for: it is a credential, and this page is often on a
    *  screen somebody else is looking at. */
   const [keyOpen, setKeyOpen] = useState(false);
@@ -66,8 +72,36 @@ export default function ProductionDataPanel({
 
   const write = (next: JsonObject, message?: string) => {
     setLiveData(next);
-    setNote(message ?? null);
+    setNote(message ? { text: message, ok: true } : null);
   };
+
+  /**
+   * The value boxes, deferred (see {@link useDeferredEdits}). The commit writes ONE path, from
+   * the tree as it stands at commit time - so an edit typed while a feed tick landed on some
+   * other path keeps that tick. An edit that ends where it started writes nothing at all, which
+   * is what makes clicking into a box, changing your mind and clicking out of it free.
+   *
+   * The steppers, Apply JSON, Reset, Clear and Move numbers stay IMMEDIATE: each is one
+   * deliberate press, already one write, and a press that did not move the figure would read as
+   * a broken button.
+   */
+  const edits = useDeferredEdits((path, text) => {
+    // Read through the model rather than scanning the rows this render happens to hold: `getPath`
+    // and `formatValue` are the same pair `flattenLeaves` used to build them, so "is this path
+    // still a leaf, and what does it say" cannot drift from what the rest of the app believes.
+    const previous = getPath(liveData, path);
+    const stored = formatValue(previous);
+    // THE ROW WENT AWAY while it was being typed into - a second operator deleted the path, or a
+    // feed's tree no longer carries it. Writing the text back would resurrect a value somebody
+    // deliberately removed, so the edit is dropped - but never in silence, because the operator
+    // has typed something and is entitled to know it went nowhere.
+    if (stored === null) {
+      setNote({ text: `${path} was removed while you were typing it, so what you typed was not saved.`, ok: false });
+      return;
+    }
+    if (stored === text) return;
+    write(setPath(liveData, path, reparseLeaf(previous, text)));
+  });
 
   const addField = () => {
     const path = newPath.trim();
@@ -133,7 +167,7 @@ export default function ProductionDataPanel({
           <button
             onClick={() => {
               setShows(setShowSeedData(show.id, liveData));
-              setNote('✓ Saved as this production’s seed');
+              setNote({ text: '✓ Saved as this production’s seed', ok: true });
             }}
             data-testid="data-save-seed"
           >
@@ -192,9 +226,11 @@ export default function ProductionDataPanel({
         </div>
       </details>
 
+      {/* ONE line, in the colour its own news deserves: a value that went nowhere must not arrive
+          wearing the style this panel uses for "done". */}
       {note && (
-        <p className="status-ok pd-data-note" data-testid="data-note">
-          {note}
+        <p className={`${note.ok ? 'status-ok' : 'status-bad'} pd-data-note`} data-testid="data-note">
+          {note.text}
         </p>
       )}
 
@@ -223,7 +259,11 @@ export default function ProductionDataPanel({
             <button
               onClick={() => {
                 void copyLink(dataKey).then((ok) => {
-                  setNote(ok ? '✓ Data key copied' : 'The key could not be copied. Reveal it and copy by hand.');
+                  setNote(
+                    ok
+                      ? { text: '✓ Data key copied', ok: true }
+                      : { text: 'The key could not be copied. Reveal it and copy by hand.', ok: false },
+                  );
                 });
               }}
               data-testid="data-key-copy"
@@ -274,67 +314,90 @@ export default function ProductionDataPanel({
             deep as you like.
           </p>
         )}
-        {leaves.map((leaf) => (
-          <div className="pd-live-row" key={leaf.path} data-testid={`data-row-${leaf.path}`}>
-            <code className="pd-live-path">{leaf.path}</code>
-            {/* A LIST needs a textarea, not an input: `<input>` sanitises newlines out of its
-                own value, so a list rendered there would come back joined into one line and the
-                array would quietly become a string. `reparseLeaf` puts the list back together. */}
-            {leaf.text.includes('\n') ? (
-              <textarea
-                className="pd-live-lines"
-                rows={Math.min(leaf.text.split('\n').length, 6)}
-                value={leaf.text}
-                onChange={(e) => write(setPath(liveData, leaf.path, reparseLeaf(leaf.value, e.target.value)))}
-                data-testid={`data-value-${leaf.path}`}
-              />
-            ) : (
-              <input
-                value={leaf.text}
-                onChange={(e) => write(setPath(liveData, leaf.path, reparseLeaf(leaf.value, e.target.value)))}
-                data-testid={`data-value-${leaf.path}`}
-              />
-            )}
-            <span className="pd-live-type">{Array.isArray(leaf.value) ? 'list' : typeof leaf.value}</span>
-            {typeof leaf.value === 'number' && (
-              <span className="pd-live-step">
-                <button
-                  onClick={() => write(setPath(liveData, leaf.path, (leaf.value as number) - 1))}
-                  data-testid={`data-down-${leaf.path}`}
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => write(setPath(liveData, leaf.path, (leaf.value as number) + 1))}
-                  data-testid={`data-up-${leaf.path}`}
-                >
-                  +
-                </button>
-              </span>
-            )}
-            {/* ARMED, like the entry delete on the graphic control page. This is typed-in data
-                with no undo behind it, on a row someone drives live, and a stray click took it
-                with no way back - "if I close one of those, how can I reopen it?" (owner,
-                2026-08-21). The answer used to be: retype the path and the value from memory. */}
-            <button
-              className={`pd-live-del${armed === `leaf:${leaf.path}` ? ' reset-armed' : ''}`}
-              title={armed === `leaf:${leaf.path}` ? `Click again to delete ${leaf.path}` : 'Delete this value'}
-              onClick={() => {
-                if (armed === `leaf:${leaf.path}`) {
-                  setArmed(null);
-                  write(deletePath(liveData, leaf.path));
-                } else setArmed(`leaf:${leaf.path}`);
-              }}
-              data-testid={`data-delete-${leaf.path}`}
-            >
-              {/* A GLYPH, not the word the other armed buttons use: this row's last grid column
-                  is a fixed 28px, so "Delete?" would overflow its own track - the defect §2d of
-                  docs/PLAYOUT_DASHBOARD.md is about, one panel over. The amber and the tooltip
-                  carry the meaning instead. */}
-              {armed === `leaf:${leaf.path}` ? '✓' : '✕'}
-            </button>
-          </div>
-        ))}
+        {leaves.map((leaf) => {
+          // What the box shows, and whether it is holding an edit nobody has been told about.
+          const text = edits.text(leaf.path, leaf.text);
+          const dirty = edits.dirty(leaf.path);
+          return (
+            <div className="pd-live-row" key={leaf.path} data-testid={`data-row-${leaf.path}`}>
+              <code className="pd-live-path">{leaf.path}</code>
+              {/* A LIST needs a textarea, not an input: `<input>` sanitises newlines out of its
+                  own value, so a list rendered there would come back joined into one line and the
+                  array would quietly become a string. `reparseLeaf` puts the list back together.
+
+                  IT IS THE VALUE'S TYPE THAT DECIDES, not how many lines the text happens to have.
+                  A list stays a list through `reparseLeaf` however few lines are left in it, so a
+                  textarea stays a textarea - whereas the line count changes as somebody types, and
+                  on a two-line list edited down to one the settle timer would swap the element
+                  under an idle caret, unmounting the box mid-edit and sending focus to the body.
+                  A multi-line STRING still reads its line count, because nothing about a string
+                  says it wants more than one line; it can still swap, and only when a person has
+                  deleted every newline in it. */}
+              {Array.isArray(leaf.value) || leaf.text.includes('\n') ? (
+                <textarea
+                  className="pd-live-lines"
+                  rows={Math.min(text.split('\n').length, 6)}
+                  value={text}
+                  data-dirty={dirty || undefined}
+                  onChange={(e) => edits.type(leaf.path, e.target.value)}
+                  onBlur={edits.flush}
+                  data-testid={`data-value-${leaf.path}`}
+                />
+              ) : (
+                <input
+                  value={text}
+                  data-dirty={dirty || undefined}
+                  onChange={(e) => edits.type(leaf.path, e.target.value)}
+                  onBlur={edits.flush}
+                  // Enter ends the edit here. Not on the textarea above, where Enter is a line of
+                  // the list and ending the edit with it would make a list impossible to type.
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') edits.flush();
+                  }}
+                  data-testid={`data-value-${leaf.path}`}
+                />
+              )}
+              <span className="pd-live-type">{Array.isArray(leaf.value) ? 'list' : typeof leaf.value}</span>
+              {typeof leaf.value === 'number' && (
+                <span className="pd-live-step">
+                  <button
+                    onClick={() => write(setPath(liveData, leaf.path, (leaf.value as number) - 1))}
+                    data-testid={`data-down-${leaf.path}`}
+                  >
+                    −
+                  </button>
+                  <button
+                    onClick={() => write(setPath(liveData, leaf.path, (leaf.value as number) + 1))}
+                    data-testid={`data-up-${leaf.path}`}
+                  >
+                    +
+                  </button>
+                </span>
+              )}
+              {/* ARMED, like the entry delete on the graphic control page. This is typed-in data
+                  with no undo behind it, on a row someone drives live, and a stray click took it
+                  with no way back - "if I close one of those, how can I reopen it?" (owner,
+                  2026-08-21). The answer used to be: retype the path and the value from memory. */}
+              <button
+                className={`pd-live-del${armed === `leaf:${leaf.path}` ? ' reset-armed' : ''}`}
+                title={armed === `leaf:${leaf.path}` ? `Click again to delete ${leaf.path}` : 'Delete this value'}
+                onClick={() => {
+                  if (armed === `leaf:${leaf.path}`) {
+                    setArmed(null);
+                    write(deletePath(liveData, leaf.path));
+                  } else setArmed(`leaf:${leaf.path}`);
+                }}
+                data-testid={`data-delete-${leaf.path}`}
+              >
+                {/* A GLYPH, not the word the other armed buttons use: this row's last grid column
+                    is a fixed 28px, so "Delete?" would overflow its own track - the defect §2d of
+                    docs/PLAYOUT_DASHBOARD.md is about, one panel over. The amber and the tooltip
+                    carry the meaning instead. */}
+                {armed === `leaf:${leaf.path}` ? '✓' : '✕'}
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       <div className="pd-live-add">
@@ -421,6 +484,26 @@ function BindingTable({
     .map((g) => ({ g, descriptors: fieldDescriptors(g.template.fields ?? [], { includeHidden: true }) }))
     .filter(({ descriptors }) => descriptors.length > 0);
 
+  /**
+   * The path boxes, deferred for the same reason as the value boxes above and one of its own: a
+   * binding is persisted on the SHOW RECORD, so typing `match.home.name` used to save fifteen
+   * bindings, fourteen of them to paths that do not exist. Each of those is a synced document
+   * write, and each makes the field it belongs to resolve to nothing for a moment - on air.
+   *
+   * A graphic's name and a field id are two strings that both come from user data, so the key
+   * that identifies a box is their JSON pair rather than anything joined by a separator one of
+   * them could contain.
+   */
+  const bindEdits = useDeferredEdits((key, text) => {
+    const { graphic, fieldId } = JSON.parse(key) as { graphic: string; fieldId: string };
+    // Same rule as the value boxes: an edit that ends where it started writes nothing. Here that
+    // is worth a line of its own, because the write is a whole load-mutate-save of the shows
+    // store and a synced show-record write - an expensive way to store the string already there.
+    if ((bindings[graphic]?.[fieldId] ?? '') === text) return;
+    setShows(setFieldBinding(show.id, graphic, fieldId, text));
+  });
+  const bindKey = (graphic: string, fieldId: string) => JSON.stringify({ graphic, fieldId });
+
   /** Apply every unambiguous suggestion across one or more graphics in ONE write to the show
    *  record. This is the operator's press, never a load-time effect (the suggestion above is
    *  only ever offered) - and one press writing N fields costs one write, not N. */
@@ -503,16 +586,22 @@ function BindingTable({
               const suggestion = hits.length === 1 ? hits[0] : null;
               const ambiguous = hits.length > 1 ? hits : [];
               const live = resolved[g.name]?.[d.key];
+              const key = bindKey(g.name, d.key);
               return (
                 <div className="pd-bind-row" key={d.key}>
                   <span className="pd-bind-field">
                     <code>{d.key}</code> {d.label}
                   </span>
                   <input
-                    value={path}
+                    value={bindEdits.text(key, path)}
+                    data-dirty={bindEdits.dirty(key) || undefined}
                     placeholder={suggestion ? `suggested: ${suggestion}` : 'pick or type a path'}
                     list="pd-data-paths"
-                    onChange={(e) => setShows(setFieldBinding(show.id, g.name, d.key, e.target.value))}
+                    onChange={(e) => bindEdits.type(key, e.target.value)}
+                    onBlur={bindEdits.flush}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') bindEdits.flush();
+                    }}
                     data-testid={`bind-${g.name}-${d.key}`}
                   />
                   {suggestion && (
