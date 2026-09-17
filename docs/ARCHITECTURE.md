@@ -1,5 +1,12 @@
 # NoaCG Studio architecture - the modular monolith
 
+**Planning companion, 2026-09-13:** [OGRAF_FULL_STACK_PLAN.md](OGRAF_FULL_STACK_PLAN.md)
+specifies the proposed editor/controller/Server API/renderer responsibilities and their
+implementation dependencies, grounded in [OGraf Studio research](OGRAF_STUDIO_RESEARCH.md).
+It does not change the shipped domain registry or authorize new edges. In particular, the
+future Server API is a server-side facade over the command path; `/output` remains a browser
+executor, and authoring remains code-as-truth.
+
 **Binding.** This doc holds the cross-domain rules: the domain registry, the allowed dependency
 edges, where new code goes, and the honest list of known debts. Per-domain contracts stay in the
 nested `AGENTS.md` files and the docs they reference - this doc never repeats them. Update this

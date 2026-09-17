@@ -94,6 +94,13 @@ student draws the graphic, we supply the behaviour, and **a walk that is owed ne
 
 ## NEXT - OGraf-first: the standards-based platform
 
+**Research update, 2026-09-13:** [OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md) makes
+Zero Density the primary editor/agent comparison; [OGRAF_FULL_STACK_PLAN.md](OGRAF_FULL_STACK_PLAN.md)
+records the full-stack boundaries and implementation-ready backlog. This is planning evidence,
+not a new push or permission to implement: successful creation/editing/animation, SVG and CLI
+workflows, and reliable CasparCG production remain the immediate priorities. The ladder below
+and the parked native-renderer position are unchanged.
+
 **Ratified by the owner 2026-08-29, with amendments; `docs/OGRAF_FIRST_REVIEW.md` is the costing
 and the record. Programme P6 in [`PROGRAMMES.md`](PROGRAMMES.md), whose only entry condition is a date, so it may
 start now; the NOW date is a forecast of when it matters, not a wait (owner 2026-09-03).** The

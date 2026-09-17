@@ -55,7 +55,7 @@ immediate steering document; this file carries the year's authorized work and it
 | P4 | Data & Automation | **AUTHORIZED** (2026-09-15); IDEA | design first; data-tree Phase 3 convergence before any connector |
 | P5 | Agent Platform | AUTHORIZED per item | the GOALS agent-door boxes; each new key scope and the npm publish are owner actions |
 | P6 | OGraf and Interoperability | AUTHORIZED | may start now; the NOW date (`docs/GOALS.md`, `## NOW`) is the forecast of when it matters, not a wait (owner 2026-09-03). The ladder is GOALS.md "NEXT - OGraf-first", unchanged |
-| P7 | Creation & Advanced Editor | **AUTHORIZED** (ALIGN-2026-09-10-4, 2026-09-15); DESIGN - failure analysis owner-confirmed | next: one editor plan. A Fable planning session decides whether the rebuild benchmarked on Zero Density's OGraf Studio (`docs/EDITOR_REBUILD_PLAN.md`, on `codex/ograf-studio-architecture-research`) and a quick template editor are one editor, and in what order (`docs/backlog/one-editor-studio-benchmark-and-quick-templates.md`). The WYSIWYG_PLAN.md failure analysis (owner-confirmed 2026-09-01) still binds attempt two |
+| P7 | Creation & Advanced Editor | **ACTIVE** for editor rebuild and Starter Collections (owner, 2026-09-17; prior authorization ALIGN-2026-09-10-4, 2026-09-15) | One editor, two linked workstreams: `EDITOR_REBUILD_PLAN.md` owns animation quality; `STARTER_COLLECTIONS_PLAN.md` owns quick branded creation and production handoff. Fable review incorporated. The owner-confirmed WYSIWYG failure analysis still informs both; other advanced scope remains DESIGN. |
 | H0 | Reliability (horizontal) | AUTHORIZED | stages attach where first needed; owns the soak driver and the fault harness |
 
 ## P1 Teams
@@ -150,6 +150,10 @@ Claims: `docs/NORTH_STAR_2027.md` §5 P5, proven by recurring novel-brief benchm
 
 ## P6 OGraf & Interoperability
 
+Research handoff, 2026-09-13: [OGRAF_FULL_STACK_PLAN.md](OGRAF_FULL_STACK_PLAN.md) supplies the
+dependency map for existing rungs, and [OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md)
+is the primary authoring/agent case study. No stage is advanced by documentation alone.
+
 State: AUTHORIZED (ratified 2026-08-29, `docs/OGRAF_FIRST_REVIEW.md`) and **may start now**. First
 tenant of this register; nothing about it is redesigned here. The NOW date (`docs/GOALS.md`,
 `## NOW`) is a forecast of when the ladder matters, never a precondition for starting it (owner,
@@ -165,7 +169,24 @@ Owner actions: the GSAP written clarification; the ecosystem-listing PR and any 
 
 ## P7 Creation & Advanced Editor
 
-State: DESIGN (owner-amended, 2026-09-01: design/research begins early, not in Jul-Aug).
+Owner-requested follow-up, 2026-09-14: [EDITOR_REBUILD_PLAN.md](EDITOR_REBUILD_PLAN.md) turns
+the Studio research into a concrete basic-editor implementation sequence after the owner's
+usability rejection. Planning is delivered; product implementation and user acceptance are
+not complete. [Receipt](backlog/editor-basics-rebuild.md).
+
+The owner authorized planning then implementation on 2026-09-17 and accepted the independent
+review follow-up. [STARTER_COLLECTIONS_PLAN.md](STARTER_COLLECTIONS_PLAN.md) independently owns
+brands, curated TemplatePack customization and production handoff; [its receipt](backlog/starter-collections.md)
+tracks that route. Animation quality stays in the editor rebuild receipt. Both share one editor,
+with separate phase exits; neither claims owner acceptance from a green build.
+
+Before major timeline or agent-authoring design, read the pinned Studio/Eyevinn comparison in
+[OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md). Its property-track and revision/evidence
+backlog items are design handoffs inside the existing code-as-truth direction, not a second
+scene-model programme (2026-09-13).
+
+State: ACTIVE for the owner-authorized editor rebuild and Starter Collections (2026-09-17,
+recorded in their plans). Other advanced editor scope remains DESIGN.
 Incremental creation/import/preset work continues under existing plans. **The required failure
 account is written (2026-09-01): `docs/WYSIWYG_PLAN.md` "Why attempt one did not land"** - the
 editor was a destination no task led into, judged through front-door defects; what landed

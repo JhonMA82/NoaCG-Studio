@@ -1,5 +1,11 @@
 # From a drawing to a control panel - what the others let a user do, and what OGraf obliges us to keep
 
+**Source refresh, 2026-09-13:** [OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md) compares
+Studio's multi-target bindings/structured GDD and the current ograf-form 1.1.0 oracle with
+NoaCG's existing control adapter. Native behaviour controls remain a strength; generic nested
+GDD and standard type interpretation remain explicit gaps. The existing oracle backlog carries
+the acceptance details, without adding a second form-generation system.
+
 **Written 2026-08-30.** The owner named a capability bar - *"we need to at least match their
 capabilities"* - and no file recorded what that bar is on this one axis, so every behaviour added
 after tonight was going to be designed blind. This file draws the bar, on one narrow question and

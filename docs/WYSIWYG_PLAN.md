@@ -1,5 +1,12 @@
 # WYSIWYG editor — Era 6 plan (first slices)
 
+**Follow-up, 2026-09-14:** the owner reports that ordinary animation/keyframe editing still
+does not feel good enough. [EDITOR_REBUILD_PLAN.md](EDITOR_REBUILD_PLAN.md) is the requested
+next implementation plan. Its explicit usability goal supersedes this historical analysis's
+inference that no owner complained about interaction feel, and its exclusion of improvements
+whose main benefit is easier editing. The earlier shipped-feature record remains historical
+evidence, not acceptance of the current experience.
+
 > **STATUS 2026-09-01.** Attempt one is ANALYZED - see "Why attempt one did not land" at the
 > end of this file. The verdict it answers: **"Tried once and it did not land"** (owner,
 > 2026-08-22, `docs/GOALS.md` THEN 1 as written that day). A second attempt is programme
