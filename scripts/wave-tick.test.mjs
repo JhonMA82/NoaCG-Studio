@@ -39,6 +39,15 @@ test('the merge queue\'s own temporary refs are not branches this wave watches',
   assert.equal(watchedBranch(''), false);
 });
 
+test('a queue ref left in the saved state is forgotten, never announced as a deleted branch', () => {
+  // The upgrade tick: the state was written while the ref was still building, so it is stored
+  // ahead of main with no landing. It must not read as a branch somebody deleted.
+  const building = { ahead: true, landed: false, landingState: 'not-queued' };
+  const previous = { branches: { 'gh-readonly-queue/main/pr-320-dede': building, 'claude/tm-one-edit': building } };
+  const current = { at: NOW, branches: [], blocked: [], jobs: [], landedBranchNames: [] };
+  assert.deepEqual(deltaBetween(previous, current), ['BRANCH GONE claude/tm-one-edit - deleted since last tick with no landing recorded for it']);
+});
+
 test('worker state changes produce one delta and unchanged reports stay quiet', () => {
   const report = { state: 'ready', sha: 'a'.repeat(40), nextAction: 'review result' };
   const current = { branches: [], blocked: [], jobs: [], workerReports: { 'codex/a': report } };

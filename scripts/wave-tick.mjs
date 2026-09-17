@@ -64,7 +64,7 @@ export const QUIET_MINUTES = 30;
  * plumbing announcing itself. Nothing can be done about such a branch and nothing should be: it is
  * not a row, it has no session, and it lands whatever is in it without anybody deciding to.
  */
-export const QUEUE_REF_PREFIX = 'gh-readonly-queue/';
+const QUEUE_REF_PREFIX = 'gh-readonly-queue/';
 
 // ── Pure decisions ───────────────────────────────────────────────────────────────────────────────
 
@@ -176,7 +176,17 @@ export function deltaBetween(previous, current, { quietMinutes = QUIET_MINUTES }
         + (report.blocker ? `; blocker: ${report.blocker}` : ''));
     }
   }
-  const prevBranches = previous?.branches ?? {};
+  // A BRANCH THIS TICK NO LONGER WATCHES MUST BE FORGOTTEN, NOT MOURNED. The vanished-branch loop
+  // below turns a name that left the inventory into `BRANCH GONE`, which is right for a row's
+  // branch somebody deleted and wrong for one the inventory simply stopped carrying. When
+  // `watchedBranch` narrowed to exclude the merge queue's refs, a queue ref still BUILDING at that
+  // moment sat in the saved state, dropped out of the inventory on the next tick, and had no
+  // landing recorded - the exact shape of the event. Filtering the saved side by the same rule
+  // means the change costs one silent tick instead of a wrong line in the morning's log, and any
+  // later narrowing of the rule gets that for free.
+  const prevBranches = Object.fromEntries(
+    Object.entries(previous?.branches ?? {}).filter(([name]) => watchedBranch(name)),
+  );
   const prevBlocked = new Set(previous?.blocked ?? []);
   const prevUnqueued = new Set(previous?.finishedUnqueued ?? []);
   const currentNames = new Set(current.branches.map((branch) => branch.name));
