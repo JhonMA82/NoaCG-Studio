@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const here = process.env.NOACG_CI_CACHE || join(tmpdir(), 'noacg-ci-cache');
 const ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));

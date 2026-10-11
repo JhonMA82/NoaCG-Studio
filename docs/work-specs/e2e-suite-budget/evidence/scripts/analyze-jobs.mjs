@@ -1,12 +1,12 @@
 // Read-only analysis over runs.json + jobs/*.json. Prints the figures section A/D of the brief asks for.
 import { tmpdir } from 'node:os';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 const here = process.env.NOACG_CI_CACHE || join(tmpdir(), 'noacg-ci-cache');
 const runs = JSON.parse(readFileSync(join(here, 'runs.json'), 'utf8'));
 const runById = new Map(runs.map(r => [r.id, r]));
 const jobsDir = join(here, 'jobs');
+if (!existsSync(jobsDir)) { console.error(`no job cache at ${jobsDir} - run fetch-runs.mjs and fetch-jobs.mjs first (NOACG_CI_CACHE selects the directory)`); process.exit(2); }
 const have = new Set(readdirSync(jobsDir));
 const min = (a, b) => (new Date(b) - new Date(a)) / 60000;
 const q = (a, p) => { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };

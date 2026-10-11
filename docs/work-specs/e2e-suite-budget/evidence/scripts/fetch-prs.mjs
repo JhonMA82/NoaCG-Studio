@@ -2,11 +2,11 @@
 import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { writeFileSync, existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 const here = process.env.NOACG_CI_CACHE || join(tmpdir(), 'noacg-ci-cache');
+mkdirSync(here, { recursive: true });
 const out = join(here, 'prs.json');
 const REPO = 'NoaCG/NoaCG-Studio';
 const exec = promisify(execFile);

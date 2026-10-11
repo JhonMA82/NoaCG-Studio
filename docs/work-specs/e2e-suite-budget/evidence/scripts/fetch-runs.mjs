@@ -1,11 +1,11 @@
 // Read-only: fetch every workflow run in the window into runs.json (sliced by day to avoid truncation).
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { writeFileSync, existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 const here = process.env.NOACG_CI_CACHE || join(tmpdir(), 'noacg-ci-cache');
+mkdirSync(here, { recursive: true });
 const out = join(here, 'runs.json');
 const REPO = 'NoaCG/NoaCG-Studio';
 const start = new Date('2026-09-15T00:00:00Z');

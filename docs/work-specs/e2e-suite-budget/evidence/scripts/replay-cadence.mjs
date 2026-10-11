@@ -2,11 +2,12 @@
 // Baseline = the observed main runs. Candidates = batched full runs on pinned main commits.
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const here = process.env.NOACG_CI_CACHE || join(tmpdir(), 'noacg-ci-cache');
+mkdirSync(here, { recursive: true });
 const ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28, windowsHide: true }).trim();
 const SINCE = '2026-09-15T00:00:00Z', UNTIL = '2026-10-12T00:00:00Z';

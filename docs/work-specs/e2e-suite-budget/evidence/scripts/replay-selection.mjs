@@ -2,11 +2,12 @@
 // traced map on) actually run each spec, over the last N landings on main?
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const here = process.env.NOACG_CI_CACHE || join(tmpdir(), 'noacg-ci-cache');
+mkdirSync(here, { recursive: true });
 const ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 const N = Number(process.argv[2] || 150);
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28, windowsHide: true }).trim();
@@ -44,6 +45,5 @@ console.log('spec'.padEnd(42), 'min'.padStart(6), 'selected'.padStart(9), 'share
 for (const r of rows.slice(0, 40)) console.log(r.spec.padEnd(42), r.min.toFixed(2).padStart(6), String(r.runs).padStart(9), (100 * r.share).toFixed(0).padStart(5) + '%', r.cost.toFixed(0).padStart(9));
 const never = rows.filter(r => r.runs === 0);
 console.log(`\nspecs never selected in ${landings.length} landings: ${never.length} (${never.reduce((a, r) => a + r.min, 0).toFixed(1)} min): ${never.map(r => r.spec).join(' ')}`);
-const focus = planner.FOCUS || [];
 writeFileSync(join(here, 'replay-selection.json'), JSON.stringify({ landings: results, perSpec: rows }, null, 1));
 console.log('\nwrote replay-selection.json');
