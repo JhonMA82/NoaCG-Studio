@@ -296,29 +296,31 @@ function creditsBlockSizes(track) {
 function creditsPatchRows(track, html) {
   var fresh = document.createElement('div');
   fresh.innerHTML = html;
-  var blocks = fresh.children;
-  var run = track.querySelector('.credits-loop-run');
-  var holders = run ? [run].concat([].slice.call(track.querySelectorAll('.credits-loop-clone'))) : [track];
   var shell = function (el) {     // the block itself, without its children or the motion's pose
     var copy = el.cloneNode(false);
     copy.removeAttribute('style');
     return copy.outerHTML;
   };
+  var shells = [].map.call(fresh.children, shell);
+  var rows = [].map.call(fresh.children, function (block) { return block.innerHTML; });
+  var run = track.querySelector('.credits-loop-run');
+  var holders = run ? [run].concat([].slice.call(track.querySelectorAll('.credits-loop-clone'))) : [track];
   for (var h = 0; h < holders.length; h++) {
     var live = holders[h].children;
-    if (live.length !== blocks.length) return false;
-    for (var i = 0; i < blocks.length; i++) {
-      if (shell(live[i]) !== shell(blocks[i])) return false;
+    if (live.length !== shells.length) return false;
+    for (var i = 0; i < shells.length; i++) {
+      if (shell(live[i]) !== shells[i]) return false;
     }
   }
   for (var k = 0; k < holders.length; k++) {
-    for (var j = 0; j < blocks.length; j++) {
+    for (var j = 0; j < rows.length; j++) {
       var block = holders[k].children[j];
-      if (block.innerHTML !== blocks[j].innerHTML) block.innerHTML = blocks[j].innerHTML;
+      if (block.innerHTML !== rows[j]) block.innerHTML = rows[j];
     }
   }
   return true;
 }
+
 function rebuildCredits(keepIfSame) {
   var track = document.getElementById('credits-track');
   var text = document.getElementById('f0').textContent;
@@ -347,13 +349,15 @@ ${hasLogo
   // Both escaped: the year is written as markup and the logo path is written INTO an
   // src="..." attribute, so an unescaped quote in either would break out of it.
   html += renderEndBlock(escapeHtml(year), logo ? escapeHtml(logo) : null);
-  var onAir = keepIfSame === true;
-  if (!(onAir && html === creditsBuiltHtml)) {
+  if (keepIfSame !== true) {
     creditsBuiltHtml = html;
-    var sizes = onAir ? creditsBlockSizes(track) : '';
-    if (!(onAir && creditsPatchRows(track, html))) {
+    track.innerHTML = html;
+  } else if (html !== creditsBuiltHtml) {
+    creditsBuiltHtml = html;
+    var sizes = creditsBlockSizes(track);
+    if (!creditsPatchRows(track, html)) {
       track.innerHTML = html;
-      if (onAir) creditsRestartLive();
+      creditsRestartLive();
     } else if (creditsBlockSizes(track) !== sizes) {
       creditsRestartLive();      // a name added to a page: the reel's travel and the holds change
     }

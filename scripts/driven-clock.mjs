@@ -1,4 +1,6 @@
 // A clock, frames and timers a test advances by hand, for running catalog designs in a page.
+// `installDrivenPage(page)` puts it, and the two helpers every such test needs, on a page from
+// `withBundledPage` (scripts/catalog-emit.mjs).
 //
 // GSAP reads `Date.now` and `requestAnimationFrame` when it loads, and a hidden iframe's frames
 // are throttled, so real time would be both slow and flaky. `DRIVEN_CLOCK` is a <script> to put
@@ -42,3 +44,33 @@ export const DRIVEN_CLOCK = `<script id="test-clock">
   };
 })();
 </script>`;
+
+/** Runs in the browser. `__mountDesign(template)` composes a design (NOACG_COMPOSE must be on the
+ *  page) into a fresh iframe of its own size with the driven clock ahead of everything, and hands
+ *  back its window. `__importDraft(svg, behaviour)` is the import step's draft with every text
+ *  layer a field, for building an imported design without the wizard. */
+const PAGE_HELPERS = (clock) => {
+  window.__TEST_CLOCK = clock;
+  window.__mountDesign = async (template) => {
+    const html = window.NOACG_COMPOSE.composeDocument(template);
+    const srcdoc = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + clock) : clock + html;
+    document.getElementById('fx')?.remove();
+    const frame = document.createElement('iframe');
+    frame.id = 'fx';
+    frame.style.cssText = `position:fixed;left:0;top:0;width:${template.resolution.width}px;height:${template.resolution.height}px;border:0;`;
+    await new Promise((resolve) => { frame.onload = resolve; frame.srcdoc = srcdoc; document.body.appendChild(frame); });
+    return frame.contentWindow;
+  };
+  window.__importDraft = (svg, behaviour) => ({
+    designSvg: svg,
+    svgFields: svg.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric, on: true })),
+    svgImages: [], svgOutlines: [], svgBehaviour: behaviour, svgExtras: [],
+    svgStretch: { on: false, shapeId: null }, svgFonts: [],
+  });
+};
+
+/** Put the driven clock and the helpers above on a 1920x1080 page. */
+export async function installDrivenPage(page) {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.evaluate(PAGE_HELPERS, DRIVEN_CLOCK);
+}

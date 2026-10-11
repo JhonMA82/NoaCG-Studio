@@ -17,8 +17,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { withBundledPage } from './catalog-emit.mjs';
-import { DRIVEN_CLOCK } from './driven-clock.mjs';
+import { installDrivenPage } from './driven-clock.mjs';
 import { measured } from './measured.mjs';
+import { contrastRatio, parseCssColor } from '../src/model/cssVars.ts';
 
 const entry = (rel) => fileURLToPath(new URL(`../src/${rel}`, import.meta.url));
 const SPECS = [
@@ -33,37 +34,19 @@ const BOARD = readFileSync(new URL('../e2e/fixtures/svg-shows/bingo-board.svg', 
 const CALLS = async ({ markup, calls }) => {
   const svg = window.NOACG_SVG.importSvgMarkup(markup);
   const behaviour = window.NOACG_DRAFT.proposeSvgBehaviour(svg);
-  const draft = {
-    designSvg: svg,
-    svgFields: svg.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric, on: true })),
-    svgImages: [], svgOutlines: [], svgBehaviour: behaviour, svgExtras: [],
-    svgStretch: { on: false, shapeId: null }, svgFonts: [],
-  };
-  const template = window.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: window.NOACG_DRAFT.svgDesignOptions(draft) });
+  const template = window.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: window.NOACG_DRAFT.svgDesignOptions(window.__importDraft(svg, behaviour)) });
   const called = template.fields.find((f) => f.title === 'Called numbers');
   if (!called) return { error: `no Called numbers field (behaviour ${JSON.stringify(behaviour?.recipe ?? behaviour?.kind)})` };
 
-  const html = window.NOACG_COMPOSE.composeDocument(template);
-  const srcdoc = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + window.__TEST_CLOCK) : window.__TEST_CLOCK + html;
-  const frame = document.createElement('iframe');
-  frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;';
-  await new Promise((resolve) => { frame.onload = resolve; frame.srcdoc = srcdoc; document.body.appendChild(frame); });
-  const w = frame.contentWindow;
+  const w = await window.__mountDesign(template);
   const numeral = (n) => w.document.querySelector(`[data-name="Number ${n}"], #Number_x20_${n}`);
   const plate = (n) => w.document.querySelector(`[data-name="Called ${n}"] rect, #Called_x20_${n} rect`);
-  const rgb = (c) => (/rgba?\(([^)]+)\)/.exec(c)?.[1] ?? '').split(',').slice(0, 3).map(Number);
-  const lum = (c) => {
-    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
-    const [r, g, b] = rgb(c).map(lin);
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  };
+  // The numeral's ink and the fill under it: the plate when it is lit, else the board's tile.
   const read = (n) => {
-    const ink = w.getComputedStyle(numeral(n)).fill;
     const p = plate(n);
     const lit = p && w.getComputedStyle(p).display !== 'none' && w.getComputedStyle(p.parentElement).display !== 'none';
-    const under = lit ? w.getComputedStyle(p).fill : w.getComputedStyle(w.document.querySelector('#Board rect, [data-name="Board"] rect')).fill;
-    const [a, b] = [lum(ink), lum(under)];
-    return { n, lit: !!lit, ink, under, contrast: Math.round(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)) * 10) / 10 };
+    const under = lit ? p : w.document.querySelector('#Board rect, [data-name="Board"] rect');
+    return { n, lit: !!lit, ink: w.getComputedStyle(numeral(n)).fill, under: w.getComputedStyle(under).fill };
   };
   w.update(JSON.stringify({}));
   w.play();
@@ -75,15 +58,17 @@ const CALLS = async ({ markup, calls }) => {
     w.__advance(1000);
     steps.push({ list, tiles: [7, 12, 13].map(read) });
   }
-  frame.remove();
+  document.getElementById('fx')?.remove();
   return { drawn, steps };
 };
 
 const run = await withBundledPage(SPECS, async (page) => {
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.evaluate((clock) => { window.__TEST_CLOCK = clock; }, DRIVEN_CLOCK);
+  await installDrivenPage(page);
   return page.evaluate(CALLS, { markup: BOARD, calls: [['7'], ['7', '12'], ['7'], []] });
 });
+for (const step of run.steps ?? []) {
+  for (const t of step.tiles) t.contrast = Math.round(contrastRatio(parseCssColor(t.ink), parseCssColor(t.under)) * 10) / 10;
+}
 
 measured(run.steps?.length ?? 0, 'bingo calls read');
 

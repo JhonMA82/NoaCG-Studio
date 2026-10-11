@@ -501,9 +501,8 @@ noacgKinds['vote-status'] = {
 noacgKinds.clock = {
   left: function () { return typeof clockSecondsLeft === 'number' ? clockSecondsLeft : 0; },
   total: function () { return typeof clockSeconds === 'function' ? clockSeconds() : 0; },
-  ranOut: function () { return this.left() <= 0; },
   fact: function (id, spec, name) {
-    var up = this.ranOut();
+    var up = this.left() <= 0;
     if (name === 'expired') return up;
     if (name === 'warning') {
       var warn = spec.warnAt ? parseFloat(noacgFieldText(spec.warnAt)) : NaN;
@@ -514,7 +513,6 @@ noacgKinds.clock = {
   },
   derive: function (id, spec, name) {
     if (name !== 'fraction') return null;
-    if (this.ranOut()) return 0;
     var total = this.total();
     var share = total > 0 ? this.left() / total : 0;
     return share < 0 ? 0 : share > 1 ? 1 : share;
@@ -772,13 +770,13 @@ function noacgGauge(el, token, share, motion) {
   if (!(full > 0) || typeof gsap === 'undefined') return;
   if (share < 0) share = 0;
   if (share > 1) share = 1;
-  var shape = el.hasAttribute('width') ? null : noacgGaugeShape(el);
+  var shape = noacgGaugeShape(el);
   if (shape) {
     // The share itself is tweened, and every frame redraws the points from the drawn ones.
     gsap.killTweensOf(shape.state);
     var paint = function () { noacgGaugeFill(el, shape, shape.state.share); };
     if (!motion) { shape.state.share = share; return paint(); }
-    gsap.to(shape.state, { share: share, duration: motion.duration, ease: motion.ease, delay: motion.delay || 0, onUpdate: paint, onComplete: paint });
+    gsap.to(shape.state, { share: share, duration: motion.duration, ease: motion.ease, delay: motion.delay || 0, onUpdate: paint });
     return;
   }
   var to;
@@ -958,6 +956,7 @@ function noacgRepaintWith(reason) {
   var rules = NOACG_BEHAVIOUR.paint || [];
   // Looks first: any rule naming a token turns it on; a token no rule holds for goes off.
   var lit = {}, pops = {}, seen = {}, defaults = {};
+  var plates = {};                // row key ('' for none) -> its lit looks, for the readout inks
   var r, rule, keys, k;
   for (r = 0; r < rules.length; r++) {
     rule = rules[r];
@@ -982,9 +981,11 @@ function noacgRepaintWith(reason) {
       var made = noacgDefaultEl(defaults[t].rule, defaults[t].key);
       els = made ? [made] : els;
     }
+    var plateRow = slash === -1 ? '' : t.slice(slash + 1);
     for (var e = 0; e < els.length; e++) {
       noacgLookShow(els[e], !!lit[t]);
       if (lit[t] && pops[t]) noacgPop(els[e]);
+      if (lit[t]) (plates[plateRow] = plates[plateRow] || []).push(els[e]);
     }
   }
   // Gauges and readouts: from the data, every time.
@@ -998,13 +999,15 @@ function noacgRepaintWith(reason) {
       var value = noacgDerive(rule.from, keys[k]);
       for (var g = 0; g < targets.length; g++) {
         if (rule.gauge) noacgGauge(targets[g], noacgRoleToken(rule.gauge, keys[k]), typeof value === 'number' ? value : 0, noacgGaugeMotion(rule.from, reason, k));
-        // A readout with nothing to say is left as drawn - an empty round must not blank a
-        // board the designer filled in.
-        else if (value !== null && value !== undefined && value !== '') targets[g].textContent = String(value);
+        else {
+          // A readout with nothing to say is left as drawn - an empty round must not blank a
+          // board the designer filled in.
+          if (value !== null && value !== undefined && value !== '') targets[g].textContent = String(value);
+          noacgReadoutInk(targets[g], plates[keys[k] === null ? '' : String(keys[k])] || []);
+        }
       }
     }
   }
-  noacgReadoutInks(rules, lit);
   // Places last: the readouts above are already written, and a row moves as a whole.
   noacgPlaceAll(rules, reason);
 }
@@ -1015,16 +1018,14 @@ function noacgRepaintWith(reason) {
 // dark or a light ink wherever a lit look of its own row sits under it and its drawn ink falls
 // below 3:1 against that plate, and gets its drawn ink back the moment the plate goes. Only a
 // solid fill is read; a gradient or a picture is left as the designer drew it.
-var NOACG_INK_DARK = 'rgb(13, 16, 23)';
-var NOACG_INK_LIGHT = 'rgb(233, 231, 225)';   // NOACG_DEFAULT_INK
 
-// noacgLuminance(color): the relative luminance of a computed "rgb(...)" colour, or null for
-// anything that is not a mostly opaque solid colour.
+// noacgLuminance(color): the relative luminance of "#rrggbb" or a computed "rgb(...)", or null
+// for anything that is not a mostly opaque solid colour.
 function noacgLuminance(color) {
+  var hex = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color || '');
   var m = /rgba?\\(([^)]+)\\)/.exec(color || '');
-  if (!m) return null;
-  var p = m[1].split(',');
-  if (p.length > 3 && parseFloat(p[3]) < 0.5) return null;
+  var p = hex ? [parseInt(hex[1], 16), parseInt(hex[2], 16), parseInt(hex[3], 16)] : m ? m[1].split(',') : null;
+  if (!p || (p.length > 3 && parseFloat(p[3]) < 0.5)) return null;
   var lin = function (v) {
     v = parseFloat(v) / 255;
     return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
@@ -1036,7 +1037,12 @@ function noacgContrast(a, b) {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
-/// noacgPlateUnder(look, x, y): the luminance of the solid fill a look paints at a screen point -
+// The two inks a readout may take: the dark NoaCG's own looks are drawn on, and its default ink.
+var NOACG_INK_DARK = '#0d1017';
+var NOACG_INK_DARK_L = noacgLuminance(NOACG_INK_DARK);
+var NOACG_INK_LIGHT_L = noacgLuminance(NOACG_DEFAULT_INK);
+
+// noacgPlateUnder(look, x, y): the luminance of the solid fill a look paints at a screen point -
 // the topmost of its shapes there, itself included. A group's own fill is only what its children
 // inherit, never paint, so a group is not read; a shadow drawn under the plate is not the plate.
 var NOACG_SHAPES = 'rect, path, polygon, circle, ellipse';
@@ -1054,50 +1060,31 @@ function noacgPlateUnder(look, x, y) {
   return null;
 }
 
-// noacgReadoutInk(el, plates): put the drawn ink back, then change it only if a plate under the
-// readout's middle makes it unreadable. A readout never touched and with nothing lit under it
-// costs nothing, which is every readout on every tick of a board with nothing lit.
+// noacgReadoutInk(el, plates): the ink a readout should wear over the lit looks of its row, set
+// only when it differs from what it wears now. The drawn ink is read once, the first time a look
+// is lit in its row, so a readout with nothing ever lit under it costs nothing.
 function noacgReadoutInk(el, plates) {
-  if (!plates.length && el.noacgDrawnFill === undefined) return;
-  if (el.noacgDrawnFill === undefined) el.noacgDrawnFill = el.style.getPropertyValue('fill');
-  el.style.fill = el.noacgDrawnFill;
-  if (!plates.length) return;
-  var ink = noacgLuminance(getComputedStyle(el).fill);
-  if (ink === null) return;
-  var box = el.getBoundingClientRect();
-  var cx = box.left + box.width / 2;
-  var cy = box.top + box.height / 2;
-  for (var i = 0; i < plates.length; i++) {
-    if (plates[i].contains(el)) continue;        // a look that IS the readout's own drawing
-    var under = noacgPlateUnder(plates[i], cx, cy);
-    if (under === null || noacgContrast(ink, under) >= 3) continue;
-    var dark = noacgLuminance(NOACG_INK_DARK);
-    var light = noacgLuminance(NOACG_INK_LIGHT);
-    el.style.fill = noacgContrast(under, dark) >= noacgContrast(under, light) ? NOACG_INK_DARK : NOACG_INK_LIGHT;
-    return;
+  if (el.noacgDrawnFill === undefined) {
+    if (!plates.length) return;
+    el.noacgDrawnFill = el.style.getPropertyValue('fill');
+    el.noacgDrawnInk = noacgLuminance(getComputedStyle(el).fill);
   }
-}
-
-// noacgReadoutInks(rules, lit): every readout, against the looks of its own row that are lit.
-function noacgReadoutInks(rules, lit) {
-  var byRow = {};                                 // row key ('' for none) -> its lit looks
-  for (var t in lit) {
-    if (!Object.prototype.hasOwnProperty.call(lit, t)) continue;
-    var slash = t.indexOf('/');
-    var key = slash === -1 ? null : t.slice(slash + 1);
-    var els = noacgRoleEls(slash === -1 ? t : t.slice(0, slash), key);
-    var row = byRow[key === null ? '' : key] = byRow[key === null ? '' : key] || [];
-    for (var e = 0; e < els.length; e++) row.push(els[e]);
-  }
-  for (var r = 0; r < rules.length; r++) {
-    var rule = rules[r];
-    if (!rule.write) continue;
-    var keys = rule.row ? [rule.row] : rule.rows ? noacgRowsOf(rule.rows) : [null];
-    for (var k = 0; k < keys.length; k++) {
-      var plates = byRow[keys[k] === null ? '' : String(keys[k])] || [];
-      var targets = noacgRoleEls(rule.write, keys[k]);
-      for (var g = 0; g < targets.length; g++) noacgReadoutInk(targets[g], plates);
+  var want = el.noacgDrawnFill;
+  if (plates.length && el.noacgDrawnInk !== null) {
+    var box = el.getBoundingClientRect();
+    var cx = box.left + box.width / 2;
+    var cy = box.top + box.height / 2;
+    for (var i = 0; i < plates.length; i++) {
+      if (plates[i].contains(el)) continue;      // a look that IS the readout's own drawing
+      var under = noacgPlateUnder(plates[i], cx, cy);
+      if (under === null || noacgContrast(el.noacgDrawnInk, under) >= 3) continue;
+      want = noacgContrast(under, NOACG_INK_DARK_L) >= noacgContrast(under, NOACG_INK_LIGHT_L) ? NOACG_INK_DARK : NOACG_DEFAULT_INK;
+      break;
     }
+  }
+  if (el.noacgInk !== want) {
+    el.noacgInk = want;
+    el.style.fill = want;
   }
 }
 

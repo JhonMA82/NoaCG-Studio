@@ -583,6 +583,13 @@ function svgCandidateExists(draft: SvgImportDraft, candidateId: string): boolean
   );
 }
 
+/** Is this text layer taken off the artwork? Off, answered 'remove', and not written by a
+ *  behaviour (`written`, from `pollDrivenLayers`): a layer a behaviour writes stays drawn. The one
+ *  spelling of the rule, for the emitted hidden list and the mapping step alike. */
+export function takenOff(f: Pick<SvgFieldDraft, 'on' | 'whenOff' | 'candidateId'>, written: Set<string>): boolean {
+  return !f.on && f.whenOff === 'remove' && !written.has(f.candidateId);
+}
+
 /**
  * THE LAYERS THE AUTHOR TOOK OFF THE ARTWORK (owner walk, 2026-09-02).
  *
@@ -598,7 +605,7 @@ function svgCandidateExists(draft: SvgImportDraft, candidateId: string): boolean
  */
 function hiddenSvgLayers(draft: SvgImportDraft, written: Set<string>): DesignSvgHidden[] | undefined {
   const gone = draft.svgFields
-    .filter((f) => !f.on && f.whenOff === 'remove' && !written.has(f.candidateId))
+    .filter((f) => takenOff(f, written))
     .map((f) => ({ candidateId: f.candidateId }));
   return gone.length > 0 ? gone : undefined;
 }

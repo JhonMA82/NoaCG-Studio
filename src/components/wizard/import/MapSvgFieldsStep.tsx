@@ -13,6 +13,7 @@ import type {
 import {
   modeOfAxis,
   pollDrivenLayers,
+  takenOff,
 } from './draft';
 import { SVG_ALIGN_WORD } from '../../../templates/importedDesign/svg';
 import type { PreviewBoxOverlay, PreviewGrowCap } from '../WizardPreview';
@@ -1031,9 +1032,9 @@ export default function MapSvgFieldsStep({
   const pollDriven = pollDrivenLayers(draft.svgBehaviour);
   // A LAYER TAKEN OFF THE ARTWORK IS NOT OFFERED TO A BEHAVIOUR (#784): the vote would write
   // into a layer nobody can see and air a blank row. One already bound stays listed, so its
-  // picker still shows what it holds; the draft keeps such a layer drawn (`hiddenSvgLayers`).
-  const takenOff = new Set(draft.svgFields.filter((f) => !f.on && f.whenOff === 'remove').map((f) => f.candidateId));
-  const behaviourTextLayers = textLayers.filter((c) => !takenOff.has(c.id) || pollDriven.has(c.id));
+  // picker still shows what it holds; the draft keeps such a layer drawn (`takenOff`).
+  const gone = new Set(draft.svgFields.filter((f) => takenOff(f, pollDriven)).map((f) => f.candidateId));
+  const behaviourTextLayers = textLayers.filter((c) => !gone.has(c.id));
 
 
   // WHAT THE OPERATOR CAN ACTUALLY TYPE INTO, which is not the same as what is ticked: a layer
@@ -1214,8 +1215,8 @@ export default function MapSvgFieldsStep({
             // reader still needs to see that their layer was recognised and by what.
             const driven = f.on && pollDriven.has(f.candidateId);
             /** Off and taken off the artwork - never for a layer a behaviour writes, which stays
-             *  drawn whatever this row was told (`hiddenSvgLayers`), so the row cannot say otherwise. */
-            const removed = !f.on && f.whenOff === 'remove' && !pollDriven.has(f.candidateId);
+             *  drawn whatever this row was told, so the row cannot say otherwise. */
+            const removed = gone.has(f.candidateId);
             /** The box this line sits in and what was measured about it - absent for a line on
              *  the bare artwork, which then gets no alignment control. A COUNTDOWN row gets none
              *  either: its layer becomes the clock display and never carries the field id a

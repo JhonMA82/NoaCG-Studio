@@ -24,7 +24,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { withBundledPage } from './catalog-emit.mjs';
 import { parseOnly } from './catalog-scope.mjs';
-import { DRIVEN_CLOCK } from './driven-clock.mjs';
+import { installDrivenPage } from './driven-clock.mjs';
 import { measured } from './measured.mjs';
 
 const SPECS = [
@@ -40,19 +40,8 @@ const SAMPLES_MS = [100, 1000, 4000, 30000];
 /** The two motions that animate the rows' own blocks rather than the track. */
 const BLOCK_MOTIONS = ['credits-pages', 'credits-loop'];
 
-/** Runs in the browser: mount a composed design in an iframe that carries the driven clock. */
-const PAGE_HELPERS = () => {
-  window.__mountDesign = async (template) => {
-    const html = window.NOACG_COMPOSE.composeDocument(template);
-    const clock = window.__TEST_CLOCK;
-    const srcdoc = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + clock) : clock + html;
-    document.getElementById('fx')?.remove();
-    const frame = document.createElement('iframe');
-    frame.id = 'fx';
-    frame.style.cssText = `position:fixed;left:0;top:0;width:${template.resolution.width}px;height:${template.resolution.height}px;border:0;`;
-    await new Promise((resolve) => { frame.onload = resolve; frame.srcdoc = srcdoc; document.body.appendChild(frame); });
-    return frame.contentWindow;
-  };
+/** Runs in the browser: every field's own value, as update() takes it. */
+const FIELD_DATA = () => {
   window.__fieldData = (template) => {
     const data = {};
     for (const f of template.fields || []) if (f.field && f.value !== undefined) data[f.field] = String(f.value);
@@ -75,18 +64,15 @@ const CREDITS_RUN = async ({ id, presetId, plan }) => {
 
   const w = await window.__mountDesign(template);
   const round = (n) => Math.round(Number(n) * 100) / 100;
+  const whole = (transform) => transform.replace(/-?\d+\.\d+/g, (n) => String(Math.round(Number(n))));
   const pose = () => {
     const track = w.document.getElementById('credits-track');
-    const blocks = [...track.querySelectorAll('.credits-page, .credits-end')];
-    const s = w.getComputedStyle(track);
+    const blocks = [...track.querySelectorAll('.credits-page, .credits-end')].map((el) => ({ el, s: w.getComputedStyle(el) }));
     return {
-      track: s.transform.replace(/-?\d+\.\d+/g, (n) => String(Math.round(Number(n)))),
-      blocks: blocks.map((el) => {
-        const b = w.getComputedStyle(el);
-        return [el.className, round(b.opacity), b.visibility, b.transform.replace(/-?\d+\.\d+/g, (n) => String(Math.round(Number(n))))].join('|');
-      }),
-      shown: blocks.filter((el) => w.getComputedStyle(el).visibility === 'visible' && Number(w.getComputedStyle(el).opacity) > 0.01).length,
-      endShown: blocks.some((el) => el.classList.contains('credits-end') && Number(w.getComputedStyle(el).opacity) > 0.5),
+      track: whole(w.getComputedStyle(track).transform),
+      blocks: blocks.map(({ el, s }) => [el.className, round(s.opacity), s.visibility, whole(s.transform)].join('|')),
+      shown: blocks.filter(({ s }) => s.visibility === 'visible' && Number(s.opacity) > 0.01).length,
+      endShown: blocks.some(({ el, s }) => el.classList.contains('credits-end') && Number(s.opacity) > 0.5),
       clones: track.querySelectorAll('.credits-loop-clone').length,
       // A reel travels exactly one run; anything else jumps at the seam.
       seam: track.querySelector('.credits-loop-run') && w.creditsMotionLive
@@ -151,9 +137,8 @@ const { ids: only } = parseOnly(process.argv.slice(2));
 
 const started = Date.now();
 const runs = await withBundledPage(SPECS, async (page) => {
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.evaluate((clock) => { window.__TEST_CLOCK = clock; }, DRIVEN_CLOCK);
-  await page.evaluate(PAGE_HELPERS);
+  await installDrivenPage(page);
+  await page.evaluate(FIELD_DATA);
   // Chosen by the runtime they emit, not by category, so a design in another category that uses
   // the clock or the credits runtime is swept too.
   const shipped = await page.evaluate(() => Object.values(window.NOACG_CATALOG.CATALOG).flatMap((variants) => (variants ?? []).map((v) => {
@@ -176,15 +161,15 @@ const runs = await withBundledPage(SPECS, async (page) => {
   for (const v of inScope.filter((v) => v.credits)) {
     for (const presetId of v.presets.length ? v.presets : [null]) {
       const run = (plan) => page.evaluate(CREDITS_RUN, { id: v.id, presetId, plan: { samples: SAMPLES_MS, ...plan } });
-      const at = [EARLY_MS, ...(BLOCK_MOTIONS.includes(presetId) ? [LATE_MS] : [])];
-      for (const ms of at) {
+      const blocky = BLOCK_MOTIONS.includes(presetId);
+      for (const ms of blocky ? [EARLY_MS, LATE_MS] : [EARLY_MS]) {
         credits.push({
           id: v.id, presetId, at: ms,
           untouched: await run({ at: ms, from: 'none', to: 'none' }),
           corrected: await run({ at: ms, from: 'none', to: 'fixed' }),
           typedSo: await run({ at: ms, from: 'fixed', to: 'fixed' }),
-          grown: BLOCK_MOTIONS.includes(presetId) ? await run({ at: ms, from: 'none', to: 'grown' }) : null,
-          longer: BLOCK_MOTIONS.includes(presetId) ? await run({ at: ms, from: 'none', to: 'longer' }) : null,
+          grown: blocky ? await run({ at: ms, from: 'none', to: 'grown' }) : null,
+          longer: blocky ? await run({ at: ms, from: 'none', to: 'longer' }) : null,
         });
       }
     }

@@ -20,7 +20,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { withBundledPage } from './catalog-emit.mjs';
-import { DRIVEN_CLOCK } from './driven-clock.mjs';
+import { installDrivenPage } from './driven-clock.mjs';
 import { measured } from './measured.mjs';
 
 const entry = (rel) => fileURLToPath(new URL(`../src/${rel}`, import.meta.url));
@@ -80,41 +80,31 @@ const PROPOSE = ({ markup }) => {
 const VOTE = async ({ markup, shares }) => {
   const svg = window.NOACG_SVG.importSvgMarkup(markup);
   const behaviour = window.NOACG_DRAFT.proposeSvgBehaviour(svg);
-  const draft = {
-    designSvg: svg,
-    svgFields: svg.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric, on: true })),
-    svgImages: [], svgOutlines: [], svgBehaviour: behaviour, svgExtras: [],
-    svgStretch: { on: false, shapeId: null }, svgFonts: [],
-  };
+  const draft = window.__importDraft(svg, behaviour);
   const template = window.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: window.NOACG_DRAFT.svgDesignOptions(draft) });
   const options = template.fields.find((f) => f.title === 'Options');
   if (!options) return { error: `no Options field (behaviour ${JSON.stringify(behaviour?.kind)})` };
 
-  const html = window.NOACG_COMPOSE.composeDocument(template);
-  const srcdoc = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + window.__TEST_CLOCK) : window.__TEST_CLOCK + html;
-  const frame = document.createElement('iframe');
-  frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;';
-  await new Promise((resolve) => { frame.onload = resolve; frame.srcdoc = srcdoc; document.body.appendChild(frame); });
-  const w = frame.contentWindow;
+  const w = await window.__mountDesign(template);
   const bars = [...w.document.querySelectorAll('[data-name^="Bar "], [id^="Bar_x20_"]')]
     .filter((el, i, all) => all.indexOf(el) === i && /^(rect|path)$/i.test(el.tagName));
-  // Drawn length on screen, and the drawn curve of each end: the screen distance from the bar's
-  // leftmost point to where its top edge starts being straight is the left cap; a squashed bar
-  // has it narrower than the cap was drawn.
+  // Each bar's width, horizontal scale and height on screen.
   const measure = (el) => {
     const r = el.getBoundingClientRect();
     const m = el.getScreenCTM();
     return { width: r.width, scaleX: Math.round(Math.hypot(m.a, m.b) * 1000) / 1000, height: r.height };
   };
   const drawn = bars.map(measure);
-  w.update(JSON.stringify({ [options.field]: shares.map((s, i) => `Option ${i + 1} | ${s}`).join('\n') }));
+  const round = JSON.stringify({ [options.field]: shares.map((s, i) => `Option ${i + 1} | ${s}`).join('\n') });
+  w.update(round);
   w.play();
   w.__advance(4000);
-  w.update(JSON.stringify({ [options.field]: shares.map((s, i) => `Option ${i + 1} | ${s}`).join('\n') }));
+  // The bars move on a data repaint with the board on air, which is how a round lands.
+  w.update(round);
   w.__advance(4000);
   const after = bars.map(measure);
   const base = drawn[0]?.scaleX ?? 1;
-  frame.remove();
+  document.getElementById('fx')?.remove();
   const total = shares.reduce((a, b) => a + b, 0);
   return {
     bars: bars.length,
@@ -131,8 +121,7 @@ const VOTE = async ({ markup, shares }) => {
 const SHARES = [5, 10, 15, 20, 25, 10, 10, 5];
 
 const runs = await withBundledPage(SPECS, async (page) => {
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.evaluate((clock) => { window.__TEST_CLOCK = clock; }, DRIVEN_CLOCK);
+  await installDrivenPage(page);
   return {
     square: await page.evaluate(PROPOSE, { markup: board(false) }),
     rounded: await page.evaluate(PROPOSE, { markup: board(true) }),

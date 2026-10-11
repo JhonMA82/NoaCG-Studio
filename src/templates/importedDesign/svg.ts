@@ -3122,9 +3122,6 @@ ${creditsRollCss(PREFIX)}
   const clockHook = `  if (typeof clockDataUpdated === 'function') clockDataUpdated();  // the countdown's length (below)`;
   // A bound credits list rebuilds its rows from the value just written, in the sample's looks.
   const creditsHook = `  if (typeof creditsDataUpdated === 'function') creditsDataUpdated();  // the credit roll's rows (below)`;
-  const behaviourJs = behaviour ? behaviour.js(artworkFields.length) : '';
-  // Only a behaviour that fills a gauge can have one drawn as a path to fill.
-  const gauges = /"gauge":/.test(behaviourJs);
   const js =
     runtimeJs(name, preset.emit(cfg)).replace(
       PLACED_TEXT_HOOK,
@@ -3148,8 +3145,8 @@ ${creditsRollCss(PREFIX)}
     '\n' +
     (clockField ? `\n${clockRuntimeJs(PREFIX, clockField.field)}\n` : '') +
     // The point shifters a path panel grows by and a path gauge fills by.
-    (grows || gauges ? `\n${SHAPE_SHIFT_JS}` : '') +
-    (behaviour ? `\n${behaviourJs}` : '') +
+    (grows || behaviour?.fillsGauge ? `\n${SHAPE_SHIFT_JS}` : '') +
+    (behaviour ? `\n${behaviour.js(artworkFields.length)}` : '') +
     // AFTER the behaviour's table: the roll engine reads its field ids out of NOACG_BEHAVIOUR the
     // moment it first renders, and in a document whose markup is already parsed that is now.
     (creditsField ? `\n${creditsRollRuntimeJs(PREFIX)}` : '') +
