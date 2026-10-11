@@ -94,7 +94,8 @@ keeping today's numbers; fixing behaviour inside an extraction (§1.3).
   the arm RPC, `model/shows.ts` writes) arrive through an `io` argument. `templates/picture` and
   `export/outputEmbed` stay in the components hooks.
 - **D8 Size gate.** `scripts/check-file-budgets.mjs` with header `// gate: build` and
-  `// guards: src/components/home/ProductionPage.tsx`, reporting `measured(n, 'budgeted files')`
+  `// guards: src/components/home/ProductionPage.tsx, scripts/file-budgets.json` (so a baseline
+  edit reaches the gate under `gates.mjs run --changed`), reporting `measured(n, 'budgeted files')`
   (`scripts/measured.mjs`), baseline `scripts/file-budgets.json`, package.json
   `check:file-budgets`; `node scripts/gates.mjs audit` must accept it. The number never rises; a
   phase that shrinks the page lowers it to the actual count; a phase that does not shrink it
@@ -334,7 +335,9 @@ Local targeted specs run through the browser queue: `node scripts/e2e-runs.mjs -
 playwright test <files>`, the configured ones with `--config=playwright.live.config.ts` only
 where a local stack exists, else dispatched. Node tests: `node --test <files>`. Configured
 dispatch on the candidate ref: `gh workflow run configured-suite.yml --ref <branch>` (about 25
-minutes; the run's JSON must meet `expected-run.json`; record the run URL and its `headSha`).
+minutes; the run's JSON must meet `expected-run.json`, whose `minTests` the pull request raised
+for every configured spec it adds, with nothing skipped outside the allowlist; a run that exits 0
+with a new spec skipped is not a pass; record the run URL and its `headSha`).
 Independent assessment: A = a fresh read-only session with the `/so` brief
 (`.agent-workflows/so.md`) by `wave-row` (Opus, high); A+ = the same by `wave-row-deciding`
 (Opus, xhigh). Every phase also runs `/check`, `npm run depcruise`, `node scripts/gates.mjs run
