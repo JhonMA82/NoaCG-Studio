@@ -20,7 +20,10 @@ server; where a claim rests on reading SPX's source instead, it says so.
   action buttons do nothing. Update does nothing, as for HTML templates. Since the fixes in §10 it
   plays as imported, on its own layer, with SPX's own controls and at its authored size, and its
   custom actions fire once the project loads the handler script the package carries. Update
-  still does nothing: that is SPX's.
+  still does nothing: that is SPX's. Rechecked on 2026-10-12 (§13): text with `' & < > " \` or a
+  line break still airs as HTML codes in this route only.
+- **Text shows as typed in the SPX export and the production package** on both servers since
+  2026-10-12 (§13), also after a round trip through NoaCG's import.
 - **The output embed loads and frames the production on both servers, but puts an opaque dark
   frame over the whole picture**, which stays after Stop. A small change, tested here in a
   scratch copy, makes it transparent; it shipped, and §9 walks the shipped file transparent on
@@ -219,14 +222,15 @@ loads the renderer, and that the operator's browser runs a monitor copy. The cor
 
 ## 6. How NoaCG should serve SPX users
 
-**Which route for which setup.**
+**Which route for which setup** (as walked up to 2026-10-12; the 2026-09-30 table read "only
+the native export works").
 
 | The SPX user | Route | Why |
 |---|---|---|
-| Runs SPX with its web renderer in OBS, vMix or a browser, and wants SPX to own the show | **Native SPX export** | The only route that works end to end today, on 1.2 and 1.4, with the field types SPX shows |
-| Plays out through CasparCG from SPX | **Native SPX export** | SPX has no OGraf handling in its CasparCG path |
-| Wants NoaCG's production page, control link or phone to run the graphics, with SPX only putting the output up | **Output embed**, once its frame is transparent | Cues stay in NoaCG; SPX sees one item |
-| Standardises on OGraf across renderers | **OGraf package**, only after the fixes in §7 | Today it does not play as imported and renders distorted |
+| Runs the show in SPX 1.2 or 1.4, renderer in OBS, vMix or a browser | **SPX export** for one graphic, the **production package** for a whole production (a ready rundown, §11) | Works end to end on both versions: own layers, field types, Continue, Stop, text as typed (§13). Update works on 1.2; on 1.4 it is SPX's defect, so Save, then Stop and Play |
+| Plays out through CasparCG from SPX | **SPX export** or production package | SPX has no OGraf handling in its CasparCG path (§3) |
+| Runs cues from NoaCG's production page, control link or phone, SPX only puts the output up | **Output embed** | Transparent on both versions since §9; SPX sees one item. Cueing a published production through it is still the owner's check |
+| Has an SPX 1.4 OGRAF project, or standardises on OGraf across renderers | **OGraf package** | Plays as imported with SPX's controls and custom actions (§10), but text with `' & < > " \` or a line break airs as HTML codes ([#1047](https://github.com/NoaCG/NoaCG-Studio/issues/1047)) and Update does nothing. Prefer the SPX export until #1047 is fixed |
 
 **What an SPX operator expects that we do not give.**
 
@@ -495,7 +499,8 @@ in the package, and each profile template matches the definition in that file.
 into `<br>`, and NoaCG templates show the escaped text. On 1.4.1 `Anna O'Brien & Sons` went on air
 as `Anna O&#039;Brien &amp; Sons`; on both servers the News Strip ticker's items were joined by a
 literal `&lt;br&gt;`. It happens whatever hands SPX the values, the exported rundown or values
-typed in SPX ([issue #788](https://github.com/NoaCG/NoaCG-Studio/issues/788)).
+typed in SPX ([issue #788](https://github.com/NoaCG/NoaCG-Studio/issues/788)). Fixed for the
+SPX-layout packages and walked on both servers in §13.
 
 **Test projects added**, deletable as whole folders, on both servers: the templates
 `ASSETS\templates\noacg_x_show\` and `ASSETS\templates\noacg_x_six\`, and the projects
@@ -518,3 +523,60 @@ it was after its server stopped. Both servers are stopped.
   `rundown/json`, `rundown/get`, the listings (`gettemplates`, `getprojects`, `getrundowns`,
   `allrundowns`, `getFileList`) and `saveCustomJSON`. The focus moves answer normally in 1.4.1. Only `/api/v1/version` was called.
 - A canvas other than 1920x1080 in either route.
+
+## 13. Text and Update, rechecked on both servers (2026-10-12)
+
+Since §11, PRs #887, #903 and #911 made every SPX-layout package undo SPX's escaping once
+(`src/export/spxText.ts`), and a re-exported graphic carry that script once. This round checks
+them on real servers, and tries Update on the OGraf package again.
+
+**How.** Both servers ran from scratch copies of the installs in §1, on ports 5766 (1.4.1) and
+5767 (1.2.1), one at a time, with an empty DATAROOT and only SPX's `softpix` templates; nothing in
+`C:\spx` was changed. The packages were built by the real exporters from this branch: the SPX
+export of Hairline, News Strip, Classic Roll (a multi-line credits field and a file list) and
+Pictures; the same four imported back through NoaCG's import door (`importZipTemplate`) and
+exported again; the dual NoaCG package of Hairline, also imported back and rebuilt; the OGraf
+package of Hairline, News Strip and Classic Roll; and a production package of Hairline, News Strip
+and Classic Roll with three cues. Each was added through SPX's own endpoints, as in §10. In the
+controller, values were typed into each item's fields and saved, then Play, with a second page on
+`/renderer` at 1920x1080 over grey. The walk read each field's text inside the layer and took a
+screenshot (looked at, not committed).
+
+Typed: `Anna O'Brien & Sons`, `<Q&A> "live" C:\news 1>0`, and in the multi-line fields
+`Line one & O'Neil`, a line break, `Line two <b>bold?</b>`. The production's cues carried the same
+values in the exported `rundown.json`, the ticker's as `First story & more`, a line break, and
+`Second <story> "quoted"`. A picture named `Q&A.png` was picked in the Pictures file list.
+
+| What was played | SPX 1.4.1 | SPX 1.2.1 |
+|---|---|---|
+| SPX export, values typed in SPX: Hairline, News Strip, Classic Roll | **As typed.** The line break makes two ticker items and two credit lines; `<b>` stays text | Same |
+| SPX export, Pictures with `Q&A.png` picked | **The picture shows** (`./images/Q&A.png`, loaded) | Same |
+| The same four imported back into NoaCG and exported again | **As typed**, decoded once: nothing turned into an entity or lost one | Same |
+| Dual NoaCG package, and the same imported back and rebuilt | **As typed**, on layer 5 | **As typed**, on layer 7 |
+| Production package, cues from the exported `rundown.json` | **As typed**: the ticker shows `First story & more` and `Second <story> "quoted"` as two items | Same |
+| OGraf package, values typed in SPX | **HTML codes**: `Anna O&#039;Brien &amp; Sons`; the ticker shows one item ending in `&lt;br&gt;Line two &lt;b&gt;...` | No OGraf in 1.2 |
+| Update on the SPX export (edit, Save, Update) | **Nothing changes**; the renderer throws `Cannot read properties of null (reading 'value')`, as in §2 | **Works**, and the new value `Update & 'check' <ok>` shows as typed |
+| Update on the OGraf package (Hairline) | **Still nothing**; the same renderer error, as in §10 | No OGraf in 1.2 |
+
+**What it means.**
+
+- **Issue #788 is fixed where it was found.** The SPX export, the production package and the dual
+  package show what the operator typed, on both servers, also after a NoaCG round trip. GOALS §5
+  no longer needs to say SPX shows HTML entities for those routes.
+- **The OGraf package has the same defect, filed as
+  [#1047](https://github.com/NoaCG/NoaCG-Studio/issues/1047) (P2).** SPX escapes every value it
+  plays, OGraf items included, and hands the result to `load`, `updateAction` and `playAction`.
+  The OGraf package carries no decoding. §11 did not catch it because the §10 walk typed only
+  plain names.
+- **Update on SPX 1.4.1 is unchanged.** It fails in SPX's renderer for both routes (an SPX defect,
+  §2 and §10). The packages' README says Save, then Stop and Play.
+- **The dual NoaCG package keeps the template's own layer** (Hairline: 7), so on 1.4 every dual
+  package lands on layer 5: [#1048](https://github.com/NoaCG/NoaCG-Studio/issues/1048) (P3).
+
+**Not tried here:** the output embed (unchanged since §9), a CasparCG server behind SPX, and the
+CasparCG single file played from SPX.
+
+**What was added**, all in the scratch copies, which were deleted afterwards: templates in
+`ASSETS\templates\noacg_c\` and `ASSETS\templates\noacg_c_text\`, and the projects
+`DATAROOT\NoaCG_C_SPX`, `DATAROOT\NoaCG_C_OGraf` (1.4.1) and `DATAROOT\noacg_c_text`. Both servers
+are stopped.
