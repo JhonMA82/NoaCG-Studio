@@ -665,3 +665,105 @@ rather than of what is allowed, as AC-12 words it.
 **Not seen.** The band drawn on a surface, a Fill landing in a real prompt box, and a click on
 the link: no sign-in and no pseudo-terminal here, so they are the phase-4 try-out's. A save went
 through only in the tests, so the second-copy warning comes from them.
+
+### Check of phase 3 (on `main` at c4f5861d1, by a separate session)
+
+**Verdict: pass**, with one finding for phase 4: the second-copy warning is cut off in the band
+at ordinary terminal widths. AC-10 to AC-13 were re-derived on main, and AC-1 to AC-9 still hold.
+
+**How it was run.** The sign-in was still expired (`claude -p` answered "OAuth session expired"),
+so no model turn ran. A scratch driver plugin outside the repository called `$.tool.call` from
+`prompt.submit` and dropped the prompt. Its `state.set` hook logged each `packages` value the mod
+wrote, with every package's `next`, and its `fs.list` and `fs.read` hooks logged any path outside
+the project root. Each step was a new `claude -p --plugin-dir cli/plugin-guide` process from main,
+alternating 2.1.287 and the Desktop's 2.1.295 on one scratch profile, with `MSYS_NO_PATHCONV=1`.
+The CLI was the published `@noacg/cli` 0.10.1 through `npx -y` (the global `noacg` is 0.3.3).
+Package folders were in a scratch folder outside the repository. `save` and `pack --save` went to
+a local stand-in for `NOACG_URL` with a dummy `NOACG_AGENT_KEY`. The stand-in passed
+noacg.studio's pages through and answered `/api/me/graphics` and `/api/me/packages` itself.
+
+**AC-10, walked in a real session.** Two scaffolds gave Evening news and Scores, both "Check ..."
+(rank 2, Evening news first by name). After each step, the band's package and its label:
+- `validate evening`: Scores, "Check Scores". Evening news ranks 3, "Show the frames of
+  Evening news".
+- `validate evening --screenshots ./shots`: Evening news becomes "Save Evening news, or send all
+  graphics to a production" (rank 4).
+- A Bash `echo >>` to its CSS: Evening news, "Check Evening news again" (rank 1).
+- `validate scores`, then Evening news validated again with frames: Scores, "Show the frames of
+  Scores".
+- `save evening` to the stand-in: Evening news has no step and keeps the link.
+- An edit after the save: "Check Evening news again" with "saving again adds a second library
+  copy".
+- Validated again with frames: "Save Evening news again, or send all graphics to a production",
+  with the same warning. Its request says "again, as a second copy".
+- A broken `js/template.js` and a failing validate: Scores, "Fix Scores and check it again"
+  (rank 0, first).
+- Restored and validated with frames, then `pack evening scores --save`: neither package has a
+  step, and both carry the pack link.
+
+Each new process started from the records the last one left. The attention order held at every
+step: a failed check, then edited, not checked, no frames, then ready.
+
+**AC-11.** The buttons were not pressed in a real session; nothing draws under `-p`. Under `-p`,
+`$.prompt.read` answers `{ text: "", cursor: 0 }` and does not throw, and `$.prompt.fill` answers
+`isFilled: false, refusal: no_composer`, so Fill reaches its toast. The tests press Fill, Open
+and Hide on both surfaces (69 pass on each build). The link is drawn only for the package the
+band names. After the save, "Open in NoaCG" was absent while the band named Scores, though
+Evening news had a link. That matches the decision recorded above.
+
+**AC-12.** `validate --strict` lists `$.clock.now`, `$.command.register`, `$.fs.list`,
+`$.fs.read`, `$.prompt.fill`, `$.prompt.read`, `$.session.cwd`, `$.session.root`, `$.state.*`,
+`$.store.*`, `$.ui.resolve` and `$.ui.toast`, the same on both builds, and nothing it must not.
+A scratch copy with one `$.process.run` added made the CI step's pattern match, so that step
+would fail. In the real run every file call the mod made was under the root, including in a
+step whose shell went `cd ..` and scaffolded and validated a package outside it (43 calls under
+the root; the package outside was neither listed nor recorded). The only read outside the root
+came from the built-in telemetry plugin (`.claude.json`).
+
+**AC-13.** `/noacg-guide` in an empty folder set `hidden` false and `offer` true on both builds,
+with an empty result and no model call. In the walk's folder it set `offer` false.
+
+**AC-2 and the command in every session.** With and without the mod, on both builds, the system
+prompt (`$.prompt.compose`) was identical in length and content, and so was the tool list. The
+eleven attachments of a real prompt matched in type and size, `skill_listing` among them, and
+none names the command. The command appears only in `$.command.list`, the person's typeahead
+and `/help`. `session.start` settled in 15 to 17 ms. The toolkit rule in `docs/AGENT_CLI.md`
+counts context and RAM, and the registration costs neither, so it does not break "Quiet outside
+graphics work". It is also the only way AC-13 can hold. Running the command adds two command
+rows the model later reads, but only when the person runs it. Keep the registration.
+
+**Wording, read as a graphics operator.** "Check X", "Check X again", "Fix X and check it
+again" and "Save X, or send all graphics to a production" read plainly. "Show the frames of X"
+leans on "frames"; "Show me how X looks" would be plainer. The requests say "in Scores in
+scores/", which reads twice. "Start a package" uses NoaCG's own word, and its request ("Make
+broadcast graphics with NoaCG.") is short and leaves the person to say what they want.
+
+**Finding for phase 4: the warning is cut.** The step row is the label (`truncate-end`), then
+`[ Fill prompt ]`, the "Open in NoaCG" link and `[ Hide ]`. Those take 39 cells, after 7 for
+the title. A saved package always has a link, so the label gets `bodyColumns - 46` cells: 34 at
+80 columns, 74 at 120. "Check Evening news again · saving again adds a second library copy" is
+66 cells. "Save Evening news again, or send all graphics to a production · saving again adds a
+second library copy" is 103. So in a terminal under about 150 columns the warning is cut on the
+very step it exists for. The label alone (55 cells) is cut at 80 columns too. Fill's request
+still says "as a second copy", so a person who fills it sees that before sending. Phase 4 or
+the try-out should give the warning its own line, or a shorter label. This is estimated from
+the declared terminal drawing (`[ label ]`); no band was seen drawn.
+
+**AC-1 to AC-9 still hold.** `validate --strict` passes and `claude plugin test` passes 69 tests
+on 2.1.287 and 2.1.295. `tsc -p cli/plugin-guide` passes, after a load with
+`CLAUDE_CODE_USE_POWERSHELL_TOOL=1`. All 16 debug logs of the walk show the module admitted, with no skipped
+hook, fault or refused tree naming the mod. A package scaffolded mid-session appeared at once.
+`check-toolkit-distribution` passes. Only `ci.yml` names the folder, and #1017 ran both
+guided-mod legs green under `CI gate`. Records were written to
+`<profile>/plugins/store/noacg-guide_inline-<hash>.json`; the packages hold only the CLI's
+files. Passing, failing, edited, saved and packed runs were recorded as in the second phase-2
+check.
+
+**Compared with the reference.** `code-modernization`, loaded the same way in the empty folder,
+grows `skill_listing` from 6,480 to 12,634 characters and the agent listing by 2,707: its
+markdown commands and agents reach the model in every session. `noacg-guide` adds nothing
+there. Its Next fills with `replace` and toasts `Next: <text>`. This mod's Fill reads the box
+first, appends after a draft, and toasts the request alone, which reads better.
+
+**Not seen.** A model's own tool call, the band or a toast drawn on a surface, a press of any
+button, a click on the link, and a save into a real library.
