@@ -268,28 +268,38 @@ given output.
 - Paths are anchored on `$.session.root()`, absolute, not on `.`: a shell `cd` moves the
   session's working directory, so phase 1's relative listing could follow it. A terminal run's
   paths resolve against `$.session.cwd()` read before the call and any `cd` in the command; an
-  MCP call's against the root, where its server runs. Windows paths compare without case; Git
+  MCP call's against the root, where its server runs. A `cd` inside a subshell ends with it, and
+  `pushd`/`popd` are followed. Windows paths compare without case; against a Windows root, Git
   Bash's `/c/...` reads as `c:/...`.
-- A check passes only on the CLI's `OK - n error(s)` verdict from a run that exited 0 and whose
-  frames did not stop part way. A `FAIL` verdict records a failed check, which takes an earlier
-  pass back. Anything else (a usage error, a network failure, output cut before the verdict, a
-  run in the background) records nothing, so it neither passes nor demotes a package. The
-  verdict is tied to its package by the `Regenerated the package in <dir>.` line that follows it,
-  which covers loops, pipes and the MCP tool; only a lone `validate` with no such line falls back
-  to the verdict alone. A pipe hides the exit code, so the verdict lines decide there.
+- A check passes only on the CLI's `OK - n error(s)` verdict from a run that exited 0, whose
+  frames did not stop part way, and that ran the full gate: `--no-bench`, `--no-house-contract`
+  (MCP `bench: false`, `houseContract: false`) pass nothing. A `FAIL` verdict records a failed
+  check, which takes an earlier pass back. Anything else (a usage error, a network failure,
+  output cut before the verdict, a run in the background) records nothing, so it neither passes
+  nor demotes a package. The verdict is tied to its package by the
+  `Regenerated the package in <dir>.` line that follows it, which covers loops, pipes and the
+  MCP tool. `validate` exits 0 exactly when its report says OK with every frame shot, so where
+  several ran in one command each report is its own evidence; a lone one must also end a call
+  that exited 0, and a lone one with no such line falls back to the verdict alone.
 - A `save` that went through records a passing check and `saved` with the same fingerprint (it
   runs the same gate); one refused for errors fails the check; not logged in records nothing.
-  `pack` records `pack` for every package named, never a check. Frames keep their folder,
-  absolute; through MCP they come back as images, so `dir` is null.
+  `pack` records `pack` for every package named, never a check. A `screenshot` counts only when
+  its output names the file (its `Wrote` line or its JSON), since the call's exit code may be
+  another command's. A `scaffold` clears the record of the folder it wrote, so a new package
+  where an old one stood starts with none. Frames keep their folder, absolute; through MCP they
+  come back as images, so `dir` is null.
 - The fingerprint is SHA-256 over lines of path and file SHA-256, in path order, read with
   `$.fs.read(file, { as: 'bytes' })` and `crypto.subtle`. Left out: the generated files at the
   package's top (the list in `cli/src/workspace.ts`), folders marked `.noacg-frames`,
   `node_modules` and `.git`. A file over 4 MiB (what `$.fs.read` takes) counts by size and time;
-  at most 2,000 files, 8 folders deep. File digests are kept in memory by size and time. It is
-  taken after the run, and on each scan only for packages with a passing check.
+  at most 2,000 files, 8 folders deep. File digests are kept in memory by size and time; a file
+  that cannot be read is read again next time. It is taken in the `tool.call` hook straight after
+  the run, before anything else can edit the files, and on each scan only for packages with a
+  passing check. Only the root and folders directly below it are fingerprinted.
 - Records live in `$.store` under `records:<root>` as `{ packages: { <dir>: PackageRecord } }`,
   read on every scan that finds a package (no module cache, so a reload or a second session in
-  the folder sees the same) and written only when a run is recorded. The mod writes no file; a
+  the folder sees the same) and written only when a run is recorded, straight after that read. A
+  write that fails keeps its runs for the next scan. The mod writes no file; a
   test refuses `fs.write`. Where no package exists the store is never opened (the quiet tests
   now assert it).
 - The band has a second line under the names: the counts with zeros left out, then
@@ -320,9 +330,10 @@ given output.
 current fingerprint, which a scan already takes for any package with a passing check. The band
 is two lines now; the step makes a third or replaces the counts.
 
-**Check findings (build).** `claude plugin validate --strict` and `claude plugin test` (46
+**Check findings (build).** `claude plugin validate --strict` and `claude plugin test` (52
 tests) pass on 2.1.287 and on the Desktop's 2.1.295 binary; `tsc -p cli/plugin-guide` passes.
-Thirteen mutations each fail a test, among them: a pass from a run that exited non-zero, a pass
+Thirteen mutations each failed a test before the review's fixes, and each fix came with a test
+that fails without it. The mutations included: a pass from a run that exited non-zero, a pass
 with stopped frames, a screenshot counted as a check, no `FAIL` verdict, generated files or
 frames folders in the fingerprint, a fingerprint ignored, records cached past a session start, a
 background run read, and paths compared with case on Windows. The watch module, run under Node
