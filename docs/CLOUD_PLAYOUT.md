@@ -532,6 +532,10 @@ send.
   UI work, not schema work.
 - **Field editing** — the selected cue's values through the shared `FieldDescriptor`
   controls; edits stage via `control_stage` (shared across operator pages, the 0008 model).
+  The server keys that buffer by graphic, so the hosted page stages each edit under its CUE
+  inside it (`control/cueStaging.ts`): an edit to one guest's lower third is part of that cue as
+  prepared, and never shows in or airs with another cue of the same graphic (#1036). A value
+  staged by an older build carries no cue and counts only on a graphic with one cue.
 - **The verbs, and the layer each one addresses.** Every verb below Take acts on ONE LAYER —
   the layer of the SELECTED cue on the production page, the layer of the row the button sits on
   in the hosted page. There is no longer a "the live graphic" for a header button to mean, so

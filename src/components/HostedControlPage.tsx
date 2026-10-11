@@ -56,6 +56,7 @@ import {
   clearAllCueBatches,
   clearCueItems,
   controlShowBySlug,
+  cueStageData,
   followControlLog,
   hostedControlRange,
   hostedControlTail,
@@ -649,19 +650,19 @@ export default function HostedControlPage({ slug }: { slug: string }) {
 
   /**
    * ONE effect drives the PREVIEW stage, from what the page has already derived: the cue on
-   * PREVIEW and the values a Take of it would send RIGHT NOW - the cue's own, the SHARED staged
-   * buffer over them and the bound values over both, the same reading `cueValues` below makes.
-   * The stage used to be pushed from four places (arrival, selection, staging, the mode switch)
-   * and the four did not cover every transition - unticking the box after walking on left the
-   * monitor on the old cue while the label named the new one. Worse, the staged buffer is keyed
-   * by GRAPHIC, so typing into a sibling cue moves what a Take of the previewed cue sends; the
-   * monitor has to follow that too, or PREVIEW shows one name and air gets another. The values
-   * ride as a key so the effect re-runs exactly when they move. A cue of another graphic leaving
-   * PREVIEW is stopped, so the stage shows the one cue the label names rather than a stack.
+   * PREVIEW and the values a Take of it would send RIGHT NOW - the cue's own, the edits staged
+   * for it in the SHARED buffer over them and the bound values over both, the same reading
+   * `cueValues` below makes. The stage used to be pushed from four places (arrival, selection,
+   * staging, the mode switch) and the four did not cover every transition - unticking the box
+   * after walking on left the monitor on the old cue while the label named the new one. Another
+   * operator typing into the previewed cue moves what its Take sends, so the monitor follows
+   * that too, or PREVIEW shows one name and air gets another. The values ride as a key so the
+   * effect re-runs exactly when they move. A cue of another graphic leaving PREVIEW is stopped,
+   * so the stage shows the one cue the label names rather than a stack.
    * Above the loading returns because it is a hook; it does nothing until the payload exists.
    */
   const previewValuesKey = previewedCue
-    ? JSON.stringify(hostedCueValues(previewedCue, staged, resolveBindings(dataTree, bindings)))
+    ? JSON.stringify(hostedCueValues(previewedCue, staged, resolveBindings(dataTree, bindings), cues))
     : '';
   const previewShown = useRef<{ arrived: boolean; graphic: string | null }>({ arrived: false, graphic: null });
   useEffect(() => {
@@ -831,21 +832,25 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  bound graphic is showing. One resolve per render, not one per cue. */
   const boundValues = resolveBindings(dataTree, bindings);
 
-  /** The values the operator sees for the selected cue: the cue's own, with the SHARED staged
-   *  buffer over them (another operator typing is visible here, by design) and the production's
-   *  BOUND values over both (plan §2.7 - a bound field is never a cue value). */
-  const cueValues = (cue: OutputCue) => hostedCueValues(cue, staged, boundValues);
+  /** The values the operator sees for a cue: the cue's own, with the edits staged for THAT cue in
+   *  the SHARED buffer over them (another operator typing into it is visible here, by design;
+   *  typing into a sibling cue of the same graphic is not, #1036) and the production's BOUND
+   *  values over both (plan §2.7 - a bound field is never a cue value). */
+  const cueValues = (cue: OutputCue) => hostedCueValues(cue, staged, boundValues, cues);
 
   /**
-   * STAGE values into the shared buffer. They count on this page AT ONCE (the overlay above), so
-   * a Take pressed during the round trip airs them, and they leave the overlay once the buffer
-   * shows them with nothing more of theirs on the way. A refused write leaves it too, or this
-   * page would keep airing a value no other screen ever saw.
+   * STAGE one cue's values into the shared buffer, under that cue (control/cueStaging.ts). They
+   * count on this page AT ONCE (the overlay above), so a Take pressed during the round trip airs
+   * them, and they leave the overlay once the buffer shows them with nothing more of theirs on the
+   * way. A refused write leaves it too, or this page would keep airing a value no other screen
+   * ever saw.
    */
-  const noteStaged = (graphic: string, data: Record<string, string>) =>
-    setOwnStaged((own) => noteOwnStaged(own, graphic, data));
-  const stageShared = (graphic: string, data: Record<string, string>) => {
-    if (Object.keys(data).length === 0) return;
+  const noteStaged = (cue: OutputCue, fields: Record<string, string>) =>
+    setOwnStaged((own) => noteOwnStaged(own, cue.graphic, cueStageData(cue.id, fields)));
+  const stageShared = (cue: OutputCue, fields: Record<string, string>) => {
+    if (Object.keys(fields).length === 0) return;
+    const graphic = cue.graphic;
+    const data = cueStageData(cue.id, fields);
     setOwnStaged((own) => sendOwnStaged(noteOwnStaged(own, graphic, data), graphic, data));
     const answered = (ok: boolean) =>
       setOwnStaged((own) => answerOwnStaged(own, graphic, data, ok, sharedStaged.current[graphic]));
@@ -1584,11 +1589,11 @@ function HostedCueEditor({
    *  whether the rows went, because a press that moves a SHARED value must not move it for an
    *  event the log refused: the other bound graphics would follow a figure this one never took. */
   onSend: (items: ControlSendItem[]) => Promise<boolean>;
-  /** Stage values into the SHARED buffer now. They count on this page at once, so a Take pressed
-   *  before the buffer's row comes back airs them rather than the older figure. */
-  onStage: (graphic: string, data: Record<string, string>) => void;
+  /** Stage one cue's values into the SHARED buffer now. They count on this page at once, so a Take
+   *  pressed before the buffer's row comes back airs them rather than the older figure. */
+  onStage: (cue: OutputCue, data: Record<string, string>) => void;
   /** Count values on this page at once, with the write still to come: the typing debounce. */
-  onStageNote: (graphic: string, data: Record<string, string>) => void;
+  onStageNote: (cue: OutputCue, data: Record<string, string>) => void;
   /** Hands the page this editor's debounce flush: a press that airs the cue's values sends the
    *  typing it holds in the same moment, rather than up to 400 ms later. */
   onFlushReady: (flush: () => void) => void;
@@ -1644,32 +1649,32 @@ function HostedCueEditor({
   // Debounced shared staging: a typing operator sends a few rows, not one per keystroke. The
   // values count on this page from the keystroke (`onStageNote`), so the debounce delays only
   // what the OTHER screens see, never what this page's Take airs.
-  // The held typing names the GRAPHIC it was typed for: the selection can move to another
-  // graphic's cue inside the debounce, and the editor stays mounted across that move.
-  const pending = useRef<{ graphic: string; data: Record<string, string> } | null>(null);
+  // The held typing names the CUE it was typed for: the selection can move to another cue inside
+  // the debounce, and the editor stays mounted across that move.
+  const pending = useRef<{ cue: OutputCue; data: Record<string, string> } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Send the typing still inside the debounce now, to the graphic it was typed for. */
+  /** Send the typing still inside the debounce now, to the cue it was typed for. */
   const flushPending = () => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
     const held = pending.current;
     pending.current = null;
-    if (held) onStage(held.graphic, held.data);
+    if (held) onStage(held.cue, held.data);
   };
   const stageSoon = (key: string, value: string) => {
-    if (pending.current && pending.current.graphic !== cue.graphic) flushPending();
-    pending.current = { graphic: cue.graphic, data: { ...pending.current?.data, [key]: value } };
-    onStageNote(cue.graphic, { [key]: value });
+    if (pending.current && pending.current.cue.id !== cue.id) flushPending();
+    pending.current = { cue, data: { ...pending.current?.data, [key]: value } };
+    onStageNote(cue, { [key]: value });
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(flushPending, 400);
   };
-  /** Stage NOW, taking this graphic's typing still inside the debounce along in the same write.
+  /** Stage NOW, taking this cue's typing still inside the debounce along in the same write.
    *  Cancelling the timer without sending those edits left them on this screen and on no other. */
   const stageNow = (data: Record<string, string>) => {
-    const held = pending.current?.graphic === cue.graphic ? pending.current : null;
+    const held = pending.current?.cue.id === cue.id ? pending.current : null;
     if (held) pending.current = null;
     flushPending();
-    onStage(cue.graphic, { ...held?.data, ...data });
+    onStage(cue, { ...held?.data, ...data });
   };
   // No dependencies on purpose: the page must hold this render's closure over `onStage`. An
   // editor that goes away hands back a no-op, so no press calls into it afterwards.
