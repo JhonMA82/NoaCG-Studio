@@ -4,7 +4,7 @@
 // the session's events as a session raises them, `noacg` runs with the output the published CLI
 // 0.10.1 prints, and a record of every call a quiet mod never makes.
 import type { CommandRunResult, Elements, FsEntry, On, RenderPropsOf, RenderSurface } from 'claude-code'
-import type { Engine, Mounted } from 'claude-code/testing'
+import type { Engine, Mounted, Plugin } from 'claude-code/testing'
 import { mock } from 'claude-code/testing'
 
 /** Each key a folder relative to the project root (`.` itself): a string a file, null a folder. */
@@ -122,8 +122,10 @@ export type Session = {
   mcp: (args: Record<string, unknown>, answer: McpAnswer, tool?: `mcp__${string}__noacg`) => Promise<void>
   /** `/noacg-guide`, typed by the person; what the command answered. */
   command: () => Promise<CommandRunResult>
-  /** The pane closes: `/noacg-guide` again, as the test kit raises no Esc or close mark. */
+  /** The pane closes: `/noacg-guide` again. */
   closePane: () => Promise<void>
+  /** The person closes the pane (Esc, its close mark); the test loads `ESCAPE`. */
+  escape: () => Promise<void>
   /** The band, drawn through the mod on a surface, `columns` cells wide. */
   mount: (surface: Surface, columns: number, hasSurvey?: boolean) => Promise<Mounted<Surface, 'AbovePrompt'>>
   /** The package pane, drawn through the mod on a surface, `columns` cells wide. */
@@ -131,6 +133,21 @@ export type Session = {
 }
 
 type Surface = (typeof SURFACES)[number]
+
+/**
+ * Stands in for the person's Esc on the pane, loaded with `test(name, { plugins: [ESCAPE] }, ...)`:
+ * a `ui.close` of the pane through every plugin's hook, and nothing else run or written. The kit's
+ * `$` has no `ui.close`, and the test's own hooks may make no call, so an inline plugin makes it.
+ */
+export const ESCAPE: Plugin = {
+  name: 'escape',
+  register: on => {
+    on('command.run', { command: 'escape' }, async $ => {
+      await $.ui.close({ id: 'noacg-guide' })
+      return {}
+    })
+  },
+}
 
 /** The tool name a plugin-installed `noacg` MCP server gets. */
 export const MCP_TOOL = 'mcp__plugin_noacg-mcp_noacg__noacg'
@@ -338,10 +355,13 @@ export function session($: Engine, on: On, tree: Tree): Session {
       return answered
     },
     closePane: async () => {
-      // The test kit raises no `ui.close` of the person's (Esc, the close mark); the command's
-      // own close runs the same hook.
       if (!panes.includes('noacg-guide')) throw new Error('the pane is not open')
       await world.command()
+    },
+    escape: async () => {
+      if (!panes.includes('noacg-guide')) throw new Error('the pane is not open')
+      await $.command.run({ command: 'escape', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 140 } })
+      await clock.settle()
     },
     mount: (surface, columns, hasSurvey = false) =>
       $.ui.mount({ plugin: 'noacg-guide', surface, component: 'AbovePrompt', props: band(columns, hasSurvey) }),

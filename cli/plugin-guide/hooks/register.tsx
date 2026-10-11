@@ -346,10 +346,12 @@ export const register: Register = on => {
       fill: async (text, mode) => (await $.prompt.fill({ text, mode })).isFilled,
       toast: text => $.ui.toast(text, { timeoutMs: TOAST_MS }),
     })
+    // The pane opens with the keys (`focus`), and its ring starts on the main button, so Enter
+    // fills that request at once; without `autoFocus` the ring starts on nothing.
     if (list.length === 0) {
       return (
         <Box flexDirection="column">
-          <Button key="start" label="Start a package" variant="primary" onPress={fill(START)} />
+          <Button key="start" label="Start a package" variant="primary" autoFocus onPress={fill(START)} />
         </Box>
       )
     }
@@ -374,7 +376,12 @@ export const register: Register = on => {
                   <Box flexShrink={1}>
                     <Text>{p.next.label}</Text>
                   </Box>
-                  <Button key={`fill:${p.dir}`} label="Fill" {...(p === first ? { variant: 'primary' as const } : {})} onPress={fill(p.next.request)} />
+                  <Button
+                    key={`fill:${p.dir}`}
+                    label="Fill"
+                    {...(p === first ? { variant: 'primary' as const, autoFocus: true as const } : {})}
+                    onPress={fill(p.next.request)}
+                  />
                 </Box>
               )}
               {p.next?.warning && <Text color="warning">{p.next.warning}</Text>}

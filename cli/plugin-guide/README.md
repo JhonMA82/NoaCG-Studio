@@ -34,7 +34,8 @@ outside the fullscreen layout) with every package: its state, each record with i
 frames folder and pack file as links, the saved or sent link, and its next step with a **Fill**
 button. It follows each new record. Esc or `/noacg-guide` again closes it. In a folder with no
 package it offers **Start a package**, which fills the prompt with "Make broadcast graphics with
-NoaCG."
+NoaCG." It opens with that button selected, or with the **Fill** of the package that needs
+attention first, so Enter fills the request at once.
 
 Where nothing draws (the VS Code panel, `claude -p`), `/noacg-guide` answers with the same list
 and next steps as text. That text stays in the conversation, so the model reads it later.
@@ -74,6 +75,9 @@ start a new session in the Code tab:
 ```json
 { "env": { "CLAUDE_CODE_PLUGIN_DIRS": "/path/to/NoaCG-Studio/cli/plugin-guide" } }
 ```
+
+On Windows, write the path with `/` or `\\`, as in `C:/claude/NoaCG-Studio/cli/plugin-guide`. A
+single `\` breaks the file, and then nothing loads.
 
 To turn it off, start without `--plugin-dir`, or remove that line and start a new session.
 

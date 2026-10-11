@@ -7,7 +7,7 @@ import { describe, expect, test } from 'claude-code/testing'
 import { factsMarkdown, fileUrl, shown, textAnswer, when } from '../hooks/pane'
 import { START } from '../hooks/steps'
 import * as cli from './cli'
-import { engineDraws, ROOT, scaffoldedAt, session, SURFACES, texts, type Tree } from './world'
+import { engineDraws, ESCAPE, ROOT, scaffoldedAt, session, SURFACES, texts, type Tree } from './world'
 
 const SAVED = 'https://noacg.studio/#/graphic/6f1c2b'
 const SECOND = 'saving again adds a second library copy'
@@ -148,6 +148,47 @@ describe('the package pane', () => {
     expect(await texts(band)).toContain('Check Evening news')
     await band.unmount()
   })
+
+  for (const surface of SURFACES) {
+    test(`Esc closing the pane brings the band back at once (${surface})`, { plugins: [ESCAPE] }, async ($, on) => {
+      const world = session($, on, twoPackages())
+      world.surfaces = [surface]
+      await world.start()
+      const band = await world.mount(surface, 120)
+      await world.command()
+      expect(await engineDraws(band)).toBe(true)
+
+      // Only the close happens: no command, no state write of the person's, no redraw asked.
+      await world.escape()
+      expect(world.panes).toEqual([])
+      expect(await texts(band)).toContain('Check Evening news')
+      expect(world.forbidden).toEqual([])
+      await band.unmount()
+    })
+
+    // The engine starts a site's ring on its first `autoFocus` element when the site takes the
+    // keyboard (the pane opens with `focus`), else on nothing; the kit raises no such take, so
+    // this holds the prop the engine reads.
+    test(`the ring starts on the main button, so Enter acts on it (${surface})`, async ($, on) => {
+      const world = session($, on, twoPackages())
+      world.surfaces = [surface]
+      await world.start()
+      await world.run('noacg validate evening', { output: cli.validate(`${ROOT}/evening`, true) })
+      await world.command()
+      const pane = await world.mountPane(surface, 40)
+      // Scores needs attention first (not checked), though Evening news is drawn first.
+      const focused = (await pane.findAll({ type: 'Button' })).filter(found => found.props.autoFocus)
+      expect(focused.map(found => found.key)).toEqual(['fill:scores'])
+      expect(focused[0]?.props.variant).toBe('primary')
+      await pane.unmount()
+
+      world.tree = { '.': { 'notes.md': '' } }
+      await world.submit()
+      const empty = await world.mountPane(surface, 40)
+      expect((await empty.findAll({ type: 'Button' })).map(found => [found.props.label, found.props.autoFocus])).toEqual([['Start a package', true]])
+      await empty.unmount()
+    })
+  }
 
   test('with no package, the pane and the text offer to start one', async ($, on) => {
     const world = session($, on, { '.': { 'notes.md': '' } })
