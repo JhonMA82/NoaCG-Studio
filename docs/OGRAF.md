@@ -195,7 +195,7 @@ and maps the OGraf actions onto it.
 | `stopAction({skipAnimation})` | plays the exit. |
 | `updateAction({data, skipAnimation})` | writes the changed fields. Data never causes a state change - that is a house rule and an OGraf one. |
 | `customAction({id, payload, skipAnimation})` | fires that operator event through the graphic's own serial event queue. An unknown id answers `400`. |
-| `dispose()` | stops every tween, timeline, delayed call and timer the graphic started, empties its shadow root, and takes its font rules out of the head with the last copy of the design. |
+| `dispose()` | stops every tween, timeline, delayed call and timer the graphic started, removes the event listeners it added to the page and disconnects its observers, empties its shadow root, and takes its font rules out of the head with the last copy of the design. |
 | `goToTime({timestamp})` | non-real-time only - see below. |
 | `setActionsSchedule({schedule})` | non-real-time only - see below. |
 
@@ -228,7 +228,10 @@ Contract details worth knowing:
   both: the DOM-ready code runs after the code further down has set what it reads (`sb21` and
   `sb22` failed to load without this, issue #964), and `dispose()` stops what its own
   `setTimeout`, `setInterval` and `requestAnimationFrame` started, so a countdown stops counting
-  when the renderer clears the layer (issue #989).
+  when the renderer clears the layer (issue #989). It also removes the listeners the graphic added
+  to the document, the page's font set and the window, and disconnects its `ResizeObserver`,
+  `MutationObserver` and `IntersectionObserver`s, so an imported SVG design stops refitting its
+  text whenever a later graphic loads a font (issue #998).
 
 ## Non-real-time (offline) rendering
 

@@ -992,7 +992,7 @@ export function graphicSources(template: SpxTemplate): { html: string; css: stri
  */
 const WRAPPER_BINDINGS = new Set([
   'ensureGsap', 'ensureFlexGap', 'ensureLottie', 'packageUrl', 'substitute', 'withPackageUrls', 'withPackagePaths',
-  'scopedDocument', 'scopedTimers', 'scopedWindow', 'scopedGsap', 'initTemplate', 'Graphic',
+  'scopedDocument', 'standIn', 'scopedListeners', 'scopedTimers', 'scopedWindow', 'scopedGsap', 'initTemplate', 'Graphic',
 ]);
 
 /**
@@ -1257,13 +1257,18 @@ const MAIN_PATH = ${JSON.stringify(mainPath)};
  * #964). So \`readyState\` answers 'loading' and the DOMContentLoaded listeners wait until
  * \`loaded()\`, which _load() calls once \`initTemplate\` has run: the order a page gives them.
  *
- * Everything else on document (fonts, createElement) passes straight through to the real one.
+ * Any other listener it adds, on the document or on the page's font set (\`fonts\`, the same set,
+ * whose \`ready\` waits for the graphic's faces too), is recorded by \`scopedListeners\` and removed at
+ * dispose(), as its page would have taken it away.
+ *
+ * Everything else on document (createElement) passes straight through to the real one.
  * Which is which is not a hand-kept list: scripts/ograf-document-members.test.mjs reads every
  * member the template runtimes use and fails on one that is neither scoped here nor decided as a
  * pass-through there.
  */
-function scopedDocument(root, head) {
+function scopedDocument(root, head, listeners) {
   let waiting = [];
+  const own = listeners.on(document);
   const scoped = {
     getElementById: (id) => root.querySelector('[id="' + String(id).replace(/"/g, '\\\\"') + '"]'),
     querySelector: (sel) => root.querySelector(sel),
@@ -1275,17 +1280,16 @@ function scopedDocument(root, head) {
       return waiting ? 'loading' : document.readyState;
     },
     addEventListener(type, listener, options) {
-      if (!waiting || type !== 'DOMContentLoaded') document.addEventListener(type, listener, options);
+      if (!waiting || type !== 'DOMContentLoaded') own.addEventListener(type, listener, options);
       else if (listener) waiting.push(listener);
     },
-  };
-  const doc = new Proxy(document, {
-    get(target, key) {
-      if (key in scoped) return scoped[key];
-      const value = target[key];
-      return typeof value === 'function' ? value.bind(target) : value;
+    removeEventListener(type, listener, options) {
+      if (waiting && type === 'DOMContentLoaded') waiting = waiting.filter((held) => held !== listener);
+      else own.removeEventListener(type, listener, options);
     },
-  });
+    fonts: document.fonts && standIn(document.fonts, listeners.on(document.fonts)),
+  };
+  const doc = standIn(document, scoped);
   // The template's page has loaded: its DOMContentLoaded listeners run, in the order it added
   // them. One that throws fails the load, as the same code failed it when it ran at once.
   const loaded = () => {
@@ -1298,6 +1302,81 @@ function scopedDocument(root, head) {
     }
   };
   return { doc, loaded };
+}
+
+// A stand-in for a page object that answers \`members\` itself and passes the rest through, a
+// method bound to the real object and a write made on it, because a host method or setter refuses
+// any other receiver (\`document.fonts.onloadingdone = ...\` would throw).
+function standIn(target, members) {
+  return new Proxy(target, {
+    get(real, key) {
+      if (key in members) return members[key];
+      const value = real[key];
+      return typeof value === 'function' ? value.bind(real) : value;
+    },
+    set(real, key, value) {
+      real[key] = value;
+      return true;
+    },
+  });
+}
+
+/**
+ * The event listeners and observers of ONE mounted Graphic, for the reason \`scopedTimers\` gives:
+ * a template's listeners end with its page, and a renderer's page outlives every Graphic on it. An
+ * imported SVG design refits its text on the font set's \`loadingdone\` and watches its art with a
+ * ResizeObserver, and the sound runtime ends itself on the window's \`pagehide\`. Each held a
+ * disposed graphic, and the refit ran on its detached canvas whenever a later graphic loaded a
+ * face (issue #998).
+ *
+ * So a listener the template adds through its scoped document, the font set or its window (\`on\`)
+ * is recorded until it removes it, an observer it makes (\`observers\`, parameters of
+ * \`initTemplate\` like the timers) until it disconnects it, and \`clear()\`, which dispose() calls,
+ * undoes the rest. A listener is removed by hand rather than through an AbortSignal, which an older
+ * renderer engine (CasparCG 2.3's Chromium 71) does not take.
+ */
+function scopedListeners() {
+  const added = [];
+  const observing = new Set();
+  // A listener is the same one when its target, type, function and capture flag are, as the DOM
+  // counts it: added twice it is there once.
+  const recorded = (target, type, listener, options) => {
+    const capture = typeof options === 'boolean' ? options : !!(options && options.capture);
+    const at = added.findIndex((l) => l.target === target && l.type === type && l.listener === listener && l.capture === capture);
+    return { at, capture };
+  };
+  const on = (target) => ({
+    addEventListener(type, listener, options) {
+      target.addEventListener(type, listener, options);
+      const { at, capture } = recorded(target, type, listener, options);
+      if (listener && at < 0) added.push({ target, type, listener, capture });
+    },
+    removeEventListener(type, listener, options) {
+      target.removeEventListener(type, listener, options);
+      const { at } = recorded(target, type, listener, options);
+      if (at >= 0) added.splice(at, 1);
+    },
+  });
+  const tracked = (Observer) => Observer && class extends Observer {
+    constructor(...args) {
+      super(...args);
+      observing.add(this);
+    }
+    disconnect() {
+      observing.delete(this);
+      super.disconnect();
+    }
+  };
+  const observers = {
+    ResizeObserver: tracked(window.ResizeObserver),
+    MutationObserver: tracked(window.MutationObserver),
+    IntersectionObserver: tracked(window.IntersectionObserver),
+  };
+  const clear = () => {
+    for (const l of added.splice(0)) l.target.removeEventListener(l.type, l.listener, l.capture);
+    for (const observer of Array.from(observing)) observer.disconnect();
+  };
+  return { on, observers, clear };
 }
 
 /**
@@ -1377,8 +1456,8 @@ function scopedTimers() {
  * \`document\` is answered here too, with the graphic's scoped document: hand-written code that
  * reaches the page as \`window.document.getElementById('f0')\` would otherwise find the
  * renderer's first #f0, which is the neighbour's when another graphic mounted first. So are the
- * timers, with the graphic's own (\`scopedTimers\`), so a \`window.setTimeout\` stops at dispose()
- * as a bare \`setTimeout\` does.
+ * timers, listeners and observers, with the graphic's own (\`scopedTimers\`, \`scopedListeners\`),
+ * so a \`window.setTimeout\` or \`window.addEventListener\` ends at dispose() as a bare one does.
  *
  * ONE READ IS REWRITTEN, and only one: a host METHOD - \`getComputedStyle\`, \`matchMedia\`,
  * \`fetch\` - throws when it is called with any receiver but the real window, so it is handed
@@ -1387,11 +1466,11 @@ function scopedTimers() {
  * and binding gsap would drop every method hanging off it. Host methods are exactly the native
  * functions with no \`prototype\`, which is what tells the two apart.
  */
-function scopedWindow(names, doc, timers) {
+function scopedWindow(names, doc, globals) {
   const own = Object.create(null);
   for (const name of names) own[name] = undefined;
   own.document = doc;
-  Object.assign(own, timers);
+  Object.assign(own, globals);
   const isHostMethod = (fn) =>
     !fn.prototype && /\\[native code\\]/.test(Function.prototype.toString.call(fn));
   return new Proxy(window, {
@@ -1479,12 +1558,16 @@ function scopedGsap(root, made) {
 // initTemplate(): runs the template's own JS AFTER the markup is in the DOM and returns
 // its runtime entry points. The code inside is exactly what the editor shows — the
 // \`document\`, \`window\` and \`gsap\` parameters shadow the global ones so its lookups stay
-// inside this Graphic, and the timer parameters so dispose() can stop what it schedules. The code
-// runs in a function of its own inside this one, so a declaration of its own under one of those
-// names (\`const requestAnimationFrame = window.requestAnimationFrame\`) shadows the parameter, as
-// on a page it shadows the global, instead of stopping the whole module from parsing. It keeps
-// this function's indentation, so its own multi-line strings read exactly as written.
-function initTemplate(document, window, gsap, { setTimeout, setInterval, clearTimeout, clearInterval, requestAnimationFrame, cancelAnimationFrame }) {
+// inside this Graphic, and the timer, listener and observer parameters so dispose() can undo what
+// it starts on the page. The code runs in a function of its own inside this one, so a declaration
+// of its own under one of those names (\`const requestAnimationFrame = window.requestAnimationFrame\`)
+// shadows the parameter, as on a page it shadows the global, instead of stopping the whole module
+// from parsing. It keeps this function's indentation, so its own multi-line strings read exactly
+// as written.
+function initTemplate(document, window, gsap, {
+  setTimeout, setInterval, clearTimeout, clearInterval, requestAnimationFrame, cancelAnimationFrame,
+  addEventListener, removeEventListener, ResizeObserver, MutationObserver, IntersectionObserver,
+}) {
   window.noacgResolveSound = packageUrl;
   return (function () {
 ${template.js.replace(/^/gm, '  ')}
@@ -1541,7 +1624,7 @@ class Graphic extends HTMLElement {
     this._step = -1;
     this._disposed = false;
     this._made = null;
-    this._clearTimers = null;
+    this._endTemplate = null;
     this._holdsHead = false;
   }
 
@@ -1654,11 +1737,11 @@ class Graphic extends HTMLElement {
   // wrapper, so a \`body > .x\` rule and a read of \`document.body.children\` find the design's
   // top-level elements, and only them. Returns the canvas, the template's scoped document and
   // the function that ends its loading.
-  _mountTemplate() {
+  _mountTemplate(listeners) {
     const canvas = this._claimCanvas(withPackageUrls.css(TEMPLATE_CSS));
     this._holdHeadCss();
     canvas.insertAdjacentHTML('beforeend', withPackageUrls.html(TEMPLATE_HTML));
-    return { canvas, ...scopedDocument(canvas, this.shadowRoot) };
+    return { canvas, ...scopedDocument(canvas, this.shadowRoot, listeners) };
   }
 
   async _load(params) {
@@ -1675,11 +1758,13 @@ class Graphic extends HTMLElement {
     await ensureFlexGap();${usesLottie ? '\n    await ensureLottie();' : ''}
     // A load that fails anywhere past this point takes down what it mounted and answers 500.
     try {
-      const { canvas, doc, loaded } = this._mountTemplate();
+      const { timers, clear: clearTimers } = scopedTimers();
+      const listeners = scopedListeners();
+      this._endTemplate = () => { clearTimers(); listeners.clear(); };
+      const { canvas, doc, loaded } = this._mountTemplate(listeners);
       this._made = new WeakSet();
-      const { timers, clear } = scopedTimers();
-      this._clearTimers = clear;
-      this._runtime = initTemplate(doc, scopedWindow(TIMELINE_FUNCTIONS, doc, timers), scopedGsap(canvas, this._made), timers);
+      const globals = Object.assign({}, timers, listeners.on(window), listeners.observers);
+      this._runtime = initTemplate(doc, scopedWindow(TIMELINE_FUNCTIONS, doc, globals), scopedGsap(canvas, this._made), globals);
       // The template's script has run, so its page has loaded and its DOM-ready code runs now.
       loaded();
       if (this._runtime.soundPrepare) await this._runtime.soundPrepare();
@@ -1696,9 +1781,10 @@ class Graphic extends HTMLElement {
 
   async _dispose() {
     if (this._runtime && this._runtime.soundDispose) this._runtime.soundDispose();
-    // Every timer the template's code started: a countdown's interval would go on ticking.
-    if (this._clearTimers) this._clearTimers();
-    this._clearTimers = null;
+    // What the template's code started on the page: a countdown's interval would go on ticking, and
+    // a font-set listener would go on refitting a canvas that is no longer there.
+    if (this._endTemplate) this._endTemplate();
+    this._endTemplate = null;
     const tree = this._tree();
     const gsap = window.gsap;
     if (gsap) {
