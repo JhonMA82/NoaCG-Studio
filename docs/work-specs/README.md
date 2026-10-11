@@ -9,6 +9,13 @@ The spec describes problem, behaviour, preserved behaviour and non-goals. Stable
 `### AC-1: <observable outcome>` define the acceptance inventory, followed by scenarios.
 Owner requirements, derived choices and evidence are labeled separately. Child specs name their
 parent and inherited IDs; parent-level integration still requires its own observed evidence.
+An acceptance criterion that needs an automated check names its layer (a Node test, a blank-page
+browser spec, a journey in an existing E2E file, the configured suite, scheduled validation); a
+new E2E file is the choice only for a new user-visible flow. Two optional sections carry the
+suite-budget records the CI gate reads: `## Test maintenance` (one line per spec whose coverage
+this work moves, merges or retires: what stays protected, by what, and the receipt) and
+`## Budget exceptions` (`- e2e/x.spec.ts: <minutes> min, protects <behaviour>, expires YYYY-MM-DD`,
+at most 30 days). Grammar and reasons: `scripts/check-e2e-protection.mjs`, `scripts/e2e-capacity.mjs`.
 
 `work.json` version 2 deliberately has no tasks, lifecycle states, ready sets or dependencies:
 
