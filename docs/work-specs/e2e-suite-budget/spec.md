@@ -75,14 +75,18 @@ do not grow with the suite's file count.
    org-wide 20-job ceiling and the measured peak concurrency. `MAX_SHARDS` may follow the table;
    the envelope does not. Usage is `planMinutes(full suite on disk) / capacity`. Lines: 85% warn,
    95% exception. Today: 169.4 / 180.6 = 94%.
-2. **The check lives where the report already is.** The `e2e-report` job merges every shard's blob
-   on pull requests and merge groups; the new check reads that merged report for the measured
-   minutes of specs the change added or edited (never the median guess), replaces their table
-   entries, recomputes usage, and writes a check summary. Execution cost (table-minutes), runner
-   cost (job minutes, from the run's jobs) and landing latency (queue entry to landed, from the
-   merge-queue events) are three separate numbers in that summary. An unmeasured spec (its shard
-   died, a partial report) counts at the suite's p90 per-spec minutes, not the median, and the
-   summary says so.
+2. **Estimated at the plan, measured at the report.** `scripts/e2e-capacity.mjs` runs twice on a
+   pull request or merge group. In the plan job, before any shard starts, it estimates usage with
+   the change's spec files counted at their table value or, for a spec the table has never seen,
+   the median; that estimate is what the gate reads, so a refusal arrives in seconds rather than
+   after a 10-minute report job the gate would otherwise have to wait for. In the `e2e-report`
+   job, which already merges every shard's blob, it weighs the same files with what they cost in
+   this run and prints the measured usage beside the run's runner minutes and wall clock, three
+   separate figures; a spec the report does not carry (its shard died) counts at the suite's p90,
+   not the median, so a partial report cannot flatter a change. The weekly refresh pull request
+   reconciles both with the next full run on main. (Amended 2026-10-12 from "measured only in
+   the report job": the report job is deliberately not in the gate's `needs`, and adding it would
+   put a minute on every landing.)
 3. **Exceptions are narrow and expire.** An exception is one line in the pull request's work spec
    (`docs/work-specs/<x>/spec.md`, section "Budget exceptions"): the spec file, the measured
    minutes, the protected behaviour, and an expiry date at most 30 days out. The check refuses an

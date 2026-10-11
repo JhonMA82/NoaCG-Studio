@@ -255,6 +255,13 @@ jobs:
       quarantined: ${{ steps.plan.outputs.quarantined }}
       # Whether the `guided-mod` job below runs: 'true' or 'false'.
       guidedMod: ${{ steps.guided.outputs.run }}
+      # The diff base the plan measured from (empty on main and on a dispatch with none), so the
+      # report job can measure the same change's spec files against the capacity line.
+      base: ${{ steps.plan.outputs.base }}
+      # The capacity line's verdict on this change, estimated before the shards run: 'ok', 'warn'
+      # or 'refuse' (scripts/e2e-capacity.mjs; docs/work-specs/e2e-suite-budget/spec.md).
+      capacity: ${{ steps.capacity.outputs.capacity }}
+      capacityReason: ${{ steps.capacity.outputs.capacity_reason }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -408,6 +415,7 @@ jobs:
             PLAN="$(node scripts/e2e-affected.mjs --json --integration "$BASE")"
           fi
           echo "plan: $PLAN"
+          echo "base=${BASE:-}" >> "$GITHUB_OUTPUT"
           # The shard count comes WITH the plan (scripts/e2e-affected.mjs `shardsFor`), sized from
           # measured minutes per spec file rather than from a file count. It used to be computed
           # here, as `full ? 9 : min(4, floor(files / 4))`, and the cap was expensive: a "subset"
@@ -457,6 +465,20 @@ jobs:
               `matrix=${JSON.stringify({ shardIndex: Array.from({ length: shards }, (_, i) => i + 1), shardTotal: [shards] })}`,
             ].join("\n"));
           ' "$PLAN" >> "$GITHUB_OUTPUT"
+
+      # THE CAPACITY LINE, estimated before a shard runs. How much of the full run's envelope
+      # (11 runners x the shard budget) the suite on disk uses with this change's spec files in
+      # it, from the table and the median for a spec it has never seen. Above 85% every pull
+      # request is warned; above 95% a change that ADDS spec-minutes needs an expiring exception
+      # in its work spec, and the gate below refuses without one. The report job measures the same
+      # files from this run's own blobs once they exist. Pull requests and merge groups only: main
+      # has landed already, and the weekly refresh pull request carries main's usage.
+      - name: E2E capacity line (estimate)
+        id: capacity
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+        env:
+          BASE: ${{ steps.plan.outputs.base }}
+        run: node scripts/e2e-capacity.mjs --changed "${BASE:-}" --github-output --summary "$GITHUB_STEP_SUMMARY"
 
   e2e:
     name: E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (${{ needs.plan.outputs.mode }})
@@ -961,22 +983,26 @@ jobs:
     needs: [plan, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read # this run's own job minutes, for the capacity summary below
     steps:
-      # Checkout stays (it costs a couple of seconds and gives us the lockfile); the `npm ci`
-      # that used to follow it does not. Merging blob reports needs exactly one package, so
-      # installing this repository's entire dependency tree to reach it was ~40 s of work per
-      # run for a job that tests nothing. The version is read from the lockfile rather than
-      # from an installed tree, so the merger is exactly the Playwright the shards wrote those
-      # blobs with - a mismatch there is the one way this step can fail for a real reason.
-      # `setup-node` goes with it: the runner image's own Node is enough to parse one JSON file
-      # and run one `npx`, and this job builds nothing that could depend on the version.
-      # The other way it fails is not real: `npx` fetches the package from the registry every
-      # time, and on 2026-09-05 one ECONNRESET there turned a run whose every shard was green
-      # into a red main that held the landing queue until a person re-ran it. Hence the retry.
+      # Checkout stays and the `npm ci` that used to follow it does not. Merging blob reports
+      # needs exactly one package, so installing this repository's entire dependency tree to
+      # reach it was ~40 s of work per run for a job that tests nothing. The version is read from
+      # the lockfile rather than from an installed tree, so the merger is exactly the Playwright
+      # the shards wrote those blobs with - a mismatch there is the one way this step can fail
+      # for a real reason. `setup-node` goes with it: the runner image's own Node is enough to
+      # parse one JSON file and run one `npx`, and this job builds nothing that could depend on
+      # the version. The other way it fails is not real: `npx` fetches the package from the
+      # registry every time, and on 2026-09-05 one ECONNRESET there turned a run whose every
+      # shard was green into a red main that held the landing queue until a person re-ran it.
+      # Hence the retry. The checkout is the whole tree with history since 2026-10-12: the
+      # capacity summary below reads the spec headers and the durations table, and diffs this
+      # change against the plan's base.
       - uses: actions/checkout@v5
         with:
-          sparse-checkout: package-lock.json
-          sparse-checkout-cone-mode: false
+          fetch-depth: 0
 
       - name: Resolve the Playwright version from the lockfile
         id: playwright-version
@@ -1016,6 +1042,27 @@ jobs:
           path: playwright-report/
           retention-days: 14
           if-no-files-found: error
+
+      # THE CAPACITY LINE, MEASURED. The plan job estimated this change's spec files at the table
+      # or the median; here the same files are weighed with what they just cost in this run's own
+      # blobs, beside this run's runner minutes and wall clock, so the three costs stay apart in
+      # the step summary. Informational: the estimate in the plan job is what the gate reads, and
+      # the weekly refresh pull request reconciles both with the next full run on main. Never
+      # fails the job - this job tests nothing and the gate does not depend on it.
+      - name: Measure this change against the capacity line
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+        env:
+          PLAYWRIGHT_VERSION: ${{ steps.playwright-version.outputs.version }}
+          PLAYWRIGHT_JSON_OUTPUT_FILE: merged-report.json
+          BASE: ${{ needs.plan.outputs.base }}
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          npx --yes "@playwright/test@${PLAYWRIGHT_VERSION}" merge-reports --reporter=json ./all-blob-reports > /dev/null || { echo "::notice title=E2E capacity::no merged JSON report - skipping the measured line"; exit 0; }
+          RUNNER_MIN="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" --jq '[.jobs[] | select(.completed_at != null and .started_at != null) | ((.completed_at | fromdate) - (.started_at | fromdate)) / 60] | add // 0' 2>/dev/null | paste -sd+ - | bc 2>/dev/null || true)"
+          WALL_MIN="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq '(now - (.created_at | fromdate)) / 60' 2>/dev/null || true)"
+          node scripts/e2e-capacity.mjs --changed "${BASE:-}" --report merged-report.json ${RUNNER_MIN:+--runner-minutes "$RUNNER_MIN"} ${WALL_MIN:+--wall-minutes "$WALL_MIN"} --summary "$GITHUB_STEP_SUMMARY" || true
 
   gate:
     name: CI gate
@@ -1060,9 +1107,20 @@ jobs:
           CATALOG_RESULT: ${{ needs.e2e-catalog.result }}
           FACTORY_RESULT: ${{ needs.factory.result }}
           GUIDED_MOD_RESULT: ${{ needs.guided-mod.result }}
+          CAPACITY_RESULT: ${{ needs.plan.outputs.capacity }}
+          CAPACITY_REASON: ${{ needs.plan.outputs.capacityReason }}
         run: |
           status=0
           exhausted=0
+          # THE CAPACITY LINE (scripts/e2e-capacity.mjs, docs/work-specs/e2e-suite-budget/spec.md).
+          # A pull request or merge group that adds spec-minutes above 95% of the full run's
+          # envelope without an expiring exception in its work spec is refused here, by the plan
+          # job's estimate. A change that adds nothing is never refused, so no landing is held for
+          # being mechanical; and an empty verdict (main, a dispatch) is no verdict.
+          if [ "${CAPACITY_RESULT:-}" = "refuse" ]; then
+            echo "::error title=CI gate::E2E capacity line - ${CAPACITY_REASON:-over the line}. Add a budget exception to the pull request's work spec (format: scripts/e2e-capacity.mjs header) or make the change cheaper."
+            status=1
+          fi
           # FAIL-THEN-PASS IS A FLAKE, NOT A RED. The shards failed and the retry job ran exactly
           # the failed specs again on this same commit and they passed. The gate passes on that
           # second answer, and the step after this one writes those specs into the quarantine

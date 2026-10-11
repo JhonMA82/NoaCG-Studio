@@ -246,6 +246,14 @@ in one place: when a plan is predicted too close to the 20-minute job cap, the w
 remedies, because either the per-job cost has grown or the plan is selecting more than the change
 needs.
 
+**The capacity line** (`npm run check:e2e-capacity`, `scripts/e2e-capacity.mjs`) is the same
+arithmetic turned toward growth: the full suite on disk in table-minutes against the envelope of
+eleven runners times the shard budget. Every pull request and merge group estimates it in the plan
+job with its own spec files counted in, warns above 85%, and above 95% a change that adds minutes
+needs an expiring exception in its work spec; the report job then measures those files from the
+run's own blobs. The reasoning, the measurements and the maintenance loop around it are
+`docs/work-specs/e2e-suite-budget/`.
+
 ## Changing this contract
 
 - A new IGNORE entry is the only edit here with no alarm attached. Every other mistake fails toward
