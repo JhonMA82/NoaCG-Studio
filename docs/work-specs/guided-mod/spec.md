@@ -388,12 +388,13 @@ server through `--mcp-config`. The driver logged each value the mod wrote to its
   marked frames folders, `node_modules` and `.git`. After an edit to `css/template.css` outside
   any session, a new session showed the package "edited since check", on both forms.
 - AC-8: records are in `<config>/plugins/store/noacg-guide_inline-<hash>.json` under
-  `records:<root, lower case>`. Nothing was written in the packages or the folder. Every step was
-  a new process, and each started from the states the last one left. A run in a folder with no
-  package wrote no state and opened no store key.
+  `records:<root, lower case>`. The mod writes no file (`validate` lists no `$.fs.write`).
+  Every step was a new process, and each started from the states the last one left. A run in a
+  folder with no package wrote no state and opened no store key.
 - AC-9: main's `band.ts` was run over the states the sessions wrote. It gave
   `1 checked · 2 not checked` after the MCP checks and `1 edited since check · 2 not checked`
-  after the edit, at 100 and 40 columns. Saved names were not seen in a real run (no save).
+  after the edit, at 100 columns and the same at 40. Saved names were not seen in a real run
+  (no save).
 - AC-1 to AC-5 still hold: `validate --strict` passes on both builds and lists no
   `$.prompt.submit`, `$.mcp.call`, `$.process`, `$.http`, `$.model` or `$.agent` call; 53 tests
   pass on both builds. Under load (16 test processes at once, 4 rounds, both builds, each run about
