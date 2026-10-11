@@ -25,7 +25,8 @@
  * in flight, or this page would keep airing a value no other screen ever saw.
  */
 
-/** Staged values per graphic, the shape of `control_shows.staged`. */
+/** Staged values per graphic, the shape of `control_shows.staged`. The page stages each value
+ *  under its cue (`control/cueStaging.ts`); this module only ever sees the keys. */
 export type StagedMap = Record<string, Record<string, string>>;
 
 /** One edited field: the value this page shows, whether it is still waiting in the typing
