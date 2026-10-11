@@ -4,7 +4,8 @@ The North Star and the outcome specs NoaCG works toward, and the one direction d
 read it to decide what matters, the orchestrator to find the most important unsatisfied outcome
 and the next safe step. Plans linked from each outcome say how; this file says what and why.
 **Keep it under 200 lines**; a roadmap nobody can read in one sitting steers nothing. Private
-context (dates, partners, demos) lives outside public git in `docs/private/` in the main checkout.
+context (dates, partners, demos, competitor research) lives outside public git in `docs/private/`
+in the main checkout; public text names other products only as ones NoaCG works with.
 
 ## North Star
 
@@ -15,8 +16,7 @@ out wherever the production runs.**
 
 The user is anyone in a live production who needs a professional graphic on air quickly and
 reliably without a graphics developer: small production teams, broadcasters, streamers, events,
-churches, schools and student productions. Student productions are the main proving ground today;
-they do not define the product.
+churches, schools and student productions. The proof is a production that works, start to finish.
 
 There are two ways in, and both end in the same production and playout workflow:
 
