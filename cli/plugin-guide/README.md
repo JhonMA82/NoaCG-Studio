@@ -1,10 +1,12 @@
 # noacg-guide (trial)
 
 A Claude Code mod for people making broadcast graphics with the `noacg` plugin. It shows the NoaCG
-packages in the folder Claude Code was started in, in a band above the prompt:
+packages in the folder Claude Code was started in, and where each stands, in a band above the
+prompt:
 
 ```
-NoaCG  Lower third · Scoreboard · +2 more
+NoaCG  Lower third · Scoreboard · Ticker
+       1 checked · 1 edited since check · 1 not checked · saved: Lower third
 ```
 
 This is a trial for the owner to try. It is not published, not in the marketplace, the npm package
@@ -18,11 +20,25 @@ or the toolkit distribution, and its name may change. The plan is
   `node_modules` and dot folders are skipped.
 - Looks again when the session starts, when you send a prompt and after a tool call that may have
   written files, so a package made during the session appears without a restart.
-- Shows "NoaCG" and the package names in the band, as many as fit the width.
+- Shows "NoaCG" and the package names in the band, as many as fit the width, and under them how
+  many are checked, edited since check and not checked, and which are saved.
+- Records what `noacg` runs reported, run in a terminal (`noacg ...`, `npx @noacg/cli ...`) or
+  through the `noacg` MCP tool: `validate` (checked when it passed and exited 0, not checked when
+  it failed), frames from `validate --screenshots` or `screenshot` with their folder, `save` with
+  the link it returned, and `pack` with its link or file. A screenshot alone is never a check.
+- Ties each record to a SHA-256 of the package's source and asset files, leaving out the files
+  `noacg validate` regenerates and frames folders. When those files change after a check, the
+  package shows "edited since check"; changing them back shows it checked again.
+
+The records are kept per folder on this machine, in the mod's own store: a JSON file under your
+Claude Code configuration folder (`~/.claude`), never in a package, a pack or the repository. A
+new session in the same folder shows the same states. A run the mod cannot read (one in the
+background, or one whose output was cut before its verdict) records nothing.
 
 Where there is no package it draws nothing and adds nothing to the conversation. It never adds to
 the model's context, registers no tool or command, and makes no network request, process run or
-model call. It only lists folders and reads package manifests inside the working directory.
+model call. It lists folders and reads package files inside the folder Claude Code was started in,
+and reads and writes only its own store.
 
 ## Try it
 
