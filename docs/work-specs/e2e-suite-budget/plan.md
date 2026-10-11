@@ -75,3 +75,49 @@ defect replay receipt, maintenance entry, before/after minutes.
 - No phase raises `timeout-minutes`, lowers an assertion, or lets a stop-at-cap read as a verdict.
 - The owner is asked only if a phase's evidence requires changing the protection or detection
   targets in `spec.md`.
+
+## Phase notes
+
+Each landing of a phase adds here what the next phase must allow for.
+
+### 2026-10-12, night of the spec (phases 0 and 1a-1e)
+
+Landed or queued, each its own pull request through the merge queue:
+
+- #1033 phase 0: this spec, the evidence and the plan. Landed 21:21 UTC.
+- #1037 phase 1a: the catalog gate on main follows the push's own diff (`--catalog-since=<before>`,
+  `scripts/e2e-affected.mjs catalogSince`); quarantine entries older than 14 days are reported in
+  one rolling issue from `quarantine.yml`'s list job (`e2e-quarantine.mjs stale --issue`). The
+  retry fix for #1025 was written here too and dropped when main landed its own (ce433426d,
+  429e42d2d); keep main's.
+- #1039 phase 1b: the capacity line (`scripts/e2e-capacity.mjs`, `npm run check:e2e-capacity`):
+  estimated in the plan job, measured in the report job, refused by the gate above 95% without a
+  budget exception. Decision 2 of the spec was amended to say so. Its own pull-request run printed
+  WARN at 93.8% (run 38177271445).
+- #1041 phase 1c: `scripts/check-e2e-protection.mjs` in the plan job; the auto-fix rule superseded
+  (`root/every-pull-request-repository-has-auto`); the placement rule
+  (`root/put-durable-check-cheapest-layer-proves`) superseding the bare new-flow spec rule;
+  `docs/VERIFICATION.md` and the work-spec README corrected.
+- #1043 phase 1 item 5: `scripts/e2e-selection-misses.mjs` in `weekly-audit.yml`, report only. Over
+  the week to 2026-10-11 it finds no miss with today's planner (the #927 case reads as selected
+  because #947 fixed the header; one editor-groups failure was a quarantined flake).
+- #1045 phase 1 item 1, first step: the shared-change set is the planner's default escalation with
+  no `E2E_SPRINT_FOCUS`; `--full-escalation` asks for the whole suite; the five plan shapes are
+  pinned in `scripts/e2e-affected.test.mjs`.
+
+What the next phase must allow for:
+
+- #1039 needed auto-merge enabled by a token with the `workflow` scope (the session's `gh` token
+  had none); the other workflow-changing pull requests were accepted. When `add-merge` is refused
+  that way, the push, the label and the `noacg/reviewed` status are already in place.
+- The capacity estimate counts a new spec at the median before any run, so a pull request that
+  adds one ordinary spec at 94% usage is warned, not refused; one that adds more than about 11
+  table-minutes is refused until its work spec carries an exception. The first such refusal is the
+  first real test of the exception grammar.
+- The protection check treats a test moved between files as a removal in the source file, which
+  is intended: a consolidation names its replacement in a maintenance entry.
+- The shared-change set still carries the sprint-era token and 76 members; the review with a
+  reason per entry (plan phase 1 item 1, second step) is the next piece of selection work, and the
+  miss count from #1043's weekly step is what the batched-validation rollout (phase 2) waits on.
+- Before/after for AC-10 is not yet measurable: the first full week under these changes is the
+  week of 2026-10-13. Re-run `evidence/scripts/analyze-jobs.mjs` and `replay-cadence.mjs` over it.
