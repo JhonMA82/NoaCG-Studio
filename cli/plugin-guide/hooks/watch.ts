@@ -17,6 +17,7 @@
 import type { FsEntry } from 'claude-code'
 
 import type { PackageRecord, PackageStatus, Run } from '../types'
+import { FRAMES_MARKER, isObject } from './packages'
 
 // ── Paths ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -320,40 +321,47 @@ function jsonText(quoted: string | undefined): string | undefined {
 }
 
 /**
- * Reports from the validate blocks. A pass needs the OK verdict, every frame shot and the full
- * gate. `validate` exits 0 exactly then, so where several ran in one command each block is its
- * own evidence; a lone one must also have ended a call that exited 0.
+ * Reports from the validate blocks. A pass needs the OK verdict and every frame shot. `validate`
+ * exits 0 exactly then, so where several ran in one command each block is its own evidence; a
+ * lone one must also have ended a call that exited 0.
  */
-function fromBlocks(blocks: Block[], isError: boolean, weak: boolean, reports: Report[]): void {
+function fromBlocks(blocks: Block[], isError: boolean, reports: Report[]): void {
   for (const b of blocks) {
     if (!b.ok) reports.push({ kind: 'check', target: b.dir, ok: false })
-    else if (!b.shotFailed && !weak && !(isError && blocks.length === 1)) reports.push({ kind: 'check', target: b.dir, ok: true })
+    else if (!b.shotFailed && !(isError && blocks.length === 1)) reports.push({ kind: 'check', target: b.dir, ok: true })
     if (b.frames !== null) reports.push({ kind: 'frames', target: b.dir, dir: b.frames })
     else if (b.shown) reports.push({ kind: 'frames', target: b.dir, dir: null })
   }
 }
 
-/** A save's reports: saved with its link and, on the full gate, a passing check; or a failing check. */
-function fromSave(target: string, text: string, isError: boolean, weak: boolean, reports: Report[]): void {
+/** A scaffold's report: each folder it wrote starts afresh. */
+function fromScaffold(text: string, isError: boolean, reports: Report[]): void {
+  if (isError) return
+  for (const made of text.matchAll(SCAFFOLDED)) if (made[1]) reports.push({ kind: 'new', target: normalize(made[1]) })
+}
+
+/** A save's reports: saved with its link and a passing check; or a failing check. */
+function fromSave(target: string, text: string, isError: boolean, reports: Report[]): void {
   const saved = SAVED.exec(text)
-  if (saved?.[1] && !isError) {
-    if (!weak) reports.push({ kind: 'check', target, ok: true })
-    reports.push({ kind: 'saved', target, url: saved[1] })
-  } else if (verdictIn(text) === false) {
-    reports.push({ kind: 'check', target, ok: false })
-  }
+  if (saved?.[1] && !isError) reports.push({ kind: 'check', target, ok: true }, { kind: 'saved', target, url: saved[1] })
+  else if (verdictIn(text) === false) reports.push({ kind: 'check', target, ok: false })
 }
 
 /** A pack's reports, one per package in it: where it went. */
-function fromPack(targets: string[], name: string | undefined, text: string, base: string | null, reports: Report[]): void {
+function fromPack(targets: string[], name: string | undefined, text: string, base: string, reports: Report[]): void {
   const sent = SENT.exec(text)
   const wrote = WROTE_PACK.exec(text)
   if (!sent && !wrote) return
-  const file = wrote?.[1] ? (base === null ? normalize(wrote[1]) : resolvePath(base, wrote[1])) : undefined
+  const file = wrote?.[1] ? resolvePath(base, wrote[1]) : undefined
   const named = sent?.[1] ?? name ?? ''
   for (const target of targets) {
     reports.push({ kind: 'pack', target, name: named, ...(sent?.[2] ? { url: sent[2] } : {}), ...(file ? { file } : {}) })
   }
+}
+
+/** A run that skipped part of the gate (`--no-bench`, `--no-house-contract`) passes nothing. */
+function withoutPasses(reports: Report[], weak: boolean): Report[] {
+  return weak ? reports.filter(r => !(r.kind === 'check' && r.ok)) : reports
 }
 
 /**
@@ -367,50 +375,47 @@ export function terminalReports(command: string, cwd: string, escapes: boolean, 
   const { text, isError } = outcome
   const reports: Report[] = []
   const count = (verb: Verb) => runs.filter(r => r.verb === verb).length
-  // `--no-bench` or `--no-house-contract` skip part of the gate: such a run passes nothing.
-  const weak = runs.some(r => r.args.flags.bench === false || r.args.flags['house-contract'] === false)
   const blocks = count('validate') ? blocksIn(text) : []
-  fromBlocks(blocks, isError, weak, reports)
-  if (count('scaffold') && !isError) {
-    for (const made of text.matchAll(SCAFFOLDED)) if (made[1]) reports.push({ kind: 'new', target: normalize(made[1]) })
-  }
+  fromBlocks(blocks, isError, reports)
+  if (count('scaffold')) fromScaffold(text, isError, reports)
 
   for (const run of runs) {
+    const here = run.cwd
+    if (here === null) continue
     const input = run.args._[1]
-    const target = run.cwd !== null && plain(input) ? resolvePath(run.cwd, input) : null
+    const target = plain(input) ? resolvePath(here, input) : null
     if (run.verb === 'validate' && target && count('validate') === 1 && blocks.length === 0) {
       // A report cut short (`| tail`, `--json` with the log lines dropped): its verdict alone.
       const ok = verdictIn(text)
-      const shotFailed = /^Screenshots stopped part way:/m.test(text)
+      const shotFailed = new RegExp(SHOT_FAILED.source, 'm').test(text)
       if (ok === false) reports.push({ kind: 'check', target, ok: false })
-      else if (ok === true && !shotFailed && !isError && !weak) reports.push({ kind: 'check', target, ok: true })
+      else if (ok === true && !shotFailed && !isError) reports.push({ kind: 'check', target, ok: true })
       const shots = flag(run.args, 'screenshots')
-      if (shots && plain(shots) && !isError && run.cwd !== null) reports.push({ kind: 'frames', target, dir: resolvePath(run.cwd, shots) })
+      if (shots && plain(shots) && !isError) reports.push({ kind: 'frames', target, dir: resolvePath(here, shots) })
     }
-    if (run.verb === 'screenshot' && target && run.cwd !== null) {
+    if (run.verb === 'screenshot' && target) {
       const out = flag(run.args, 'out')
       if (!out || !plain(out)) continue
-      const file = resolvePath(run.cwd, out)
+      const file = resolvePath(here, out)
       // The file it names, in its line or its JSON: the exit code may be another command's.
       const named = [...text.matchAll(WROTE_FRAME), ...text.matchAll(JSON_FILE)].map(m => (m[0].startsWith('"') ? jsonText(m[1]) : m[1]))
       if (named.some(f => f !== undefined && pathKey(f) === pathKey(file))) reports.push({ kind: 'frames', target, dir: dirname(file) })
     }
-    if (run.verb === 'save' && target && count('save') === 1) {
-      fromSave(target, text, isError, weak, reports)
-    }
-    if (run.verb === 'pack' && count('pack') === 1 && run.cwd !== null) {
+    if (run.verb === 'save' && target && count('save') === 1) fromSave(target, text, isError, reports)
+    if (run.verb === 'pack' && count('pack') === 1) {
       // `--save` and `--share` are switches that take the next word; the CLI gives it back.
       const inputs = run.args._.slice(1)
       for (const key of ['share', 'save']) {
         const taken = run.args.flags[key]
         if (typeof taken === 'string') inputs.unshift(taken)
       }
-      const here = run.cwd
-      const targets = inputs.filter(plain).map(p => resolvePath(here, p))
-      fromPack(targets, flag(run.args, 'name'), text, here, reports)
+      fromPack(inputs.filter(plain).map(p => resolvePath(here, p)), flag(run.args, 'name'), text, here, reports)
     }
   }
-  return reports
+  return withoutPasses(
+    reports,
+    runs.some(r => r.args.flags.bench === false || r.args.flags['house-contract'] === false),
+  )
 }
 
 /** Whether a tool is the `noacg` MCP tool, under whatever name its server was added. */
@@ -426,15 +431,14 @@ export function mcpReports(input: Record<string, unknown>, root: string, outcome
   const { text, isError } = outcome
   const reports: Report[] = []
   const path = typeof input.path === 'string' && input.path ? resolvePath(root, input.path) : null
-  const weak = input.bench === false || input.houseContract === false
   switch (input.command) {
     case 'scaffold':
-      if (!isError) for (const made of text.matchAll(SCAFFOLDED)) if (made[1]) reports.push({ kind: 'new', target: normalize(made[1]) })
+      fromScaffold(text, isError, reports)
       break
     case 'validate': {
       // The frames come back as images; a validate that showed some names no folder.
       const blocks = blocksIn(text)
-      fromBlocks(blocks, isError, weak, reports)
+      fromBlocks(blocks, isError, reports)
       const block = blocks[0]
       if (block && !block.shown && input.screenshots === true && outcome.images > 0) {
         reports.push({ kind: 'frames', target: block.dir, dir: null })
@@ -445,7 +449,7 @@ export function mcpReports(input: Record<string, unknown>, root: string, outcome
       if (path && !isError) reports.push({ kind: 'frames', target: path, dir: null })
       break
     case 'save':
-      if (path) fromSave(path, text, isError, weak, reports)
+      if (path) fromSave(path, text, isError, reports)
       break
     case 'pack': {
       const paths = Array.isArray(input.paths) ? input.paths.filter((p): p is string => typeof p === 'string' && p !== '') : []
@@ -459,7 +463,7 @@ export function mcpReports(input: Record<string, unknown>, root: string, outcome
       break
     }
   }
-  return reports
+  return withoutPasses(reports, input.bench === false || input.houseContract === false)
 }
 
 /** A tool result's text and image count: MCP content blocks, a plain string, or what the model read. */
@@ -498,7 +502,6 @@ export type Reader = {
 
 /** The generated half of a package, at its top level (cli/src/workspace.ts). */
 const GENERATED = [/\.ograf\.json$/i, /^graphic\.mjs$/, /^FIELDS\.md$/, /^README\.md$/, /^GETTING-ON-AIR\.md$/, /^controlpanel\.html$/, /^thumbnail\.png$/]
-const FRAMES_MARKER = '.noacg-frames'
 /** `$.fs.read` refuses more; a larger file counts by its size and time. */
 const MAX_READ = 4 * 1024 * 1024
 const MAX_FILES = 2000
@@ -595,10 +598,6 @@ export function recordsFrom(stored: unknown): Records {
   return records
 }
 
-export function storedFrom(records: Records): { packages: Records } {
-  return { packages: records }
-}
-
 /** A record with one report folded in, at the run's time and fingerprint. */
 export function withReport(record: PackageRecord, report: Report, run: Run): PackageRecord {
   switch (report.kind) {
@@ -610,11 +609,10 @@ export function withReport(record: PackageRecord, report: Report, run: Run): Pac
       return { ...record, frames: { ...run, dir: report.dir } }
     case 'saved':
       return { ...record, saved: { ...run, url: report.url } }
-    case 'pack':
-      return {
-        ...record,
-        pack: { ...run, name: report.name, ...(report.url ? { url: report.url } : {}), ...(report.file ? { file: report.file } : {}) },
-      }
+    case 'pack': {
+      const { kind, target, ...pack } = report
+      return { ...record, pack: { ...run, ...pack } }
+    }
   }
 }
 
@@ -622,8 +620,4 @@ export function withReport(record: PackageRecord, report: Report, run: Run): Pac
 export function statusOf(record: PackageRecord, current: string | null): PackageStatus {
   if (!record.check?.ok) return 'unchecked'
   return record.check.sha256 === current ? 'checked' : 'edited'
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

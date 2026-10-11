@@ -19,7 +19,8 @@ export type Folders = {
 }
 
 const MANIFEST = /\.ograf\.json$/i
-const FRAMES_MARKER = '.noacg-frames'
+/** The file that marks a folder as frames the CLI wrote (cli/src/workspace.ts). */
+export const FRAMES_MARKER = '.noacg-frames'
 /** A bound on the folders looked into, by name, so a session started in a huge folder stays cheap. */
 const MAX_FOLDERS = 500
 /** Folders listed at once. */
@@ -98,6 +99,6 @@ function oneLine(text: string): string {
   return text.replace(/[\u0000-\u001f\u007f-\u009f\s]+/g, ' ').trim()
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
+export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
