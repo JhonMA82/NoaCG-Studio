@@ -14,9 +14,9 @@
 // It is the INVERSE of the exporter's mapping (export/targets/ograf.ts `dataSchema` +
 // `customActions`), and honest about what the standard cannot carry back:
 //   - a JSON-schema `string` cannot say whether it was a text line, a line LIST, a colour or an
-//     image path; the standard's GDD type (`gddType`) does, and is read first, then the
-//     per-property `v_noacg.kind` hint older exports wrote, then `format` and `enum`, and a
-//     string that says none of these comes back as `text`;
+//     image path; an `enum` makes it a select, else the standard's GDD type (`gddType`) says,
+//     then the per-property `v_noacg.kind` hint older exports wrote, then `format`, and a string
+//     that says none of these comes back as `text`;
 //   - an Action has no section/destructive flag, so those ride the per-action `v_noacg`
 //     vendor object the exporter writes (spec: vendor fields are `v_`-prefixed, allowed in
 //     every manifest object) and default to "Actions" / false for a stranger's package;
@@ -80,16 +80,19 @@ function gddKind(prop: Json): FieldKind | null | undefined {
 }
 
 /**
- * A schema property's control kind: the standard's GDD type first, then the `v_noacg.kind` hint
- * an older NoaCG export (or a field no GDD type holds) carries, then what plain JSON Schema says.
+ * A schema property's control kind: a value list first, then the standard's GDD type, then the
+ * `v_noacg.kind` hint an older NoaCG export (or a field no GDD type holds) carries, then what
+ * plain JSON Schema says.
  */
 function kindForProperty(prop: Json): FieldKind | null {
+  // A value list is a select whatever else the property says: a text box would let the operator
+  // send a value the graphic does not take.
+  if (Array.isArray(prop.enum) && prop.enum.length) return 'select';
   const gdd = gddKind(prop);
   if (gdd !== undefined) return gdd;
   const vendor = isRecord(prop.v_noacg) ? prop.v_noacg : null;
   const hinted = typeof vendor?.kind === 'string' ? vendor.kind : null;
   if (hinted && (FIELD_KINDS as readonly string[]).includes(hinted)) return hinted as FieldKind;
-  if (Array.isArray(prop.enum) && prop.enum.length) return 'select';
   switch (prop.type) {
     case 'number':
     case 'integer':

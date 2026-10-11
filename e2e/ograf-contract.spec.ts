@@ -133,6 +133,8 @@ test('every standard GDD type reads as its control, and a type the reader does n
             // The standard's type wins over NoaCG's own hint, which an older export still carries alone.
             both: property('multi-line', 'string', { v_noacg: { kind: 'text' } }),
             legacy: { type: 'string', title: 'legacy', v_noacg: { kind: 'color' } },
+            // A value list stays a select, so the operator cannot send a value outside it.
+            listed: property('single-line', 'string', { enum: ['a', 'b'] }),
           },
         },
       },
@@ -145,6 +147,7 @@ test('every standard GDD type reads as its control, and a type the reader does n
   expect(read.kinds).toEqual({
     line: 'text', text: 'lines', file: 'text', image: 'image', pick: 'select', colour: 'color', tint: 'color',
     share: 'number', hold: 'number', video: 'text', photo: 'image', odd: 'text', both: 'lines', legacy: 'color',
+    listed: 'select',
   });
   // A select names its values for the operator with the standard's labels.
   expect(read.options).toEqual([{ label: 'Calm', value: 'calm' }, { label: 'Loud', value: 'loud' }]);

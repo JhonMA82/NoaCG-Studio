@@ -78,7 +78,10 @@ function gddFor(f: SpxField): Record<string, unknown> | null {
           }
         : null;
     case 'filelist':
-      return { gddType: 'file-path/image-path', gddOptions: { extensions: [(f.extension || 'png').replace(/^\./, '')] } };
+      return {
+        gddType: 'file-path/image-path',
+        gddOptions: { extensions: (f.extension || 'png').split(',').map((e) => e.trim().replace(/^\./, '')).filter(Boolean) },
+      };
     case 'color': {
       const hex = hexColor(f.value);
       if (!hex) return null;
