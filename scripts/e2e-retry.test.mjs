@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { runInNewContext } from 'node:vm';
 
-import { failedSpecFiles, retryPlan } from './e2e-retry.mjs';
+import { REPORTED_STEPS, failedSpecFiles, retryPlan } from './e2e-retry.mjs';
 
 const spec = (file, status) => ({ file, ok: status === 'expected', tests: [{ status }] });
 
@@ -78,26 +78,46 @@ test('no failing spec and no dead shard refuses: there is nothing to re-run and 
 });
 
 // Run 38153870752 (#1020, #1025): ten shards, ten complete green reports, and shard 5 concluded
-// `cancelled` at its 20-minute cap in its post steps, after its report was uploaded.
+// `cancelled` at its 20-minute cap in its post steps, after every step of its own had passed.
+// The job list is that run's, as the jobs API gave it (names, conclusions, the steps read).
 const tenBins = all(10).map((n) => [`s${n}.spec.ts`]);
+const shardSteps = (over = {}) => ['E2E shard', 'Tests left the tree clean', 'Upload shard report', 'Upload failure evidence']
+  .map((name) => ({ name, conclusion: over[name] ?? (name === 'Upload failure evidence' ? 'skipped' : 'success') }));
+const run38153870752 = () => [
+  { name: 'Build', conclusion: 'success', steps: [] },
+  ...all(10).map((n) => ({ name: `E2E ${n}/10 (full)`, conclusion: n === 5 ? 'cancelled' : 'success', steps: shardSteps() })),
+  { name: 'E2E retry (failed specs, same commit)', conclusion: null, steps: [] },
+];
+const greenShape = { failed: [], reported: all(10), shards: 10, shardSpecs: tenBins, errors: 0 };
 
-test('every report in, none failing, the matrix cancelled: green with nothing to re-run, and it says why', () => {
-  const plan = retryPlan({ failed: [], reported: all(10), shards: 10, shardSpecs: tenBins, matrix: 'cancelled', errors: 0 });
+test('run 38153870752: every report in, none failing, a shard cancelled after its upload - green with nothing to re-run, and it says why', () => {
+  const plan = retryPlan({ ...greenShape, jobs: run38153870752() });
   assert.equal(plan.ok, true, plan.reason);
-  assert.deepEqual({ ...plan, reason: undefined }, { ok: true, specs: [], unreported: [], dead: [], reason: undefined });
-  assert.match(plan.reason, /all 10 shard reports are in and none names a failing spec.*nothing to re-run/);
+  const { reason, ...rest } = plan;
+  assert.deepEqual(rest, { ok: true, specs: [], unreported: [], dead: [], capped: [5] });
+  assert.match(reason, /all 10 shard reports are in with no failing spec and no run error, and shard 5 was cancelled only after .* nothing to re-run/);
 });
 
-test('every report in and none failing still refuses when a shard failed outside its specs, the report holds a run error, or the shard count is unknown', () => {
-  for (const [input, why] of [
-    [{ matrix: 'failure' }, 'a shard failed after its specs passed, such as the clean-tree check'],
-    [{ matrix: 'cancelled', errors: 1 }, 'a run-level error (a spec file that did not load) names no spec'],
-    [{ matrix: '' }, 'no matrix result given'],
-    [{ matrix: 'cancelled', shards: 0, reported: [] }, 'no shard count, so "every report in" is unknown'],
+test('every report in and none failing still refuses what the reports cannot vouch for', () => {
+  const withShard = (n, job) => run38153870752().map((j) => (j.name === `E2E ${n}/10 (full)` ? { ...j, ...job } : j));
+  for (const [input, why, said] of [
+    [{ jobs: withShard(3, { conclusion: 'failure', steps: shardSteps({ 'Tests left the tree clean': 'failure' }) }) },
+      'a shard failed outside its specs: the clean-tree check (#801)', /shard 3 concluded failure without passing "Tests left the tree clean"/],
+    [{ jobs: withShard(5, { steps: shardSteps({ 'Tests left the tree clean': 'failure' }) }) },
+      'a shard cancelled after its tree check failed, which the aggregate result cannot tell apart', /shard 5 concluded cancelled without passing "Tests left the tree clean"/],
+    [{ jobs: withShard(5, { steps: shardSteps({ 'E2E shard': 'cancelled', 'Upload shard report': 'skipped' }) }) },
+      'a re-run attempt killed mid-test, the report an earlier attempt\'s', /shard 5 concluded cancelled without passing "E2E shard", "Upload shard report"/],
+    [{ jobs: run38153870752(), errors: 1 }, 'a run-level error (a spec file that did not load) names no spec', /1 run-level error/],
+    [{ jobs: run38153870752(), errors: null }, 'a report that says nothing of run errors', /says nothing of run-level errors/],
+    [{ jobs: null }, 'no job list (a local run, or GitHub did not answer)', /shows 0 of 10 shard jobs/],
+    [{ jobs: run38153870752().filter((j) => j.name !== 'E2E 7/10 (full)') }, 'a job list short of a shard', /shows 9 of 10 shard jobs/],
+    [{ jobs: run38153870752().map((j) => ({ ...j, conclusion: j.conclusion === 'cancelled' ? 'success' : j.conclusion })) }, 'no shard was cancelled at all', /no shard job was cancelled/],
+    [{ jobs: run38153870752(), shards: 0, reported: [] }, 'no shard count', /shows 10 of 0 shard jobs/],
   ]) {
-    const plan = retryPlan({ failed: [], reported: all(10), shards: 10, shardSpecs: tenBins, ...input });
+    const plan = retryPlan({ ...greenShape, ...input });
     assert.equal(plan.ok, false, why);
     assert.match(plan.reason, /the failure was not a test/, why);
+    assert.match(plan.reason, said, why);
   }
 });
 
@@ -107,11 +127,11 @@ test('a failing spec the change itself edits refuses: that flake is the change\'
   assert.match(plan.reason, /e2e\/b\.spec\.ts failed and this change edits it/);
 });
 
-test('a cancelled matrix lifts none of the three refusals', () => {
-  const matrix = 'cancelled';
-  assert.match(retryPlan({ failed: [], reported: [2], shards: 3, shardSpecs: bins, matrix }).reason, /2 of 3 shards uploaded no report/);
-  assert.match(retryPlan({ failed: [], reported: [1, 2], shards: 3, shardSpecs: null, matrix }).reason, /shard 3 uploaded no report and the plan does not name its files/);
-  assert.match(retryPlan({ failed: ['e2e/b.spec.ts'], reported: all(9), shards: 9, changed: ['e2e/b.spec.ts'], matrix }).reason, /e2e\/b\.spec\.ts failed and this change edits it/);
+test('a shard cancelled after its report lifts none of the three refusals', () => {
+  const jobs = run38153870752();
+  assert.match(retryPlan({ failed: [], reported: [2], shards: 3, shardSpecs: bins, jobs, errors: 0 }).reason, /2 of 3 shards uploaded no report/);
+  assert.match(retryPlan({ failed: [], reported: [1, 2], shards: 3, shardSpecs: null, jobs, errors: 0 }).reason, /shard 3 uploaded no report and the plan does not name its files/);
+  assert.match(retryPlan({ ...greenShape, failed: ['e2e/b.spec.ts'], changed: ['e2e/b.spec.ts'], jobs }).reason, /e2e\/b\.spec\.ts failed and this change edits it/);
 });
 
 test('a dead shard does not lift the edited-spec refusal for a spec that failed beside it', () => {
@@ -147,9 +167,13 @@ const retryJob = workflow.match(/^ {2}e2e-retry:\n([\s\S]*?)\n {2}# The catalog 
 assert.ok(retryJob, 'the retry job must be present in the workflow');
 const stepIf = (body, name) => body.match(new RegExp(`- name: ${name}\\n(?: {8}[^\\n]*\\n)*? {8}if: \\$\\{\\{ (.*) \\}\\}$`, 'm'))?.[1];
 
-test('the retry job hands the script the matrix result it reads', () => {
-  assert.match(retryJob, /E2E_RESULT: \$\{\{ needs\.e2e\.result \}\}/);
-  assert.match(retryJob, /node scripts\/e2e-retry\.mjs [^\n]*--e2e-result "\$E2E_RESULT"/);
+test('the retry job can read this run\'s shard jobs, and their names and steps are the ones the green path reads', () => {
+  for (const line of [/GH_TOKEN: \$\{\{ github\.token \}\}/, /GH_REPO: \$\{\{ github\.repository \}\}/, /RUN_ID: \$\{\{ github\.run_id \}\}/, /^ {6}actions: read\b/m]) {
+    assert.match(retryJob, line);
+  }
+  const shardJob = workflow.match(/^ {2}e2e:\n([\s\S]*?)\n {2}# THE SECOND RUN/m)?.[1] ?? '';
+  assert.match(shardJob, /^ {4}name: E2E \$\{\{ matrix\.shardIndex \}\}\/\$\{\{ matrix\.shardTotal \}\}/m, 'job names read as "E2E <n>/<total>"');
+  for (const name of REPORTED_STEPS) assert.match(shardJob, new RegExp(`- name: ${name}\\n`), name);
 });
 
 test('with nothing re-run the retry job uploads no report, so its empty verdict exits green', () => {

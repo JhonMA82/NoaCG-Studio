@@ -1043,9 +1043,10 @@ A red `main` run is not a person's job until three mechanisms have had their tur
    refuse instead, and the run stays red on each: more than one shard without a report, nothing
    to re-run (no failing spec and no dead shard: the failure was not a test), and a failing spec
    the change itself edits (that flake is the change's, bounced to its author, never quarantined
-   on a second run). Nothing to re-run passes instead when the matrix was `cancelled` and every
-   shard's report is in with no failing spec and no run error: a shard ran out of clock after
-   reporting, as in run 38153870752, and every spec already has its verdict.
+   on a second run). Nothing to re-run passes instead when every shard's report is in with no
+   failing spec and no run error, and the run's own job list shows each shard job succeeded or
+   was cancelled only after its specs, clean-tree check and upload passed: a shard ran out of
+   clock after reporting, as in run 38153870752, and every spec already has its verdict.
 2. **The quarantine.** A fail-then-pass is the receipt a flake needs, and the `After the gate`
    job writes it: the specs go into `e2e/quarantine.json` on a branch off `origin/main`, queued
    through the merge queue like any landing (`scripts/e2e-quarantine.mjs enter --queue`). From
