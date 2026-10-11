@@ -21,8 +21,9 @@ server; where a claim rests on reading SPX's source instead, it says so.
   plays as imported, on its own layer, with SPX's own controls and at its authored size, and its
   custom actions fire once the project loads the handler script the package carries. Update
   still does nothing: that is SPX's. Rechecked on 2026-10-12 (§13): text with `' & < > " \` or a
-  line break still airs as HTML codes in this route only.
-- **Text shows as typed in the SPX export and the production package** on both servers since
+  line break airs as HTML codes in this route, and only in this one
+  ([#1047](https://github.com/NoaCG/NoaCG-Studio/issues/1047)).
+- **Text shows as typed in the SPX export and the production package**, seen on both servers on
   2026-10-12 (§13), also after a round trip through NoaCG's import.
 - **The output embed loads and frames the production on both servers, but puts an opaque dark
   frame over the whole picture**, which stays after Stop. A small change, tested here in a
@@ -551,7 +552,7 @@ values in the exported `rundown.json`, the ticker's as `First story & more`, a l
 |---|---|---|
 | SPX export, values typed in SPX: Hairline, News Strip, Classic Roll | **As typed.** The line break makes two ticker items and two credit lines; `<b>` stays text | Same |
 | SPX export, Pictures with `Q&A.png` picked | **The picture shows** (`./images/Q&A.png`, loaded) | Same |
-| The same four imported back into NoaCG and exported again | **As typed**, decoded once: nothing turned into an entity or lost one | Same |
+| The same four imported back into NoaCG and exported again | **As typed** | Same |
 | Dual NoaCG package, and the same imported back and rebuilt | **As typed**, on layer 5 | **As typed**, on layer 7 |
 | Production package, cues from the exported `rundown.json` | **As typed**: the ticker shows `First story & more` and `Second <story> "quoted"` as two items | Same |
 | OGraf package, values typed in SPX | **HTML codes**: `Anna O&#039;Brien &amp; Sons`; the ticker shows one item ending in `&lt;br&gt;Line two &lt;b&gt;...` | No OGraf in 1.2 |
