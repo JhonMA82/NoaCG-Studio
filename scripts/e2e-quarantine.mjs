@@ -412,8 +412,8 @@ function main(argv) {
       return 2;
     }
     const gh = spawnRunner('gh');
-    const found = gh(['issue', 'list', '-R', repo, '--state', 'open', '--search', `"${STALE_ISSUE_TITLE}" in:title`, '--json', 'number,body', '--jq', '.[0]']);
-    const existing = found && found.trim() ? JSON.parse(found) : null;
+    const found = gh(['issue', 'list', '-R', repo, '--state', 'open', '--search', `"${STALE_ISSUE_TITLE}" in:title`, '--json', 'number,body', '--jq', '.[0]']).out;
+    const existing = found ? JSON.parse(found) : null;
     if (stale.length === 0) {
       if (existing) {
         gh(['issue', 'close', '-R', repo, String(existing.number), '--comment', `Every quarantined spec is now younger than ${STALE_AFTER_DAYS} days or released (${runUrl || 'quarantine.yml'}).`]);
