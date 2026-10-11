@@ -13,7 +13,7 @@ import { mkdirSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { devPort } from './dev-port.mjs';
-import { graphicTemplate, installOgrafZip } from '../e2e/_ografBuild.ts';
+import { graphicTemplate, ografZipBase64 } from '../e2e/_ografBuild.ts';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const appOrigin = `http://localhost:${devPort()}`;
@@ -133,12 +133,8 @@ export const designTemplate = (appPage, id) => graphicTemplate(appPage, { kind: 
  * `template`'s OGraf package as zip bytes, laid out as the export dialog's download is
  * (`<slug>/...`): the target's own build.
  */
-/* global ografZip -- the app page's, from installOgrafZip */
 export async function packageZip(appPage, template) {
-  await installOgrafZip(appPage);
-  const zip = await appPage.evaluate((template) => ografZip(template), template);
-  if (!('b64' in zip)) throw new Error(`the package of "${template?.name}" did not build: ${zip.error}`);
-  return Buffer.from(zip.b64, 'base64');
+  return Buffer.from(await ografZipBase64(appPage, template), 'base64');
 }
 
 // ── reading a mounted graphic ───────────────────────────────────────────────

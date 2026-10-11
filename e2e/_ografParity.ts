@@ -504,9 +504,10 @@ function unstable(rows: ParityRow[]): ParityRow[] {
 function report(label: string, rows: ParityRow[]): string {
   const odd = rows.filter((row) => row.error || !matches(row, 'studioAgain') || !matches(row, 'ograf'));
   const known = (row: ParityRow) => row.key in KNOWN_OGRAF_FAILURES || row.key in KNOWN_STUDIO_DIFFERENCES;
+  const failing = parityFailures(rows);
   return [
     `[ograf-parity] ${label}: ${rows.length} designs, ${unstable(rows).length} not compared, ` +
-      `${parityFailures(rows).filter((row) => !known(row)).length} failing, ${rows.filter(known).length} known exceptions`,
+      `${failing.filter((row) => !known(row)).length} failing, ${failing.filter(known).length} known exceptions`,
     ...odd.map((row) => `[ograf-parity]   ${row.key} ${JSON.stringify(row.against)}${row.error ? ` ${row.error}` : ''}`),
   ].join('\n');
 }

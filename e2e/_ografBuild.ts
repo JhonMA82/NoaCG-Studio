@@ -53,11 +53,21 @@ export async function unzip(b64: string): Promise<Map<string, Buffer>> {
   return files;
 }
 
-/** `template`'s OGraf package, built in the app page, as files or the error that stopped it. */
-export async function ografFiles(page: Page, template: unknown, usage: GraphicUsage = 'live'): Promise<OgrafFiles> {
+/** `template`'s OGraf package, built in the app page, as base64 zip bytes; throws what stopped it. */
+export async function ografZipBase64(page: Page, template: unknown, usage: GraphicUsage = 'live'): Promise<string> {
   await installOgrafZip(page);
   const zip = await page.evaluate(({ template, usage }) => ografZip(template, { usage }), { template, usage });
-  return 'b64' in zip ? unzip(zip.b64) : `build: ${zip.error}`;
+  if (!('b64' in zip)) throw new Error(zip.error);
+  return zip.b64;
+}
+
+/** `template`'s OGraf package, built in the app page, as files or the error that stopped it. */
+export async function ografFiles(page: Page, template: unknown, usage: GraphicUsage = 'live'): Promise<OgrafFiles> {
+  try {
+    return await unzip(await ografZipBase64(page, template, usage));
+  } catch (err) {
+    return `build: ${(err as Error).message}`;
+  }
 }
 
 /** What a spec builds a graphic from, always through the real generators, in the app page. */
