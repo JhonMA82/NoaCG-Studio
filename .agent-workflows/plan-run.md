@@ -29,17 +29,21 @@ passed. Output: the plan's phases landed on `main`, checked, and a short report.
   prints the wave file. After a restart, open it again with the date the run started.
 - **First open only**: `git fetch origin main`, read the plan's phases, acceptance and phase notes
   on `origin/main`, and copy the phases still to build, in order, as a numbered list under
-  `## Phases` in the wave file, one line each with where its acceptance is.
+  `## Phases` in the wave file, one line each with where its acceptance is. Try what the plan's
+  checks need on this machine (a signed-in `claude -p`, an app); ask for what is missing with the
+  window.
 
 ## 2. The loop
 
 `node scripts/plan-run.mjs next <wave file>` names the one next step, from the file alone. Before
 launching a step, record it: `node scripts/plan-run.mjs record <wave file> <phase> <event> <detail>`
 with the branch and worktree. The ledger refuses a step out of order or launched twice; a refusal
-means launch nothing and run `next` again.
+means launch nothing and run `next` again. As each step finishes, read `npm run jobs`: a red-on-main
+alarm goes to the session whose landing caused it, or to a row when no session holds it.
 
 - **launch build** (or **repair**): a builder with the brief below, the repair one with the
-  checker's findings. When its pull request merges, record the event `landed` with detail `#<n>`.
+  checker's findings. When its pull request merges with every check green, record `landed` with
+  detail `#<n>`; a red check, required or not, goes back to that session first (`resume`).
 - **launch check**: a checker with the brief below, after the phase is on `main`. When its notes
   pull request merges, record `pass` or `fail` and its findings in one line.
 - **wait**: the step is running. After a restart its session may be gone: a merged pull request is
@@ -55,7 +59,8 @@ Sessions, each in its own worktree on `<tool>/plan-<plan>-p<phase>-<build|check|
 a second check):
 
 - **Claude Code:** the Agent tool with `run_in_background`, agent `wave-row`. Each finished session
-  wakes you; while you wait on a landing, a background `sleep 1800` is the fallback wake.
+  wakes you; while you wait on a landing, a background `node scripts/jobs.mjs wait <job>` on the
+  landing job its report names wakes you when it lands or fails (re-armed after 30 minutes).
 - **Codex:** `git worktree add -b <branch> <path> origin/main`, then `spawn_agent` without your
   context, that absolute path its only working directory; `wait_agent` with a timeout, and a
   30-minute thread heartbeat as the fallback wake. Ask the owner in this thread.
@@ -82,6 +87,8 @@ CHECK   Phase <n> of <plan document>: <phase name>. You did not build it. On cur
 
 ## 3. Report
 
-At the end, write under `## Report` in the wave file and send it to the owner, at most 15 lines in
-plain words: **Needs you** first (or "nothing"), then each phase with its pull requests and the
-check's verdict, where and why the run stopped, and what was not checked.
+At the end, confirm `main`'s CI is green after the last landing (`npm run jobs` as in step 2) and run
+the retro (`orchestrator.md` step 6). Write under `## Report` in the wave file and send it to the
+owner, at most 15 lines in plain words: **Needs you** first (or "nothing"), then each phase with its
+pull requests and the check's verdict, where and why the run stopped, what was not checked, and
+the retro.
