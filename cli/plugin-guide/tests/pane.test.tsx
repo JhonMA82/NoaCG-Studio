@@ -166,9 +166,7 @@ describe('the package pane', () => {
       await band.unmount()
     })
 
-    // The engine starts a site's ring on its first `autoFocus` element when the site takes the
-    // keyboard (the pane opens with `focus`), else on nothing; the kit raises no such take, so
-    // this holds the prop the engine reads.
+    // The kit raises no take of the keyboard, so this holds the prop the engine reads (`MAIN`).
     test(`the ring starts on the main button, so Enter acts on it (${surface})`, async ($, on) => {
       const world = session($, on, twoPackages())
       world.surfaces = [surface]

@@ -134,6 +134,9 @@ export type Session = {
 
 type Surface = (typeof SURFACES)[number]
 
+/** The package pane's id, as the mod opens it. */
+const PANE = 'noacg-guide'
+
 /**
  * Stands in for the person's Esc on the pane, loaded with `test(name, { plugins: [ESCAPE] }, ...)`:
  * a `ui.close` of the pane through every plugin's hook, and nothing else run or written. The kit's
@@ -143,6 +146,7 @@ export const ESCAPE: Plugin = {
   name: 'escape',
   register: on => {
     on('command.run', { command: 'escape' }, async $ => {
+      // A literal: an inline plugin runs in an environment of its own and sees no module value.
       await $.ui.close({ id: 'noacg-guide' })
       return {}
     })
@@ -304,6 +308,10 @@ export function session($: Engine, on: On, tree: Tree): Session {
   on('ui.status', () => refuse('ui.status'))
   on('ui.log', () => refuse('ui.log'))
 
+  const paneOpen = () => {
+    if (!panes.includes(PANE)) throw new Error('the pane is not open')
+  }
+
   /** A slash command the person typed, settled. */
   const typed = async (command: string) => {
     const answered = await $.command.run({ command, args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 140 } })
@@ -358,17 +366,17 @@ export function session($: Engine, on: On, tree: Tree): Session {
     },
     command: () => typed('noacg-guide'),
     closePane: async () => {
-      if (!panes.includes('noacg-guide')) throw new Error('the pane is not open')
+      paneOpen()
       await world.command()
     },
     escape: async () => {
-      if (!panes.includes('noacg-guide')) throw new Error('the pane is not open')
+      paneOpen()
       await typed('escape')
     },
     mount: (surface, columns, hasSurvey = false) =>
       $.ui.mount({ plugin: 'noacg-guide', surface, component: 'AbovePrompt', props: band(columns, hasSurvey) }),
     mountPane: (surface, columns) =>
-      $.ui.mount({ plugin: 'noacg-guide', surface, component: 'Pane', requestId: 'noacg-guide', props: paneProps(columns) }),
+      $.ui.mount({ plugin: 'noacg-guide', surface, component: 'Pane', requestId: PANE, props: paneProps(columns) }),
   }
   return world
 }
