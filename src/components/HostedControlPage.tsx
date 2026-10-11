@@ -82,7 +82,7 @@ import {
   type ResolvedControlShow,
   type VerbSent,
 } from '../control/hostedControl';
-import { alreadyInSnapshot, planOutputRecovery } from '../control/outputRecovery';
+import { airedAfter, monitorReplay, planOutputRecovery, type AiredMap } from '../control/outputRecovery';
 import { isBackendConfigured } from '../backend/config';
 import { fastEventGraphics as clockFreeGraphics } from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
@@ -145,25 +145,6 @@ const LOG_HISTORY_SPAN = 400;
 /** A graphic's machine state as a renderer reports it and as a monitor stage reads it. */
 type MachineReport = { groups?: Record<string, string> } | null;
 
-type AiredMap = Record<string, Record<string, string>>;
-
-/** What each graphic shows once a renderer command has run: the baseline the unsent-changes
- *  warning is judged against. */
-function airedAfter(prev: AiredMap, graphic: string, msg: ControlEventRow['msg']): AiredMap {
-  if (msg.t === 'update') return { ...prev, [graphic]: { ...prev[graphic], ...msg.data } };
-  // AN ACCEPTED EVENT'S PAYLOAD IS ALSO WHAT AIR SHOWS. A goal's +1 rides moved through the same
-  // field path an update takes, so leaving it out of this baseline was wrong twice: the
-  // unsent-changes chip announced "1 change not on air yet" about a figure the press had just
-  // aired. The in-app page has always merged it here (`rememberAired`).
-  if (msg.t === 'event' && msg.payload) return { ...prev, [graphic]: { ...prev[graphic], ...msg.payload } };
-  // Off air: forget it, or the next take would compare against a stale baseline.
-  if (msg.t === 'stop' && prev[graphic]) {
-    const next = { ...prev };
-    delete next[graphic];
-    return next;
-  }
-  return prev;
-}
 
 export default function HostedControlPage({ slug }: { slug: string }) {
   const [show, setShow] = useState<ResolvedControlShow | null | 'loading'>('loading');
@@ -365,14 +346,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             : [];
         if (!live) return;
         // A read that did not reach the head replays nothing: the report stands, as it did before.
-        // Renderer commands only: which cue is live comes off the row, already current, and
-        // 'staged' and 'live' rows are not commands.
-        bootReplay.current = (rows ?? []).flatMap((row) => {
-          const msg = row.msg;
-          if (msg.t === 'cue' || msg.t === 'staged' || msg.t === 'live' || msg.t === 'ping') return [];
-          if (!onAir.includes(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, row.id)) return [];
-          return [{ graphic: row.graphic, msg }];
-        });
+        bootReplay.current = monitorReplay(onAir, snapshotAt, rows ?? []);
       }
       setShow(resolved);
       if (!resolved) return;

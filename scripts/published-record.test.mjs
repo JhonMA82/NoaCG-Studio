@@ -1,4 +1,4 @@
-// guards: src/model/publishedRecord.ts, src/model/contentHash.ts, src/components/home/usePublishDrift.ts
+// guards: src/model/publishedRecord.ts, src/model/contentHash.ts
 //
 // "UNPUBLISHED CHANGES" IS JUDGED BY CONTENT (docs/work-specs/studio-day-playout AC-5, D5; issue
 // #762). A cue changed and changed back used to keep the production page amber, because the record

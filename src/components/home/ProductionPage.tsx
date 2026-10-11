@@ -181,6 +181,7 @@ import {
   controlPageUrl,
   controlShowBySlug,
   followControlLog,
+  hostedControlRange,
   hostedControlTail,
   joinPageUrl,
   presenterPageUrl,
@@ -207,6 +208,7 @@ import {
   type VerbSent,
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
+import { airedAfter, monitorReplay, planOutputRecovery, type AiredMap } from '../../control/outputRecovery';
 import { createSendDebts } from '../../control/failedSends';
 import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import {
@@ -801,31 +803,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * values in front of the operator have actually been SENT. An on-air cue whose draft has
    * moved past what air is showing has to say so rather than wait to be noticed.
    */
-  const [airedData, setAiredData] = useState<Record<string, Record<string, string>>>({});
+  const [airedData, setAiredData] = useState<AiredMap>({});
   const airedRef = useRef(airedData);
   airedRef.current = airedData;
   const rememberAired = useCallback((items: ControlSendItem[]) => {
-    setAiredData((prev) => {
-      let next = prev;
-      for (const item of items) {
-        // MERGED, not replaced: an update may be PARTIAL (a ± live-number bump carries one
-        // field on purpose), and replacing the baseline with it marked every other field as
-        // unsent — an amber "3 changes not on air yet" about values that were on air.
-        if (item.msg.t === 'update') next = { ...next, [item.graphic]: { ...next[item.graphic], ...item.msg.data } };
-        // An accepted event's payload lands through the same field path (the hosted log merges
-        // it the same way), so a goal's +1 is part of what air shows - and what the next press
-        // counts from. (If the guard dropped the event this runs slightly ahead of the graphic;
-        // the greyed buttons make that the rare case, and the log stays self-consistent.)
-        else if (item.msg.t === 'event' && item.msg.payload) next = { ...next, [item.graphic]: { ...next[item.graphic], ...item.msg.payload } };
-        else if (item.msg.t === 'stop' && next[item.graphic]) {
-          // Taken off air: forget it, or the next rebuild would restore a graphic nobody is
-          // running any more.
-          next = { ...next };
-          delete next[item.graphic];
-        }
-      }
-      return next;
-    });
+    // MERGED, not replaced (control/outputRecovery.ts `airedAfter`): an update may be PARTIAL (a
+    // ± live-number bump carries one field on purpose), and replacing the baseline with it marked
+    // every other field as unsent. An accepted event's payload counts too; a stop forgets the
+    // graphic. (If the guard dropped an event this runs slightly ahead of the graphic; the greyed
+    // buttons make that the rare case, and the log stays self-consistent.)
+    setAiredData((prev) => items.reduce((next, item) => airedAfter(next, item.graphic, item.msg), prev));
   }, []);
   const [wireLog, setWireLog] = useState<LogEntry[]>([]);
   const localLogId = useRef(0);
@@ -1026,6 +1013,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') {
           rememberAired([{ graphic: item.graphic, msg }]);
           applyProgram([{ graphic: item.graphic, msg }]);
+          // The monitor has moved past the boot snapshot, so a later rebuild recovers from what
+          // this page has seen since, not from the boot's replay.
+          bootReplayRef.current = null;
         }
       }
     },
@@ -1696,6 +1686,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // production: the previous show's answer must not decide this one's road while the round
       // trip is in flight. Graphic keys are per-production layer names and collide freely.
       fastEventGraphicsRef.current = new Set();
+      bootReplayRef.current = null;
       // A failed resolve is asked again on the renderer's backoff, and the header says so; only
       // an ANSWER decides.
       const answer = await untilAnswered(
@@ -1716,6 +1707,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // The boot-recovery effect below replays each live layer's last REPORT into the local
       // monitor, so the reports must be in hand before the wire's picture commits and fires it.
       liveReportsRef.current = resolved.live;
+      // …and the rows AFTER each report (control/outputRecovery.ts `monitorReplay`). A report
+      // trails its graphic's last change by 800 ms, so a page reloaded straight after a press
+      // rebuilt PROGRAM, and the not-on-air-yet baseline, from the picture before it (issue #762).
+      // A read that does not reach the head replays nothing, and the report stands.
+      const onAir = Object.keys(resolved.liveCue).filter((graphic) => resolved.liveCue[graphic]);
+      const { followFrom, snapshotAt } = planOutputRecovery(onAir, resolved.live);
+      const sinceReports =
+        onAir.length > 0 && followFrom < resolved.lastEventId
+          ? await hostedControlRange(hostedSlug, followFrom, resolved.lastEventId)
+          : [];
+      if (!alive) return;
+      const replay = monitorReplay(onAir, snapshotAt, sinceReports ?? []);
       // THE SEED IS A WHOLESALE REPLACE, so it is skipped outright when this operator has
       // already acted. Merging the two was the other option and it is worse: the wire's map
       // is a snapshot, not a diff, so a layer this operator took OFF while the read was in
@@ -1740,10 +1743,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         for (const [graphic, cueId] of Object.entries(resolved.liveCue)) {
           if (!cueId) continue;
           const reported = resolved.live[graphic]?.data;
+          const base = reported && Object.keys(reported).length > 0 ? reported : cuesRef.current.find((c) => c.id === cueId)?.values;
+          // …then what air did after that report.
           const values = {
-            ...(reported && Object.keys(reported).length > 0
-              ? reported
-              : cuesRef.current.find((c) => c.id === cueId)?.values),
+            ...replay.reduce<AiredMap>(
+              (aired, item) => (item.graphic === graphic ? airedAfter(aired, graphic, item.msg) : aired),
+              base ? { [graphic]: base } : {},
+            )[graphic],
           };
           const clock = clockSpecsRef.current.get(graphic);
           const pair = speakingClocksRef.current.get(graphic);
@@ -1759,6 +1765,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           if (Object.keys(values).length > 0) seed[graphic] = values;
         }
         setAiredData((prev) => ({ ...prev, ...seed }));
+        bootReplayRef.current = replay;
         // …and the recovery is triggered by THE WIRE'S OWN ANSWER, never by `liveCue` moving —
         // see the effect below for what that distinction cost.
         setBootLive(resolved.liveCue);
@@ -1888,6 +1895,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // outside the remounted thing and nothing re-established it. So the replay is keyed on the
   // STAGE being fresh, not on the page being new.
   const liveReportsRef = useRef<ResolvedControlShow['live'] | null>(null);
+  /** The log rows after each live layer's report, read when the page opened (`monitorReplay`),
+   *  until this page applies a command; null after that. */
+  const bootReplayRef = useRef<ControlSendItem[] | null>(null);
   // Read through refs: the replay must use the FRESHEST answer at the moment a stage comes up,
   // and it must not re-run every time a take changes either of them.
   const liveCueRef = useRef(liveCue);
@@ -1897,7 +1907,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const restoreProgram = useCallback(() => {
     for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
       if (!cueId) continue;
-      const report = (liveReportsRef.current?.[graphic] ?? null) as { data?: Record<string, string> } | null;
+      const report = liveReportsRef.current?.[graphic] ?? null;
+      const rows = (bootReplayRef.current ?? []).filter((item) => item.graphic === graphic);
+      if (rows.length > 0) {
+        // AIR IS THE REPORT PLUS THE ROWS AFTER IT, rebuilt the way the renderer rebuilds itself:
+        // the reported data and state, then those rows through `applyProgram`, which tracks the
+        // clocks from the reported (stamped) values as the renderer's merged data does. Without a
+        // reported state the graphic plays in, unless the rows carry its entrance themselves.
+        delete clockValues.current[graphic];
+        delete speakingValues.current[graphic];
+        const dataItem: ControlSendItem[] = report?.data ? [{ graphic, msg: { t: 'update', data: report.data } }] : [];
+        const groups = report?.state?.groups;
+        const entrance: ControlSendItem[] = groups
+          ? [{ graphic, msg: { t: 'snap', snap: groups } }]
+          : rows.some((item) => item.msg.t === 'play') ? [] : [{ graphic, msg: { t: 'play' } }];
+        applyProgram([...dataItem, ...entrance, ...dataItem, ...rows]);
+        continue;
+      }
       const base = airedRef.current[graphic] ?? report?.data;
       // THE CLOCK'S WIRE VALUE OVERRIDES THE AIRED ONE. What this replays is what was SENT, and
       // a clock's sent value is a plain time — so without this a rebuilt monitor came back at
