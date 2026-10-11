@@ -715,9 +715,10 @@ Evening news had a link. That matches the decision recorded above.
 `$.fs.read`, `$.prompt.fill`, `$.prompt.read`, `$.session.cwd`, `$.session.root`, `$.state.*`,
 `$.store.*`, `$.ui.resolve` and `$.ui.toast`, the same on both builds, and nothing it must not.
 A scratch copy with one `$.process.run` added made the CI step's pattern match, so that step
-would fail. In the real run the mod made 43 file calls, all under the root. That included a
-step whose shell went `cd ..` and scaffolded and validated a package outside it. The only read
-outside the root came from the built-in telemetry plugin (`.claude.json`).
+would fail. In the real run every file call the mod made was under the root, including in a
+step whose shell went `cd ..` and scaffolded and validated a package outside it (43 calls under
+the root; the package outside was neither listed nor recorded). The only read outside the root
+came from the built-in telemetry plugin (`.claude.json`).
 
 **AC-13.** `/noacg-guide` in an empty folder set `hidden` false and `offer` true on both builds,
 with an empty result and no model call. In the walk's folder it set `offer` false.
@@ -750,7 +751,7 @@ the declared terminal drawing (`[ label ]`); no band was seen drawn.
 
 **AC-1 to AC-9 still hold.** `validate --strict` passes and `claude plugin test` passes 69 tests
 on 2.1.287 and 2.1.295. `tsc -p cli/plugin-guide` passes, after a load with
-`CLAUDE_CODE_USE_POWERSHELL_TOOL=1`. All 16 debug logs show the module admitted, with no skipped
+`CLAUDE_CODE_USE_POWERSHELL_TOOL=1`. All 16 debug logs of the walk show the module admitted, with no skipped
 hook, fault or refused tree naming the mod. A package scaffolded mid-session appeared at once.
 `check-toolkit-distribution` passes. Only `ci.yml` names the folder, and #1017 ran both
 guided-mod legs green under `CI gate`. Records were written to
