@@ -9,6 +9,7 @@ passed. Output: the plan's phases landed on `main`, checked, and a short report.
 
 - `editor`: `docs/EDITOR_REBUILD_PLAN.md`; its order and acceptance are in `docs/EDITOR_PLAN.md`.
 - `guided-mod`: `docs/work-specs/guided-mod/spec.md`; phases, acceptance and phase notes are in it.
+- `production-page`: `docs/work-specs/production-page-refactor/spec.md`; phases, acceptance and phase notes are in it.
 
 ## Boundaries
 
@@ -54,7 +55,6 @@ alarm goes to the session whose landing caused it, or to a row when no session h
 
 Sessions, each in its own worktree on `<tool>/plan-<plan>-p<phase>-<build|check|repair>` (`-2` on
 a second check):
-
 - **Claude Code:** the Agent tool with `run_in_background`, agent `wave-row`, which wakes you when
   it finishes; a background `node scripts/jobs.mjs wait <landing job>` wakes you when that ends.
 - **Codex:** `git worktree add -b <branch> <path> origin/main`, then `spawn_agent` without your
