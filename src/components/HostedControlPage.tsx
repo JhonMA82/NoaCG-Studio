@@ -800,6 +800,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const selectedGraphic = selectedCue?.graphic ?? null;
   const selectedLayerCueId = selectedGraphic ? liveCue[selectedGraphic] ?? null : null;
   const selectedIsLive = !!selectedCue && selectedLayerCueId === selectedCue.id;
+  /** The cue on air on the selected cue's layer, which may be a sibling of the selected one. What
+   *  acts on air (⚡, the snap's data write) reads and stages ITS values, as the production page
+   *  does, now that each cue keeps its own staged edits. */
+  const selectedLayerCue = cues.find((c) => c.id === selectedLayerCueId) ?? null;
   /** The selected cue is the one on PREVIEW - always in 'take' mode; in the other mode it is
    *  what separates a SPACE that previews from a SPACE that airs. */
   const selectedIsPreviewed = !!selectedCue && previewedCue?.id === selectedCue.id;
@@ -951,8 +955,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * Snap the live graphic straight to a state — RECOVERY, never an animation, and a null group
    * resets every group to its initial. Recovery is BOTH halves (docs/STATE_MACHINE_SCHEMA.md:
    * reset the visual state and reset the data are never conflated), so the snap rides with an
-   * update of the cue's values: the snap replays intermediate states with suppressed callbacks,
-   * and the trailing data write is what lets their call-painted looks repaint from the fields.
+   * update of the ON-AIR cue's values: the snap replays intermediate states with suppressed
+   * callbacks, and the trailing data write is what lets their call-painted looks repaint from the
+   * fields. Never the selection's: with a sibling selected that would put its name on air.
    *
    * This page had no way to do it at all, which is the wrong page to lack it: it is the one
    * being operated from a phone, away from the machine running the renderer, when air and the
@@ -962,7 +967,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     if (!selectedGraphic || !selectedLayerCueId || !selectedCue) return;
     void sendVerb([
       { graphic: selectedGraphic, msg: { t: 'snap', snap: groupId === null ? null : { [groupId]: stateId } } },
-      { graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue) } },
+      { graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedLayerCue ?? selectedCue) } },
     ]);
   };
   /** Clear the screen as the production page does (playout-workflow-simplification D11): what this
@@ -1234,6 +1239,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                     : []
               }
               airedValues={airedData[selectedCue.graphic] ?? null}
+              onAir={selectedLayerCue ? { cue: selectedLayerCue, values: cueValues(selectedLayerCue) } : null}
               // Typing refreshes PREVIEW only while this cue IS on it - the same rule the
               // exported controller's editor has always applied to its preview stream.
               onPreview={(values) => {
@@ -1553,6 +1559,7 @@ function HostedCueEditor({
   keptStates,
   overflow,
   airedValues,
+  onAir,
   onPreview,
   onSnap,
   onSend,
@@ -1583,6 +1590,9 @@ function HostedCueEditor({
   overflow: string[];
   /** What the graphic was last told to show, or null when it is not on air. */
   airedValues: Record<string, string> | null;
+  /** The cue on air on this cue's layer and the values a Take of it sends, or null when the
+   *  layer is off. A ⚡ press acts on it. */
+  onAir: { cue: OutputCue; values: Record<string, string> } | null;
   onPreview: (values: Record<string, string>) => void;
   onSnap: (groupId: string | null, stateId: string) => void;
   /** The page's one door for a verb - both roads, its own monitor, and the log. It answers
@@ -1780,11 +1790,16 @@ function HostedCueEditor({
       // never moves the buttons under the operator's finger.
       className={[e.destructive ? 'ctl-event-destructive' : '', named ? 'named' : ''].filter(Boolean).join(' ') || undefined}
       onClick={() => {
-        const { payload, fields: staged, tree } = pressSend(e, bound, valueOf);
+        // The press acts on AIR: with a sibling cue of this graphic on air, it reads and stages
+        // that cue's values, never the boxes of the one being prepared here.
+        const sibling = !live && onAir ? onAir : null;
+        const { payload, fields: staged, tree } = pressSend(e, bound, sibling ? (key) => sibling.values[key] ?? '' : valueOf);
         // An `adjust` field (a goal's +1) rode moved by its delta: stage the new figure into the
         // shared buffer at once (the live-number bump's rule, so every open page follows and the
         // next press counts from it). A BOUND field is not among them - it is not this cue's.
-        if (Object.keys(staged).length > 0) {
+        const moved = Object.keys(staged).length > 0;
+        if (moved && sibling) onStage(sibling.cue, staged);
+        else if (moved) {
           setEcho((v) => ({ ...v, ...staged }));
           setEntryId('');
           stageNow(staged);

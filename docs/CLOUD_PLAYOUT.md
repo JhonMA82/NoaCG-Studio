@@ -534,8 +534,11 @@ send.
   controls; edits stage via `control_stage` (shared across operator pages, the 0008 model).
   The server keys that buffer by graphic, so the hosted page stages each edit under its CUE
   inside it (`control/cueStaging.ts`): an edit to one guest's lower third is part of that cue as
-  prepared, and never shows in or airs with another cue of the same graphic (#1036). A value
-  staged by an older build carries no cue and counts only on a graphic with one cue.
+  prepared, and never shows in or airs with another cue of the same graphic (#1036). A ⚡ press
+  or a snap acts on the cue on air, so it reads and stages that cue's values even with a sibling
+  selected, as on the production page. A figure that has to follow every cue of a graphic (a
+  running score) is a bound field. A value staged by an older build carries no cue and counts
+  only on a graphic with one cue.
 - **The verbs, and the layer each one addresses.** Every verb below Take acts on ONE LAYER —
   the layer of the SELECTED cue on the production page, the layer of the row the button sits on
   in the hosted page. There is no longer a "the live graphic" for a header button to mean, so

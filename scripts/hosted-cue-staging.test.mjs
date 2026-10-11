@@ -35,19 +35,12 @@ test('an edit to one cue does not show in, or air with, another cue of the same 
   assert.deepEqual(hostedCueValues(ben, staged, {}, cues), { f0: 'Ben Guest', f1: 'Second cue' });
 });
 
-test('each cue keeps its own edits, whichever was staged last', () => {
+test('two operators editing two cues of one graphic each keep their own edits', () => {
+  // Both writes merge into the one graphic-keyed buffer every open page reads, in either order.
   let staged = stage({}, hairline, { f0: 'Mirko Walk' });
-  staged = stage(staged, ben, { f1: 'Guest of the week' });
+  staged = stage(staged, ben, { f0: 'Ben Guesty', f1: 'Guest of the week' });
   assert.deepEqual(hostedCueValues(hairline, staged, {}, cues), { f0: 'Mirko Walk', f1: 'Chief Correspondent' });
-  assert.deepEqual(hostedCueValues(ben, staged, {}, cues), { f0: 'Ben Guest', f1: 'Guest of the week' });
-});
-
-test('an edit staged on one screen counts on every screen that reads the same buffer', () => {
-  // Every open page reads the same `control_shows.staged`; it is the only input they share.
-  const staged = stage({}, ben, { f0: 'Ben Guesty' });
-  const elsewhere = JSON.parse(JSON.stringify(staged));
-  assert.equal(hostedCueValues(ben, elsewhere, {}, cues).f0, 'Ben Guesty');
-  assert.equal(hostedCueValues(hairline, elsewhere, {}, cues).f0, 'Alexandra Riva');
+  assert.deepEqual(hostedCueValues(ben, staged, {}, cues), { f0: 'Ben Guesty', f1: 'Guest of the week' });
 });
 
 test('a graphic-wide value staged by an older build counts only where the graphic has one cue', () => {
