@@ -14,8 +14,9 @@
 // It is the INVERSE of the exporter's mapping (export/targets/ograf.ts `dataSchema` +
 // `customActions`), and honest about what the standard cannot carry back:
 //   - a JSON-schema `string` cannot say whether it was a text line, a line LIST, a colour or an
-//     image path, so it comes back as `text` unless the property says otherwise (`format`,
-//     `enum`, or the per-property `v_noacg.kind` hint the exporter writes);
+//     image path; the standard's GDD type (`gddType`) does, and is read first, then the
+//     per-property `v_noacg.kind` hint older exports wrote, then `format` and `enum`, and a
+//     string that says none of these comes back as `text`;
 //   - an Action has no section/destructive flag, so those ride the per-action `v_noacg`
 //     vendor object the exporter writes (spec: vendor fields are `v_`-prefixed, allowed in
 //     every manifest object) and default to "Actions" / false for a stranger's package;
@@ -46,8 +47,45 @@ const isRecord = (v: unknown): v is Json => typeof v === 'object' && v !== null 
 
 const FIELD_KINDS: readonly FieldKind[] = ['text', 'lines', 'number', 'color', 'select', 'toggle', 'image'];
 
-/** A schema property's control kind. The honest inversion of the exporter's 3-way collapse. */
+/**
+ * The control each standard GDD type draws (gdd/gdd-types.json). A plain `file-path` may name any
+ * file, so it is a text input: NoaCG's image control lists pictures. `select-multiple` is an
+ * array, which no single control here can draw.
+ */
+const GDD_KINDS: Record<string, FieldKind | null> = {
+  'single-line': 'text',
+  'multi-line': 'lines',
+  'file-path': 'text',
+  'file-path/image-path': 'image',
+  select: 'select',
+  'select-multiple': null,
+  'color-rrggbb': 'color',
+  'color-rrggbbaa': 'color',
+  percentage: 'number',
+  'duration-ms': 'number',
+};
+
+/**
+ * The control a property's `gddType` names, or undefined when it names none. A type this reader
+ * does not know falls back down its own prefix, as the standard asks (`file-path/video-path` is a
+ * `file-path`), and below the last one to the JSON type.
+ */
+function gddKind(prop: Json): FieldKind | null | undefined {
+  let type = typeof prop.gddType === 'string' ? prop.gddType : '';
+  while (type) {
+    if (Object.prototype.hasOwnProperty.call(GDD_KINDS, type)) return GDD_KINDS[type];
+    type = type.includes('/') ? type.slice(0, type.lastIndexOf('/')) : '';
+  }
+  return undefined;
+}
+
+/**
+ * A schema property's control kind: the standard's GDD type first, then the `v_noacg.kind` hint
+ * an older NoaCG export (or a field no GDD type holds) carries, then what plain JSON Schema says.
+ */
 function kindForProperty(prop: Json): FieldKind | null {
+  const gdd = gddKind(prop);
+  if (gdd !== undefined) return gdd;
   const vendor = isRecord(prop.v_noacg) ? prop.v_noacg : null;
   const hinted = typeof vendor?.kind === 'string' ? vendor.kind : null;
   if (hinted && (FIELD_KINDS as readonly string[]).includes(hinted)) return hinted as FieldKind;
@@ -100,7 +138,12 @@ export function ografContract(manifest: unknown, { includeHidden = false } = {})
       defaultValue: defaultFor(prop, kind),
     };
     if (kind === 'select' && Array.isArray(prop.enum)) {
-      descriptor.options = prop.enum.map((v) => ({ label: String(v), value: String(v) }));
+      // A GDD select names each value for the operator in `gddOptions.labels`.
+      const labels: Json = isRecord(prop.gddOptions) && isRecord(prop.gddOptions.labels) ? prop.gddOptions.labels : {};
+      descriptor.options = prop.enum.map((v) => {
+        const label = labels[String(v)];
+        return { label: typeof label === 'string' ? label : String(v), value: String(v) };
+      });
     }
     if (kind === 'number') {
       if (typeof prop.minimum === 'number') descriptor.min = prop.minimum;

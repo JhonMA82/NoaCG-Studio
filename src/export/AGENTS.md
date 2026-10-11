@@ -300,7 +300,9 @@ export-time reflow, stretching, or cropping.
   agent workspace, the bridge's `exportPackage`, and the Import door's round trip all use it.
 - **targets/ograf.ts `v_noacg`** - the manifest's only NoaCG-specific content, all under the
   spec's `v_` vendor prefix and ignored by every renderer: per-property `v_noacg.kind` (the
-  control kind the JSON-schema type collapsed), per-action `v_noacg {section, destructive}`,
+  control kind the JSON-schema type collapsed, written only where no standard `gddType` holds the
+  field: `gddFor` says the control in GDD for every other one, and `ografSchema.ts` checks each
+  GDD type's own rules), per-action `v_noacg {section, destructive}`,
   and at the root `noacgVendorBlock()` = `{format:'noacg-graphic', version:1, type, source
   {html,css,js}, sourceHash, generator}` when the package ships sources. `thumbnails` is written
   only when the caller supplies a raster (the CLI's settled on-air shot; the in-app export

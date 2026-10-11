@@ -53,27 +53,80 @@ function schemaDefault(field: SpxField): string | number | boolean {
 }
 
 /**
+ * A field's control in the standard's own vocabulary (gdd/gdd-types.json): the GDD type any
+ * controller draws its input from, with what that type requires - a select's `enum` and labels,
+ * an image path's extensions, a colour's pattern and its default spelt the way the pattern reads.
+ * ograf-form, the reference controller's form, draws a colour picker, a text area or an image
+ * path from these where it would otherwise draw a text box.
+ *
+ * Null where the JSON type already says it all (a number, a checkbox, an input-only value) and
+ * where no GDD type can hold the field: a dropdown with no items has no `enum`, and a colour the
+ * author wrote as a name or `rgba()` fits neither hex pattern.
+ */
+function gddFor(f: SpxField): Record<string, unknown> | null {
+  switch (f.ftype) {
+    case 'textfield':
+      return { gddType: 'single-line' };
+    case 'textarea':
+      return { gddType: 'multi-line' };
+    case 'dropdown':
+      return f.items?.length
+        ? {
+            gddType: 'select',
+            enum: f.items.map((i) => i.value),
+            gddOptions: { labels: Object.fromEntries(f.items.map((i) => [i.value, i.text])) },
+          }
+        : null;
+    case 'filelist':
+      return { gddType: 'file-path/image-path', gddOptions: { extensions: [(f.extension || 'png').replace(/^\./, '')] } };
+    case 'color': {
+      const hex = hexColor(f.value);
+      if (!hex) return null;
+      return hex.length === 9
+        ? { gddType: 'color-rrggbbaa', pattern: '^#[0-9a-f]{8}$', default: hex }
+        : { gddType: 'color-rrggbb', pattern: '^#[0-9a-f]{6}$', default: hex };
+    }
+    default:
+      return null;
+  }
+}
+
+/** A CSS hex colour as the GDD colour types write it, lower case with every digit spelt out, or null. */
+function hexColor(value: string): string | null {
+  const m = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(value.trim());
+  if (!m) return null;
+  const digits = m[1].length <= 4 ? [...m[1]].map((d) => d + d).join('') : m[1];
+  return `#${digits.toLowerCase()}`;
+}
+
+/** One field as a GDD property: its JSON type, title, typed default and GDD type. */
+function fieldProperty(f: SpxField): Record<string, unknown> {
+  return { type: schemaType(f.ftype), title: f.title || f.field, default: schemaDefault(f), ...gddFor(f) };
+}
+
+/** The control kinds a property's JSON type already gives back without a hint. */
+const TYPED_KINDS = new Set(['text', 'number', 'toggle']);
+
+/**
  * Build the OGraf data schema from the template's DataFields (one property per fN).
  *
- * The JSON-schema `type` is a 3-way collapse (string / number / boolean), which is all the
- * standard can say; the CONTROL kind the property came from - a line list, a colour, an image
- * path - rides along as the per-property `v_noacg.kind` vendor hint (spec: vendor fields are
- * `v_`-prefixed and allowed in every manifest object), so a reader that knows NoaCG gets the
- * field back exactly and a reader that does not sees plain OGraf.
+ * The JSON-schema `type` is a 3-way collapse (string / number / boolean); the CONTROL kind the
+ * property came from - a line list, a colour, an image path - is said with the standard's GDD
+ * type (`gddFor`). Only a field no GDD type can hold (a colour that is not hex, a dropdown with no
+ * items) keeps the per-property `v_noacg.kind` vendor hint (spec: vendor fields are `v_`-prefixed
+ * and allowed in every manifest object), so a reader that knows NoaCG still gets it back exactly.
  */
 function dataSchema(fields: SpxField[]) {
   const properties: Record<string, unknown> = {};
   for (const f of fields) {
     if (!['textfield', 'textarea', 'number', 'dropdown', 'filelist', 'checkbox', 'color', 'hidden'].includes(f.ftype)) continue;
+    const property = fieldProperty(f);
     const kind = kindForField(f);
     const spx = spxFieldHint(f);
     properties[f.field] = {
-      type: schemaType(f.ftype),
-      title: f.title || f.field,
-      default: schemaDefault(f),
-      ...(f.ftype === 'dropdown' && f.items?.length ? { enum: f.items.map((i) => i.value) } : {}),
+      ...property,
       ...(f.ftype === 'hidden' ? { hidden: true } : {}),
-      ...(kind ? { v_noacg: { kind } } : {}),
+      ...(kind && !('gddType' in property) && !TYPED_KINDS.has(kind) ? { v_noacg: { kind } } : {}),
       ...(spx ? { v_spx: spx } : {}),
     };
   }
@@ -118,9 +171,9 @@ function spxManifestHint(template: SpxTemplate): Record<string, string> {
  * schema, titled from the template's own fields.
  */
 function customActions(template: SpxTemplate): Array<Record<string, unknown>> {
-  // The payload keys ARE field ids, so each one is declared with its own field's type and
-  // title — a number field described as a string would have the host's generated form send
-  // text where the graphic expects a number.
+  // The payload keys ARE field ids, so each one is declared as its own field is in the data
+  // schema (`fieldProperty`) — a number field described as a string would have the host's
+  // generated form send text where the graphic expects a number.
   const byId = new Map(template.fields.map((f) => [f.field, f]));
   return eventButtons(template.js).map((button: ControlButton) => ({
     id: button.event,
@@ -170,9 +223,7 @@ function customActions(template: SpxTemplate): Array<Record<string, unknown>> {
                 const field = byId.get(key);
                 return [
                   key,
-                  field
-                    ? { type: schemaType(field.ftype), title: field.title || key, default: schemaDefault(field) }
-                    : { type: 'string', title: key },
+                  field ? fieldProperty(field) : { type: 'string', title: key },
                 ];
               }),
             ),
@@ -329,12 +380,64 @@ export interface OgrafManifestOptions {
 }
 
 /** The .ograf.json manifest (required fields per spec §2 + the field-driven data schema). */
+/**
+ * The manifest's `stepCount`, which the Graphic's step walk uses too: the default path's length,
+ * at least 1. The standard's other two answers never fit what the Graphic does today. `0` is a
+ * graphic that animates in and out by itself, which one set to leave by itself after N ms would
+ * be if the Graphic ran that timed exit (it does not yet, issue #1012), and NoaCG's "it stays"
+ * (`out: 'none'`) never leaves, which is 1. `-1` is an unknown count, and a default path is a
+ * fixed list.
+ */
+function ografStepCount(template: SpxTemplate): number {
+  return Math.max(1, Number(template.settings.steps) || 1);
+}
+
+/**
+ * THE STEP WALK, ONE COPY for both of the Graphic's clocks: the real-time `_playAction` and the
+ * non-real-time document's scheduled actions (`offlineDocument`) run this same source, so the two
+ * cannot drift. They had: only the real-time copy stopped when a machine's arrow took the graphic
+ * off air, and only the other refused to play from off air towards a step below 0. Plain ES5, as
+ * the non-real-time copy runs as a classic script in its render frame.
+ *
+ * From `step` (-1 = off air) towards OGraf's target (`goto`, else `step + delta`, delta 1 by
+ * default): the first play runs the entrance, which shows step 0; each further step is the
+ * template's next(), which RETURNS what it started, or null when a machine declines the move (off
+ * its default path, or nothing left but the exit), and a refusal ends the walk so the pointer
+ * never runs ahead of the graphic; a press that took the graphic off air (a machine may author
+ * the arrow INTO its exit) ends it at -1; and a target past the last step plays the exit, the
+ * OGraf step model's "go to the end". Answers the step the graphic is on, -1 once it has left.
+ * `ografOffAir` is the machine's answer to "has it left": every group back at its initial state.
+ */
+const STEP_WALK_JS = `function ografPlayStep(step, params, count, graphic) {
+  var target = params.goto != null && params.goto >= 0 ? params.goto : step + (params.delta != null ? params.delta : 1);
+  if (step < 0) { graphic.play(); step = 0; }
+  while (step < target && step < count - 1) {
+    if (!graphic.next()) break;
+    step += 1;
+    if (graphic.offAir()) return -1;
+  }
+  if (target >= count) { graphic.stop(); return -1; }
+  return step;
+}
+function ografOffAir(groups, offStates) {
+  return Object.keys(groups).every(function (id) { return groups[id] === offStates[id]; });
+}`;
+
+/**
+ * Each state group's off-air (initial) state, so the walk can tell when a press took the graphic
+ * off air by itself. Empty for a template with no machine: such a graphic never reports off air.
+ */
+function offStatesOf(template: SpxTemplate): Record<string, string> {
+  const machine = parseAnimData(template.js)?.machine;
+  return Object.fromEntries((machine?.groups ?? []).map((g) => [g.id, g.initial]));
+}
+
 export function buildOgrafManifest(
   template: SpxTemplate,
   usage: GraphicUsage = 'live',
   opts: OgrafManifestOptions = {},
 ): Record<string, unknown> {
-  const stepCount = Math.max(1, Number(template.settings.steps) || 1);
+  const stepCount = ografStepCount(template);
   const actions = customActions(template);
   const durations = actionDurations(template, stepCount, actions.map((a) => a.id as string));
   const data = parseAnimData(template.js);
@@ -437,7 +540,17 @@ function offlineDocument(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB
     ? `<script src="${lib.lottie}"></script>`
     : '';
   const bridge = `
+${STEP_WALK_JS}
 var __ografStep = -1;
+var __ografOffStates = ${JSON.stringify(offStatesOf(template))};
+var __ografGraphic = {
+  play: function () { play(); },
+  next: function () { return next(); },
+  stop: function () { stop(); },
+  offAir: function () {
+    return typeof noacgMachineState === 'function' && ografOffAir(noacgMachineState().groups, __ografOffStates);
+  }
+};
 window.__noacgScheduledAction = function (entry) {
   if (!entry || !entry.action) return;
   var action = entry.action;
@@ -454,15 +567,7 @@ window.__noacgScheduledAction = function (entry) {
     return;
   }
   if (action.type !== 'playAction') return;
-  var count = ${Math.max(1, Number(template.settings.steps) || 1)};
-  var target = params.goto != null && params.goto >= 0
-    ? params.goto : __ografStep + (params.delta != null ? params.delta : 1);
-  if (__ografStep < 0 && target >= 0) { play(); __ografStep = 0; }
-  while (__ografStep >= 0 && __ografStep < target && __ografStep < count - 1) {
-    if (!next()) break;
-    __ografStep += 1;
-  }
-  if (target >= count) { stop(); __ografStep = -1; }
+  __ografStep = ografPlayStep(__ografStep, params, ${ografStepCount(template)}, __ografGraphic);
 };`;
   return `<!doctype html><html><head>
 <meta name="color-scheme" content="light">
@@ -993,6 +1098,7 @@ export function graphicSources(template: SpxTemplate): { html: string; css: stri
 const WRAPPER_BINDINGS = new Set([
   'ensureGsap', 'ensureFlexGap', 'ensureLottie', 'packageUrl', 'substitute', 'withPackageUrls', 'withPackagePaths',
   'scopedDocument', 'standIn', 'scopedListeners', 'scopedTimers', 'scopedWindow', 'scopedGsap', 'initTemplate', 'Graphic',
+  'ografPlayStep', 'ografOffAir',
 ]);
 
 /**
@@ -1044,13 +1150,10 @@ function timelineFunctionNames(template: SpxTemplate): string[] {
 
 /** graphic.mjs: a readable Web Component wrapping the template's own runtime. */
 function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB): string {
-  const stepCount = Math.max(1, Number(template.settings.steps) || 1);
+  const stepCount = ografStepCount(template);
   const machine = parseAnimData(template.js)?.machine;
   const timelineNames = timelineFunctionNames(template);
-  // Each state group's off-air (initial) state, so the wrapper can tell when a press took the
-  // graphic off air by itself. Empty for a template with no machine — such a graphic never
-  // reports off air here and behaves exactly as before.
-  const offStates = Object.fromEntries((machine?.groups ?? []).map((g) => [g.id, g.initial]));
+  const offStates = offStatesOf(template);
   // The main group's walk + id and the manifest's custom-action ids: what customAction()
   // accepts, and how the wrapper re-derives its step pointer after an event moved the
   // machine (an event may land ON a waypoint — the pointer must follow the graphic).
@@ -1217,6 +1320,9 @@ const OFFLINE_DOCUMENT = ${JSON.stringify(offlineDocument(template, lib))};
 
 // Each state group's off-air state. Empty when this graphic has no state machine.
 const OFF_STATES = ${JSON.stringify(offStates)};
+
+// The step walk playAction runs, the same source the non-real-time document runs.
+${STEP_WALK_JS}
 
 // The machine's custom-action vocabulary (the manifest's customActions[].id list), plus the
 // main group's walk — how the wrapper re-derives its step pointer after an event moved the
@@ -1881,47 +1987,23 @@ class Graphic extends HTMLElement {
       await this._applyOfflineAction('playAction', params);
       return { statusCode: 200, currentStep: this._offlineStep >= 0 ? this._offlineStep : undefined };
     }
-    const stepCount = ${stepCount};
-    const target = params.goto != null && params.goto >= 0
-      ? params.goto
-      : this._step + (params.delta != null ? params.delta : 1);
-    if (this._step < 0) {
-      // First play: run the entrance (which shows step 0).
-      this._runtime.play();
-      this._step = 0;
-    }
-    // Advance through the remaining steps with the template's next(). next() RETURNS what it
-    // started, or null when there was nothing to advance to — a state machine can decline the
-    // move (off the default path, or nothing left but the exit). Our pointer must not run
-    // ahead of the graphic, so a refusal ends the walk.
-    while (this._step < target && this._step < stepCount - 1) {
-      if (!this._runtime.next()) break;
-      this._step += 1;
-      // A machine may author the arrow INTO its exit, in which case that press took the
-      // graphic off air and reset its own pointers. OGraf reports no current step off air.
-      if (this._offAir()) {
-        this._step = -1;
-        if (params.skipAnimation) this._settle();
-        return { statusCode: 200, currentStep: undefined };
-      }
-    }
-    if (target >= stepCount) {
-      // Past the last step = go to the end (animate out, per the OGraf step model).
-      this._runtime.stop();
-      this._step = -1;
-      if (params.skipAnimation) this._settle();
-      return { statusCode: 200, currentStep: undefined };
-    }
+    const runtime = this._runtime;
+    this._step = ografPlayStep(this._step, params, ${stepCount}, {
+      play: () => runtime.play(),
+      next: () => runtime.next(),
+      stop: () => runtime.stop(),
+      offAir: () => this._offAir(),
+    });
     if (params.skipAnimation) this._settle();
-    return { statusCode: 200, currentStep: this._step };
+    // OGraf reports no current step off air.
+    return { statusCode: 200, currentStep: this._step >= 0 ? this._step : undefined };
   }
 
   // True when the graphic's state machine says every group is back at its initial state.
   // Templates without a machine never report off air here — their behaviour is unchanged.
   _offAir() {
     if (!this._runtime || !this._runtime.machineState) return false;
-    const state = this._runtime.machineState();
-    return Object.keys(state.groups).every(function (id) { return state.groups[id] === OFF_STATES[id]; });
+    return ografOffAir(this._runtime.machineState().groups, OFF_STATES);
   }
 
   async _stopAction(params) {

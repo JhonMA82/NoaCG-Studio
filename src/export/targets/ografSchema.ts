@@ -94,6 +94,85 @@ function defaultMatchesType(type: string, value: unknown): boolean {
   return true;
 }
 
+// ── gdd/gdd-types.json ───────────────────────────────────────────────────────
+
+/** The JSON type each standard GDD type requires (`select` and `select-multiple` have their own rule). */
+const GDD_TYPE_BASE = new Map([
+  ['single-line', 'string'],
+  ['multi-line', 'string'],
+  ['file-path', 'string'],
+  ['file-path/image-path', 'string'],
+  ['color-rrggbb', 'string'],
+  ['color-rrggbbaa', 'string'],
+  ['percentage', 'number'],
+  ['duration-ms', 'integer'],
+]);
+
+/** The exact `pattern` a colour GDD type requires. */
+const GDD_COLOR_PATTERN = new Map([
+  ['color-rrggbb', '^#[0-9a-f]{6}$'],
+  ['color-rrggbbaa', '^#[0-9a-f]{8}$'],
+]);
+
+/** A select's values and their `gddOptions.labels` (at `labelsAt`), typed by the select's JSON type. */
+function checkSelectValues(values: unknown, valueType: unknown, labels: unknown, at: string, labelsAt: string, errors: string[]): void {
+  if (valueType !== 'string' && valueType !== 'number' && valueType !== 'integer') {
+    errors.push(`${at}.type: a select's type must be string, number or integer.`);
+    return;
+  }
+  if (!Array.isArray(values)) {
+    errors.push(`${at}.enum: required on a select.`);
+  } else if (!values.every((v) => defaultMatchesType(valueType, v))) {
+    errors.push(`${at}.enum: every value must be a ${valueType}.`);
+  }
+  if (!isPlainObject(labels)) {
+    errors.push(`${labelsAt}: required on a select, an object naming each value.`);
+    return;
+  }
+  // A number or integer select's labels are keyed by the value's digits, each label a string.
+  const keyPattern = valueType === 'integer' ? /^[0-9]+$/ : valueType === 'number' ? /^[0-9,.]+$/ : null;
+  if (!keyPattern) return;
+  for (const [key, label] of Object.entries(labels)) {
+    if (!keyPattern.test(key)) errors.push(`${labelsAt}.${key}: a ${valueType} select's label key must be the value's digits.`);
+    if (typeof label !== 'string') errors.push(`${labelsAt}.${key}: must be a string.`);
+  }
+}
+
+/**
+ * A property's `gddType` against gdd/gdd-types.json: each standard type requires its JSON type,
+ * a select its values and labels, a colour its exact pattern, a file path's extensions a list of
+ * strings. A type the standard does not define carries no rule.
+ */
+function checkGddType(value: Json, type: string, at: string, errors: string[]): void {
+  if ('gddOptions' in value && !isPlainObject(value.gddOptions)) errors.push(`${at}.gddOptions: must be an object.`);
+  if (!('gddType' in value)) return;
+  const gddType = value.gddType;
+  if (typeof gddType !== 'string') {
+    errors.push(`${at}.gddType: must be a string.`);
+    return;
+  }
+  const options = isPlainObject(value.gddOptions) ? value.gddOptions : null;
+  const base = GDD_TYPE_BASE.get(gddType);
+  if (base && type !== base) errors.push(`${at}.type: a "${gddType}" property must be a ${base}.`);
+  const pattern = GDD_COLOR_PATTERN.get(gddType);
+  if (pattern && value.pattern !== pattern) errors.push(`${at}.pattern: a "${gddType}" property requires the pattern ${pattern}.`);
+  if ((gddType === 'file-path' || gddType === 'file-path/image-path') && options && 'extensions' in options) {
+    const ext = options.extensions;
+    if (!Array.isArray(ext) || !ext.every((e) => typeof e === 'string')) errors.push(`${at}.gddOptions.extensions: must be an array of strings.`);
+  }
+  if (gddType === 'select') {
+    if (!options) errors.push(`${at}.gddOptions: required on a select.`);
+    checkSelectValues(value.enum, type, options?.labels, at, `${at}.gddOptions.labels`, errors);
+  }
+  if (gddType === 'select-multiple') {
+    if (type !== 'array') errors.push(`${at}.type: a "select-multiple" property must be an array.`);
+    if (!options) errors.push(`${at}.gddOptions: required on a select-multiple.`);
+    const items = isPlainObject(value.items) ? value.items : null;
+    if (!items) errors.push(`${at}.items: required on a select-multiple, with its type and enum.`);
+    else checkSelectValues(items.enum, items.type, options?.labels, `${at}.items`, `${at}.gddOptions.labels`, errors);
+  }
+}
+
 /**
  * A GDD object — the manifest's `schema` and each custom action's payload schema. It is a
  * JSON Schema with `type` REQUIRED, so unlike plain JSON Schema every node must declare what
@@ -109,6 +188,7 @@ function checkGddObject(value: unknown, at: string, errors: string[]): void {
     errors.push(`${at}.type: required, and one of ${GDD_TYPES.join(' / ')}.`);
     return;
   }
+  checkGddType(value, type, at, errors);
   if ('hidden' in value && typeof value.hidden !== 'boolean') errors.push(`${at}.hidden: must be a boolean.`);
   if ('order' in value && !isFiniteNumber(value.order)) errors.push(`${at}.order: must be a finite number.`);
   if ('default' in value && !defaultMatchesType(type, value.default)) {

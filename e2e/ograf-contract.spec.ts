@@ -105,6 +105,102 @@ test('a third-party OGraf package reads as conformant and its operator surface i
   expect(result.steps).toEqual({ count: 2, stepped: true });
 });
 
+test('every standard GDD type reads as its control, and a type the reader does not know falls back down its prefix', async ({ page }) => {
+  await toBridge(page);
+  const read = await page.evaluate(() => {
+    const property = (gddType: string, type = 'string', extra: Record<string, unknown> = {}) => ({ type, title: gddType, gddType, ...extra });
+    const surface = window.noacgBridge.inspect({
+      manifest: {
+        $schema: 'https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json',
+        id: 'gdd-coverage', name: 'GDD coverage', main: 'graphic.mjs', supportsRealTime: true, supportsNonRealTime: false,
+        schema: {
+          type: 'object',
+          properties: {
+            line: property('single-line'),
+            text: property('multi-line'),
+            file: property('file-path'),
+            image: property('file-path/image-path'),
+            pick: property('select', 'string', { enum: ['calm', 'loud'], gddOptions: { labels: { calm: 'Calm', loud: 'Loud' } } }),
+            colour: property('color-rrggbb', 'string', { pattern: '^#[0-9a-f]{6}$' }),
+            tint: property('color-rrggbbaa', 'string', { pattern: '^#[0-9a-f]{8}$' }),
+            share: property('percentage', 'number'),
+            hold: property('duration-ms', 'integer'),
+            tags: property('select-multiple', 'array', { items: { type: 'string', enum: ['x'] }, gddOptions: { labels: { x: 'X' } } }),
+            // Down the prefix, and below the last one to the JSON type.
+            video: property('file-path/video-path'),
+            photo: property('file-path/image-path/jpeg'),
+            odd: property('made-up'),
+            // The standard's type wins over NoaCG's own hint, which an older export still carries alone.
+            both: property('multi-line', 'string', { v_noacg: { kind: 'text' } }),
+            legacy: { type: 'string', title: 'legacy', v_noacg: { kind: 'color' } },
+          },
+        },
+      },
+    });
+    return {
+      kinds: Object.fromEntries(surface.descriptors.map((d) => [d.key, d.kind])),
+      options: (surface.descriptors.find((d) => d.key === 'pick') as { options?: { label: string; value: string }[] } | undefined)?.options,
+    };
+  });
+  expect(read.kinds).toEqual({
+    line: 'text', text: 'lines', file: 'text', image: 'image', pick: 'select', colour: 'color', tint: 'color',
+    share: 'number', hold: 'number', video: 'text', photo: 'image', odd: 'text', both: 'lines', legacy: 'color',
+  });
+  // A select names its values for the operator with the standard's labels.
+  expect(read.options).toEqual([{ label: 'Calm', value: 'calm' }, { label: 'Loud', value: 'loud' }]);
+});
+
+test("a NoaCG graphic's fields leave in the standard GDD types and come back as the same controls", async ({ page }) => {
+  await toBridge(page);
+  const read = await page.evaluate(async () => {
+    const { template } = await window.noacgBridge.scaffold({
+      name: 'GDD Probe',
+      fields: [
+        { label: 'Name', kind: 'text', value: 'Anna' },
+        { label: 'Items', kind: 'lines', value: 'One\nTwo' },
+        { label: 'Score', kind: 'number', value: '3' },
+        { label: 'Mood', kind: 'select', value: 'calm', options: [{ label: 'Calm', value: 'calm' }, { label: 'Loud', value: 'loud' }] },
+        { label: 'Logo', kind: 'image' },
+        { label: 'Live', kind: 'toggle', value: 'true' },
+        { label: 'Team colour', kind: 'color', value: '#F6A623' },
+        { label: 'Shade', kind: 'color', value: 'rgba(0, 0, 0, 0.5)' },
+      ],
+    });
+    const bridge = window.noacgBridge as unknown as {
+      exportPackage(t: unknown): Promise<Uint8Array>;
+      readPackage(b: Uint8Array, n: string): Promise<{ ograf: { errors: string[]; manifest: { schema: { properties: Record<string, Record<string, unknown>> } }; contract: { descriptors: { key: string; kind: string }[] } } }>;
+    };
+    const { ograf } = await bridge.readPackage(await bridge.exportPackage(template), 'gdd-probe.zip');
+    const byTitle = Object.fromEntries(Object.values(ograf.manifest.schema.properties).map((p) => [p.title as string, p]));
+    return {
+      errors: ograf.errors,
+      emitted: Object.fromEntries(Object.entries(byTitle).map(([title, p]) => [title, {
+        gddType: p.gddType ?? null,
+        hint: (p.v_noacg as { kind?: string } | undefined)?.kind ?? null,
+      }])),
+      mood: byTitle.Mood.gddOptions,
+      colour: [byTitle['Team colour'].default, byTitle['Team colour'].pattern],
+      read: Object.fromEntries(ograf.contract.descriptors.map((d) => [d.key, d.kind])),
+      authored: Object.fromEntries(window.noacgBridge.inspect({ template: template as never }).descriptors.map((d) => [d.key, d.kind])),
+    };
+  });
+  expect(read.errors, 'the exported manifest broke a GDD rule').toEqual([]);
+  // The standard says each control; only a colour no GDD pattern can hold keeps NoaCG's own hint.
+  expect(read.emitted).toEqual({
+    Name: { gddType: 'single-line', hint: null },
+    Items: { gddType: 'multi-line', hint: null },
+    Score: { gddType: null, hint: null },
+    Mood: { gddType: 'select', hint: null },
+    Logo: { gddType: 'file-path/image-path', hint: null },
+    Live: { gddType: null, hint: null },
+    'Team colour': { gddType: 'color-rrggbb', hint: null },
+    Shade: { gddType: null, hint: 'color' },
+  });
+  expect(read.mood).toEqual({ labels: { calm: 'Calm', loud: 'Loud' } });
+  expect(read.colour, 'a colour leaves spelt the way its GDD pattern reads').toEqual(['#f6a623', '^#[0-9a-f]{6}$']);
+  expect(read.read, 'a field came back as a different control than it left').toEqual(read.authored);
+});
+
 test('the OGraf host mounts a stranger package and drives every lifecycle call with 2xx', async ({ page, context }) => {
   await toBridge(page);
   const manifest = JSON.parse(readFileSync(resolve(FIXTURE_DIR, 'scorebug-demo.ograf.json'), 'utf8')) as { main: string; id: string };

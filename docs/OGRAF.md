@@ -34,9 +34,12 @@ must break that spec, not the page.
 - Manifest schema: <https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json>
 - Spec version targeted: **v1**. There is no vendor dialect - a package is plain OGraf. The one
   NoaCG-specific thing a manifest may carry is the standard's own extension mechanism:
-  `v_`-prefixed vendor fields. Every export writes a per-property `v_noacg.kind` hint inside
-  `schema` (the control kind the property came from, since the JSON-schema type is a 3-way
-  collapse) and a per-action `v_noacg` (the button's section / destructive flag / adjust deltas); the **dual
+  `v_`-prefixed vendor fields. A property says its control with the standard's GDD type
+  (`gddType`: `single-line`, `multi-line`, `select`, `file-path/image-path`, `color-rrggbb` or
+  `color-rrggbbaa`), so any controller can draw a colour picker or a text area rather than a text
+  box; only a field no GDD type can hold (a colour written as a name or `rgba()`, a dropdown with
+  no items) keeps a per-property `v_noacg.kind` hint. Each action carries a per-action `v_noacg`
+  (the button's section / destructive flag / adjust deltas); the **dual
   graphic package** (`src/export/noacgPackage.ts`, docs/AGENT_CLI.md) additionally writes a root
   `v_noacg` block naming the graphic TYPE, the editable SPX-layout SOURCES shipped beside the
   component, and their content hash. Any renderer ignores all of it; NoaCG's reader
@@ -159,8 +162,8 @@ package does not contain, fails the export rather than shipping.
 | `main` | `"graphic.mjs"` |
 | `supportsRealTime` | `true` unless the export was made post-production-only |
 | `supportsNonRealTime` | `true` when the export declares post-production intent (see below) |
-| `stepCount` | the number of steps on the graphic's default path |
-| `schema` | one property per data field, keyed by its SPX id (`f0`, `f1`, …) |
+| `stepCount` | the number of steps on the graphic's default path, at least 1. Never `0` (plays in and out by itself): a graphic set to leave by itself after a delay holds until `stopAction` in an OGraf renderer ([issue #1012](https://github.com/NoaCG/NoaCG-Studio/issues/1012)), and one set to stay never leaves. Never `-1` (unknown): the default path is a fixed list |
+| `schema` | one property per data field, keyed by its SPX id (`f0`, `f1`, …), each with its JSON type, title, typed default and GDD type |
 | `customActions` | one action per operator event the graphic's state machine declares |
 | `actionDurations` | play/stop/update durations in ms, read off the graphic's own timeline |
 | `renderRequirements` | the authored resolution and frame rate, as `ideal` constraints |
