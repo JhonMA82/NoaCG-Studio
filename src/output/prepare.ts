@@ -171,9 +171,10 @@ export function createPreparer(opts: {
       opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air, id: prep.id });
       return;
     }
+    // No reload: its URL did not answer, or a Take landed while it was asked (./reload.ts).
     if (!(await opts.reload())) {
       waiting = prep;
-      opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air: 0, id: prep.id });
+      opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air: opts.onAir(), id: prep.id });
     }
   };
 

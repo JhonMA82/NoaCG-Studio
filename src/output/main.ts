@@ -57,6 +57,7 @@ import { supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
 import { pingDelay, type PingAck } from '../control/prepareLive';
 import { createPreparer } from './prepare';
+import { reloadWhenClear } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { createSwapper } from './swap';
 import { createSoundBudget } from '../assets/soundBudget';
@@ -142,19 +143,10 @@ function unavailable(why: Unavailable): void {
 /** Library-load failures in a row before the boot reloads (about 1.5 s after the first). */
 const RELOAD_AFTER_THROWS = 3;
 
-/** Reload, if this page's own URL answers right now; whether it is reloading. Otherwise it stays put. */
-async function reloadIfServed(): Promise<boolean> {
-  try {
-    const page = await fetch(window.location.href, { cache: 'no-store' });
-    if (page.ok) {
-      window.location.reload();
-      return true;
-    }
-  } catch {
-    // Unreachable: a reload would paint the browser's error page. The caller carries on.
-  }
-  return false;
-}
+/** Whether this page's own URL answers right now: a reload during an outage would paint the
+ *  browser's error page, on air. */
+const pageServed = async () => (await fetch(window.location.href, { cache: 'no-store' })).ok;
+const reloadPage = () => window.location.reload();
 
 async function boot(): Promise<void> {
   if (!outputSlug) {
@@ -192,7 +184,7 @@ async function boot(): Promise<void> {
       } catch (err) {
         thrown += 1;
         // Not awaited: a probe that hangs on a half-dead network must not stall the retries.
-        if (thrown >= RELOAD_AFTER_THROWS) void reloadIfServed();
+        if (thrown >= RELOAD_AFTER_THROWS) void reloadWhenClear({ probe: pageServed, onAir: () => 0, reload: reloadPage });
         throw err;
       }
     },
@@ -477,13 +469,8 @@ async function boot(): Promise<void> {
       chg = next;
       readyChanged();
     },
-    reload: async () => {
-      const page = await fetch(window.location.href, { cache: 'no-store' });
-      // A Take can land during the HTTP check. Recheck air at the last synchronous boundary.
-      if (!page.ok || airCount() > 0) return false;
-      window.location.reload();
-      return true;
-    },
+    // A Take can land while the probe is out: air is read again after it (./reload.ts).
+    reload: () => reloadWhenClear({ probe: pageServed, onAir: airCount, reload: reloadPage }),
   });
   /** Rows a tail read returned, each with its read: the follow hands them to `onRow` like any other,
    *  and this is how that callback tells them from rows the log topic delivered. A read counts as a
