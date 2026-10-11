@@ -157,3 +157,62 @@ owner's try-out after phase 4, not a gate.
 
 Each phase's pull request adds what the next phase must allow for: decisions, traps, and the
 check's findings.
+
+### After phase 1 (loadable and quiet)
+
+**Layout.** `hooks/register.tsx` is the one hooks module; it imports `hooks/packages.ts`
+(discovery, the "watching" module to replace if the CLI gains a `status` read) and `hooks/band.ts`
+(fitting names to a width). `types/index.d.ts` is the `$.state` contract: add each new value there
+or `claude plugin validate` refuses the key. `tests/world.tsx` is the test harness: a working
+directory in memory, the session's events, and a record of every call a quiet mod never makes.
+`tsconfig.json` is the engine's (it extends the declarations it lays in `.claude-plugin/types/`,
+which ignores itself); `tsc -p cli/plugin-guide` works once a session has loaded the folder.
+
+**Decisions.** A package is a folder holding a `*.ograf.json` whose manifest has a `v_noacg`
+object, so a plain OGraf graphic does not count. Its name is the manifest's `name`, else the
+folder's, cut to one line of plain text (control characters become spaces). Dot folders are
+skipped as well as `node_modules` and frames folders, and at most the first 500 folders by name
+are looked into, 16 at a time. Packages are sorted by name. The band is "NoaCG", then the names
+joined by ` · `, with `+n more` when they do not fit `bodyColumns` (else a lone name or a
+count, which the `Text`'s `truncate-end` cuts), measured in terminal cells by a small table
+(East Asian wide characters and most emoji count two; joined emoji do not); it gives way
+while a survey holds the band. Folders are listed again at `session.start`, at `prompt.submit`
+and after a `tool.call` that is not read-only (`isReadOnly`), never on a timer; a package made
+outside the session shows at the next prompt. Manifests are read again only when their size or
+time changes. The scan runs after the hook has returned, one at a time, and a trigger during a
+scan gets one more pass.
+
+**Traps (Claude Code 2.1.287).**
+- `$` can never be assigned or passed as a value (`latest = $` is refused by the validator).
+  Helpers take closures (`dir => $.fs.list(dir)`) or the state library's `read($, atom)`, and
+  one named hook function may serve two events (`on('session.start', scanThenPass)`). Calling
+  the closures after the hook returned works, in tests and in a real session.
+- A test's `$` has no `fs` noun and no `session.cwd`, so `tests/world.tsx` takes the first
+  path the mod lists as the working directory. AC-12's reach test needs a firmer anchor, such as
+  an inline test plugin that lists `.` first.
+- The engine hands `fs.*` hooks absolute paths; a test hook answering a `$` call returns
+  `{ value }`, never the bare value.
+- 2.1.287's test kit has no `mock.session` and no `ui.notify` event; a test that names either
+  fails to load there. The local `claude` is 2.1.287; the Desktop's 2.1.295 binary is in
+  `%APPDATA%\Claude\claude-code\2.1.295\<hash>\claude.exe`. Run both.
+- A `Text` keeps no `key` in the drawn tree; tests find texts by `type`.
+- Import plugin files without an extension (`./band`): `.ts` imports load but fail `tsc -p`
+  against the engine's tsconfig.
+- The quiet tests refuse `command.register`, `ui.open`, toasts, status and log lines in a folder
+  with no package. Phase 3's `/noacg-guide` command and phase 2's records must keep AC-2: decide
+  whether the command registers only once a package or `noacg` run exists, and change that test
+  on purpose rather than loosen it. The `tool.call` hook already wraps every call; phase 2 reads
+  `noacg` runs there.
+- `$.store` is not mocked unless the test calls `mock.store(on)`.
+
+**Check findings.** `claude plugin validate --strict` and `claude plugin test` (17 tests, terminal
+and desktop) pass on 2.1.287 and 2.1.295, also under an empty profile as CI runs them; CI runs
+both builds. Six
+mutations (no `v_noacg` check, no frames skip, no `node_modules` skip, no rescan after a tool call,
+a band drawn with no package, a scan two levels deep) each fail a test. A headless
+`claude -p --plugin-dir cli/plugin-guide` session in a scratch folder loaded the module with no
+skipped hook or refused tree, and a temporary log line showed the scan finding the package and
+ignoring the frames folder. The same session loaded the mod from `CLAUDE_CODE_PLUGIN_DIRS` in a
+profile's `settings.json` `env`, the README's Desktop route, on the 2.1.287 CLI. Not seen: the
+band in a real terminal or the Desktop app (no sign-in on the build machine and no
+pseudo-terminal); the phase-4 try-out is where it is looked at.
