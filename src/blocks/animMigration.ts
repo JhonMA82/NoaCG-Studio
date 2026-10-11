@@ -12,16 +12,20 @@ const OLD_STRETCH_EDGE_WALK = 'for (var el = box; el; el = el.offsetParent) x +=
 const STRETCH_EDGE_WALK = 'for (var el = box; el && el !== document.body; el = el.offsetParent) x += el.offsetLeft;';
 
 /**
- * The infographic and competition scaffolds' `stop()` as a design saved before #759 carries it:
- * a repeated Stop killed the running exit and froze the graphic on air. The guard goes in front.
+ * The infographic and competition scaffolds' `stop()` bodies as a design saved before #759 carries
+ * them: a repeated Stop killed the running exit and froze the graphic on air. Only these exact
+ * bodies are upgraded, so a stop() someone rewrote stays as written. The guard goes in front.
  */
 const OLD_STOP_OPENING = 'function stop() {\n  if (activeTl) activeTl.kill();\n';
-const STOP_OPENING = `function stop() {\n  ${STOP_AGAIN_GUARD_JS}\n  if (activeTl) activeTl.kill();\n`;
+const STOP_UPGRADES = [
+  '  activeTl = buildOutTimeline();\n}',
+  "  gsap.killTweensOf('*');\n  activeTl = buildOutTimeline();\n  return activeTl;\n}",
+].map((rest) => [OLD_STOP_OPENING + rest, `function stop() {\n  ${STOP_AGAIN_GUARD_JS}\n  if (activeTl) activeTl.kill();\n${rest}`]);
 
 /** Use the same known runtime for preview, save and export; preserve foreign source. */
 export function prepareOutRuntime(js: string): string {
   js = js.split(OLD_STRETCH_EDGE_WALK).join(STRETCH_EDGE_WALK);
-  js = js.split(OLD_STOP_OPENING).join(STOP_OPENING);
+  for (const [old, upgraded] of STOP_UPGRADES) js = js.split(old).join(upgraded);
   const data = losslessAnimData(js);
   if (!data) return js;
   if (data.steps.length === 1) {

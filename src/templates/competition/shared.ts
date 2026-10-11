@@ -195,7 +195,8 @@ function update(data) {
   if (typeof fitStagedText === 'function') fitStagedText();
 }
 
-// The timeline currently on air. play()/stop() kill it before starting a new one —
+// The timeline currently on air. play()/stop() kill it before starting a new one (a stop()
+// while the exit already runs leaves it alone) —
 // gsap.killTweensOf('*') only matches DOM elements, so it would MISS tweens that target
 // plain objects, and an interrupted replay would leave the old one running.
 var activeTl = null;

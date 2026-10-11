@@ -1028,10 +1028,11 @@ const DATA_HEADER = `// The graphic's animation as DATA. Steps play in order —
  * for the exit (the infographic and competition scaffolds). Once Out has started, `activeTl` IS
  * the running exit and `buildOutTimeline()` hands that same timeline back, so a repeated Stop
  * killed the exit and froze the graphic half-way out, on air (issue #759). The interpreter's
- * `noacgOutActive()` says an exit is under way; a hand-written GSAP region has none and keeps
- * the old kill-and-rebuild, which leaves from the live pose.
+ * `noacgOutActive()` says an exit is under way, and `buildOutTimeline()` then returns it (an exit
+ * a timer started too, which `activeTl` never saw). A hand-written GSAP region has no interpreter
+ * and keeps the old kill-and-rebuild, which leaves from the live pose.
  */
-export const STOP_AGAIN_GUARD_JS = "if (typeof noacgOutActive === 'function' && noacgOutActive()) return activeTl;";
+export const STOP_AGAIN_GUARD_JS = "if (typeof noacgOutActive === 'function' && noacgOutActive()) return (activeTl = buildOutTimeline());";
 
 /** Emit the full marked ANIMATION region for a data-driven template. */
 export function emitAnimRegion(data: AnimData): string {

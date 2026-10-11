@@ -46,7 +46,7 @@ const REPEATS_MS = [0, 120];
 /** One infographic and one competition design, also run as a design saved before the fix. */
 const SAVED_BEFORE_FIX = ['ig01', 'es01'];
 /** The guard line the fix added (templates/shared/animRuntime.ts STOP_AGAIN_GUARD_JS). */
-const GUARD_LINE = /^ {2}if \(typeof noacgOutActive === 'function' && noacgOutActive\(\)\) return activeTl;\n/m;
+const GUARD_LINE = /^ {2}if \(typeof noacgOutActive === 'function'[^\n]*\n/m;
 
 /** Installed ahead of GSAP in each document: a clock, frames and timers the test advances. */
 const CLOCK = `<script id="test-clock">
@@ -71,7 +71,8 @@ const CLOCK = `<script id="test-clock">
     var end = now + ms;
     while (now < end) {
       now = Math.min(end, now + 40);
-      for (;;) {
+      // Capped, so a zero-delay timer that re-arms itself cannot hold one step for ever.
+      for (var fired = 0; fired < 1000; fired++) {
         var due = null;
         for (var i = 0; i < timers.length; i++) if (timers[i].at <= now && (!due || timers[i].at < due.at)) due = timers[i];
         if (!due) break;
@@ -91,9 +92,9 @@ const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix })
   const template = variant.create({});
   let unguarded = false;
   if (savedBeforeFix) {
-    const guard = new RegExp(savedBeforeFix.source, savedBeforeFix.flags);
-    unguarded = guard.test(template.js);
-    template.js = template.js.replace(guard, '');
+    const stripped = template.js.replace(new RegExp(savedBeforeFix.source, savedBeforeFix.flags), '');
+    unguarded = stripped !== template.js;
+    template.js = stripped;
   }
   const data = {};
   for (const f of template.fields || []) if (f.field && f.value !== undefined) data[f.field] = String(f.value);
@@ -110,44 +111,42 @@ const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix })
     await new Promise((resolve) => { frame.onload = resolve; frame.srcdoc = srcdoc; document.body.appendChild(frame); });
     return frame.contentWindow;
   };
+  const elements = (w) => [...w.document.body.querySelectorAll('*')].filter((el) => el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE');
+  const label = (el) => el.id || el.className?.baseVal || el.className || el.tagName;
   // Every element's paint-relevant state. Opacity, visibility and the transform are where a
   // frozen exit shows; text is left out (see the header).
-  const pose = (w) => {
-    const out = [];
-    for (const el of w.document.body.querySelectorAll('*')) {
-      if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue;
-      const s = w.getComputedStyle(el);
-      const r = el.getBoundingClientRect();
-      out.push([
-        el.id || el.className?.baseVal || el.className || el.tagName,
-        Math.round(Number(s.opacity) * 100) / 100,
-        s.visibility,
-        s.display,
-        s.transform.replace(/-?\d+\.\d+/g, (n) => String(Math.round(Number(n) * 10) / 10)),
-        Math.round(r.x), Math.round(r.y),
-      ].join('|'));
-    }
-    return out;
-  };
+  const pose = (w) => elements(w).map((el) => {
+    const s = w.getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    return [
+      label(el),
+      Math.round(Number(s.opacity) * 100) / 100,
+      s.visibility,
+      s.display,
+      s.transform.replace(/-?\d+\.\d+/g, (n) => String(Math.round(Number(n) * 10) / 10)),
+      Math.round(r.x), Math.round(r.y),
+    ].join('|');
+  });
   // What a viewer could see: elements that paint something themselves (text, a picture, a fill),
   // inside the frame, with no ancestor hiding them. Clipping by an ancestor is not modelled, so
   // this can only over-count.
   const visible = (w) => {
-    const seen = [];
-    for (const el of w.document.body.querySelectorAll('*')) {
-      if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue;
+    const opacity = new Map(); // element -> opacity including its ancestors'
+    const opacityOf = (el) => {
+      if (!el || el === w.document.documentElement) return 1;
+      if (!opacity.has(el)) opacity.set(el, Number(w.getComputedStyle(el).opacity) * opacityOf(el.parentElement));
+      return opacity.get(el);
+    };
+    return elements(w).filter((el) => {
       const s = w.getComputedStyle(el);
       const paints = ['IMG', 'svg', 'CANVAS', 'VIDEO'].includes(el.tagName)
         || [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())
         || !/rgba\([^)]*,\s*0\)|transparent/.test(s.backgroundColor) || s.backgroundImage !== 'none';
-      if (!paints || s.visibility !== 'visible') continue;
+      if (!paints || s.visibility !== 'visible') return false;
       const r = el.getBoundingClientRect();
-      if (r.width < 1 || r.height < 1 || r.right <= 0 || r.bottom <= 0 || r.left >= width || r.top >= height) continue;
-      let opacity = 1;
-      for (let a = el; a && a !== w.document.documentElement; a = a.parentElement) opacity *= Number(w.getComputedStyle(a).opacity);
-      if (opacity > 0.01) seen.push(el.id || el.className?.baseVal || el.className || el.tagName);
-    }
-    return seen;
+      if (r.width < 1 || r.height < 1 || r.right <= 0 || r.bottom <= 0 || r.left >= width || r.top >= height) return false;
+      return opacityOf(el) > 0.01;
+    }).map(label);
   };
   const rootOpacity = (w) => {
     const sel = w.NOACG_ANIM && w.NOACG_ANIM.root;
@@ -159,13 +158,13 @@ const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix })
     if (typeof w.update === 'function') w.update(JSON.stringify(data));
     w.play();
     w.__advance(onAirMs);
-    const onAir = pose(w);
-    const seenOnAir = visible(w);
+    // The on-air reading is the single Stop's; a repeat only needs where it ends.
+    const before = repeatMs === null ? { onAir: pose(w), seenOnAir: visible(w) } : {};
     w.stop();
     w.__advance(repeatMs ?? 0);
     if (repeatMs !== null) w.stop();
     w.__advance(exitMs);
-    return { onAir, seenOnAir, after: pose(w), seenAfter: visible(w), root: rootOpacity(w) };
+    return { ...before, after: pose(w), seenAfter: visible(w), root: rootOpacity(w) };
   };
 
   const single = await session(null);
@@ -181,13 +180,12 @@ const started = Date.now();
 const runs = await withBundledPage(SPECS, async (page) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.evaluate((clock) => { window.__TEST_CLOCK = clock; }, CLOCK);
-  const ids = await page.evaluate((wanted) => {
-    const out = [];
-    for (const variants of Object.values(window.NOACG_CATALOG.CATALOG)) {
-      for (const v of variants ?? []) if (!wanted || wanted.includes(v.id)) out.push(v.id);
-    }
-    return out.sort();
-  }, only ? [...only] : null);
+  const shipped = await page.evaluate(() =>
+    Object.values(window.NOACG_CATALOG.CATALOG).flatMap((variants) => (variants ?? []).map((v) => v.id)).sort());
+  // A mistyped id must not read as "swept, nothing wrong" (scripts/catalog-scope.mjs).
+  const unknown = (only ?? []).filter((id) => !shipped.includes(id));
+  if (unknown.length) throw new Error(`--only named id(s) the catalog does not ship: ${unknown.join(', ')}`);
+  const ids = only ? shipped.filter((id) => only.includes(id)) : shipped;
   const run = (id, savedBeforeFix = null) =>
     page.evaluate(PLAY_AND_STOP, { id, repeatsMs: REPEATS_MS, onAirMs: ON_AIR_MS, exitMs: EXIT_MS, savedBeforeFix });
   const current = [];
@@ -201,7 +199,7 @@ const runs = await withBundledPage(SPECS, async (page) => {
 const results = [...runs.current, ...runs.saved];
 
 measured(runs.current.length, 'catalog designs stopped twice');
-console.error(`[double-stop] ${results.length} designs, each stopped three ways, in ${((Date.now() - started) / 1000).toFixed(1)} s`);
+console.error(`[double-stop] ${results.length} designs, each stopped ${REPEATS_MS.length + 1} ways, in ${((Date.now() - started) / 1000).toFixed(1)} s`);
 
 /** The first element whose pose differs, for a failure message a person can act on. */
 function firstDifference(a, b) {
@@ -217,7 +215,8 @@ test('a design saved before the fix really had the guard taken out', () => {
 // is nothing on air for it to move.
 test('a single Stop moves every design that is on air (the comparison below is not vacuous)', () => {
   const onAir = results.filter((r) => r.single.seenOnAir.length);
-  assert.ok(onAir.length > results.length / 2, `only ${onAir.length} of ${results.length} designs were on air before Stop`);
+  // A slice can be all stingers; the whole catalog cannot.
+  if (!only) assert.ok(onAir.length > results.length / 2, `only ${onAir.length} of ${results.length} designs were on air before Stop`);
   const still = onAir.filter((r) => !firstDifference(r.single.onAir, r.single.after)).map((r) => r.id);
   assert.deepEqual(still, [], `These designs looked the same before and after Stop: ${still.join(', ')}`);
 });
