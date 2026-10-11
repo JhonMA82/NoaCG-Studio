@@ -764,6 +764,40 @@ function gitIn(cwd, ...cmd) {
  * @param {string} [cwd] the repository to ask - a linked worktree passes its own root
  * @returns {string[]} repo-relative paths, forward slashes, deduplicated
  */
+/**
+ * Does a change to these files need the catalog calibration gate? The same answer `planFor` gives
+ * a branch, read off the flag alone: a catalog trigger, a core file (which escalates and so
+ * assumes the catalog) or an unmapped path all say yes.
+ * @param {string[]} changed
+ */
+export function catalogForChange(changed) {
+  return planFor(changed, { sprintFocus: false }).catalog;
+}
+
+/**
+ * The catalog flag for a FULL run that still knows what moved: main's push diffs `before..sha`.
+ * Until 2026-10-12 every full run on main ran the 4.5-minute catalog gate because `--all` meant
+ * "assume everything", about 140 times a week for landings that touched no template; the gate had
+ * already run on the pull request and the merge group wherever the change could move a design.
+ * No ref, the null sha of a first push, or a ref git cannot diff all answer TRUE - the failure
+ * direction stays "measure more".
+ * @param {string | boolean | undefined} ref
+ * @param {(line: string) => void} [log]
+ */
+export function catalogSince(ref, log = () => {}) {
+  if (typeof ref !== 'string' || ref.trim() === '' || /^0{40}$/.test(ref)) return true;
+  let changed;
+  try {
+    changed = changedFilesSince(ref);
+  } catch (e) {
+    log(`e2e-affected: cannot diff ${ref} - raising the catalog gate (${String(e?.message ?? e).split('\n')[0]}).`);
+    return true;
+  }
+  const catalog = catalogForChange(changed);
+  log(`e2e-affected: catalog gate ${catalog ? 'raised' : 'not needed'} by ${changed.length} changed path(s) since ${ref.slice(0, 9)}.`);
+  return catalog;
+}
+
 export function changedFilesSince(base, cwd = undefined) {
   const opts = { encoding: 'utf8', ...(cwd ? { cwd } : {}), windowsHide: true };
   const committed = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], opts).trim().split('\n');
@@ -1055,6 +1089,7 @@ function emitJson({ mode, specs, catalog, base, changedFiles, traced = null }) {
  */
 const KNOWN_FLAGS = new Map([
   ['--all', 'the whole suite and the catalog gate, with no diff at all'],
+  ['--catalog-since=<ref>', 'with --all: raise the catalog gate only if the change since <ref> can move the catalog (an unusable ref raises it)'],
   ['--focus', 'collapse a core/unmapped escalation to the sprint focus set'],
   ['--no-focus', 'force the honest full escalation even with E2E_SPRINT_FOCUS=1'],
   ['--integration', 'move the base to the FORK POINT, covering both sides of a merge of main'],
@@ -1110,8 +1145,13 @@ function usage() {
  *          | { ok: false, message: string, help: boolean }}
  */
 export function parseArgs(args) {
-  const flags = args.filter((a) => a.startsWith('-'));
-  const positional = args.filter((a) => !a.startsWith('-'));
+  // The one flag that carries a value is written `--catalog-since=<ref>`, so it can never be
+  // mistaken for a base ref: an unquoted empty value (`--catalog-since=`) means "no ref".
+  const since = args.find((a) => a.startsWith('--catalog-since='));
+  const catalogSince = since === undefined ? undefined : since.slice('--catalog-since='.length);
+  const rest = args.filter((a) => a !== since);
+  const flags = rest.filter((a) => a.startsWith('-'));
+  const positional = rest.filter((a) => !a.startsWith('-'));
   const unknown = flags.filter((f) => !KNOWN_FLAGS.has(f));
   if (unknown.length > 0) {
     return {
@@ -1138,7 +1178,7 @@ export function parseArgs(args) {
         ].join('\n'),
       };
     }
-    return { ok: true, flags: new Set(flags), base: undefined, files: positional };
+    return { ok: true, flags: new Set(flags), base: undefined, files: positional, ...(catalogSince === undefined ? {} : { catalogSince }) };
   }
   if (positional.length > 1) {
     return {
@@ -1152,7 +1192,7 @@ export function parseArgs(args) {
       ].join('\n'),
     };
   }
-  return { ok: true, flags: new Set(flags), base: positional[0] };
+  return { ok: true, flags: new Set(flags), base: positional[0], ...(catalogSince === undefined ? {} : { catalogSince }) };
 }
 
 /**
@@ -1293,17 +1333,18 @@ function main() {
   // be given a shard count without duplicating the arithmetic in YAML. Sprint focus deliberately
   // does not apply: this is the honest full escalation, which is the point of asking for it.
   if (has('--all')) {
+    const catalog = catalogSince(parsed.catalogSince, log);
     if (asJson) {
-      emitJson({ mode: 'full', specs: [], catalog: true, base: null, changedFiles: null });
+      emitJson({ mode: 'full', specs: [], catalog, base: null, changedFiles: null });
       return 0;
     }
-    log('e2e-affected: --all - the FULL suite and the catalog gate, with no diff.');
+    log(`e2e-affected: --all - the FULL suite${catalog ? ' and the catalog gate' : ', without the catalog gate'}, with no diff.`);
     if (listOnly) return 0;
     if (!onCi()) {
       console.error(WHOLE_SUITE_ON_GITHUB);
       return 2;
     }
-    const { status, runs } = runPlan({ mode: 'full', specs: [], catalog: true }, ({ args: a }) =>
+    const { status, runs } = runPlan({ mode: 'full', specs: [], catalog }, ({ args: a }) =>
       spawnSync('npx', a, { stdio: 'inherit', shell: true, windowsHide: true }).status,
     );
     log(summariseRuns(runs, status));

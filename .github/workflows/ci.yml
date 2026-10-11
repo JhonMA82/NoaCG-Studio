@@ -303,6 +303,8 @@ jobs:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           DISPATCH_BASE: ${{ inputs.diff_base }}
           MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+          # What this push moved main by: the catalog gate on a full run follows this diff.
+          PUSH_BASE: ${{ github.event.before }}
           GH_TOKEN: ${{ github.token }}
           # Student-release sprint (docs/GOALS_ARCHIVE.md "Student release"): a would-be FULL
           # escalation runs the focus set instead; the nightly still runs everything.
@@ -384,9 +386,14 @@ jobs:
           # the repo is public. The sprint's focus collapse is skipped here on purpose; focus
           # is a device for keeping BRANCH runs cheap, and main is where the paused areas are
           # supposed to be watched.
+          # THE CATALOG GATE FOLLOWS THE PUSH'S OWN DIFF. Every full run used to carry it (--all
+          # assumed the catalog could have moved), 4.5 minutes on about 140 landings a week, most of
+          # which touched no template; the pull request and the merge group had already run it
+          # wherever the change could move a design. --catalog-since asks the planner's own
+          # catalog rule about before..sha; an unusable before raises the gate, as --all always did.
           if [ "$EVENT" = "push" ] && [ "$REF" = "refs/heads/main" ]; then
             echo "::notice title=E2E plan::main - running the FULL suite regardless of the diff."
-            PLAN="$(node scripts/e2e-affected.mjs --json --all)"
+            PLAN="$(node scripts/e2e-affected.mjs --json --all "--catalog-since=${PUSH_BASE:-}")"
           # An absent or garbage-collected base means we cannot know what changed.
           # Then we do not guess: the fallback is the whole suite, because the one thing a
           # fallback must never do is run LESS than the truth. It is the LAST resort - what a

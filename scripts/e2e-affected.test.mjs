@@ -21,6 +21,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   MAX_SHARDS,
+  catalogForChange,
+  catalogSince,
   branchBase,
   changedFilesSince,
   copyContext,
@@ -1579,4 +1581,14 @@ test('off CI a whole-suite plan is refused, and a one- or two-spec plan runs', (
   // The catalog gate is a whole-catalog run: left to CI here, kept on CI.
   assert.equal(localRunPolicy({ ...two, catalog: true }).catalog, false);
   assert.deepEqual(localRunPolicy({ mode: 'full', specs: [], catalog: true }, { ci: true }), { refusal: null, catalog: true });
+});
+
+test('a full run still knows whether the change it carries needs the catalog gate', () => {
+  assert.equal(catalogForChange(['src/templates/lowerThirds/lt01.ts']), true, 'a design file raises it');
+  assert.equal(catalogForChange(['src/model/structure.ts']), true, 'a core file escalates and so assumes the catalog');
+  assert.equal(catalogForChange(['src/something/new.ts']), true, 'an unmapped path escalates and so assumes the catalog');
+  assert.equal(catalogForChange(['docs/GOALS.md', 'e2e/quarantine.json']), false, 'a landing the suite cannot see does not');
+  assert.equal(catalogSince(undefined), true, 'no ref raises it');
+  assert.equal(catalogSince('0000000000000000000000000000000000000000'), true, 'the null sha of a first push raises it');
+  assert.equal(catalogSince('not-a-ref-anyone-has'), true, 'a ref git cannot diff raises it');
 });
