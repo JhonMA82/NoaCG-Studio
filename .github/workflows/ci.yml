@@ -86,12 +86,12 @@ on:
 #
 # Left as it is, deliberately. The fix would be a per-SHA group on main so no two main runs
 # ever share one, and that trades a verdict nothing reads for queue time on the branch gates
-# that everyone waits on: a full main run is 16 jobs against a 20-concurrent-job ceiling, and
-# runs starting while two branches were mid-gate have been measured waiting 22 to 45 minutes
-# for a shard (see the shard-count comment below). The dropped verdict costs
-# nothing real - landings are `--ff-only`, so the superseded SHA was already green on its
-# branch, and the run that supersedes it tests a tree that CONTAINS it. A cancelled run also
-# raises no notification, so this is not an inbox problem either
+# that everyone waits on: a full main run is 19 jobs (11 of them E2E shards) against a
+# 20-concurrent-job ceiling, and runs starting while two branches were mid-gate have been
+# measured waiting 22 to 45 minutes for a shard (see the shard-count comment below). The
+# dropped verdict costs nothing real - landings are `--ff-only`, so the superseded SHA was
+# already green on its branch, and the run that supersedes it tests a tree that CONTAINS it. A
+# cancelled run also raises no notification, so this is not an inbox problem either
 # (docs/VERIFICATION.md, "What a red run means, and what actually emails").
 concurrency:
   # A merge-group run keys on its own id: nothing may cancel the run the queue is waiting on.
@@ -473,9 +473,9 @@ jobs:
       fail-fast: false
       # Sized by the plan job, not fixed here, and since 2026-08-19 sized from MEASURED MINUTES
       # (scripts/e2e-affected.mjs `shardsFor`, scripts/e2e-durations.json): about three minutes
-      # of test execution per runner, capped at ten. The full suite is 123.6 measured minutes;
-      # nine refreshed bins still left only 1.35 minutes of headroom on run 37149189106.
-      # Replaying its file costs on ten bins gives a 16.06-minute slowest predicted job.
+      # of test execution per runner, capped at eleven (`MAX_SHARDS`, which says how that ceiling
+      # is set). The full suite is 169.4 measured minutes (run 38144735534); ten bins predict
+      # 17.5 minutes a job, over the three-minute margin, and eleven predict 16.0.
       #
       # What changed is the SUBSET, which used to be capped at four runners however big it was:
       # under sprint focus and the curated map a subset is routinely 70-100 of the 128 spec
@@ -498,9 +498,9 @@ jobs:
       # and `scripts/e2e-durations.json` now RECORDS the per-job cost so the plan predicts wall
       # clock instead of assuming the good day. See docs/VERIFICATION.md.
       #
-      # Ten is the smallest count that restores three minutes of safety when replaying the
-      # refreshed nine-shard run's measured file costs. It adds one runner while retaining
-      # room under the account's 20-concurrent-job ceiling. More runners cost setup and can
+      # Eleven is the smallest count that keeps three minutes of safety on the latest measured
+      # full run, the same rule that took nine to ten on 2026-10-03. Each step adds one runner
+      # under the account's 20-concurrent-job ceiling. More runners cost setup and can
       # delay overlapping runs: across the 60 runs to 2026-08-19, branches starting while two
       # others were mid-gate waited 22 to 45 minutes for a runner. Keep the timeout at 20,
       # retries at 0 inside each shard, fail-fast false, and the existing retry job and gate.
