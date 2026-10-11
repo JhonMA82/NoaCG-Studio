@@ -23,8 +23,9 @@
 //
 // The mapping is CURATED, not traced, and each spec carries its own share of it in its header
 // (`// covers:`, scripts/e2e-lists.mjs): it errs toward running more. Anything touching the
-// shared core (store, model, preview composer, validation, the shell, the e2e helpers, build
-// config) runs the full suite, because those files feed every flow.
+// shared core (store, model, preview composer, validation, the shell, build config) runs the full
+// suite, because those files feed every flow. An e2e helper runs the specs that import it
+// (`helperReach`), and escalates like core only when a config loads it or nothing imports it.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -161,6 +162,8 @@ const CORE = [
   // export the same way GSAP is, so an edit there has the same fan-out.
   /^src\/assets\/flexGapShim\.js$/,
   /^src\/assets\/flexGapSupport\.ts$/,
+  // With a `helpers` map, only the helpers `helperReach` cannot attribute to their importers reach
+  // this line; a caller that passes no map (catalog-affected, collision-check) sends every helper.
   /^e2e\/_/,
   // The suite's own machinery, which lives under scripts/ but is imported by the Playwright
   // configs and by the offline globalSetup: the port every spec connects to, the worker count,
@@ -299,6 +302,82 @@ const CATALOG_TRIGGERS = [
 ];
 
 /**
+ * WHICH SPECS AN E2E HELPER CAN REACH, read off the imports rather than assumed.
+ *
+ * A helper (`e2e/_*.ts`) is Node code a spec imports, so a change to it can move only the specs
+ * that import it, directly or through another helper. It escalated as CORE instead, and under
+ * sprint focus that escalation became the focus set: #988 changed `e2e/_ografParity.ts` and CI ran
+ * none of its three importers, one of them a catalog spec, so the catalog gate went too (#994).
+ *
+ * Two kinds still escalate, through CORE, because the import graph cannot see who they reach: a
+ * helper the Playwright configs load (`globalSetup`, the trace tsconfig's mapping) or one such a
+ * helper imports, which runs before every spec; and a helper nothing imports, which this reading
+ * has no evidence about. Both fail toward running more.
+ *
+ * @param {Map<string, string>} sources every `.ts` under `e2e/`, repo-relative path -> text
+ * @param {string[]} configs the text of each file that loads helpers outside any spec
+ * @returns {Map<string, { specs: string[], catalog: boolean, configured: boolean, suiteWide: boolean }>}
+ *   per root helper: the default-suite specs it reaches (bare names), whether a catalog or a
+ *   configured spec is among its importers, and whether a config loads it or an importer of it
+ */
+export function helperReach(sources, configs = []) {
+  const importers = new Map();
+  for (const [file, text] of sources) {
+    const dir = file.slice(0, file.lastIndexOf('/'));
+    // A comment line that quotes an import is not one, and counting it would narrow a helper
+    // nothing imports instead of escalating it.
+    const code = text.split('\n').filter((l) => !/^\s*(\/\/|\/?\*)/.test(l)).join('\n');
+    for (const [, spec] of code.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]((?:\.{1,2}\/|\/e2e\/)[^'"]+)['"]/g)) {
+      const parts = (spec.startsWith('/') ? spec.slice(1) : `${dir}/${spec}`).split('/');
+      const stack = [];
+      for (const part of parts) {
+        if (part === '..') stack.pop();
+        else if (part !== '.' && part !== '') stack.push(part);
+      }
+      const target = stack.join('/').replace(/\.(ts|js)$/, '') + '.ts';
+      if (target !== file && sources.has(target)) importers.set(target, [...(importers.get(target) ?? []), file]);
+    }
+  }
+  // Named with or without its extension (`'./e2e/_offline-guard.ts'`, `"./_trace.ts"`).
+  const loaded = (file) => {
+    const stem = /^e2e\/(_[^/]+)\.ts$/.exec(file)?.[1];
+    if (!stem) return false;
+    const named = new RegExp(`/${stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`);
+    return configs.some((t) => named.test(t));
+  };
+  const reach = new Map();
+  for (const helper of sources.keys()) {
+    if (!/^e2e\/_[^/]+\.ts$/.test(helper)) continue;
+    const seen = new Set([helper]);
+    const queue = [helper];
+    while (queue.length) for (const by of importers.get(queue.pop()) ?? []) if (!seen.has(by)) { seen.add(by); queue.push(by); }
+    const all = [...seen];
+    reach.set(helper, {
+      specs: all.filter((f) => /^e2e\/[^/]+\.spec\.ts$/.test(f)).map((f) => f.slice('e2e/'.length)).sort(),
+      catalog: all.some((f) => /^e2e\/catalog\/.+\.spec\.ts$/.test(f)),
+      configured: all.some((f) => /^e2e\/configured\/.+\.spec\.ts$/.test(f)),
+      suiteWide: all.some(loaded),
+    });
+  }
+  return reach;
+}
+
+/** `helperReach` over this checkout: every `.ts` under e2e/, and the configs that load helpers. */
+export function helperImporters(root = fileURLToPath(new URL('..', import.meta.url))) {
+  const sources = new Map();
+  for (const rel of readdirSync(join(root, 'e2e'), { recursive: true })) {
+    const file = `e2e/${String(rel).replaceAll('\\', '/')}`;
+    if (file.endsWith('.ts') && !file.includes('/node_modules/')) sources.set(file, readFileSync(join(root, file), 'utf8'));
+  }
+  const configs = readdirSync(root).filter((n) => /^playwright\..*config\.ts$/.test(n)).map((n) => join(root, n));
+  configs.push(...readdirSync(join(root, 'e2e')).filter((n) => /^tsconfig.*\.json$/.test(n)).map((n) => join(root, 'e2e', n)));
+  return helperReach(sources, configs.map((p) => readFileSync(p, 'utf8')));
+}
+
+/** The helper map, read only when the change has a helper in it. */
+const helpersFor = (changed) => (changed.some((f) => /^e2e\/_/.test(f)) ? helperImporters() : null);
+
+/**
  * THE CLASSIFICATION, as a pure function of a changed-file list.
  *
  * Split out from the CLI so it can be tested without a git repository and a real diff. That is
@@ -324,18 +403,24 @@ const CATALOG_TRIGGERS = [
  * geometry, since longer words are how a fit breaks. The catalog and configured flags are asked
  * first either way.
  *
+ * A CHANGED E2E HELPER is planned by the specs that import it (`helpers`, from `helperReach`),
+ * raising the catalog or configured flag when one of those is a catalog or configured spec. A
+ * helper the map has no specs for, or one a config loads, falls through to CORE as before, and
+ * with no map at all nothing changes.
+ *
  * @param {string[]} changed        repo-relative paths, forward slashes
  * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null,
  *           copyEdits?: Map<string, { kind: 'text'|'class', terms: string[], grew?: boolean }>,
  *           specTexts?: Map<string, string>, baselined?: string[], measuring?: string[],
- *           traced?: { files: Map<string, string[]>, broad: Set<string>, problem: string | null } | null }} [opts]
+ *           traced?: { files: Map<string, string[]>, broad: Set<string>, problem: string | null } | null,
+ *           helpers?: ReturnType<typeof helperReach> | null }} [opts]
  *   `traced` is the nightly's map (`readTracedMap`); null leaves it out, which only tests do.
  * @returns {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean,
- *             unmapped: string[], focusApplied: boolean, copyOnly: string[] }}
+ *             unmapped: string[], focusApplied: boolean, copyOnly: string[], helperPlanned: string[] }}
  */
 export function planFor(
   changed,
-  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null } = {},
+  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null } = {},
 ) {
   const onDisk = specsOnDisk ? new Set(specsOnDisk) : null;
   const specs = new Set();
@@ -344,6 +429,7 @@ export function planFor(
   let configured = false;
   const unmapped = [];
   const copyOnly = [];
+  const helperPlanned = [];
   const fromTrace = new Set();
   const tracedEscalated = [];
   const tracedBroad = [];
@@ -375,6 +461,14 @@ export function planFor(
         const kept = baselined.includes(c.spec) || (copy.grew && measuring.includes(c.spec));
         if (kept && c.test(file)) specs.add(c.spec);
       }
+      continue;
+    }
+    const helper = helpers?.get(file);
+    if (helper && !helper.suiteWide && (helper.specs.length > 0 || helper.catalog || helper.configured)) {
+      helperPlanned.push(file);
+      for (const s of helper.specs) if (!onDisk || onDisk.has(s)) specs.add(s);
+      if (helper.catalog) catalog = true;
+      if (helper.configured) configured = true;
       continue;
     }
     if (CORE.some((r) => r.test(file))) {
@@ -433,7 +527,7 @@ export function planFor(
   // still reports 'none' for this gate, and the printed line is what says otherwise.
   const mode = full ? 'full' : list.length === 0 && !catalog ? 'none' : 'subset';
   return {
-    mode, specs: list, catalog, configured, unmapped, focusApplied, copyOnly,
+    mode, specs: list, catalog, configured, unmapped, focusApplied, copyOnly, helperPlanned,
     traced: full ? [] : traceOnly,
     tracedProblem: tracedEscalated.length > 0 ? traced.problem : null,
     tracedEscalated,
@@ -1207,7 +1301,7 @@ export function parseArgs(args) {
  * @param {{ count: number, noun: string, hypothetical: boolean }} opts  `count` and `noun` name
  *   the input list ("N changed files" for a diff, "N path(s)" for `--files`).
  */
-function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [], traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [] }, { count, noun, hypothetical, catalogHere = true }) {
+function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [], helperPlanned = [], traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [] }, { count, noun, hypothetical, catalogHere = true }) {
   // What made the plan escalate, so the line that says so names the cause the reader has to fix.
   const why = tracedProblem ? 'core/unmapped/untraced' : 'core/unmapped';
   if (tracedProblem) {
@@ -1226,6 +1320,10 @@ function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configu
   if (copyOnly.length > 0) {
     log(`e2e-affected: ${copyOnly.length} file(s) changed only wording or class styling - planned by the specs that name what changed (scripts/e2e-affected-copy.mjs):`);
     for (const f of copyOnly) log('  -', f);
+  }
+  if (helperPlanned.length > 0) {
+    log(`e2e-affected: ${helperPlanned.length} e2e helper(s) planned by the specs that import them, directly or through another helper:`);
+    for (const f of helperPlanned) log('  -', f);
   }
   // Printed before mode 'none' returns: a change confined to hosted Pro's wire contract or to
   // e2e/configured/ leaves this gate with nothing to run, and that verdict on its own reads as
@@ -1316,7 +1414,7 @@ function main() {
   // identical `planFor` result differently.
   if (has('--files')) {
     const changed = [...new Set(parsed.files)].map((f) => f.replace(/\\/g, '/'));
-    const plan = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap() });
+    const plan = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap(), helpers: helpersFor(changed) });
     narratePlan(log, plan, { count: changed.length, noun: 'path(s)', hypothetical: true });
     if (asJson) {
       emitJson({ mode: plan.mode, specs: plan.specs, catalog: plan.catalog, base: null, changedFiles: changed, traced: tracedReport(plan) });
@@ -1387,7 +1485,7 @@ function main() {
     return 0;
   }
 
-  const planResult = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap(), ...copyContext(base, changed) });
+  const planResult = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap(), helpers: helpersFor(changed), ...copyContext(base, changed) });
   const { mode, specs: plan, catalog: catalogAffected } = planResult;
   const full = mode === 'full';
 
