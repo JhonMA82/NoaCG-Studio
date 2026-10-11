@@ -95,9 +95,10 @@ Landed or queued, each its own pull request through the merge queue:
   budget exception. Decision 2 of the spec was amended to say so. Its own pull-request run printed
   WARN at 93.8% (run 38177271445).
 - #1041 phase 1c: `scripts/check-e2e-protection.mjs` in the plan job; the auto-fix rule superseded
-  (`root/every-pull-request-repository-has-auto`); the placement rule
-  (`root/put-durable-check-cheapest-layer-proves`) superseding the bare new-flow spec rule;
-  `docs/VERIFICATION.md` and the work-spec README corrected.
+  by one that also forbids a repair from deleting or skipping a spec or writing the unlocking
+  entries; the placement rule superseding the bare new-flow spec rule (both under
+  `contracts/rules/root/`, named in that pull request); `docs/VERIFICATION.md` and the work-spec
+  README corrected.
 - #1043 phase 1 item 5: `scripts/e2e-selection-misses.mjs` in `weekly-audit.yml`, report only. Over
   the week to 2026-10-11 it finds no miss with today's planner (the #927 case reads as selected
   because #947 fixed the header; one editor-groups failure was a quarantined flake).
