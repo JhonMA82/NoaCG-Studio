@@ -70,3 +70,29 @@ so the checker says in plain words what a landing with this shape would now show
 
 Each phase's pull request adds what the next phase must allow for: decisions, traps, and the
 check's findings.
+
+### Phase 1: green stays green
+
+- **Findings of the last check:** none (first phase).
+- **Decision: "every shard reported, none failing" is green only on the run's own job list.**
+  `retryPlan` takes `jobs` (this run's jobs with their steps, read through `gh api` with
+  `RUN_ID`) and `errors` (the merged report's run-level error count). It answers ok with nothing
+  to re-run only when every `E2E <n>/<total>` job either succeeded or was cancelled with "E2E
+  shard", "Tests left the tree clean" and "Upload shard report" all passed (`cancelledAfterReport`,
+  `REPORTED_STEPS`), and the report holds zero errors. Anything else - a failed leg, a cancelled
+  leg whose tree check failed, a list that is short or unreadable, a report that does not say -
+  still refuses with "the failure was not a test" plus the specific why.
+- **Why not `needs.e2e.result`:** the first cut read the matrix's aggregate `cancelled`, and the
+  review rejected it. The gate's own comment says that word can hide a FAILED shard beside a
+  capped one, so a clean-tree failure (#801) next to a shard at its cap would have gone green.
+  Per-job steps also catch a re-run attempt whose shard was killed mid-test while an earlier
+  attempt's report is still downloaded.
+- **ci.yml, lines that run and read the retry:** the retry job gains `actions: read` and passes
+  `GH_TOKEN`, `GH_REPO` and `RUN_ID` to the script; "Upload the retry report" runs only when a
+  re-run step ran (with nothing run, `if-no-files-found: error` is what failed run 38153870752's
+  retry job, beside the refusal); the quarantine step skips an empty `specs` (`[]`), which it
+  used to answer with an exit 2 under `continue-on-error`. The gate's notice for a cancelled
+  matrix now covers the nothing-run case, and the script annotates the shard that reached its cap
+  so that pressure stays visible on a green run.
+- **For phase 2:** nothing here touches `scripts/e2e-affected.mjs`. `retryPlan` gained two
+  optional inputs; a caller that omits them keeps the old refusals.
