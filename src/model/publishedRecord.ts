@@ -41,13 +41,31 @@ function canonical(value: unknown): string {
 
 const memo = new WeakMap<Show, string>();
 
+/** A linked graphic's embedded template, digested once per copy: every write of a pool copy
+ *  stamps a new `savedAt`, so the id and that stamp name its content, and a cue edit does not
+ *  re-walk a design that can carry pictures. */
+const templateMemo = new Map<string, string>();
+function templateDigest(graphic: Show['graphics'][number]): string {
+  const key = `${graphic.id}|${graphic.savedAt}`;
+  let digest = templateMemo.get(key);
+  if (digest === undefined) {
+    digest = contentHash(canonical(graphic.template));
+    if (templateMemo.size > 200) templateMemo.clear();
+    templateMemo.set(key, digest);
+  }
+  return digest;
+}
+
 /** The digest of what a publish reads from this record. */
 export function publishedRecordDigest(show: Show): string {
   const known = memo.get(show);
   if (known !== undefined) return known;
   const kept: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(show)) if (!NOT_PUBLISHED.has(key)) kept[key] = value;
-  kept.graphics = show.graphics.map(({ savedAt: _savedAt, template, ...graphic }) => ({ ...graphic, ...(graphic.graphicId ? { template } : { fields: template.fields }) }));
+  kept.graphics = show.graphics.map((g) => {
+    const { savedAt: _savedAt, template, ...graphic } = g;
+    return { ...graphic, ...(g.graphicId ? { template: templateDigest(g) } : { fields: template.fields }) };
+  });
   const digest = contentHash(canonical(kept));
   memo.set(show, digest);
   return digest;

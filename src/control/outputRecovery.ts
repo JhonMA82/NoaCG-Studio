@@ -116,7 +116,7 @@ export function monitorReplay(
     const msg = row.msg;
     if (msg.t === 'cue' || msg.t === 'staged' || msg.t === 'live' || msg.t === 'ping') return [];
     if (!onAir.includes(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, row.id)) return [];
-    return [{ graphic: row.graphic, msg, ...(row.created_at ? { created_at: row.created_at } : {}) }];
+    return [{ graphic: row.graphic, msg, created_at: row.created_at }];
   });
 }
 

@@ -14,14 +14,15 @@
 //
 // Pure, no value imports, so scripts/picture-target.test.mjs runs it in Node.
 
-/** The production's own picture graphic to add to, or the name for a new one. */
+/** The production's own picture graphic to add to (`existing`, keeping its name), or null and the
+ *  name for a new one. */
 export function pictureUploadTarget<G extends { name: string; type: string; graphicId?: string | null }>(
   pool: readonly G[],
   libraryNames: Iterable<string>,
   baseName: string,
-): { existing: G; name?: undefined } | { existing: null; name: string } {
+): { existing: G | null; name: string } {
   const existing = pool.find((g) => g.type === 'picture' && !g.graphicId);
-  if (existing) return { existing };
+  if (existing) return { existing, name: existing.name };
   const taken = new Set([...libraryNames, ...pool.map((g) => g.name)]);
   let name = baseName;
   for (let n = 2; taken.has(name); n += 1) name = `${baseName} ${n}`;

@@ -2,10 +2,11 @@
 //
 // Two ways. The production record itself (cues, items, folders) differs from the one published:
 // its digest says so (model/publishedRecord.ts), so a change undone reads clean again. Or a
-// publish would render something different although the record did not move: a publish resolves every graphic's CURRENT template out of the library (model/library.ts
-// `templateForSavedGraphic`), so a graphic edited in the editor changes the next publish without
-// touching the record. On the studio day of 2026-10-01 that second kind stayed invisible: graphics
-// stayed off air until somebody published again, and Prepare for Live said "Nothing changed".
+// publish would render something different although the record did not move: a publish resolves
+// every graphic's CURRENT template out of the library (model/library.ts `templateForSavedGraphic`),
+// so a graphic edited in the editor changes the next publish without touching the record. On the
+// studio day of 2026-10-01 that second kind stayed invisible: graphics stayed off air until
+// somebody published again, and Prepare for Live said "Nothing changed".
 //
 // The second is read graphic by graphic: what a publish would write for the graphics this browser
 // reads from its own library (`libraryGraphicDigests`) against the published stamp's digests. It is

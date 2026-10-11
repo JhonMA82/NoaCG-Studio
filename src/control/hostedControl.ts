@@ -18,6 +18,7 @@ import { profileForPublish, readPublishedProfile, type ShowProfile } from '../mo
 import type { ResolvedValues } from '../model/productionData';
 import { designEditedAt, loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import { publishedRecordDigest } from '../model/publishedRecord';
+import { monitorReplay, planOutputRecovery, type ReplayItem } from './outputRecovery';
 import type { Resolution, SpxField, SpxTemplate, SoundAssetRef } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
@@ -2015,6 +2016,19 @@ export async function hostedControlTail(slug: string, afterId: number, graphic?:
   const { data, error } = await sb.rpc('control_tail', { p_slug: slug, p_graphic: graphic ?? null, p_after: afterId });
   if (error) return [];
   return (data ?? []) as ControlEventRow[];
+}
+
+/**
+ * The rows a PROGRAM monitor replays over the reports when its page opens (control/outputRecovery.ts
+ * `monitorReplay`): the log after the oldest on-air report baseline, read once. A read that does
+ * not reach the head replays nothing, and the reports stand. The hosted control page and the
+ * in-app production page both boot through this.
+ */
+export async function bootMonitorReplay(slug: string, resolved: Pick<ResolvedControlShow, 'liveCue' | 'live' | 'lastEventId'>): Promise<ReplayItem[]> {
+  const onAir = Object.keys(resolved.liveCue).filter((graphic) => resolved.liveCue[graphic]);
+  const { followFrom, snapshotAt } = planOutputRecovery(onAir, resolved.live);
+  if (onAir.length === 0 || followFrom >= resolved.lastEventId) return [];
+  return monitorReplay(onAir, snapshotAt, (await hostedControlRange(slug, followFrom, resolved.lastEventId)) ?? []);
 }
 
 /**

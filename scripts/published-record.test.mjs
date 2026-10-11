@@ -11,6 +11,8 @@ import assert from 'node:assert/strict';
 const { publishedRecordDigest, recordChangedSincePublish } = await import('../src/model/publishedRecord.ts');
 
 const PUBLISHED_AT = '2026-10-12T10:00:00.000Z';
+/** Every write of a pool copy's template stamps a new save time (addGraphicToShow, refreshGraphicCopies). */
+const LATER = '2026-10-12T10:04:00.000Z';
 
 function show(over = {}) {
   return {
@@ -93,17 +95,17 @@ test('what a publish writes back, and bookkeeping, never reads as a change', () 
 test('re-adding the same design does not count; what the publish reads from the pool does', () => {
   const live = published(show());
   // addGraphicToShow replaces by name with a fresh save time and a fresh copy of the template.
-  assert.equal(recordChangedSincePublish(write(live, (s) => { s.graphics[0].savedAt = '2026-10-12T10:04:00.000Z'; })), false);
+  assert.equal(recordChangedSincePublish(write(live, (s) => { s.graphics[0].savedAt = '2026-10-12T10:03:00.000Z'; })), false);
   // The render is compared by content elsewhere (usePublishDrift); its fields feed the hosted panel.
-  assert.equal(recordChangedSincePublish(write(live, (s) => { s.graphics[0].template.fields[0].title = 'Guest'; })), true);
+  assert.equal(recordChangedSincePublish(write(live, (s) => { s.graphics[0].template.fields[0].title = 'Guest'; s.graphics[0].savedAt = LATER; })), true);
   assert.equal(recordChangedSincePublish(write(live, (s) => { s.graphics[0].layer = 21; })), true);
   assert.equal(recordChangedSincePublish(write(live, (s) => { delete s.graphics[0].graphicId; })), true);
   assert.equal(recordChangedSincePublish(write(live, (s) => { s.name = 'Saturday quiz'; })), true);
   // A linked graphic's copy is what a teammate without its library record would publish.
-  assert.equal(recordChangedSincePublish(write(live, (s) => { s.graphics[0].template.html = '<p></p>'; })), true);
+  assert.equal(recordChangedSincePublish(write(live, (s) => { s.graphics[0].template.html = '<p></p>'; s.graphics[0].savedAt = LATER; })), true);
   // An unlinked graphic's render is compared by content elsewhere, so only its fields count here.
   const own = published(show({ graphics: [{ ...show().graphics[0], graphicId: undefined }] }));
-  assert.equal(recordChangedSincePublish(write(own, (s) => { s.graphics[0].template.html = '<p></p>'; })), false);
+  assert.equal(recordChangedSincePublish(write(own, (s) => { s.graphics[0].template.html = '<p></p>'; s.graphics[0].savedAt = LATER; })), false);
   assert.equal(recordChangedSincePublish(write(live, (s) => { s.cues.push({ id: 'cue-2', sourceId: 'pool-1', label: 'Guest', values: {} }); })), true);
 });
 

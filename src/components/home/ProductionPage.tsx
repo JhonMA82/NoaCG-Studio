@@ -181,7 +181,7 @@ import {
   controlPageUrl,
   controlShowBySlug,
   followControlLog,
-  hostedControlRange,
+  bootMonitorReplay,
   hostedControlTail,
   joinPageUrl,
   presenterPageUrl,
@@ -208,7 +208,7 @@ import {
   type VerbSent,
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
-import { airedAfter, monitorReplay, planOutputRecovery, type AiredMap, type ReplayItem } from '../../control/outputRecovery';
+import { airedAfter, type AiredMap, type ReplayItem } from '../../control/outputRecovery';
 import { createSendDebts } from '../../control/failedSends';
 import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import {
@@ -1713,16 +1713,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // …and the rows AFTER each report (control/outputRecovery.ts `monitorReplay`). A report
       // trails its graphic's last change by 800 ms, so a page reloaded straight after a press
       // rebuilt PROGRAM, and the not-on-air-yet baseline, from the picture before it (issue #762).
-      // A read that does not reach the head replays nothing, and the report stands.
-      const onAir = Object.keys(resolved.liveCue).filter((graphic) => resolved.liveCue[graphic]);
-      const { followFrom, snapshotAt } = planOutputRecovery(onAir, resolved.live);
-      const sinceReports =
-        onAir.length > 0 && followFrom < resolved.lastEventId
-          ? await hostedControlRange(hostedSlug, followFrom, resolved.lastEventId)
-          : [];
+      const sinceReports = await bootMonitorReplay(hostedSlug, resolved);
       if (!alive) return;
       // A command this page applied meanwhile is newer than those rows, so they are not replayed.
-      const replay = commandsApplied.current === commandsAtRequest ? monitorReplay(onAir, snapshotAt, sinceReports ?? []) : [];
+      const replay = commandsApplied.current === commandsAtRequest ? sinceReports : [];
       // THE SEED IS A WHOLESALE REPLACE, so it is skipped outright when this operator has
       // already acted. Merging the two was the other option and it is worse: the wire's map
       // is a snapshot, not a diff, so a layer this operator took OFF while the read was in
@@ -1759,12 +1753,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           const pair = speakingClocksRef.current.get(graphic);
           // The wire values come from the report (stamped), not from a replayed plain resend;
           // the rebuild below replays the rows onto them.
+          const wire = (field: string) => base?.[field] ?? values[field];
           if (clock && values[clock.field] !== undefined) {
-            clockValues.current[graphic] = base?.[clock.field] ?? values[clock.field];
+            clockValues.current[graphic] = wire(clock.field);
             values[clock.field] = plainClockValue(values[clock.field]);
           }
           if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
-            speakingValues.current[graphic] = { [pair.fieldA]: base?.[pair.fieldA] ?? values[pair.fieldA], [pair.fieldB]: base?.[pair.fieldB] ?? values[pair.fieldB] };
+            speakingValues.current[graphic] = { [pair.fieldA]: wire(pair.fieldA), [pair.fieldB]: wire(pair.fieldB) };
             values[pair.fieldA] = plainClockValue(values[pair.fieldA]);
             values[pair.fieldB] = plainClockValue(values[pair.fieldB]);
           }
@@ -2505,15 +2500,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const uploadPictures = async (files: File[]) => {
     if (files.length === 0) return;
     // The production's OWN picture graphic, never one pooled from the library (pictureTarget.ts).
-    const target = pictureUploadTarget(show.graphics, library.map((d) => d.name), PICTURE_GRAPHIC_NAME);
-    const existing = target.existing;
+    const { existing, name } = pictureUploadTarget(show.graphics, library.map((d) => d.name), PICTURE_GRAPHIC_NAME);
     // The stage the pictures are drawn on, derived the way the output payload derives it, so an
     // upload into a 4K production keeps 4K pixels instead of being capped at 1080.
     const stage = show.graphics.reduce<Resolution>((r, g) => {
       const res = templateForSavedGraphic(g, library).resolution;
       return { width: Math.max(r.width, res.width), height: Math.max(r.height, res.height), label: r.label };
     }, DEFAULT_GRAPHICS_RESOLUTION);
-    let template = target.existing ? target.existing.template : { ...createPictureTemplate('', stage), name: target.name };
+    let template = existing ? existing.template : { ...createPictureTemplate('', stage), name };
     const room = MAX_PICTURES - template.assets.length;
     if (room <= 0) {
       setNote(`This production already holds ${MAX_PICTURES} pictures. Remove one before adding another.`);

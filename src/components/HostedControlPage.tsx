@@ -57,7 +57,7 @@ import {
   clearCueItems,
   controlShowBySlug,
   followControlLog,
-  hostedControlRange,
+  bootMonitorReplay,
   hostedControlTail,
   headsSay,
   headsStillOn,
@@ -82,7 +82,7 @@ import {
   type ResolvedControlShow,
   type VerbSent,
 } from '../control/hostedControl';
-import { airedAfter, monitorReplay, planOutputRecovery, type AiredMap } from '../control/outputRecovery';
+import { airedAfter, type AiredMap } from '../control/outputRecovery';
 import { isBackendConfigured } from '../backend/config';
 import { fastEventGraphics as clockFreeGraphics } from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
@@ -338,15 +338,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       const resolved = answer.ok ? answer.value : null;
       if (resolved) {
         // Only the layers on air need recovering; the plan is the renderer's own.
-        const onAir = Object.keys(resolved.liveCue).filter((graphic) => resolved.liveCue[graphic]);
-        const { followFrom, snapshotAt } = planOutputRecovery(onAir, resolved.live);
-        const rows =
-          onAir.length > 0 && followFrom < resolved.lastEventId
-            ? await hostedControlRange(slug, followFrom, resolved.lastEventId)
-            : [];
+        const replay = await bootMonitorReplay(slug, resolved);
         if (!live) return;
-        // A read that did not reach the head replays nothing: the report stands, as it did before.
-        bootReplay.current = monitorReplay(onAir, snapshotAt, rows ?? []);
+        bootReplay.current = replay;
       }
       setShow(resolved);
       if (!resolved) return;
