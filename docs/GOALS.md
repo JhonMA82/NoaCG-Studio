@@ -179,7 +179,7 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   standard and a proprietary platform disagree on interoperability, NoaCG follows the standard.
   OGraf is the long-term interoperability direction, not a declared internal format.
 - **Current state:** OGraf exports play on SPX 1.4.1; a foreign package plays isolated on the
-  output stage, not yet from the library or rundown. Standard fields and the interop suite are open.
+  output stage, not yet from the library or rundown. Fields use GDD types; the interop suite is open.
 - **Done for this phase:** every exported graphic passes the official checker and an
   external-renderer round; field definitions follow the standard; the interop suite runs.
 - **Next milestone (important):** compliant foreign OGraf packages play reliably through NoaCG

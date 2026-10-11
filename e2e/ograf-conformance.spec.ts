@@ -166,6 +166,7 @@ test('the validator refuses the manifest mistakes the spec is strict about', asy
       customActions: [{ id: 'select', name: 'Select' }],
     } as Record<string, unknown>;
     const mutate = (patch: Record<string, unknown>) => validateOgrafManifest({ ...base, ...patch }).length;
+    const gdd = (properties: Record<string, unknown>) => mutate({ schema: { type: 'object', properties } });
     return {
       clean: validateOgrafManifest(base).length,
       vendorField: mutate({ noacgFlavour: 'lower-third' }),
@@ -187,13 +188,39 @@ test('the validator refuses the manifest mistakes the spec is strict about', asy
       thumbnailNotAnImage: mutate({ thumbnails: [{ file: 'preview.txt' }] }),
       missingMain: validateOgrafPackage(base, ['other.mjs']).length,
       presentMain: validateOgrafPackage(base, ['graphic.mjs']).length,
+      // gdd/gdd-types.json: every standard GDD type as the standard spells it is clean, and each
+      // type's own requirement, broken, is refused.
+      cleanGdd: gdd({
+        line: { type: 'string', gddType: 'single-line' },
+        text: { type: 'string', gddType: 'multi-line' },
+        file: { type: 'string', gddType: 'file-path', gddOptions: { extensions: ['mp4'] } },
+        image: { type: 'string', gddType: 'file-path/image-path', gddOptions: { extensions: ['png'] } },
+        pick: { type: 'string', gddType: 'select', enum: ['a', 'b'], gddOptions: { labels: { a: 'A', b: 'B' } } },
+        level: { type: 'integer', gddType: 'select', enum: [1, 2], gddOptions: { labels: { 1: 'One', 2: 'Two' } } },
+        tags: { type: 'array', gddType: 'select-multiple', items: { type: 'string', enum: ['x'] }, gddOptions: { labels: { x: 'X' } } },
+        colour: { type: 'string', gddType: 'color-rrggbb', pattern: '^#[0-9a-f]{6}$', default: '#f6a623' },
+        tint: { type: 'string', gddType: 'color-rrggbbaa', pattern: '^#[0-9a-f]{8}$' },
+        share: { type: 'number', gddType: 'percentage' },
+        hold: { type: 'integer', gddType: 'duration-ms' },
+        later: { type: 'string', gddType: 'file-path/video-path' },
+      }),
+      gddTypeAgainstItsType: gdd({ f0: { type: 'number', gddType: 'single-line' } }),
+      gddTypeNotAString: gdd({ f0: { type: 'string', gddType: 7 } }),
+      colourWithoutPattern: gdd({ f0: { type: 'string', gddType: 'color-rrggbb' } }),
+      colourUpperCasePattern: gdd({ f0: { type: 'string', gddType: 'color-rrggbb', pattern: '^#[0-9A-F]{6}$' } }),
+      selectWithoutLabels: gdd({ f0: { type: 'string', gddType: 'select', enum: ['a'], gddOptions: {} } }),
+      selectWithoutEnum: gdd({ f0: { type: 'string', gddType: 'select', gddOptions: { labels: {} } } }),
+      integerSelectLabelKey: gdd({ f0: { type: 'integer', gddType: 'select', enum: [1], gddOptions: { labels: { one: 'One' } } } }),
+      selectMultipleNotAnArray: gdd({ f0: { type: 'string', gddType: 'select-multiple', gddOptions: { labels: {} } } }),
+      extensionsNotStrings: gdd({ f0: { type: 'string', gddType: 'file-path', gddOptions: { extensions: [4] } } }),
     };
   }, SCHEMA_URL);
 
   expect(verdicts.clean).toBe(0);
   expect(verdicts.presentMain).toBe(0);
+  expect(verdicts.cleanGdd, 'a standard GDD type spelt as the standard spells it was refused').toBe(0);
   for (const [name, count] of Object.entries(verdicts)) {
-    if (name === 'clean' || name === 'presentMain') continue;
+    if (name === 'clean' || name === 'presentMain' || name === 'cleanGdd') continue;
     expect(count, `${name} was accepted`).toBeGreaterThan(0);
   }
 });
