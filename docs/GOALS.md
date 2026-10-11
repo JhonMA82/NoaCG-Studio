@@ -156,10 +156,10 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   and browser sources are proven; in a real vMix 29 a NoaCG output ran a three-layer production
   (take, live update, replace, out). Real SPX 1.2.1 and 1.4.1 play the SPX exports with fields, Continue and Stop,
   and open a production export's rundown copied in by hand; 1.4.1 also plays the OGraf package.
-  Values with ' & < > or a line break show as HTML entities, Update on the OGraf package is an SPX
-  defect, and cueing through the output embed is unproven (`SPX_ON_A_REAL_SERVER.md`). A
-  three-member walk on a local backend proves a team's production playing with its creator signed
-  out; saved entries and later library edits still resolve through whoever publishes.
+  ' & < > and line breaks show as typed in SPX exports, as entities in the OGraf package (#1047);
+  1.4's Update is SPX's defect; output-embed cueing is unproven (`SPX_ON_A_REAL_SERVER.md` §13).
+  A three-member walk on a local backend proves a team's production playing with its creator
+  signed out; saved entries and later library edits still resolve through whoever publishes.
 - **Done for this phase:**
   - **Basic media:** clips and audio play reliably from the rundown through CasparCG, with volume,
     loop and the other attributes a production genuinely needs; more than that is optional.
