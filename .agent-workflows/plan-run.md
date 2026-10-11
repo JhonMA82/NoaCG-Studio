@@ -8,6 +8,7 @@ the next starts only after the check passed. Output: the phases landed on `main`
 
 - `editor`: `docs/EDITOR_REBUILD_PLAN.md`; its order and acceptance are in `docs/EDITOR_PLAN.md`.
 - `guided-mod`: `docs/work-specs/guided-mod/spec.md`; phases, acceptance and phase notes are in it.
+- `production-page`: `docs/work-specs/production-page-refactor/spec.md`; the same.
 - `ci-plan`: `docs/work-specs/ci-plan-reliability/spec.md`; the same.
 
 ## Boundaries
@@ -25,9 +26,8 @@ the next starts only after the check passed. Output: the phases landed on `main`
 
 - **Open the run** with the owner's window, in Helsinki time with its offset (unstated: ask, along
   with what the plan's checks need on this machine, such as a signed-in `claude -p`):
-  `node scripts/wave-plan-store.mjs --open <date> plan-<plan> --until <iso>`, the date being the
-  run's first day. The same `--until` resumes after a restart; a new one is a new window, which only
-  the owner names.
+  `node scripts/wave-plan-store.mjs --open <date> plan-<plan> --until <iso>`; `<date>` is the run's
+  first day, the same `--until` resumes after a restart, a new one is a new window the owner named.
 - **First open only**: read the plan on `origin/main` (`git fetch origin main`) and copy the phases
   still to build, numbered, under `## Phases` in the wave file, each with where its acceptance is.
 
