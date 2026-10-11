@@ -466,8 +466,8 @@ included.
   iframe, and Playwright's page clock installs a separate fake clock there whose grid lands at a
   phase against the host page's that differs from run to run. Two consequences, each measured on
   CI: GSAP was driven from the iframe's own frames, so at the 300 ms sample an entrance timeline
-  read 0.288 s instead of 0.304 s (about 175 of 528 designs off on the nightly, mostly during the
-  entrance); and the countdowns and game timers tick on `setInterval` against `Date.now()`, so
+  read 0.288 s instead of 0.304 s (167 of the 528 catalog designs off on the nightly, mostly during
+  the entrance); and the countdowns and game timers tick on `setInterval` against `Date.now()`, so
   `ss*` and `gt*` landed a digit apart. The harness now drives the iframe's GSAP from the host
   page's frames and clock and gives the studio document the host's timers, animation frames,
   `Date` and `performance` (`HOST_CLOCK_JS`). On CI's whole catalog after both: no design
@@ -489,3 +489,11 @@ included.
 - **AC-8.** The `src` diff is `src/export/targets/ograf.ts`, `src/export/AGENTS.md` and
   `src/ograf/guide.ts`; `node scripts/check-catalog-emit.mjs` passes (528 designs);
   `e2e/exports.spec.ts` passes whole.
+- **AC-9 and AC-10, on this branch.** SPX 1.4.1: all 20 judged beats pass, and all 20 again with
+  `--renderer-css "div, span { letter-spacing: 12px !important; }"`, where the light mount failed
+  ten in phase 3; each graphic is in its own shadow root, and SPX's Update and payload gaps read as
+  before. SuperFly's ograf-server main: all 30 beats pass, the board downloaded from the export
+  window itself. `evidence/phase-4.md`.
+- **Not done.** The ograf.dev checker was not re-run by hand (evidence, not a gate). The phase 3
+  walk folders and projects (`noacg_walk_light`, `noacg_walk_shadow`, `NoaCG_Walk_light`,
+  `NoaCG_Walk_shadow`) are still in the local SPX install.

@@ -447,7 +447,9 @@ project through the same endpoints, drives the controller's own functions, and j
 by comparing the graphic in `/renderer` with the same package after the same calls on SPX's blank
 `/templates/empty.html`. It writes `ASSETS\templates\noacg_walk\` and the project
 `DATAROOT\NoaCG_Walk`, both replaced on every run, and its frames and transcript into
-`ograf-spx-out/plain/` or `ograf-spx-out/renderer-css/` (gitignored).
+`ograf-spx-out/plain/` or `ograf-spx-out/renderer-css/` (gitignored). On 2026-10-11, with the shadow root
+the only mount, every judged beat passed, also with a `letter-spacing: 12px !important` rule added
+to the renderer page (docs/work-specs/ograf-shadow-root/evidence/phase-4.md).
 
 ## 11. The production's rundown, walked on both servers (2026-10-02)
 
