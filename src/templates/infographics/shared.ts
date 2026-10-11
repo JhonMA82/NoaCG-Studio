@@ -41,6 +41,7 @@ import {
 import type { PresetConfig } from '../lowerThirds/animPresets';
 import type { AnimData } from '../../blocks/animData';
 import { convertToDataRegion } from '../shared/standard';
+import { STOP_AGAIN_GUARD_JS } from '../shared/animRuntime';
 import { stageExtraJs } from '../shared/stageFit';
 import { igPresetById } from './igPresets';
 import { IG_MOTION_JS } from './igMotion';
@@ -137,8 +138,10 @@ function play() {
   activeTl = buildInTimeline();
 }
 
-// stop(): take the infographic off air — run the exit timeline.
+// stop(): take the infographic off air — run the exit timeline. Pressed again while the
+// graphic leaves, it lets that exit finish: killing it would freeze the graphic on air.
 function stop() {
+  ${STOP_AGAIN_GUARD_JS}
   if (activeTl) activeTl.kill();
   activeTl = buildOutTimeline();
 }

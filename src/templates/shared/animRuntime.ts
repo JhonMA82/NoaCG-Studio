@@ -1023,6 +1023,16 @@ const DATA_HEADER = `// The graphic's animation as DATA. Steps play in order —
 // walk driven by play/next/stop. The timeline UI reads and writes this block — and so can
 // you: edit a number and press play.`;
 
+/**
+ * The first line of a scaffold `stop()` that keeps its own `activeTl` and kills it before asking
+ * for the exit (the infographic and competition scaffolds). Once Out has started, `activeTl` IS
+ * the running exit and `buildOutTimeline()` hands that same timeline back, so a repeated Stop
+ * killed the exit and froze the graphic half-way out, on air (issue #759). The interpreter's
+ * `noacgOutActive()` says an exit is under way; a hand-written GSAP region has none and keeps
+ * the old kill-and-rebuild, which leaves from the live pose.
+ */
+export const STOP_AGAIN_GUARD_JS = "if (typeof noacgOutActive === 'function' && noacgOutActive()) return activeTl;";
+
 /** Emit the full marked ANIMATION region for a data-driven template. */
 export function emitAnimRegion(data: AnimData): string {
   return `${ANIMATION_MARK_OPEN}

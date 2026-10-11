@@ -59,6 +59,7 @@ import {
   zoneCssText,
 } from '../shared/base';
 import { composeRefine, convertToDataRegion } from '../shared/standard';
+import { STOP_AGAIN_GUARD_JS } from '../shared/animRuntime';
 import { stageExtraJs } from '../shared/stageFit';
 import type { AnimData, AnimStep } from '../../blocks/animData';
 import type { PresetConfig } from '../lowerThirds/animPresets';
@@ -213,8 +214,10 @@ function play() {
   return activeTl;
 }
 
-// stop(): take the graphic off air — run the exit timeline.
+// stop(): take the graphic off air — run the exit timeline. Pressed again while the graphic
+// leaves, it lets that exit finish: killing it would freeze the graphic on air.
 function stop() {
+  ${STOP_AGAIN_GUARD_JS}
   if (activeTl) activeTl.kill();
   gsap.killTweensOf('*');
   activeTl = buildOutTimeline();
