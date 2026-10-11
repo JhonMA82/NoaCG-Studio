@@ -42,7 +42,8 @@ and one `criteria` entry per AC:
 
 Use fail/unverified for unsatisfied criteria. A missing criterion remains open. Each text receipt
 contains command/run references, observed behaviour and limitations. `.md`, `.json`, `.txt` and
-`.log` receipts are supported; binary evidence can be linked inside them. Hashes normalize CRLF
+`.log` receipts are supported. Screenshots and clips stay on the machine that made them, never
+committed (`repo-pictures/spec.md`); a receipt says in words what one showed. Hashes normalize CRLF
 to LF, so Windows and Linux checkouts agree. Empty or changed receipts cannot pass.
 
 ```sh
