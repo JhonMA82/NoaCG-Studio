@@ -190,12 +190,12 @@ and maps the OGraf actions onto it.
 
 | OGraf | What happens |
 | --- | --- |
-| `load({data, renderType, renderCharacteristics})` | puts the CSS + markup in the element's own open shadow root, adds the design's `@font-face` and `@property` rules to the renderer's head, loads GSAP, runs the graphic's own script, applies `data`. Resolves when the graphic is ready for actions. |
+| `load({data, renderType, renderCharacteristics})` | puts the CSS + markup in the element's own open shadow root, adds the design's `@font-face` and `@property` rules to the renderer's head, loads GSAP, runs the graphic's own script and then its DOM-ready code, applies `data`. Resolves when the graphic is ready for actions. |
 | `playAction({goto, delta, skipAnimation})` | first call plays the entrance (step 0); further calls walk the default path with `next()`. Returns `currentStep`, or `undefined` once the graphic has gone to the end. |
 | `stopAction({skipAnimation})` | plays the exit. |
 | `updateAction({data, skipAnimation})` | writes the changed fields. Data never causes a state change - that is a house rule and an OGraf one. |
 | `customAction({id, payload, skipAnimation})` | fires that operator event through the graphic's own serial event queue. An unknown id answers `400`. |
-| `dispose()` | stops every tween, timeline and delayed call the graphic started, empties its shadow root, and takes its font rules out of the head with the last copy of the design. |
+| `dispose()` | stops every tween, timeline, delayed call and timer the graphic started, empties its shadow root, and takes its font rules out of the head with the last copy of the design. |
 | `goToTime({timestamp})` | non-real-time only - see below. |
 | `setActionsSchedule({schedule})` | non-real-time only - see below. |
 
@@ -222,6 +222,13 @@ Contract details worth knowing:
   the action still answers `200`, because "the operator pressed a button that does nothing right
   now" is not a transport error. The returned `currentStep` tells you where the graphic actually
   is.
+- **The graphic's lifecycle is a page's.** Under SPX and CasparCG the graphic is the page: its
+  DOM-ready code waits until its whole script has run, and its timers end with the page. A
+  renderer's page loaded long before the graphic did and outlives it, so `graphic.mjs` restores
+  both: the DOM-ready code runs after the code further down has set what it reads (`sb21` and
+  `sb22` failed to load without this, issue #964), and `dispose()` stops what its own
+  `setTimeout`, `setInterval` and `requestAnimationFrame` started, so a countdown stops counting
+  when the renderer clears the layer (issue #989).
 
 ## Non-real-time (offline) rendering
 

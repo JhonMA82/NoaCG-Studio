@@ -992,7 +992,7 @@ export function graphicSources(template: SpxTemplate): { html: string; css: stri
  */
 const WRAPPER_BINDINGS = new Set([
   'ensureGsap', 'ensureFlexGap', 'ensureLottie', 'packageUrl', 'substitute', 'withPackageUrls', 'withPackagePaths',
-  'scopedDocument', 'scopedWindow', 'scopedGsap', 'initTemplate', 'Graphic',
+  'scopedDocument', 'scopedTimers', 'scopedWindow', 'scopedGsap', 'initTemplate', 'Graphic',
 ]);
 
 /**
@@ -1246,12 +1246,24 @@ const MAIN_PATH = ${JSON.stringify(mainPath)};
  * renderer's page (and a measuring probe it appends to \`body\` lands inside the graphic, in
  * the graphic's font). Its \`head\` is where the template's own document-level additions go: the
  * shadow root, so a <style> the template appends there styles its own tree, as it styled its own
- * page under SPX. Everything else on document (readyState, addEventListener,
- * fonts, createElement) passes straight through to the real one. Which is which is not a
- * hand-kept list: scripts/ograf-document-members.test.mjs reads every member the template
- * runtimes use and fails on one that is neither scoped here nor decided as a pass-through there.
+ * page under SPX.
+ *
+ * Its loading state is the graphic's own too. A template's script runs while its page is still
+ * loading, so its DOM-ready code (\`if (document.readyState === 'loading')
+ * addEventListener('DOMContentLoaded', ...)\`) waits until the whole script has run. A renderer's
+ * page loaded long before the Graphic did, so through to the real document that code ran at once,
+ * in the middle of the script, before the code below it had set what it reads: sb21's spotlight
+ * repaint read a machine its animation region had not made yet, and load() answered 500 (issue
+ * #964). So \`readyState\` answers 'loading' and the DOMContentLoaded listeners wait until
+ * \`loaded()\`, which _load() calls once \`initTemplate\` has run: the order a page gives them.
+ *
+ * Everything else on document (fonts, createElement) passes straight through to the real one.
+ * Which is which is not a hand-kept list: scripts/ograf-document-members.test.mjs reads every
+ * member the template runtimes use and fails on one that is neither scoped here nor decided as a
+ * pass-through there.
  */
 function scopedDocument(root, head) {
+  let waiting = [];
   const scoped = {
     getElementById: (id) => root.querySelector('[id="' + String(id).replace(/"/g, '\\\\"') + '"]'),
     querySelector: (sel) => root.querySelector(sel),
@@ -1259,14 +1271,86 @@ function scopedDocument(root, head) {
     body: root,
     documentElement: root,
     head: head,
+    get readyState() {
+      return waiting ? 'loading' : document.readyState;
+    },
+    addEventListener(type, listener, options) {
+      if (!waiting || type !== 'DOMContentLoaded') document.addEventListener(type, listener, options);
+      else if (listener) waiting.push(listener);
+    },
   };
-  return new Proxy(document, {
+  const doc = new Proxy(document, {
     get(target, key) {
       if (key in scoped) return scoped[key];
       const value = target[key];
       return typeof value === 'function' ? value.bind(target) : value;
     },
   });
+  // The template's page has loaded: its DOMContentLoaded listeners run, in the order it added
+  // them. One that throws fails the load, as the same code failed it when it ran at once.
+  const loaded = () => {
+    const listeners = waiting;
+    waiting = null;
+    const event = new Event('DOMContentLoaded');
+    for (const listener of listeners) {
+      if (typeof listener === 'function') listener.call(doc, event);
+      else if (typeof listener.handleEvent === 'function') listener.handleEvent(event);
+    }
+  };
+  return { doc, loaded };
+}
+
+/**
+ * The timers of ONE mounted Graphic: \`setTimeout\`, \`setInterval\`, \`requestAnimationFrame\` and
+ * their clears, handed to the template as parameters of \`initTemplate\` (a bare call in its code
+ * would otherwise resolve to the global) and on its scoped window.
+ *
+ * Under SPX and CasparCG a template's timers end with its page. A renderer's page outlives every
+ * Graphic on it, so a countdown's \`setInterval(tickClock, 250)\` went on ticking into a graphic
+ * dispose() had taken off the page (issue #989). So each timer is recorded until it fires or is
+ * cleared, and \`clear()\`, which dispose() calls, stops whatever is left. A timeout or interval
+ * is recorded with the clear that stops it, because a page's clock may refuse the other one
+ * (Playwright's does). The template's own clears pass through exactly as it called them.
+ */
+function scopedTimers() {
+  const pending = new Map();
+  const frames = new Set();
+  const timers = {
+    setTimeout(handler, ms, ...args) {
+      const id = window.setTimeout(typeof handler === 'function'
+        ? function () { pending.delete(id); return handler.apply(this, arguments); }
+        : handler, ms, ...args);
+      pending.set(id, 'clearTimeout');
+      return id;
+    },
+    setInterval(...args) {
+      const id = window.setInterval(...args);
+      pending.set(id, 'clearInterval');
+      return id;
+    },
+    clearTimeout(id) {
+      pending.delete(id);
+      window.clearTimeout(id);
+    },
+    clearInterval(id) {
+      pending.delete(id);
+      window.clearInterval(id);
+    },
+    requestAnimationFrame(callback) {
+      const id = window.requestAnimationFrame(function () { frames.delete(id); return callback.apply(this, arguments); });
+      frames.add(id);
+      return id;
+    },
+    cancelAnimationFrame(id) {
+      frames.delete(id);
+      window.cancelAnimationFrame(id);
+    },
+  };
+  const clear = () => {
+    pending.forEach((clearer, id) => window[clearer](id));
+    frames.forEach((id) => window.cancelAnimationFrame(id));
+  };
+  return { timers, clear };
 }
 
 /**
@@ -1292,19 +1376,22 @@ function scopedDocument(root, head) {
  *
  * \`document\` is answered here too, with the graphic's scoped document: hand-written code that
  * reaches the page as \`window.document.getElementById('f0')\` would otherwise find the
- * renderer's first #f0, which is the neighbour's when another graphic mounted first.
+ * renderer's first #f0, which is the neighbour's when another graphic mounted first. So are the
+ * timers, with the graphic's own (\`scopedTimers\`), so a \`window.setTimeout\` stops at dispose()
+ * as a bare \`setTimeout\` does.
  *
- * ONE READ IS REWRITTEN, and only one: a host METHOD - \`getComputedStyle\`, \`setTimeout\`,
+ * ONE READ IS REWRITTEN, and only one: a host METHOD - \`getComputedStyle\`, \`matchMedia\`,
  * \`fetch\` - throws when it is called with any receiver but the real window, so it is handed
  * back bound. Nothing else is, because a bound function carries none of the original's own
  * properties: binding \`Date\` would make \`window.Date.now()\` "undefined is not a function",
  * and binding gsap would drop every method hanging off it. Host methods are exactly the native
  * functions with no \`prototype\`, which is what tells the two apart.
  */
-function scopedWindow(names, doc) {
+function scopedWindow(names, doc, timers) {
   const own = Object.create(null);
   for (const name of names) own[name] = undefined;
   own.document = doc;
+  Object.assign(own, timers);
   const isHostMethod = (fn) =>
     !fn.prototype && /\\[native code\\]/.test(Function.prototype.toString.call(fn));
   return new Proxy(window, {
@@ -1392,9 +1479,14 @@ function scopedGsap(root, made) {
 // initTemplate(): runs the template's own JS AFTER the markup is in the DOM and returns
 // its runtime entry points. The code inside is exactly what the editor shows — the
 // \`document\`, \`window\` and \`gsap\` parameters shadow the global ones so its lookups stay
-// inside this Graphic.
-function initTemplate(document, window, gsap) {
+// inside this Graphic, and the timer parameters so dispose() can stop what it schedules. The code
+// runs in a function of its own inside this one, so a declaration of its own under one of those
+// names (\`const requestAnimationFrame = window.requestAnimationFrame\`) shadows the parameter, as
+// on a page it shadows the global, instead of stopping the whole module from parsing. It keeps
+// this function's indentation, so its own multi-line strings read exactly as written.
+function initTemplate(document, window, gsap, { setTimeout, setInterval, clearTimeout, clearInterval, requestAnimationFrame, cancelAnimationFrame }) {
   window.noacgResolveSound = packageUrl;
+  return (function () {
 ${template.js.replace(/^/gm, '  ')}
 
   // THE TIMELINE'S OWN VOCABULARY, handed to the scoped window above. Every name here is one
@@ -1430,6 +1522,7 @@ ${
     soundQuiet: (typeof noacgSoundSetQuiet === 'function') ? noacgSoundSetQuiet : null,
     soundDispose: (typeof noacgSoundDispose === 'function') ? noacgSoundDispose : null
   };
+  })();
 }
 
 class Graphic extends HTMLElement {
@@ -1448,6 +1541,7 @@ class Graphic extends HTMLElement {
     this._step = -1;
     this._disposed = false;
     this._made = null;
+    this._clearTimers = null;
     this._holdsHead = false;
   }
 
@@ -1558,12 +1652,13 @@ class Graphic extends HTMLElement {
   // stylesheet is scoped to the attribute _claimCanvas() stamps, and the canvas is the page it was
   // authored for. The markup becomes the canvas's own children, as it was the body's, with no
   // wrapper, so a \`body > .x\` rule and a read of \`document.body.children\` find the design's
-  // top-level elements, and only them. Returns the canvas and the template's scoped document.
+  // top-level elements, and only them. Returns the canvas, the template's scoped document and
+  // the function that ends its loading.
   _mountTemplate() {
     const canvas = this._claimCanvas(withPackageUrls.css(TEMPLATE_CSS));
     this._holdHeadCss();
     canvas.insertAdjacentHTML('beforeend', withPackageUrls.html(TEMPLATE_HTML));
-    return { canvas, doc: scopedDocument(canvas, this.shadowRoot) };
+    return { canvas, ...scopedDocument(canvas, this.shadowRoot) };
   }
 
   async _load(params) {
@@ -1580,9 +1675,13 @@ class Graphic extends HTMLElement {
     await ensureFlexGap();${usesLottie ? '\n    await ensureLottie();' : ''}
     // A load that fails anywhere past this point takes down what it mounted and answers 500.
     try {
-      const { canvas, doc } = this._mountTemplate();
+      const { canvas, doc, loaded } = this._mountTemplate();
       this._made = new WeakSet();
-      this._runtime = initTemplate(doc, scopedWindow(TIMELINE_FUNCTIONS, doc), scopedGsap(canvas, this._made));
+      const { timers, clear } = scopedTimers();
+      this._clearTimers = clear;
+      this._runtime = initTemplate(doc, scopedWindow(TIMELINE_FUNCTIONS, doc, timers), scopedGsap(canvas, this._made), timers);
+      // The template's script has run, so its page has loaded and its DOM-ready code runs now.
+      loaded();
       if (this._runtime.soundPrepare) await this._runtime.soundPrepare();
       const audioError = this._runtime.soundStatus && this._runtime.soundStatus();
       if (audioError) throw new Error(audioError);
@@ -1597,6 +1696,9 @@ class Graphic extends HTMLElement {
 
   async _dispose() {
     if (this._runtime && this._runtime.soundDispose) this._runtime.soundDispose();
+    // Every timer the template's code started: a countdown's interval would go on ticking.
+    if (this._clearTimers) this._clearTimers();
+    this._clearTimers = null;
     const tree = this._tree();
     const gsap = window.gsap;
     if (gsap) {

@@ -37,8 +37,6 @@ const RUNTIME_SOURCES = ['src/templates/**/*.ts', 'src/blocks/**/*.ts'];
 
 /** Members of the real document a graphic may share with the renderer's page, and why. */
 const PASS_THROUGH = {
-  readyState: "the page's loading state; a graphic is initialised after the renderer's page has loaded, so its DOM-ready wait runs at once",
-  addEventListener: "only DOMContentLoaded is listened for, which has already fired; a graphic owns no document-level events",
   fonts: "the page's font set, which is where a graphic's @font-face rules register: lifted out of its shadow tree into the renderer's <head>, because a shadow tree registers none; `fonts.ready` waits for the graphic's faces as well",
   createElement: 'makes a detached node; the template appends it inside its own canvas',
   createElementNS: 'makes a detached SVG node; the template appends it inside its own canvas',
@@ -61,16 +59,20 @@ const ESCAPES = new RegExp(
   'g',
 );
 const MEMBER = /(?<![\w$.])document\.([A-Za-z_$][\w$]*)/g;
-/** The events a runtime listens for on the document, which PASS_THROUGH.addEventListener's reason covers. */
+/**
+ * The events a runtime listens for on the document. The scoped document holds DOMContentLoaded
+ * until the template's code has run, as a page does; any other event would be the renderer page's.
+ */
 const DOCUMENT_EVENT = /(?<![\w$.])document\.addEventListener\(\s*(['"])([\w-]+)\1/g;
 const DECIDED_EVENTS = ['DOMContentLoaded'];
 
-/** The members `scopedDocument` answers for the graphic, read off the generated module's source. */
+/** The members `scopedDocument` answers for the graphic, read off the generated module's source:
+ *  each `name:`, getter and method of its `scoped` object. */
 function scopedMembers() {
   const source = readFileSync(path.join(ROOT, 'src/export/targets/ograf.ts'), 'utf8');
-  const fn = /function scopedDocument\(root, head\) \{\r?\n {2}const scoped = \{\r?\n([\s\S]*?)\r?\n {2}\};/.exec(source);
+  const fn = /function scopedDocument\(root, head\) \{\r?\n(?: {2}.*\r?\n)*? {2}const scoped = \{\r?\n([\s\S]*?)\r?\n {2}\};/.exec(source);
   assert.ok(fn, 'scopedDocument() no longer has the shape this test reads - update the reader, not the list');
-  return new Set([...fn[1].matchAll(/^ {4}([A-Za-z_$][\w$]*):/gm)].map((m) => m[1]));
+  return new Set([...fn[1].matchAll(/^ {4}(?:get )?([A-Za-z_$][\w$]*)(?::|\()/gm)].map((m) => m[1]));
 }
 
 /** Every member read in the runtime sources, with one file that reads it. */
@@ -95,10 +97,12 @@ const scoped = scopedMembers();
 const { members, escapes, events } = readMembers();
 measured(members.size, 'document members the template runtimes read');
 
-test('scopedDocument scopes the lookups, the canvas and the head', () => {
+test('scopedDocument scopes the lookups, the canvas, the head and the loading state', () => {
   // `head` is where a template's own document-level additions go: the graphic's shadow root, so a
-  // <style> it appends styles its own tree and not the renderer's page.
-  for (const member of ['getElementById', 'querySelector', 'querySelectorAll', 'body', 'documentElement', 'head']) {
+  // <style> it appends styles its own tree and not the renderer's page. `readyState` and
+  // `addEventListener` are its loading: 'loading' while its code runs, its DOMContentLoaded once it
+  // has, where the renderer's page loaded long before (issue #964).
+  for (const member of ['getElementById', 'querySelector', 'querySelectorAll', 'body', 'documentElement', 'head', 'readyState', 'addEventListener']) {
     assert.ok(scoped.has(member), `scopedDocument no longer scopes document.${member}`);
   }
 });
@@ -120,11 +124,11 @@ test('no template runtime reaches the renderer page around the scoped document',
   );
 });
 
-test('a runtime listens on the document only for the events its pass-through reason covers', () => {
+test('a runtime listens on the document only for DOMContentLoaded, which the scoped document holds', () => {
   assert.deepEqual(
     [...events].filter(([event]) => !DECIDED_EVENTS.includes(event)).map(([event, file]) => `${event} (${file})`),
     [],
-    "document.addEventListener reaches the renderer's page - a document-level event there is the renderer's, not the graphic's",
+    "document.addEventListener passes any other event to the renderer's page - a document-level event there is the renderer's, not the graphic's",
   );
 });
 
