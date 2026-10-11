@@ -162,7 +162,8 @@ const CORE = [
   // export the same way GSAP is, so an edit there has the same fan-out.
   /^src\/assets\/flexGapShim\.js$/,
   /^src\/assets\/flexGapSupport\.ts$/,
-  // Only the helpers `helperReach` cannot attribute to their importers reach this line.
+  // With a `helpers` map, only the helpers `helperReach` cannot attribute to their importers reach
+  // this line; a caller that passes no map (catalog-affected, collision-check) sends every helper.
   /^e2e\/_/,
   // The suite's own machinery, which lives under scripts/ but is imported by the Playwright
   // configs and by the offline globalSetup: the port every spec connects to, the worker count,
@@ -323,7 +324,10 @@ export function helperReach(sources, configs = []) {
   const importers = new Map();
   for (const [file, text] of sources) {
     const dir = file.slice(0, file.lastIndexOf('/'));
-    for (const [, spec] of text.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]((?:\.{1,2}\/|\/e2e\/)[^'"]+)['"]/g)) {
+    // A comment line that quotes an import is not one, and counting it would narrow a helper
+    // nothing imports instead of escalating it.
+    const code = text.split('\n').filter((l) => !/^\s*(\/\/|\/?\*)/.test(l)).join('\n');
+    for (const [, spec] of code.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]((?:\.{1,2}\/|\/e2e\/)[^'"]+)['"]/g)) {
       const parts = (spec.startsWith('/') ? spec.slice(1) : `${dir}/${spec}`).split('/');
       const stack = [];
       for (const part of parts) {
@@ -334,7 +338,13 @@ export function helperReach(sources, configs = []) {
       if (target !== file && sources.has(target)) importers.set(target, [...(importers.get(target) ?? []), file]);
     }
   }
-  const loaded = (file) => /^e2e\/_/.test(file) && configs.some((t) => t.includes(file.slice('e2e/'.length)));
+  // Named with or without its extension (`'./e2e/_offline-guard.ts'`, `"./_trace.ts"`).
+  const loaded = (file) => {
+    const stem = /^e2e\/(_[^/]+)\.ts$/.exec(file)?.[1];
+    if (!stem) return false;
+    const named = new RegExp(`/${stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`);
+    return configs.some((t) => named.test(t));
+  };
   const reach = new Map();
   for (const helper of sources.keys()) {
     if (!/^e2e\/_[^/]+\.ts$/.test(helper)) continue;
@@ -363,6 +373,9 @@ export function helperImporters(root = fileURLToPath(new URL('..', import.meta.u
   configs.push(...readdirSync(join(root, 'e2e')).filter((n) => /^tsconfig.*\.json$/.test(n)).map((n) => join(root, 'e2e', n)));
   return helperReach(sources, configs.map((p) => readFileSync(p, 'utf8')));
 }
+
+/** The helper map, read only when the change has a helper in it. */
+const helpersFor = (changed) => (changed.some((f) => /^e2e\/_/.test(f)) ? helperImporters() : null);
 
 /**
  * THE CLASSIFICATION, as a pure function of a changed-file list.
@@ -1361,7 +1374,7 @@ function main() {
   // identical `planFor` result differently.
   if (has('--files')) {
     const changed = [...new Set(parsed.files)].map((f) => f.replace(/\\/g, '/'));
-    const plan = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap(), helpers: helperImporters() });
+    const plan = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap(), helpers: helpersFor(changed) });
     narratePlan(log, plan, { count: changed.length, noun: 'path(s)', hypothetical: true });
     if (asJson) {
       emitJson({ mode: plan.mode, specs: plan.specs, catalog: plan.catalog, base: null, changedFiles: changed, traced: tracedReport(plan) });
@@ -1431,7 +1444,7 @@ function main() {
     return 0;
   }
 
-  const planResult = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap(), helpers: helperImporters(), ...copyContext(base, changed) });
+  const planResult = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap(), helpers: helpersFor(changed), ...copyContext(base, changed) });
   const { mode, specs: plan, catalog: catalogAffected } = planResult;
   const full = mode === 'full';
 

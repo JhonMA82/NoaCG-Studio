@@ -358,15 +358,21 @@ test('a changed e2e helper plans the specs that import it, in both modes, on the
   for (const sprintFocus of [false, true]) {
     const plan = planFor(['e2e/_ografParity.ts'], { sprintFocus, specsOnDisk: specFilesOnDisk(), helpers });
     assert.equal(plan.mode, 'subset', `sprintFocus ${sprintFocus}`);
-    assert.deepEqual(plan.specs, ['ograf-isolation.spec.ts', 'ograf-parity.spec.ts'], `sprintFocus ${sprintFocus}`);
+    for (const spec of ['ograf-isolation.spec.ts', 'ograf-parity.spec.ts']) assert.ok(plan.specs.includes(spec), `${spec}, sprintFocus ${sprintFocus}`);
+    assert.ok(plan.specs.length < 20, 'its importers, not the focus set');
     assert.equal(plan.catalog, true, 'e2e/catalog/ograf-parity.spec.ts imports it, so the catalog gate runs');
     assert.equal(plan.focusApplied, false);
     assert.deepEqual(plan.helperPlanned, ['e2e/_ografParity.ts']);
   }
   // A helper the Playwright configs load runs before every spec, so it still escalates.
-  assert.equal(planFor(['e2e/_offline-guard.ts'], { helpers }).mode, 'full');
-  assert.equal(planFor(['e2e/_env-probe.ts'], { helpers }).mode, 'full', 'loaded by _offline-guard through /e2e/');
-  assert.equal(planFor(['e2e/_trace.ts'], { helpers }).mode, 'full', 'the trace tsconfig maps every spec to it');
+  for (const [helper, why] of [
+    ['e2e/_offline-guard.ts', 'the configs\' globalSetup'],
+    ['e2e/_env-probe.ts', 'loaded by _offline-guard through /e2e/'],
+    ['e2e/_trace.ts', 'the trace tsconfig maps every spec to it'],
+  ]) {
+    assert.equal(helpers.get(helper)?.suiteWide, true, why);
+    assert.equal(planFor([helper], { helpers }).mode, 'full', why);
+  }
 });
 
 test('a helper reaches its specs through other helpers, and an unreached helper escalates', () => {
@@ -383,8 +389,12 @@ test('a helper reaches its specs through other helpers, and an unreached helper 
     ['e2e/_guard.ts', "import { x } from './_loaded';"],
     ['e2e/_loaded.ts', "export const x = 1;"],
     ['e2e/uses-loaded.spec.ts', "import { x } from './_loaded';"],
+    ['e2e/_bare.ts', 'export const b = 1;'],
+    ['e2e/uses-bare.spec.ts', "import { b } from './_bare';"],
+    ['e2e/_quoted.ts', 'export const q = 1;'],
+    ['e2e/mentions.spec.ts', "// was: import { q } from './_quoted';\n * import { q } from './_quoted'"],
   ]);
-  const helpers = helperReach(sources, ["globalSetup: './e2e/_guard.ts'"]);
+  const helpers = helperReach(sources, ["globalSetup: './e2e/_guard.ts'", "import { b } from './e2e/_bare';"]);
   const leaf = planFor(['e2e/_leaf.ts'], { helpers, sprintFocus: true });
   assert.deepEqual(leaf.specs, ['direct.spec.ts', 'dynamic.spec.ts', 'through.spec.ts']);
   assert.equal(leaf.catalog, true, 'reached e2e/catalog/bench.spec.ts through _mid');
@@ -394,6 +404,8 @@ test('a helper reaches its specs through other helpers, and an unreached helper 
   assert.equal(live.configured, true);
   assert.equal(planFor(['e2e/_orphan.ts'], { helpers }).mode, 'full', 'nothing imports it: run more, not less');
   assert.equal(planFor(['e2e/_loaded.ts'], { helpers }).mode, 'full', 'a config-loaded helper imports it');
+  assert.equal(planFor(['e2e/_bare.ts'], { helpers }).mode, 'full', 'a config names it without its extension');
+  assert.equal(planFor(['e2e/_quoted.ts'], { helpers }).mode, 'full', 'a comment quoting an import is not one');
   assert.equal(planFor(['e2e/_leaf.ts']).mode, 'full', 'with no helper map the old escalation stands');
 });
 

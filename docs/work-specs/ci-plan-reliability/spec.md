@@ -111,12 +111,15 @@ check's findings.
   set on top was rejected: a TypeScript helper can only move the specs that import it, and the
   76-spec focus set ran for `_ografParity.ts` while proving nothing about it.
 - **What still escalates through CORE:** a helper a Playwright config or `e2e/tsconfig*.json`
-  loads, or one such a helper imports (`_offline-guard`, `_env-probe`, `_trace`); a helper nothing
-  imports; a deleted helper; and any caller that passes no map (`catalog-affected.mjs`).
+  names, with or without its extension, or one such a helper imports (`_offline-guard`, `_trace`,
+  and `_env-probe` through `_offline-guard`); a helper nothing imports (a commented-out import
+  does not count); a deleted helper. The map is built only by this script's CLI and only when a
+  helper changed; `catalog-affected.mjs`, `collision-check.mjs` and `e2e-plan-compare.mjs` pass no
+  map and keep escalating every helper, which runs more, never less.
 - **Cost, measured on today's tree:** most helpers plan 1-20 specs where they planned the focus
   set (76) in CI or the full suite (233) locally. The broad ones plan more than the focus set:
   `_create.ts` 121 specs, `_durable.ts` 91. That is the honest set a change to them can break.
-- **Trap:** the config check is a substring match of the helper's file name in the config text,
-  so a helper renamed to collide with another name escalates rather than narrowing; that is the
-  safe direction. ci.yml needed no change: it reads only the JSON, whose shape is unchanged.
+- **Trap:** the config check matches `/<helper name>` in the config text, and the import reading
+  skips whole comment lines only; a config that loads a helper some other way (a computed path)
+  would not be seen. ci.yml needed no change: it reads only the JSON, whose shape is unchanged.
 - **For a later phase:** none planned; this was the plan's last phase.
