@@ -1029,6 +1029,11 @@ export default function MapSvgFieldsStep({
   // every text layer the file draws whether its row is ticked or not.
   const textLayers = draft.designSvg?.candidates ?? [];
   const pollDriven = pollDrivenLayers(draft.svgBehaviour);
+  // A LAYER TAKEN OFF THE ARTWORK IS NOT OFFERED TO A BEHAVIOUR (#784): the vote would write
+  // into a layer nobody can see and air a blank row. One already bound stays listed, so its
+  // picker still shows what it holds; the draft keeps such a layer drawn (`hiddenSvgLayers`).
+  const takenOff = new Set(draft.svgFields.filter((f) => !f.on && f.whenOff === 'remove').map((f) => f.candidateId));
+  const behaviourTextLayers = textLayers.filter((c) => !takenOff.has(c.id) || pollDriven.has(c.id));
 
 
   // WHAT THE OPERATOR CAN ACTUALLY TYPE INTO, which is not the same as what is ticked: a layer
@@ -1208,6 +1213,9 @@ export default function MapSvgFieldsStep({
             // offered (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/offer-nothing-that-cannot-work.md). The row stays, because the
             // reader still needs to see that their layer was recognised and by what.
             const driven = f.on && pollDriven.has(f.candidateId);
+            /** Off and taken off the artwork - never for a layer a behaviour writes, which stays
+             *  drawn whatever this row was told (`hiddenSvgLayers`), so the row cannot say otherwise. */
+            const removed = !f.on && f.whenOff === 'remove' && !pollDriven.has(f.candidateId);
             /** The box this line sits in and what was measured about it - absent for a line on
              *  the bare artwork, which then gets no alignment control. A COUNTDOWN row gets none
              *  either: its layer becomes the clock display and never carries the field id a
@@ -1249,7 +1257,7 @@ export default function MapSvgFieldsStep({
                     ? 'The vote writes this layer. To take it out, set its picker below to “not drawn”.'
                     : f.on
                       ? 'On. This layer is an operator field.'
-                      : f.whenOff === 'remove'
+                      : removed
                         ? 'Off. This text has been taken off the artwork.'
                         : 'Off. This text stays as drawn.'
                 }
@@ -1389,16 +1397,20 @@ export default function MapSvgFieldsStep({
               {!f.on && (
                 <span className="map-svg-off-note">
                   <span data-testid={`map-svg-off-${f.candidateId}`}>
-                    {f.whenOff === 'remove' ? 'taken off the artwork' : 'stays as drawn'}
+                    {removed ? 'taken off the artwork' : 'stays as drawn'}
                   </span>
-                  <button
-                    type="button"
-                    className="map-svg-off-swap"
-                    onClick={() => patchField(f.candidateId, { whenOff: f.whenOff === 'remove' ? 'keep' : 'remove' })}
-                    data-testid={`map-svg-off-${f.whenOff === 'remove' ? 'keep' : 'remove'}-${f.candidateId}`}
-                  >
-                    {f.whenOff === 'remove' ? 'keep it as drawn' : 'take it off the artwork'}
-                  </button>
+                  {/* A layer a behaviour writes has no second answer: taken off, it would air
+                      blank. Unbinding it in the picker below brings the answer back. */}
+                  {!pollDriven.has(f.candidateId) && (
+                    <button
+                      type="button"
+                      className="map-svg-off-swap"
+                      onClick={() => patchField(f.candidateId, { whenOff: removed ? 'keep' : 'remove' })}
+                      data-testid={`map-svg-off-${removed ? 'keep' : 'remove'}-${f.candidateId}`}
+                    >
+                      {removed ? 'keep it as drawn' : 'take it off the artwork'}
+                    </button>
+                  )}
                 </span>
               )}
               {/* WHY THIS ROW IS NOT CALLED WHAT THE LAYER IS CALLED. A text layer named after
@@ -1518,7 +1530,7 @@ export default function MapSvgFieldsStep({
       <BehaviourSection
         draft={draft}
         onDraft={onDraft}
-        textLayers={textLayers}
+        textLayers={behaviourTextLayers}
         pollDriven={pollDriven}
         stageRef={stageRef}
         layerBoxes={layerBoxes}

@@ -590,10 +590,15 @@ function svgCandidateExists(draft: SvgImportDraft, candidateId: string): boolean
  * the words is the safe default, so this is empty on every graphic where nobody said otherwise.
  * `undefined` rather than `[]` in that case, because an untouched import has to emit the bytes
  * it emitted before the question was ever asked.
+ *
+ * A layer a behaviour WRITES is never taken off (#784): hidden, it would take the vote's words
+ * and figures and air a blank row with nothing saying why. The step does not offer that pair
+ * (the pickers leave such a layer out and its row loses the remove answer once it is bound), so
+ * this only decides a draft that reached it some other way, and the binding is the later answer.
  */
-function hiddenSvgLayers(draft: SvgImportDraft): DesignSvgHidden[] | undefined {
+function hiddenSvgLayers(draft: SvgImportDraft, written: Set<string>): DesignSvgHidden[] | undefined {
   const gone = draft.svgFields
-    .filter((f) => !f.on && f.whenOff === 'remove')
+    .filter((f) => !f.on && f.whenOff === 'remove' && !written.has(f.candidateId))
     .map((f) => ({ candidateId: f.candidateId }));
   return gone.length > 0 ? gone : undefined;
 }
@@ -1450,7 +1455,7 @@ export function svgDesignOptions(draft: SvgImportDraft): DesignSvg | undefined {
     // The layers the author said to take OFF the artwork. Left ABSENT where nobody said so,
     // rather than emitted empty: an untouched import must build the same bytes it built before
     // the question existed.
-    hidden: hiddenSvgLayers(draft),
+    hidden: hiddenSvgLayers(draft, pollDriven),
     behaviour: svgBehaviourOption(draft) ?? undefined,
     extras: svgExtrasOptions(draft),
     // A growth rule travels only when it is both ON and pointed at a shape that still exists:
