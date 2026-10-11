@@ -68,4 +68,5 @@ claude plugin test cli/plugin-guide
 ```
 
 The tests mount the band on the `terminal` and `desktop` surfaces. CI runs both on pull requests
-that touch this folder (`.github/workflows/guided-mod.yml`).
+that touch this folder (the `guided-mod` job in `.github/workflows/ci.yml`), and a red run keeps
+the change from landing.
