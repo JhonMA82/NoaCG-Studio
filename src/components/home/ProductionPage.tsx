@@ -276,6 +276,7 @@ import {
   PICTURE_GRAPHIC_NAME,
   pictureLabel,
 } from '../../templates/picture';
+import { pictureUploadTarget } from '../../templates/pictureTarget';
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import { copyLink } from './copyLink';
@@ -2465,26 +2466,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * It is deliberately NOT a library graphic. The production page may not write into a document
    * it only references (the rule the cue editor's image picker states), so the picture graphic
    * belongs to the pool instead — which also means `templateForSavedGraphic` resolves the POOL
-   * copy, the one this handler updates. The name is made unique against the library because that
-   * fallback resolves by NAME when there is no `graphicId`, and an unrelated library graphic
-   * called "Pictures" would otherwise capture the production's own.
+   * copy, the one this handler updates. A picture graphic pooled FROM the library is left alone,
+   * and a new one is named so no lookup by name can capture it (templates/pictureTarget.ts).
    */
   const uploadPictures = async (files: File[]) => {
     if (files.length === 0) return;
-    const existing = show.graphics.find((g) => g.type === 'picture') ?? null;
+    // The production's OWN picture graphic, never one pooled from the library (pictureTarget.ts).
+    const target = pictureUploadTarget(show.graphics, library.map((d) => d.name), PICTURE_GRAPHIC_NAME);
+    const existing = target.existing;
     // The stage the pictures are drawn on, derived the way the output payload derives it, so an
     // upload into a 4K production keeps 4K pixels instead of being capped at 1080.
     const stage = show.graphics.reduce<Resolution>((r, g) => {
       const res = templateForSavedGraphic(g, library).resolution;
       return { width: Math.max(r.width, res.width), height: Math.max(r.height, res.height), label: r.label };
     }, DEFAULT_GRAPHICS_RESOLUTION);
-    let template = existing ? existing.template : createPictureTemplate('', stage);
-    if (!existing) {
-      const taken = new Set(library.map((d) => d.name));
-      let name = PICTURE_GRAPHIC_NAME;
-      for (let n = 2; taken.has(name); n += 1) name = `${PICTURE_GRAPHIC_NAME} ${n}`;
-      template = { ...template, name };
-    }
+    let template = target.existing ? target.existing.template : { ...createPictureTemplate('', stage), name: target.name };
     const room = MAX_PICTURES - template.assets.length;
     if (room <= 0) {
       setNote(`This production already holds ${MAX_PICTURES} pictures. Remove one before adding another.`);
