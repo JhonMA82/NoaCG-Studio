@@ -42,7 +42,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # The whole history since 2026-10-12: the selection-miss replay below diffs each red main run
+      # against the completed run before it, which can be many landings back.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -109,6 +113,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: node scripts/ci-repeat-failures.mjs --days 7 --limit 40 || true
+
+      # DID SELECTION MISS IT. Every red full run on main this week, replayed through the
+      # per-change planner on its landing's own diff: a failing spec the landing's pull request
+      # would not have run is a selection miss, named in the step summary and as a warning. The
+      # count is the rollout criterion for batched validation (docs/work-specs/e2e-suite-budget/
+      # evidence/selection-audit.md). Report only, bounded like the step above. A failing spec
+      # counts for the run that turned it red, never for the landings that inherited a red main,
+      # and a fail-then-pass the quarantine recorded is a flake, not a miss.
+      - name: Selection misses this week (report only)
+        timeout-minutes: 6
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/e2e-selection-misses.mjs --days 7 --limit 100 || true
 
       # Fails on high/critical only — the tracked low/moderate advisories (repo maintenance
       # notes) stay a report, not a weekly alarm.
