@@ -70,3 +70,56 @@ so the checker says in plain words what a landing with this shape would now show
 
 Each phase's pull request adds what the next phase must allow for: decisions, traps, and the
 check's findings.
+
+### Phase 1: green stays green
+
+- **Findings of the last check:** none (first phase).
+- **Decision: "every shard reported, none failing" is green only on the run's own job list.**
+  `retryPlan` takes `jobs` (this run's jobs with their steps, read through `gh api` with
+  `RUN_ID`) and `errors` (the merged report's run-level error count). It answers ok with nothing
+  to re-run only when every `E2E <n>/<total>` job either succeeded or was cancelled with "E2E
+  shard", "Tests left the tree clean" and "Upload shard report" all passed (`cancelledAfterReport`,
+  `REPORTED_STEPS`), and the report holds zero errors. Anything else - a failed leg, a cancelled
+  leg whose tree check failed, a list that is short or unreadable, a report that does not say -
+  still refuses with "the failure was not a test" plus the specific why.
+- **Why not `needs.e2e.result`:** the first cut read the matrix's aggregate `cancelled`, and the
+  review rejected it. The gate's own comment says that word can hide a FAILED shard beside a
+  capped one, so a clean-tree failure (#801) next to a shard at its cap would have gone green.
+  Per-job steps also catch a re-run attempt whose shard was killed mid-test while an earlier
+  attempt's report is still downloaded.
+- **ci.yml, lines that run and read the retry:** the retry job gains `actions: read` and passes
+  `GH_TOKEN`, `GH_REPO` and `RUN_ID` to the script; "Upload the retry report" runs only when a
+  re-run step ran (with nothing run, `if-no-files-found: error` is what failed run 38153870752's
+  retry job, beside the refusal); the quarantine step skips an empty `specs` (`[]`), which it
+  used to answer with an exit 2 under `continue-on-error`. The gate's notice for a cancelled
+  matrix now covers the nothing-run case, and the script annotates the shard that reached its cap
+  so that pressure stays visible on a green run.
+- **For phase 2:** nothing here touches `scripts/e2e-affected.mjs`. `retryPlan` gained two
+  optional inputs; a caller that omits them keeps the old refusals.
+
+### Phase 2: a helper runs its specs
+
+- **Findings of the last check (phase 1):** PASS. The real script on run 38153870752's shape exits
+  0 and the gate reads green; the three refusals hold; reverting the fix fails the new tests. The
+  shard blob reports could not be downloaded from a cloud session (proxy 403), so the zero
+  run-error input rests on the shard log. Shard 5 used 19.7 of its 20 minutes.
+- **Decision: a helper is planned by its importers, not by the escalation plus its importers.**
+  `helperReach` reads every `.ts` under `e2e/` and follows relative imports (static, dynamic and
+  `/e2e/` absolute) backwards to the specs; `planFor` takes the map as `helpers` and plans those
+  specs, raising the catalog flag for an `e2e/catalog/` importer and the configured flag for an
+  `e2e/configured/` one. The answer is the same with and without sprint focus. Unioning the focus
+  set on top was rejected: a TypeScript helper can only move the specs that import it, and the
+  76-spec focus set ran for `_ografParity.ts` while proving nothing about it.
+- **What still escalates through CORE:** a helper a Playwright config or `e2e/tsconfig*.json`
+  names, with or without its extension, or one such a helper imports (`_offline-guard`, `_trace`,
+  and `_env-probe` through `_offline-guard`); a helper nothing imports (a commented-out import
+  does not count); a deleted helper. The map is built only by this script's CLI and only when a
+  helper changed; `catalog-affected.mjs`, `collision-check.mjs` and `e2e-plan-compare.mjs` pass no
+  map and keep escalating every helper, which runs more, never less.
+- **Cost, measured on today's tree:** most helpers plan 1-20 specs where they planned the focus
+  set (76) in CI or the full suite (233) locally. The broad ones plan more than the focus set:
+  `_create.ts` 121 specs, `_durable.ts` 91. That is the honest set a change to them can break.
+- **Trap:** the config check matches `/<helper name>` in the config text, and the import reading
+  skips whole comment lines only; a config that loads a helper some other way (a computed path)
+  would not be seen. ci.yml needed no change: it reads only the JSON, whose shape is unchanged.
+- **For a later phase:** none planned; this was the plan's last phase.

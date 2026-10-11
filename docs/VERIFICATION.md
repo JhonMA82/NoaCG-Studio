@@ -60,10 +60,19 @@ Now the gate says where it runs, in its own file, and the line never changes.
 every laptop are all good reasons. What is not fine is a gate outside the build AND outside CI,
 because that gate protects nothing while looking exactly like one that does.
 
-There is **no application unit-test suite**; focused Node tests cover infrastructure scripts.
-Verify product changes with targeted checks plus in-browser checks (`.agent-workflows/verify.md`);
-the full build and the browser suites run on GitHub Actions. Never mark work done on green checks
-alone if the behaviour is observable.
+**Product logic can be unit-tested in Node, and 62 of the `scripts/*.test.mjs` files already do**
+(`scripts/editor-arrangement.test.mjs` imports `src/components/editorFoundation/arrangementGeometry.ts`
+through Node's type stripping; the others bundle with rolldown or sucrase). A durable check goes to
+the cheapest layer that proves the behaviour: a Node test under `scripts/` for pure logic, a
+blank-page browser spec for DOM, canvas, fonts or layout, one journey spec per user-visible flow,
+the configured suite for backend-dependent behaviour, scheduled validation for exhaustive walks
+(`docs/work-specs/e2e-suite-budget/spec.md`, decision 9). Verify product changes with targeted
+checks plus in-browser checks (`.agent-workflows/verify.md`); the full build and the browser
+suites run on GitHub Actions. Never mark work done on green checks alone if the behaviour is
+observable. Coverage leaves the merge gate only with a `## Test maintenance` entry in the work
+spec (`scripts/check-e2e-protection.mjs`), and a change that adds spec-minutes above the capacity
+line needs a `## Budget exceptions` entry (`scripts/e2e-capacity.mjs`); an automatic repair writes
+neither.
 
 ## E2E is TIERED
 
@@ -1043,7 +1052,10 @@ A red `main` run is not a person's job until three mechanisms have had their tur
    refuse instead, and the run stays red on each: more than one shard without a report, nothing
    to re-run (no failing spec and no dead shard: the failure was not a test), and a failing spec
    the change itself edits (that flake is the change's, bounced to its author, never quarantined
-   on a second run).
+   on a second run). Nothing to re-run passes instead when every shard's report is in with no
+   failing spec and no run error, and the run's own job list shows each shard job succeeded or
+   was cancelled only after its specs, clean-tree check and upload passed: a shard ran out of
+   clock after reporting, as in run 38153870752, and every spec already has its verdict.
 2. **The quarantine.** A fail-then-pass is the receipt a flake needs, and the `After the gate`
    job writes it: the specs go into `e2e/quarantine.json` on a branch off `origin/main`, queued
    through the merge queue like any landing (`scripts/e2e-quarantine.mjs enter --queue`). From
