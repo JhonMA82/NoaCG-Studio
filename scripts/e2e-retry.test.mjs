@@ -120,7 +120,7 @@ function gate(results = {}) {
   const run = spawnSync(bash, ['--noprofile', '--norc', '-s'], {
     input: gateScript, encoding: 'utf8', timeout: 10_000, windowsHide: true,
     env: { ...process.env, BUILD_RESULT: 'success', PLAN_RESULT: 'success', FACTORY_RESULT: 'success',
-      CATALOG_RESULT: 'success', E2E_RESULT: 'success', RETRY_RESULT: 'skipped', ...results },
+      CATALOG_RESULT: 'success', GUIDED_MOD_RESULT: 'skipped', E2E_RESULT: 'success', RETRY_RESULT: 'skipped', ...results },
   });
   assert.ifError(run.error);
   assert.equal(run.signal, null, run.stderr);
@@ -144,9 +144,20 @@ test('failed-then-passed assertions retain the flake verdict; a failed retry sta
 });
 
 test('a successful retry never overrides any other required gate', () => {
-  for (const key of ['BUILD_RESULT', 'PLAN_RESULT', 'FACTORY_RESULT', 'CATALOG_RESULT']) {
+  for (const key of ['BUILD_RESULT', 'PLAN_RESULT', 'FACTORY_RESULT', 'CATALOG_RESULT', 'GUIDED_MOD_RESULT']) {
     for (const result of ['failure', 'cancelled']) {
       assert.notEqual(gate({ E2E_RESULT: 'cancelled', RETRY_RESULT: 'success', [key]: result }).status, 0, key + result);
     }
   }
+});
+
+test('the guided mod holds the gate when it ran red, and only a plan that skipped it passes it by', () => {
+  for (const result of ['success', 'skipped']) assert.equal(gate({ GUIDED_MOD_RESULT: result }).status, 0, result);
+  for (const result of ['failure', 'cancelled', '']) {
+    const run = gate({ GUIDED_MOD_RESULT: result });
+    assert.notEqual(run.status, 0, result);
+    assert.match(run.stdout, new RegExp(`Guided mod finished '${result}'`), result);
+  }
+  const gateNeeds = workflow.match(/\n {2}gate:\n[\s\S]*?\n {4}needs: \[([^\]]*)\]/)?.[1].split(',').map((job) => job.trim());
+  assert.ok(gateNeeds?.includes('guided-mod'), 'CI gate needs the guided-mod job');
 });

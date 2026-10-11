@@ -253,11 +253,43 @@ jobs:
       # The quarantined specs this plan would have run (e2e/quarantine.json): out of the shards
       # above, into quarantine.yml's jobs on main. A JSON array; `[]` when there are none.
       quarantined: ${{ steps.plan.outputs.quarantined }}
+      # Whether the `guided-mod` job below runs: 'true' or 'false'.
+      guidedMod: ${{ steps.guided.outputs.run }}
     steps:
       - uses: actions/checkout@v5
         with:
           # The plan IS a diff, so the default shallow clone has nothing to diff against.
           fetch-depth: 0
+
+      # The trial guided mod (cli/plugin-guide) ships in no package, so nothing else here looks at
+      # it: its checks run when the change under test touches it, or the job itself. Its result
+      # moves only with those files (the Claude Code builds are pinned), so unlike the plan below
+      # a push to main diffs too, from `before`. A missing or unusable base fails toward running.
+      # scripts/ci-guided-mod.test.mjs runs this step's shell.
+      - name: Does this change touch the guided mod?
+        id: guided
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+          PUSH_BASE: ${{ github.event.before }}
+          DISPATCH_BASE: ${{ inputs.diff_base }}
+        run: |
+          set -euo pipefail
+          case "$EVENT" in
+            pull_request) BASE="$PR_BASE" ;;
+            merge_group) BASE="$MERGE_GROUP_BASE" ;;
+            push) BASE="$PUSH_BASE" ;;
+            workflow_dispatch) BASE="${DISPATCH_BASE:-}" ;;
+            *) BASE="" ;;
+          esac
+          RUN=true
+          if [ -n "$BASE" ] && git cat-file -e "${BASE}^{commit}" 2>/dev/null \
+            && git diff --quiet "$BASE" HEAD -- cli/plugin-guide .github/workflows/ci.yml; then
+            RUN=false
+          fi
+          echo "Guided mod checks: $RUN (base '${BASE}')"
+          echo "run=$RUN" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v5
         with:
@@ -742,6 +774,47 @@ jobs:
       - name: Catalog calibration tripwire
         run: npm run test:e2e:catalog
 
+  # The trial `noacg-guide` mod (cli/plugin-guide, docs/work-specs/guided-mod/spec.md): Claude
+  # Code validates the plugin strictly and runs its tests, which mount the band on the terminal
+  # and desktop surfaces. A job of this workflow, not a workflow of its own, so `CI gate` holds a
+  # red run back from landing; a path-filtered workflow cannot be required, since it never
+  # reports on pull requests that leave the folder alone (#1006 landed with both legs red).
+  # No app install and no sign-in: under a minute.
+  guided-mod:
+    name: Guided mod (Claude Code ${{ matrix.claude-code }})
+    needs: plan
+    if: ${{ needs.plan.outputs.guidedMod == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest build the mod supports (the spec's floor) and the one the Desktop app bundled
+        # on 2026-10-11, pinned like the toolkit's checks: a newer Claude Code arrives as a
+        # reviewed change to this list.
+        claude-code: ['2.1.287', '2.1.295']
+    env:
+      CLAUDE_CODE_VERSION: ${{ matrix.claude-code }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Install Claude Code ${{ env.CLAUDE_CODE_VERSION }}
+        run: npm install -g "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION" && claude --version
+
+      # A throwaway profile: validating and testing read no account and need no sign-in.
+      - name: claude plugin validate --strict
+        env:
+          CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-profile
+        run: claude plugin validate --strict cli/plugin-guide
+
+      - name: claude plugin test
+        env:
+          CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-profile
+        run: claude plugin test cli/plugin-guide
+
   factory:
     name: Factory gates
     runs-on: ubuntu-latest
@@ -952,7 +1025,7 @@ jobs:
     # every code-testing job passed, and both times the gate went red and filed the rolling
     # red-main issue against a commit nothing was wrong with. A gate whose verdict can be
     # flipped by a job with no opinion about the code is reporting on the wrong thing.
-    needs: [build, plan, e2e, e2e-retry, e2e-catalog, factory]
+    needs: [build, plan, e2e, e2e-retry, e2e-catalog, factory, guided-mod]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -977,6 +1050,7 @@ jobs:
           RETRY_RESULT: ${{ needs.e2e-retry.result }}
           CATALOG_RESULT: ${{ needs.e2e-catalog.result }}
           FACTORY_RESULT: ${{ needs.factory.result }}
+          GUIDED_MOD_RESULT: ${{ needs.guided-mod.result }}
         run: |
           status=0
           exhausted=0
@@ -1039,6 +1113,7 @@ jobs:
           require "Factory gates" "$FACTORY_RESULT"
           optional "E2E shards" "$E2E_RESULT"
           optional "Catalog calibration gate" "$CATALOG_RESULT"
+          optional "Guided mod" "$GUIDED_MOD_RESULT"
           # Exhausted with nothing failed is still a non-zero exit: no verdict is not a pass.
           if [ "$status" = "0" ] && [ "$exhausted" = "1" ]; then
             exit 1
