@@ -58,14 +58,11 @@ const START = new Date('2026-10-10T12:00:00Z');
 /** Where the paused clock stands once a renderer page has loaded: the same instant in every page. */
 const PAUSED_AT = new Date('2026-10-10T12:00:30Z');
 /**
- * The clock time each design gets on a renderer page: design `i` of a sweep starts at
- * `PAUSED_AT + i * DESIGN_SLOT_MS` in every page, whatever the designs before it did. A variant
- * that cannot show a design skips its samples and their clock time, so that page's animation
- * frames fell at another phase from then on: an entrance timeline read 16 ms apart at a sample,
- * and every moving design after `sb21` and `sb22` in their units differed from the studio (#986).
- * A whole number of the clock's 16 ms frames, so every design starts on the same phase wherever
- * it is in the list, and longer than a design's 4.3 s (200 ms to load, the last sample, 100 ms to
- * unmount): a design that overran it would make `pauseAt` throw, not shift the next one.
+ * Design `i` of a sweep starts at `PAUSED_AT + i * DESIGN_SLOT_MS` in every page, whatever the
+ * designs before it did: a variant that cannot show a design skips its samples' clock time, and
+ * its page then met the 16 ms animation frames at another phase, a frame apart from the studio's
+ * (#986). A whole number of frames, longer than a design's samples take; an overrun makes
+ * `pauseAt` throw.
  */
 const DESIGN_SLOT_MS = 4_800;
 
@@ -458,10 +455,10 @@ export async function paritySweep(app: Page, browser: Browser, sources: ParitySo
       }
       // Every variant is taken even when one fails, so the pages keep seeing the same designs,
       // each from the same instant on the clock.
+      await Promise.all(pages.map((page) => page.clock.pauseAt(PAUSED_AT.getTime() + index * DESIGN_SLOT_MS)));
       const frames: Record<string, Buffer[]> = {};
       const errors: string[] = [];
       for (const [i, variant] of variants.entries()) {
-        await pages[i].clock.pauseAt(PAUSED_AT.getTime() + index * DESIGN_SLOT_MS);
         const taken = await sample(pages[i], design, variant.mount, `parity-${index}-${design.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`);
         if (typeof taken === 'string') errors.push(`${variant.name}: ${taken}`);
         else frames[variant.name] = taken;
