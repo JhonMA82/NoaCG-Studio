@@ -72,6 +72,10 @@ export type Session = {
   reads: string[]
   /** Every store call, as `get key` or `set key`. */
   storeCalls: string[]
+  /** How many store writes to refuse, as a locked file would. */
+  storeFails: number
+  /** Called as the store is read: work landing while a scan is under way. */
+  onStoreRead?: () => void
   /** Every call made that a quiet mod never makes, by event. */
   forbidden: string[]
   /** What the prompts carried down to the engine beside their text. */
@@ -147,10 +151,16 @@ export function session($: Engine, on: On, tree: Tree): Session {
   })
   on('store.get', ($, e) => {
     storeCalls.push(`get ${e.key}`)
-    return { value: structuredClone(store.get(e.key)) }
+    const value = structuredClone(store.get(e.key))
+    world.onStoreRead?.()
+    return { value }
   })
   on('store.set', ($, e) => {
     storeCalls.push(`set ${e.key}`)
+    if (world.storeFails > 0) {
+      world.storeFails -= 1
+      throw new Error('EBUSY: the store file is locked')
+    }
     store.set(e.key, JSON.parse(JSON.stringify(e.value)))
     return { value: undefined }
   })
@@ -215,6 +225,7 @@ export function session($: Engine, on: On, tree: Tree): Session {
     lists,
     reads,
     storeCalls,
+    storeFails: 0,
     forbidden,
     context,
     appended: () => appended,

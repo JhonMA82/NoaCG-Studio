@@ -205,4 +205,51 @@ describe('recorded results', () => {
     expect(recordOf(world.store, 'scores')?.check).toMatchObject({ ok: true, via: 'mcp' })
     expect(MCP_TOOL).not.toBe('mcp__noacg__noacg')
   })
+
+  test('the fingerprint is the files as the run left them, not as a later scan finds them', async ($, on) => {
+    const world = session($, on, twoPackages())
+    await world.start()
+    // An edit lands while the scan after the run is still reading the store.
+    world.onStoreRead = () => {
+      world.tree['evening/css'] = { 'template.css': '.box { color: green }' }
+      world.onStoreRead = undefined
+    }
+    await world.run('noacg validate evening', { output: cli.validate(`${ROOT}/evening`, true) })
+    const ui = await world.mount('terminal', 120)
+    expect(await summaryOf(ui)).toBe('1 edited since check · 1 not checked')
+  })
+
+  test('a store write that fails keeps the run for the next scan', async ($, on) => {
+    const world = session($, on, twoPackages())
+    await world.start()
+    world.storeFails = 1
+    await world.run('noacg validate evening', { output: cli.validate(`${ROOT}/evening`, true) })
+    expect(world.store.get(KEY)).toBeUndefined()
+    await world.submit()
+    expect(recordOf(world.store, 'evening')?.check?.ok).toBe(true)
+  })
+
+  test('a package scaffolded again where one stood starts with no record', async ($, on) => {
+    const world = session($, on, twoPackages())
+    await world.start()
+    await world.run('noacg save evening', { output: cli.saved('Evening news', 'https://noacg.studio/#/graphic/1') })
+    const ui = await world.mount('terminal', 120)
+    expect(await summaryOf(ui)).toBe('1 checked · 1 not checked · saved: Evening news')
+
+    Object.assign(world.tree, scaffoldedAt('evening', 'Late news'))
+    await world.run('rm -rf evening && noacg scaffold --type lower-third --name "Late news" --out evening', {
+      output: `Scaffolded "Late news" (lower-third) into ${ROOT}/evening\n\nFiles:\n  late-news.html`,
+    })
+    expect(await summaryOf(ui)).toBe('2 not checked')
+    expect(recordOf(world.store, 'evening')).toEqual({})
+  })
+
+  test('a weakened gate is no check', async ($, on) => {
+    const world = session($, on, twoPackages())
+    await world.start()
+    await world.run('noacg validate evening --no-bench', { output: cli.validate(`${ROOT}/evening`, true) })
+    await world.mcp({ command: 'validate', path: 'scores', houseContract: false }, { blocks: cli.mcpValidate(`${ROOT}/scores`, true) })
+    const ui = await world.mount('terminal', 120)
+    expect(await summaryOf(ui)).toBe('2 not checked')
+  })
 })

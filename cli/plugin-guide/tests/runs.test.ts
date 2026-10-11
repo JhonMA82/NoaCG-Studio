@@ -4,7 +4,7 @@
 // or a screenshot alone never reads as a pass.
 import { describe, expect, test } from 'claude-code/testing'
 
-import { mcpReports, normalize, outcomeOf, relativeTo, terminalReports, type Outcome } from '../hooks/watch'
+import { mcpReports, normalize, outcomeOf, relativeTo, resolvePath, terminalReports, type Outcome } from '../hooks/watch'
 import * as cli from './cli'
 
 const ROOT = 'C:/Users/me/shows'
@@ -76,11 +76,39 @@ describe('terminal runs', () => {
     expect(bash('cd evening && noacg validate . 2>/dev/null | tail -20', ok(cli.passed().join('\n')))).toEqual([
       { kind: 'check', target: at('evening'), ok: true },
     ])
+    // The loop exits as its last validate did; each block is its own run's evidence.
     const two = `${cli.validate(EVENING, true)}\n${cli.validate('C:\\Users\\me\\shows\\scores', false)}`
-    expect(bash('for d in evening scores; do noacg validate "$d"; done', ok(two))).toEqual([
+    expect(bash('for d in evening scores; do noacg validate "$d"; done', exited(1, two))).toEqual([
       { kind: 'check', target: at('evening'), ok: true },
       { kind: 'check', target: at('scores'), ok: false },
     ])
+    // A cd inside a subshell, or undone by popd, ends there.
+    const save = cli.saved('Scores', 'https://noacg.studio/#/graphic/2')
+    expect(bash('(cd evening && noacg screenshot . --out shots/a.png); noacg save scores', ok(save))).toEqual([
+      { kind: 'check', target: at('scores'), ok: true },
+      { kind: 'saved', target: at('scores'), url: 'https://noacg.studio/#/graphic/2' },
+    ])
+    expect(bash('pushd evening && popd && noacg save scores', ok(save))).toHaveLength(2)
+    expect(bash('cd /c/Users/me/shows/evening && noacg validate . | head -12', ok(cli.passed().join('\n')))).toEqual([
+      { kind: 'check', target: 'c:/Users/me/shows/evening', ok: true },
+    ])
+  })
+
+  test('a gate run without the bench or the house contract passes nothing', () => {
+    const url = 'https://noacg.studio/#/graphic/6f1c2b'
+    expect(bash('noacg validate evening --no-bench', ok(cli.validate(EVENING, true)))).toEqual([])
+    expect(bash('noacg validate evening --no-house-contract', ok(cli.validate(EVENING, false)))).toEqual([
+      { kind: 'check', target: at('evening'), ok: false },
+    ])
+    expect(bash('noacg save evening --no-bench', ok(cli.saved('Evening news', url)))).toEqual([{ kind: 'saved', target: at('evening'), url }])
+  })
+
+  test('a scaffold starts a package afresh', () => {
+    const made = `Scaffolded "Evening news" (lower-third) into ${EVENING}\n\n- Catalog chassis "House Strap": a proven composition to restyle or to keep.\n\nFiles:\n  evening_news.html`
+    expect(bash('npx -y @noacg/cli@0.10.1 scaffold --type lower-third --name "Evening news" --out evening', ok(made))).toEqual([
+      { kind: 'new', target: at('evening') },
+    ])
+    expect(bash('noacg scaffold --type lower-third --out evening', exited(2, 'noacg: evening is not empty - scaffold into a new directory.'))).toEqual([])
   })
 
   test('PowerShell keeps its backslashes', () => {
@@ -94,6 +122,13 @@ describe('terminal runs', () => {
       { kind: 'frames', target: at('evening'), dir: at('evening/shots') },
     ])
     expect(bash('noacg screenshot evening --out take.png', exited(2, 'noacg: screenshot needs --out <file.png>.'))).toEqual([])
+    // `--json` with the log line dropped: the file its JSON names.
+    const json = JSON.stringify({ ok: true, file: 'C:\\Users\\me\\shows\\frames\\two.png', state: 'onair', background: 'transparent' }, null, 2)
+    expect(bash('noacg screenshot evening --out frames/two.png --json 2>/dev/null', ok(json))).toEqual([
+      { kind: 'frames', target: at('evening'), dir: at('frames') },
+    ])
+    // A command that exited 0 is no proof the screenshot did: it must name its file.
+    expect(bash('noacg screenshot evening --out a.png; echo done', ok('done'))).toEqual([])
   })
 
   test('a save: saved with its link and checked, refused, or not logged in', () => {
@@ -171,7 +206,10 @@ describe('MCP runs', () => {
 describe('paths', () => {
   test('normalized, compared without case on Windows, and kept inside the root', () => {
     expect(normalize('C:\\Users\\me\\shows\\.\\evening\\')).toBe('C:/Users/me/shows/evening')
-    expect(normalize('/c/Users/me/shows/evening')).toBe('c:/Users/me/shows/evening')
+    // Git Bash's `/c/...` is a drive only against a Windows root; elsewhere it is a folder.
+    expect(resolvePath(ROOT, '/c/Users/me/shows/evening')).toBe('c:/Users/me/shows/evening')
+    expect(resolvePath('/w/show', '/w/show/evening')).toBe('/w/show/evening')
+    expect(normalize('/w/show')).toBe('/w/show')
     expect(normalize('/work/a/../b')).toBe('/work/b')
     expect(relativeTo(ROOT, 'c:\\users\\ME\\shows\\Evening')).toBe('Evening')
     expect(relativeTo(ROOT, ROOT)).toBe('.')

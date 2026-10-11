@@ -27,6 +27,7 @@ import {
   storeKey,
   terminalReports,
   withReport,
+  type Records,
   type Report,
 } from './watch'
 
@@ -51,8 +52,8 @@ type Scan = {
 /** One scan at a time; a trigger during a scan asks for one more pass, with the newest access. */
 let scanning: Promise<void> | undefined
 let latest: Scan | undefined
-/** Runs reported since the last pass, waiting to be tied to their package's files. */
-const pending: { reports: Report[]; at: number; via: Run['via'] }[] = []
+/** Reports since the last pass, each with its run and the fingerprint the run left. */
+const pending: { report: Report; run: Run }[] = []
 
 function rescan(scan: Scan): void {
   latest = scan
@@ -77,38 +78,35 @@ async function pass(scan: Scan): Promise<void> {
   const root = normalize(await scan.root())
   const at = (dir: string) => resolvePath(root, dir)
   const found = await findPackages({ list: dir => scan.list(at(dir)), read: file => scan.read(at(file)) })
-  const runs = pending.splice(0)
   if (found.length === 0) {
     if ((await scan.known()).length > 0) await scan.keep([])
     return
   }
 
-  // Read on every pass, so a new session, or a second one in the same folder, sees the same records.
-  const all = recordsFrom(await scan.load(storeKey(root)))
-  const prints = new Map<string, string>()
-  const print = async (dir: string) => {
-    const known = prints.get(dir)
-    if (known !== undefined) return known
-    const made = await fingerprint(scan, at(dir))
-    prints.set(dir, made)
-    return made
-  }
-
-  let recorded = false
-  for (const run of runs) {
-    for (const report of run.reports) {
+  // Read on every pass, so a new session, or a second one in the same folder, sees the same
+  // records; a run is folded in and written straight after the read, so the two seldom cross.
+  const runs = pending.splice(0)
+  let all: Records
+  try {
+    all = recordsFrom(await scan.load(storeKey(root)))
+    let recorded = false
+    for (const { report, run } of runs) {
       const target = found.find(p => relativeTo(at(p.dir), report.target) === '.')
       if (!target) continue
-      all[target.dir] = withReport(all[target.dir] ?? {}, report, { at: run.at, via: run.via, sha256: await print(target.dir) })
+      all[target.dir] = withReport(all[target.dir] ?? {}, report, run)
       recorded = true
     }
+    if (recorded) await scan.save(storeKey(root), storedFrom(all))
+  } catch (failed) {
+    // Kept for the next pass rather than lost.
+    pending.unshift(...runs)
+    throw failed
   }
-  if (recorded) await scan.save(storeKey(root), storedFrom(all))
 
   const list: NoacgPackage[] = []
   for (const p of found) {
     const record = all[p.dir] ?? {}
-    const current = record.check?.ok ? await print(p.dir) : null
+    const current = record.check?.ok ? await fingerprint(scan, at(p.dir)) : null
     list.push({ ...p, status: statusOf(record, current), record })
   }
   if (JSON.stringify(await scan.known()) !== JSON.stringify(list)) await scan.keep(list)
@@ -147,13 +145,26 @@ export const register: Register = on => {
     let reports: Report[] = []
     try {
       const outcome = outcomeOf(ran)
+      const root = normalize(await $.session.root())
       if (terminal && 'command' in e && typeof e.command === 'string') {
         const backgrounded = typeof ran.result === 'object' && ran.result !== null && 'backgroundTaskId' in ran.result
-        if (!backgrounded) reports = terminalReports(e.command, cwd ?? (await $.session.root()), e.tool === 'Bash', outcome)
+        if (!backgrounded) reports = terminalReports(e.command, cwd ?? root, e.tool === 'Bash', outcome)
       } else if (mcp) {
-        reports = mcpReports(e as Record<string, unknown>, await $.session.root(), outcome)
+        reports = mcpReports(e as Record<string, unknown>, root, outcome)
       }
-      if (reports.length > 0) pending.push({ reports, at: await $.clock.now(), via: mcp ? 'mcp' : 'terminal' })
+      // Only a package can be the root or a folder directly below it; nothing else is read.
+      reports = reports.filter(r => /^[^/]+$/.test(relativeTo(root, r.target) ?? '/'))
+      // The fingerprint is taken now, as the run left the files, before anything else edits them.
+      const at = await $.clock.now()
+      const via = mcp ? 'mcp' : 'terminal'
+      const prints = new Map<string, string>()
+      for (const report of reports) {
+        const sha256 =
+          prints.get(report.target) ??
+          (await fingerprint({ list: dir => $.fs.list(dir), bytes: async file => (await $.fs.read(file, { as: 'bytes' })).base64 }, report.target))
+        prints.set(report.target, sha256)
+        pending.push({ report, run: { at, via, sha256 } })
+      }
     } catch {
       // A run the mod cannot read is a run it does not record.
     }

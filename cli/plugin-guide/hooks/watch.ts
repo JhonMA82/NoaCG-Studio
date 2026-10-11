@@ -22,11 +22,9 @@ import type { PackageRecord, PackageStatus, Run } from '../types'
 
 const WINDOWS_DRIVE = /^[A-Za-z]:\//
 
-/** A path with forward slashes, `.` and `..` resolved and no trailing slash; Git Bash's `/c/x` as `c:/x`. */
+/** A path with forward slashes, `.` and `..` resolved and no trailing slash. */
 export function normalize(path: string): string {
-  let clean = path.replace(/\\/g, '/')
-  const gitBash = /^\/([A-Za-z])(\/|$)/.exec(clean)
-  if (gitBash) clean = `${gitBash[1]}:/${clean.slice(3)}`
+  const clean = path.replace(/\\/g, '/')
   const drive = WINDOWS_DRIVE.test(clean) ? clean.slice(0, 2) : ''
   const rest = drive ? clean.slice(2) : clean
   const absolute = rest.startsWith('/')
@@ -45,8 +43,10 @@ function isAbsolute(path: string): boolean {
   return /^([A-Za-z]:)?[\\/]/.test(path)
 }
 
-/** `path` resolved against the absolute `base`. */
+/** `path` resolved against the absolute `base`; against a Windows base, Git Bash's `/c/x` is `c:/x`. */
 export function resolvePath(base: string, path: string): string {
+  const gitBash = WINDOWS_DRIVE.test(normalize(base)) ? /^\/([A-Za-z])(\/|$)/.exec(path) : null
+  if (gitBash) return normalize(`${gitBash[1]}:/${path.slice(3)}`)
   return normalize(isAbsolute(path) ? path : `${base}/${path}`)
 }
 
@@ -75,6 +75,7 @@ function dirname(path: string): string {
 
 /** What a run reported about the package at `target` (an absolute path). */
 export type Report =
+  | { kind: 'new'; target: string }
   | { kind: 'check'; target: string; ok: boolean }
   | { kind: 'frames'; target: string; dir: string | null }
   | { kind: 'saved'; target: string; url: string }
@@ -83,7 +84,7 @@ export type Report =
 /** A tool call's outcome as the session saw it. */
 export type Outcome = { text: string; isError: boolean; images: number }
 
-const VERBS = ['validate', 'screenshot', 'save', 'pack'] as const
+const VERBS = ['scaffold', 'validate', 'screenshot', 'save', 'pack'] as const
 type Verb = (typeof VERBS)[number]
 
 type Args = { _: string[]; flags: Record<string, string | boolean | string[]> }
@@ -181,7 +182,11 @@ function commandsIn(line: string, escapes: boolean): string[][] {
       if (/\d/.test(line[i + 1] ?? '') && line[i] === '&') {
         while (/\d/.test(line[i + 1] ?? '')) i++
       } else dropNext = true
-    } else if (c === ';' || c === '\n' || c === '&' || c === '|' || c === '(' || c === ')') {
+    } else if (c === '(' || c === ')') {
+      // A subshell: marked, so a `cd` inside it ends with it.
+      endCommand()
+      out.push([c])
+    } else if (c === ';' || c === '\n' || c === '&' || c === '|') {
       endCommand()
       if ((c === '&' || c === '|') && next === c) i++
     } else if (c === ' ' || c === '\t' || c === '\r') {
@@ -231,9 +236,15 @@ function plain(word: string | undefined): word is string {
 function invocationsIn(line: string, cwd: string, escapes: boolean): Invocation[] {
   const found: Invocation[] = []
   let here: string | null = cwd
+  const saved: (string | null)[] = []
   for (const words of commandsIn(line, escapes)) {
     const program = (words[0] ?? '').toLowerCase()
-    if (['cd', 'pushd', 'chdir', 'set-location', 'sl'].includes(program)) {
+    if (program === '(' || program === 'pushd' || program === 'push-location') saved.push(here)
+    if (program === ')' || program === 'popd' || program === 'pop-location') {
+      here = saved.length > 0 ? (saved.pop() ?? null) : null
+      continue
+    }
+    if (['cd', 'pushd', 'chdir', 'set-location', 'sl', 'push-location'].includes(program)) {
       const to = words.slice(1).filter(w => !w.startsWith('-'))[0]
       here = here !== null && plain(to) ? resolvePath(here, to) : null
       continue
@@ -292,26 +303,42 @@ function verdictIn(text: string): boolean | undefined {
   return json ? json[1] === 'true' : undefined
 }
 
+const SCAFFOLDED = /^Scaffolded "[^"\n]*" \([^)\n]*\) into (.+?)\s*$/gm
 const SAVED = /Saved "(?:[^"\n]*)" to (?:your|the) NoaCG library -> (\S+)/
 const SENT = /Sent "([^"\n]*)" \(\d+ graphic\(s\)\) to your NoaCG Home -> (\S+)/
 const WROTE_PACK = /^Wrote (.+?) with \d+ graphic\(s\)/m
 const WROTE_FRAME = /^Wrote (.+?) \(/gm
+const JSON_FILE = /"file": "((?:[^"\\]|\\.)*)"/g
 
-/** Reports from the validate blocks: a pass only from a run that exited 0 with every frame shot. */
-function fromBlocks(blocks: Block[], isError: boolean, reports: Report[]): void {
+/** A JSON string's text, from between its quotes. */
+function jsonText(quoted: string | undefined): string | undefined {
+  try {
+    return quoted === undefined ? undefined : (JSON.parse(`"${quoted}"`) as string)
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Reports from the validate blocks. A pass needs the OK verdict, every frame shot and the full
+ * gate. `validate` exits 0 exactly then, so where several ran in one command each block is its
+ * own evidence; a lone one must also have ended a call that exited 0.
+ */
+function fromBlocks(blocks: Block[], isError: boolean, weak: boolean, reports: Report[]): void {
   for (const b of blocks) {
     if (!b.ok) reports.push({ kind: 'check', target: b.dir, ok: false })
-    else if (!b.shotFailed && !isError) reports.push({ kind: 'check', target: b.dir, ok: true })
+    else if (!b.shotFailed && !weak && !(isError && blocks.length === 1)) reports.push({ kind: 'check', target: b.dir, ok: true })
     if (b.frames !== null) reports.push({ kind: 'frames', target: b.dir, dir: b.frames })
     else if (b.shown) reports.push({ kind: 'frames', target: b.dir, dir: null })
   }
 }
 
-/** A save's reports: saved with its link and a passing check, or a failing check. */
-function fromSave(target: string, text: string, isError: boolean, reports: Report[]): void {
+/** A save's reports: saved with its link and, on the full gate, a passing check; or a failing check. */
+function fromSave(target: string, text: string, isError: boolean, weak: boolean, reports: Report[]): void {
   const saved = SAVED.exec(text)
   if (saved?.[1] && !isError) {
-    reports.push({ kind: 'check', target, ok: true }, { kind: 'saved', target, url: saved[1] })
+    if (!weak) reports.push({ kind: 'check', target, ok: true })
+    reports.push({ kind: 'saved', target, url: saved[1] })
   } else if (verdictIn(text) === false) {
     reports.push({ kind: 'check', target, ok: false })
   }
@@ -340,8 +367,13 @@ export function terminalReports(command: string, cwd: string, escapes: boolean, 
   const { text, isError } = outcome
   const reports: Report[] = []
   const count = (verb: Verb) => runs.filter(r => r.verb === verb).length
+  // `--no-bench` or `--no-house-contract` skip part of the gate: such a run passes nothing.
+  const weak = runs.some(r => r.args.flags.bench === false || r.args.flags['house-contract'] === false)
   const blocks = count('validate') ? blocksIn(text) : []
-  fromBlocks(blocks, isError, reports)
+  fromBlocks(blocks, isError, weak, reports)
+  if (count('scaffold') && !isError) {
+    for (const made of text.matchAll(SCAFFOLDED)) if (made[1]) reports.push({ kind: 'new', target: normalize(made[1]) })
+  }
 
   for (const run of runs) {
     const input = run.args._[1]
@@ -351,7 +383,7 @@ export function terminalReports(command: string, cwd: string, escapes: boolean, 
       const ok = verdictIn(text)
       const shotFailed = /^Screenshots stopped part way:/m.test(text)
       if (ok === false) reports.push({ kind: 'check', target, ok: false })
-      else if (ok === true && !shotFailed && !isError) reports.push({ kind: 'check', target, ok: true })
+      else if (ok === true && !shotFailed && !isError && !weak) reports.push({ kind: 'check', target, ok: true })
       const shots = flag(run.args, 'screenshots')
       if (shots && plain(shots) && !isError && run.cwd !== null) reports.push({ kind: 'frames', target, dir: resolvePath(run.cwd, shots) })
     }
@@ -359,11 +391,12 @@ export function terminalReports(command: string, cwd: string, escapes: boolean, 
       const out = flag(run.args, 'out')
       if (!out || !plain(out)) continue
       const file = resolvePath(run.cwd, out)
-      const wrote = [...text.matchAll(WROTE_FRAME)].some(m => m[1] !== undefined && pathKey(m[1]) === pathKey(file))
-      if (wrote || (!isError && count('screenshot') === 1)) reports.push({ kind: 'frames', target, dir: dirname(file) })
+      // The file it names, in its line or its JSON: the exit code may be another command's.
+      const named = [...text.matchAll(WROTE_FRAME), ...text.matchAll(JSON_FILE)].map(m => (m[0].startsWith('"') ? jsonText(m[1]) : m[1]))
+      if (named.some(f => f !== undefined && pathKey(f) === pathKey(file))) reports.push({ kind: 'frames', target, dir: dirname(file) })
     }
     if (run.verb === 'save' && target && count('save') === 1) {
-      fromSave(target, text, isError, reports)
+      fromSave(target, text, isError, weak, reports)
     }
     if (run.verb === 'pack' && count('pack') === 1 && run.cwd !== null) {
       // `--save` and `--share` are switches that take the next word; the CLI gives it back.
@@ -393,11 +426,15 @@ export function mcpReports(input: Record<string, unknown>, root: string, outcome
   const { text, isError } = outcome
   const reports: Report[] = []
   const path = typeof input.path === 'string' && input.path ? resolvePath(root, input.path) : null
+  const weak = input.bench === false || input.houseContract === false
   switch (input.command) {
+    case 'scaffold':
+      if (!isError) for (const made of text.matchAll(SCAFFOLDED)) if (made[1]) reports.push({ kind: 'new', target: normalize(made[1]) })
+      break
     case 'validate': {
       // The frames come back as images; a validate that showed some names no folder.
       const blocks = blocksIn(text)
-      fromBlocks(blocks, isError, reports)
+      fromBlocks(blocks, isError, weak, reports)
       const block = blocks[0]
       if (block && !block.shown && input.screenshots === true && outcome.images > 0) {
         reports.push({ kind: 'frames', target: block.dir, dir: null })
@@ -408,7 +445,7 @@ export function mcpReports(input: Record<string, unknown>, root: string, outcome
       if (path && !isError) reports.push({ kind: 'frames', target: path, dir: null })
       break
     case 'save':
-      if (path) fromSave(path, text, isError, reports)
+      if (path) fromSave(path, text, isError, weak, reports)
       break
     case 'pack': {
       const paths = Array.isArray(input.paths) ? input.paths.filter((p): p is string => typeof p === 'string' && p !== '') : []
@@ -505,7 +542,8 @@ async function digestOf(fs: Reader, file: FileEntry): Promise<string> {
     try {
       hex = await sha256(fromBase64(await fs.bytes(file.abs)))
     } catch {
-      hex = `unreadable:${stamp}`
+      // A file held open a moment (an editor, a virus scan) is read again next time.
+      return `unreadable:${stamp}`
     }
   }
   digests.set(file.abs, { stamp, hex })
@@ -564,6 +602,8 @@ export function storedFrom(records: Records): { packages: Records } {
 /** A record with one report folded in, at the run's time and fingerprint. */
 export function withReport(record: PackageRecord, report: Report, run: Run): PackageRecord {
   switch (report.kind) {
+    case 'new':
+      return {}
     case 'check':
       return { ...record, check: { ...run, ok: report.ok } }
     case 'frames':
