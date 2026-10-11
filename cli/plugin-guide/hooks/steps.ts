@@ -67,13 +67,14 @@ export function linkOf(record: PackageRecord): string | undefined {
 /**
  * A link a `Link` element draws, spelled as the engine wants it (`new URL(href).href`), or
  * undefined: only `https:` and `http://localhost` (a local stand-in for NoaCG), with no
- * `user@host` part; anything else would refuse the whole tree it is in.
+ * `user@host` part and at most 2048 characters; anything else would refuse the whole tree it is in.
  */
 export function webLink(url: string): string | undefined {
   try {
     const parsed = new URL(url)
     const isWeb = parsed.protocol === 'https:' || (parsed.protocol === 'http:' && parsed.hostname === 'localhost')
-    return isWeb && !parsed.username && !parsed.password && !parsed.href.includes('@') ? parsed.href : undefined
+    const fits = parsed.href.length <= 2048 && !parsed.href.includes('@')
+    return isWeb && fits ? parsed.href : undefined
   } catch {
     return undefined
   }

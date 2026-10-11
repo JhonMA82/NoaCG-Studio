@@ -84,6 +84,7 @@ describe('the next step', () => {
     expect(linkOf({ saved: { ...run('a'), url: 'file:///C:/evil.exe' } })).toBeUndefined()
     expect(linkOf({ saved: { ...run('a'), url: 'http://example.com/x' } })).toBeUndefined()
     expect(linkOf({ saved: { ...run('a'), url: 'https://user@noacg.studio/x' } })).toBeUndefined()
+    expect(linkOf({ saved: { ...run('a'), url: `https://noacg.studio/#/${'a'.repeat(2048)}` } })).toBeUndefined()
     expect(linkOf({ saved: { ...run('a'), url: 'http://localhost:8787/#/graphic/1' } })).toBe('http://localhost:8787/#/graphic/1')
     expect(linkOf({ saved: { ...run('a'), url: 'HTTPS://NoaCG.studio/#/graphic/1' } })).toBe('https://noacg.studio/#/graphic/1')
     // The working directory itself, and a folder that only repeats the name, named once.

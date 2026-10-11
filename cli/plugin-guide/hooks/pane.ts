@@ -2,7 +2,7 @@
 // (docs/work-specs/guided-mod/spec.md, AC-14 and AC-15): its state, when each record was made,
 // where its frames and pack file are, its saved or sent link, and its next step.
 import type { NoacgPackage, PackageRecord } from '../types'
-import { STATUS } from './band'
+import { SEPARATOR, STATUS } from './band'
 import { START, webLink } from './steps'
 import { normalize, relativeTo } from './watch'
 
@@ -42,15 +42,22 @@ export function when(at: number, now: number): string {
 /** A path as the person reads it: relative to the project root when inside it, a folder with `/`. */
 export function shown(root: string, path: string, isFolder: boolean): string {
   const inside = relativeTo(root, path)
-  const text = inside === null ? normalize(path) : inside === '.' ? '.' : inside
+  const text = inside ?? normalize(path)
   return isFolder ? `${text}/` : text
+}
+
+/** One character percent-encoded. */
+const percent = (c: string) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+
+/** A URL with the characters that would end a Markdown link (`(`, `)`, space) encoded. */
+function inMarkdown(url: string): string {
+  return url.replace(/[ ()]/g, percent)
 }
 
 /** A `file:` URL for an absolute path, which `Markdown` draws as a link the surface opens. */
 export function fileUrl(path: string): string {
   const clean = normalize(path)
-  const encoded = encodeURI(clean.startsWith('/') ? clean : `/${clean}`).replace(/[#?()]/g, c => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)
-  return `file://${encoded}`
+  return `file://${encodeURI(clean.startsWith('/') ? clean : `/${clean}`).replace(/[()#?]/g, percent)}`
 }
 
 /** Markdown's own characters in a label, escaped. */
@@ -58,17 +65,27 @@ function escaped(text: string): string {
   return text.replace(/[\\`*_[\]()<>#!|~]/g, c => `\\${c}`)
 }
 
-/** The facts as one line of Markdown for the pane: folders and files open, links open NoaCG. */
-export function factsMarkdown(facts: readonly Fact[], root: string, now: number): string {
+/**
+ * The facts on one line, joined by ` · `: as Markdown for the pane, where folders and files open
+ * and links open NoaCG, or as plain text for the text answer.
+ */
+function factsLine(facts: readonly Fact[], root: string, now: number, markdown: boolean): string {
   return facts
     .map(f => {
       const head = `${f.word} ${when(f.at, now)}`
-      if (f.url) return `${head} [Open in NoaCG](${f.url})`
+      if (f.url) return markdown ? `${head} [Open in NoaCG](${inMarkdown(f.url)})` : `${head} ${f.url}`
       const path = f.folder ?? f.file
-      if (path) return `${head} [${escaped(shown(root, path, f.folder !== undefined))}](${fileUrl(path)})`
-      return head
+      if (!path) return head
+      const label = shown(root, path, f.folder !== undefined)
+      if (markdown) return `${head} [${escaped(label)}](${fileUrl(path)})`
+      return `${head} ${f.folder ? 'in' : 'to'} ${label}`
     })
-    .join(' · ')
+    .join(SEPARATOR)
+}
+
+/** The pane's line of records for a package. */
+export function factsMarkdown(facts: readonly Fact[], root: string, now: number): string {
+  return factsLine(facts, root, now, true)
 }
 
 /**
@@ -80,14 +97,8 @@ export function textAnswer(packages: readonly NoacgPackage[], root: string, now:
   const lines = ['NoaCG packages here:']
   for (const p of packages) {
     lines.push('', `${p.name}: ${STATUS[p.status]}`)
-    const facts = factsOf(p.record).map(f => {
-      const head = `${f.word} ${when(f.at, now)}`
-      const path = f.folder ?? f.file
-      if (f.url) return `${head} ${f.url}`
-      if (f.folder) return `${head} in ${shown(root, f.folder, true)}`
-      return path ? `${head} to ${shown(root, path, false)}` : head
-    })
-    if (facts.length > 0) lines.push(`  ${facts.join(' · ')}`)
+    const facts = factsOf(p.record)
+    if (facts.length > 0) lines.push(`  ${factsLine(facts, root, now, false)}`)
     if (p.next) lines.push(`  Next: ${p.next.label}${p.next.warning ? ` (${p.next.warning})` : ''}`)
   }
   return lines.join('\n')

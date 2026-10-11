@@ -24,21 +24,23 @@ context.
 
 ## 1. A new brief to a package (5 minutes)
 
-Type `/noacg-guide`. A pane opens with **Start a package**. Press it, then finish the prompt and
-send it:
+Type `/noacg-guide`. A pane opens with **Start a package** and holds the keys. Press Enter on it,
+then Esc: the pane closes and you are back in the prompt with the request in it. Finish the
+prompt and send it:
 
 > Make broadcast graphics with NoaCG. A lower third for the evening news: name and title. Use
 > `npx -y @noacg/cli@0.10.1` for every noacg command; the global `noacg` here is an old 0.3.3.
 
-Let Claude make and check the package. Press Esc to close the pane when you want the room.
+Let Claude make and check the package.
 
 **Look for:**
-- The band appears as soon as the package exists, with its name and "not checked".
+- The band appears as soon as the package exists, with its name and "not checked". (While the
+  pane is open the band steps aside, since the pane shows the same.)
 - After Claude's check, the step moves on by itself: "See how ... looks", then "Save ..., or send
   all graphics to a production". The step reads as something you would say.
 - **Fill prompt** only fills the box; nothing is sent until you press Enter.
 - `/noacg-guide` again shows the pane: the state, the time of each record, and the frames folder.
-  Click (or Ctrl+click) the folder: it should open in Explorer.
+  Click (or Ctrl+click) the folder: it should open in Explorer. Esc closes the pane.
 
 ## 2. An edit after a check (3 minutes)
 
@@ -46,9 +48,9 @@ Ask for a change ("make the strap blue"), or edit the package's `css/template.cs
 send any prompt.
 
 **Look for:**
-- "edited since check" and "Check ... again" in the band and the pane.
-- **Fill**, then Enter: after Claude checks it, the package is back to checked. The times in the
-  pane change.
+- "edited since check" and "Check ... again" in the band.
+- **Fill prompt** in the band, then Enter: after Claude checks it, the package is back to
+  checked. Open the pane: the record times changed.
 
 ## 3. Resuming in a new session (2 minutes)
 

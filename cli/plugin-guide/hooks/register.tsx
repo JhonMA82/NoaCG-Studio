@@ -50,6 +50,9 @@ const GAP = 2
 /** The package pane's id. */
 const PANE = 'noacg-guide'
 
+/** Whether a pane `$.ui.panes()` lists is this mod's, drawn and in front. */
+const onScreen = (open: { id: string; isShown: boolean; isPlaced: boolean }) => open.id === PANE && open.isShown && open.isPlaced
+
 /** The prompt box as one dispatch reaches it: `$` cannot be passed on, so closures over it. */
 type PromptBox = {
   read: () => Promise<string>
@@ -188,23 +191,26 @@ export const register: Register = on => {
     await update($, hidden, () => false)
     await update($, offer, () => list.length === 0)
 
-    // The engine's record, not the module's: it outlives a reload.
-    if ((await $.ui.panes()).some(open => open.id === PANE)) {
+    // The engine's record, not the module's: it outlives a reload. A pane open as a tab behind
+    // another is opened again, which brings it forward, rather than closed.
+    if ((await $.ui.panes()).some(onScreen)) {
       await $.ui.close({ id: PANE })
       return {}
     }
     const surfaces = await $.session.surfaces()
     if (surfaces.includes('terminal') || surfaces.includes('desktop')) {
       // Asked by the person, a pane is placed at any width; one that waits undrawn is on a
-      // surface that places none, so it goes and the text answers instead.
-      const opened = await $.ui.open({ id: PANE, title: TITLE, focus: true, closeOnEscape: true })
-      if (opened.isPlaced) {
+      // surface that places none, so it goes and the text answers instead, as it does when
+      // another plugin refuses the open.
+      const opened = await $.ui.open({ id: PANE, title: TITLE, focus: true, closeOnEscape: true }).catch(() => null)
+      if (opened?.isPlaced) {
         await update($, pane, () => true)
         return {}
       }
-      await $.ui.close({ id: PANE })
+      if (opened) await $.ui.close({ id: PANE })
     }
-    return { text: textAnswer(list, normalize(await $.session.root()), await $.clock.now()) }
+    const [root, now] = await Promise.all([$.session.root(), $.clock.now()])
+    return { text: textAnswer(list, normalize(root), now) }
   })
 
   // However the pane closes (Esc, its close mark, the command), the band comes back.
@@ -275,8 +281,11 @@ export const register: Register = on => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
     const [isHidden, list, offered, isPaneOpen] = await Promise.all([read($, hidden), read($, packages), read($, offer), read($, pane)])
-    // The pane says all the band would.
-    if (isHidden || isPaneOpen || (list.length === 0 && !offered)) return next(e)
+    if (isHidden || (list.length === 0 && !offered)) return next(e)
+    // The pane says all the band would while it is on screen. `pane` redraws the band when it
+    // opens and closes; the engine's record decides, since a pane can go without a close this
+    // module hears (an unload), or (seen at the band's next redraw) sit behind another tab.
+    if (isPaneOpen && (await $.ui.panes().catch(() => [])).some(onScreen)) return next(e)
 
     const { Box, Button, Link, Text } = $.ui.resolve(e)
     const fill = filler({
@@ -330,7 +339,7 @@ export const register: Register = on => {
   // folder and pack file, its saved or sent link, and its next step with a Fill button. It
   // reads the same state as the band, so it follows every scan.
   on('ui.render', { component: 'Pane', requestId: 'noacg-guide' }, async ($, e) => {
-    const [list, root, now] = await Promise.all([read($, packages), $.session.root(), $.clock.now()])
+    const [list, root, now] = await Promise.all([read($, packages), $.session.root().then(normalize), $.clock.now()])
     const { Box, Button, Markdown, Text } = $.ui.resolve(e)
     const fill = filler({
       read: async () => (await $.prompt.read()).text,
@@ -359,7 +368,7 @@ export const register: Register = on => {
                 </Box>
                 <Text dimColor>{STATUS[p.status]}</Text>
               </Box>
-              {facts.length > 0 && <Markdown text={factsMarkdown(facts, normalize(root), now)} dimColor />}
+              {facts.length > 0 && <Markdown text={factsMarkdown(facts, root, now)} dimColor />}
               {p.next && (
                 <Box flexDirection="row" gap={1}>
                   <Box flexShrink={1}>

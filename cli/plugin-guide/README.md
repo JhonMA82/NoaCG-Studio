@@ -13,7 +13,7 @@ A band above the prompt, once the folder holds a package:
 
 ```
 NoaCG  Lower third · Scoreboard · Ticker
-       1 checked · 1 edited since check · 1 not checked · saved: Lower third
+       1 checked · 1 edited since check · 1 not checked · saved: Scoreboard
        Check Scoreboard again  [ Fill prompt ]  Open in NoaCG  [ Hide ]
        saving again adds a second library copy
 ```
@@ -83,8 +83,9 @@ To turn it off, start without `--plugin-dir`, or remove that line and start a ne
   the text answer; Codex has no mods.
 - No frame previews or thumbnails in the pane: frames open as a folder.
 - No artwork, brand or data input: it only reads what `noacg` runs reported.
-- It sees only what runs in the session. A package edited or checked outside Claude Code shows
-  its new state at the next prompt, but a check run outside it is not recorded.
+- It sees only what runs in the session. A package edited outside Claude Code shows "edited since
+  check" at the next prompt, but a check run outside it is not recorded. Nor is a run it cannot
+  read: one in the background, or one whose output was cut before its verdict.
 
 ## Checks
 

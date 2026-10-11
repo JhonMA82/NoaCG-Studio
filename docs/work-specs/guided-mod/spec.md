@@ -781,15 +781,19 @@ render hook, a `ui.close` hook and the command's new answer; the band and the pa
 `tests/pane.test.tsx` covers AC-14 and AC-15.
 
 **Decisions.**
-- `/noacg-guide` toggles the pane: open (in `$.ui.panes()`, the engine's record, which outlives a
-  reload), it closes it; else it opens it with `focus` and `closeOnEscape`, so Esc closes it and
-  Tab walks its Fill buttons. It answers no text where the pane draws. It opens a pane only when
-  `$.session.surfaces()` holds `terminal` or `desktop`; otherwise (`[]` under `claude -p` and the
-  SDK, `vscode`, `mobile`), or when the open comes back `isPlaced: false` (a surface that places
-  no panes; a pane the person asked for is placed at any width), it closes what it opened and
-  answers with the text. It still clears `hidden` and sets `offer` as in phase 3.
-- The band steps aside while the pane is drawn (`pane` in state, set on a placed open, cleared
-  by any `ui.close` of the pane: Esc, the close mark, the command). Docked or inline, the pane
+- `/noacg-guide` toggles the pane: shown (in `$.ui.panes()`, the engine's record, which outlives
+  a reload, `isShown` and `isPlaced`), it closes it; else it opens it with `focus` and
+  `closeOnEscape`, so Esc closes it and Tab walks its Fill buttons (a tab behind another pane is
+  opened again, which brings it forward). It answers no text where the pane draws. It opens a
+  pane only when `$.session.surfaces()` holds `terminal` or `desktop`; otherwise (`[]` under
+  `claude -p` and the SDK, `vscode`, `mobile`), when the open comes back `isPlaced: false` (a
+  surface that places no panes; a pane the person asked for is placed at any width), or when a
+  pane call fails (another plugin refusing the open), it answers with the text, closing what it
+  opened. It still clears `hidden` and sets `offer` as in phase 3.
+- The band steps aside while the pane is on screen. `pane` in state (set on a placed open,
+  cleared by any `ui.close` of the pane: Esc, the close mark, the command) redraws the band;
+  while it is set the band asks `$.ui.panes()`, so a pane gone without a close the module heard
+  (an unload) or behind another pane's tab leaves the band showing. Docked or inline, the pane
   says all the band would, and two Fill buttons for one step would compete.
 - The pane lists every package by name: the name in bold with its state, one dim `Markdown` line
   of records (`Checked 14:02 · Frames 14:03 shots/ · Saved 13:50 Open in NoaCG`), the step with a
@@ -797,10 +801,12 @@ render hook, a `ui.close` hook and the command's new answer; the band and the pa
   in the theme's `warning` colour. With no package it shows **Start a package** alone.
 - Folders and pack files are `file:` links in a `Markdown` line: a `Link`'s `href` takes only
   `https:` or `http://localhost` and refuses the whole tree otherwise. Labels are paths relative
-  to the root, Markdown's own characters escaped; the URL is percent-encoded.
+  to the root, Markdown's own characters escaped; every URL in the line has its parentheses and
+  spaces percent-encoded, so none ends its link early.
 - `linkOf` now hands out only what a `Link` takes (`webLink`: `https:`, or `http://localhost` for
-  a stand-in, no `user@`), spelled as `new URL(href).href`. Phase 3 let any `http:` through,
-  which would have refused the band's tree.
+  a stand-in, no `user@`, at most 2,048 characters), spelled as `new URL(href).href`. Phase 3 let
+  any `http:` through, which would have refused the band's tree. The pane and the text use the
+  same filter, so a LAN stand-in's `http:` link is left out of them too.
 - The text answer is short and plain, as the engine records it in the conversation for a later
   turn's model: a header, then per package its state, its records on one line and `Next:` with
   the step's label. With no package: "No NoaCG package here. To start one, ask: Make broadcast
@@ -828,8 +834,8 @@ render hook, a `ui.close` hook and the command's new answer; the band and the pa
 lists `$.clock.now`, `$.command.register`, `$.fs.list`, `$.fs.read`, `$.prompt.fill`,
 `$.prompt.read`, `$.session.cwd`, `$.session.root`, `$.session.surfaces`, `$.state.*`,
 `$.store.*`, `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` and `$.ui.toast`: nothing
-AC-12 rules out. `claude plugin test`: 76 tests pass on both builds; `tsc -p cli/plugin-guide`
-passes. Real run: a scratch driver plugin calling `$.tool.call` from `prompt.submit`, a new
+AC-12 rules out. `claude plugin test`: 77 tests pass on both builds; `tsc -p cli/plugin-guide`
+passes (after a load with `CLAUDE_CODE_USE_POWERSHELL_TOOL=1`, the phase 2 trap). Real run: a scratch driver plugin calling `$.tool.call` from `prompt.submit`, a new
 `claude -p --plugin-dir cli/plugin-guide` process per step, a scratch profile, and published
 `@noacg/cli` 0.10.1 through `npx -y`: two scaffolds, `validate evening --screenshots ./shots`,
 then `validate scores && pack scores --out night.noacgpack.json`. Then `claude -p "/noacg-guide"`
@@ -851,6 +857,16 @@ graphics with NoaCG."; the debug log showed `$.session.surfaces` answering `[]` 
 settling in 3 ms, with no refused tree or skipped hook. Not seen: the pane or the band drawn on a
 surface, Esc closing the pane, a click on a `file:` link, and the Desktop route (no sign-in and
 no pseudo-terminal on the build machine).
+
+**Review.** The pre-merge review's ten findings, each checked against the code. Fixed: the band
+trusting its own `pane` flag after a pane went without a close it heard, the command closing a
+pane that sat behind another tab, a refused open leaving no answer, the desktop branch untested
+with a placed pane, a link over 2,048 characters refusing the band, parentheses ending a Markdown
+link, the try-out asking for the band while the pane hid it and for Enter while the pane held the
+keys, and the README's mock-up and a dropped limit. Kept: the Fill closures built in each render
+hook, since `$` cannot be passed to a helper. The simplify pass shared the on-screen test, the
+separator and the percent-encoding, and dropped a redundant `user@` check. It also suggested
+raising a person's `ui.close` from the tests: the kit's `$.ui` has no `close` at run time.
 
 **For the phase 4 check.** Re-derive AC-14 and AC-15 on main as above: the text answer through
 `claude -p` on both builds (with records, and in an empty folder), the pane through the tests.

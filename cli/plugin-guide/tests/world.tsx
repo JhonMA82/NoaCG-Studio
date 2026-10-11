@@ -96,8 +96,10 @@ export type Session = {
   commands: string[]
   /** Where the session draws (`$.session.surfaces()`): the terminal unless a test says. */
   surfaces: RenderSurface[]
-  /** Whether those surfaces place a pane the person asked for; an older desktop places none. */
-  placesPanes: boolean
+  /** How an open goes: placed; waiting undrawn, as on a surface that places none; refused by a hook. */
+  opens: 'placed' | 'waits' | 'refused'
+  /** Whether an open pane is the one shown, or a tab behind another plugin's pane. */
+  paneShown: boolean
   /** Every pane the mod asked to open, as it asked, and the ids open now. */
   opened: Record<string, unknown>[]
   panes: string[]
@@ -270,11 +272,13 @@ export function session($: Engine, on: On, tree: Tree): Session {
   on('session.surfaces', () => ({ value: world.surfaces }))
   on('ui.open', ($, e) => {
     opened.push({ ...e })
+    if (world.opens === 'refused') return { deny: 'another plugin keeps panes closed' }
     if (!panes.includes(e.id)) panes.push(e.id)
-    return { value: world.placesPanes ? { isPlaced: true } : { isPlaced: false, reason: 'the attached surfaces place no panes' } }
+    if (world.opens === 'placed') return { value: { isPlaced: true } }
+    return { value: { isPlaced: false, reason: 'the attached surfaces place no panes' } }
   })
   on('ui.panes', () => ({
-    value: panes.map(id => ({ id, title: 'NoaCG', isShown: true, isFocused: false, isPlaced: world.placesPanes })),
+    value: panes.map(id => ({ id, title: 'NoaCG', isShown: world.paneShown, isFocused: false, isPlaced: world.opens === 'placed' })),
   }))
   on('ui.close', ($, e) => {
     if (panes.includes(e.id)) panes.splice(panes.indexOf(e.id), 1)
@@ -295,7 +299,8 @@ export function session($: Engine, on: On, tree: Tree): Session {
     context,
     commands,
     surfaces: ['terminal'],
-    placesPanes: true,
+    opens: 'placed',
+    paneShown: true,
     opened,
     panes,
     fills,

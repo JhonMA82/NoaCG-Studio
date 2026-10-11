@@ -33,6 +33,7 @@ describe('the package pane', () => {
   for (const surface of SURFACES) {
     test(`lists every package, follows the records and closes with the command (${surface})`, async ($, on) => {
       const world = session($, on, twoPackages())
+      world.surfaces = [surface]
       await world.start()
       await world.run('noacg validate evening --screenshots ./shots', { output: cli.validate(`${ROOT}/evening`, true, `${ROOT}/shots`) })
       await world.run('noacg save evening', { output: cli.saved('Evening news', SAVED) })
@@ -113,11 +114,39 @@ describe('the package pane', () => {
     }
     // A surface that places no pane: the pane waits undrawn, so it goes and the text answers.
     world.surfaces = ['desktop']
-    world.placesPanes = false
+    world.opens = 'waits'
     expect((await world.command()).text).toBe(expected)
     expect(world.opened).toHaveLength(1)
     expect(world.panes).toEqual([])
+    // An open another plugin refuses: still the text.
+    world.opens = 'refused'
+    expect((await world.command()).text).toBe(expected)
+    expect(world.opened).toHaveLength(2)
     expect(world.forbidden).toEqual([])
+  })
+
+  test('the band is back whenever the pane is not on screen', async ($, on) => {
+    const world = session($, on, twoPackages())
+    await world.start()
+    const band = await world.mount('terminal', 120)
+    await world.command()
+    expect(await engineDraws(band)).toBe(true)
+
+    // A tab behind another plugin's pane: the band shows, and the command brings the pane
+    // forward rather than closing it.
+    world.paneShown = false
+    await band.redraw()
+    expect(await texts(band)).toContain('Check Evening news')
+    expect(await world.command()).toEqual({})
+    expect(world.opened).toHaveLength(2)
+    expect(world.panes).toEqual(['noacg-guide'])
+
+    // Gone without a close this module heard (an unload): the band shows.
+    world.paneShown = true
+    world.panes.splice(0)
+    await band.redraw()
+    expect(await texts(band)).toContain('Check Evening news')
+    await band.unmount()
   })
 
   test('with no package, the pane and the text offer to start one', async ($, on) => {
@@ -148,6 +177,10 @@ describe('the package pane', () => {
     // A folder name with Markdown's own characters stays plain text in the link.
     expect(factsMarkdown([{ word: 'Frames', at, folder: '/work/[draft]_shots' }], '/work', NOW)).toBe(
       `Frames ${hhmm(at)} [\\[draft\\]\\_shots/](file:///work/%5Bdraft%5D_shots)`,
+    )
+    // A link's parentheses would end the Markdown link early.
+    expect(factsMarkdown([{ word: 'Saved', at, url: 'https://noacg.studio/#/graphic/a)b' }], '/work', NOW)).toBe(
+      `Saved ${hhmm(at)} [Open in NoaCG](https://noacg.studio/#/graphic/a%29b)`,
     )
     expect(textAnswer([], '/work', NOW)).toBe(`No NoaCG package here. To start one, ask: ${START}`)
   })
