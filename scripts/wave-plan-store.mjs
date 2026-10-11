@@ -9,7 +9,8 @@
 //                                                              # second open wave and a window over 24 h
 //   node scripts/wave-plan-store.mjs --open 2026-10-09 plan-editor --until 2026-10-09T18:00:00+03:00
 //                                                              # the same for a plan run (`/plan-run`):
-//                                                              # a plan run and a wave exclude each other
+//                                                              # a plan run and a wave exclude each other;
+//                                                              # a new --until on the same date is a new window
 //
 // WHY. The wave plan is the ONLY record of which pools ran, what the routing was, and every
 // `DECIDED:` line the orchestrator wrote when it took a decision on the owner's behalf. It is
@@ -36,12 +37,23 @@
 // it always meant - not tracked by git - and keeping it means one glob matches a plan in the store
 // and a plan in the legacy `docs/handoffs/` location, which is what lets the weekly review read
 // across the move without a second pattern to keep in step.
+//
+// WHY A NEW `--until` IS A NEW WINDOW and the same `--until` a restart. A restart must not renew
+// authorisation, so a resumed wave is measured from the start its file records; but a new window the
+// owner named must not be ignored either. Measured 2026-10-11: reopening the plan run's date with a
+// later `--until` kept the morning window, and the ledger answered `time-limit` for a run the owner
+// had just re-authorised. So a different end is a new window: the window lines are rewritten and
+// the 24 hours count from now, while the ledger and the sessions stay. Every earlier `## Report`
+// becomes `## Earlier report`, because a report is what lets a wave open beside this run, and a run
+// that continues is open again. A new date for a plan whose run is not done is refused with the date
+// to reopen, so no empty ledger is ever started beside a half-run one.
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { jobsDir } from './jobs-store.mjs';
+import { nextStep } from './plan-run.mjs';
 import { samePath } from './worktree-cleanup-lib.mjs';
 
 /** The store's folder name inside the job store, beside `logs/` and `relay/`. */
@@ -145,13 +157,21 @@ export function openNightWave(dir = jobsDir(), now = Date.now()) {
   }) ?? null;
 }
 
+/** The window lines the store writes. The value alone is read and rewritten, so a trailing note survives. */
+const WINDOW_START = /^(Window starts: )(\S+)/m;
+const WINDOW_END = /^(Window ends: )(\S+)/m;
+
 /**
  * Open a wave: refuse a window past the 24-hour ceiling and a second live wave, then create the
- * plan with its window lines, or hand back the existing one when this same wave is resumed. A
- * resumed wave is measured from the start its file records, so a restart cannot stretch it.
+ * plan with its window lines, hand back the existing one when this same wave is resumed, or give it
+ * the new window when `until` names a different end. A resumed wave is measured from the start its
+ * file records, so a restart cannot stretch it; a new window is measured from now, rewrites the
+ * window lines and demotes every earlier report heading, so the run counts as open again. A plan
+ * run is refused a new date while an earlier date's run is not done: that file is the one to reopen.
  * `session` (the opener's `CLAUDE_CODE_SESSION_ID`) is added as a `Session:` line under the window
  * lines, once per session, so a resume after a restart records the new one too.
- * Returns `{ file }` or `{ refusal }`.
+ * Returns `{ file, window: 'opened' | 'resumed' | 'new' }`, with `previousEnd` for a new window, or
+ * `{ refusal }`.
  */
 export function openWave({ date, kind, until, session, dir = jobsDir(), now = Date.now() }) {
   const name = wavePlanName(date, kind);
@@ -161,10 +181,20 @@ export function openWave({ date, kind, until, session, dir = jobsDir(), now = Da
   }
   if (end <= now) return { refusal: `the window end ${until} has already passed` };
   const file = path.join(ensureWavePlansDir(dir), name);
-  const recorded = existsSync(file) ? /^Window starts: (\S+)\s*$/m.exec(readFileSync(file, 'utf8'))?.[1] : undefined;
-  const start = recorded && !Number.isNaN(Date.parse(recorded)) ? Date.parse(recorded) : now;
+  const text = existsSync(file) ? readFileSync(file, 'utf8') : null;
+  const recorded = { start: WINDOW_START.exec(text ?? '')?.[2], end: WINDOW_END.exec(text ?? '')?.[2] };
+  const window = text === null ? 'opened' : recorded.end && Date.parse(recorded.end) !== end ? 'new' : 'resumed';
+  const start = window === 'resumed' && !Number.isNaN(Date.parse(recorded.start ?? '')) ? Date.parse(recorded.start) : now;
   if (end - start > MAX_WINDOW_MS) {
-    return { refusal: `a wave runs at most 24 hours from its start (${new Date(start).toISOString()}), and ${until} is later than that` };
+    const from = window === 'resumed' ? `its start (${new Date(start).toISOString()})` : `now (${new Date(now).toISOString()})`;
+    return { refusal: `a wave runs at most 24 hours from ${from}, and ${until} is later than that` };
+  }
+  const unfinished = window === 'opened' && PLAN_RUN_KIND.test(kind) ? unfinishedRun(kind, dir, now) : null;
+  if (unfinished) {
+    return {
+      refusal: `the plan ${kind.slice('plan-'.length)} has an unfinished run: ${unfinished}. Continue it: ` +
+        `--open ${path.basename(unfinished).slice(0, 10)} ${kind} --until ${until}`,
+    };
   }
   const others = openWaves(dir, now, name);
   if (others.length > 0) {
@@ -173,18 +203,35 @@ export function openWave({ date, kind, until, session, dir = jobsDir(), now = Da
         'report it first. To resume it after a restart, open it again with its own date and kind.',
     };
   }
-  if (!existsSync(file)) {
+  if (window === 'opened') {
     writeFileSync(file, `${waveTitle(date, kind)}\n\nWindow starts: ${new Date(now).toISOString()}\nWindow ends: ${until}\n`, 'utf8');
+  } else if (window === 'new') {
+    writeFileSync(file, text
+      .replace(WINDOW_START, `$1${new Date(now).toISOString()}`)
+      .replace(WINDOW_END, `$1${until}`)
+      .replace(new RegExp(REPORT_HEADING.source, 'gm'), '## Earlier report'), 'utf8');
   }
   if (session && !waveSessions(file).includes(session)) {
-    const text = readFileSync(file, 'utf8');
-    const block = SESSION_BLOCK.exec(text);
+    const current = readFileSync(file, 'utf8');
+    const block = SESSION_BLOCK.exec(current);
     if (block) {
       const at = block.index + block[0].length;
-      writeFileSync(file, `${text.slice(0, at)}Session: ${session}\n${text.slice(at)}`, 'utf8');
+      writeFileSync(file, `${current.slice(0, at)}Session: ${session}\n${current.slice(at)}`, 'utf8');
     }
   }
-  return { file };
+  return window === 'new' ? { file, window, previousEnd: recorded.end } : { file, window };
+}
+
+/**
+ * The newest run of this plan on another date whose ledger is not done, or null. Asked only before a
+ * NEW file is created, so every file of this kind in the store is another date's.
+ */
+function unfinishedRun(kind, dir, now) {
+  const folder = wavePlansDir(dir);
+  return wavePlanFiles(dir)
+    .filter((name) => name.endsWith(`-${kind}${PLAN_SUFFIX}`))
+    .map((name) => path.join(folder, name))
+    .find((file) => !['done', 'no-phases'].includes(nextStep(readFileSync(file, 'utf8'), now).action)) ?? null;
 }
 
 /**
@@ -225,10 +272,11 @@ export function main(argv = process.argv.slice(2)) {
   }
   if (argv[0] === '--open') {
     const at = argv.indexOf('--until');
+    const until = at === -1 ? undefined : argv[at + 1];
+    const now = Date.now();
     let opened;
     try {
-      const until = at === -1 ? undefined : argv[at + 1];
-      opened = openWave({ date: argv[1], kind: argv[2], until, session: process.env.CLAUDE_CODE_SESSION_ID || undefined });
+      opened = openWave({ date: argv[1], kind: argv[2], until, session: process.env.CLAUDE_CODE_SESSION_ID || undefined, now });
     } catch (error) {
       process.stderr.write(`wave-plan-store: ${error.message}\n\n${USAGE}\n`);
       return 2;
@@ -242,6 +290,9 @@ export function main(argv = process.argv.slice(2)) {
         'guard cannot tell this wave\'s own sessions.\n');
     }
     process.stdout.write(`${opened.file}\n`);
+    if (opened.window === 'new') {
+      process.stderr.write(`wave-plan-store: new window from ${new Date(now).toISOString()} to ${until}; the earlier window ended ${opened.previousEnd}\n`);
+    }
     return 0;
   }
   if (argv[0] === '--path') {

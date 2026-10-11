@@ -632,7 +632,10 @@ jobs:
   # red on each (scripts/e2e-retry.mjs `retryPlan`): more than one shard without a report, nothing
   # to re-run (no failing spec and no dead shard - the failure was not a test), and a failing spec
   # this change itself edits (a flake in a spec the change wrote is the change's, bounced to its
-  # author, never quarantined on a second run).
+  # author, never quarantined on a second run). Nothing to re-run is GREEN, not refused, when every
+  # report is in without a failure or run error and this run's job list shows each shard job
+  # succeeded or was cancelled only after its specs, clean-tree check and upload passed: a shard
+  # ran out of clock after reporting (run 38153870752), and every spec already has its verdict.
   #
   # A SHARD THAT DIED gets its files run here too. Killed at the cap, or failed before Playwright
   # reported, it uploads no blob, and its files never ran on this commit; the plan's `shardSpecs`
@@ -651,13 +654,13 @@ jobs:
     needs: [plan, e2e]
     if: ${{ !cancelled() && (needs.e2e.result == 'failure' || needs.e2e.result == 'cancelled') && ((github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'merge_group') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read # this run's own shard jobs and their steps (scripts/e2e-retry.mjs `cancelledAfterReport`)
     # A dead shard's files are a whole shard's worth of work, and the shard that died ran out of its
     # 20 minutes on them; the same cap here would kill the second run for the same reason. A hung
     # test cannot use the extra room - Playwright stops each test at 60 s.
     timeout-minutes: 45
-    permissions:
-      contents: read
-      actions: read # this run's own job conclusions, to tell a shard cancelled at the cap from one that failed
     outputs:
       # The spec files that failed in a shard and were re-run, as a JSON array of repo-relative
       # paths - what the gate quarantines when this job passes, and what the revert counts as
@@ -688,39 +691,25 @@ jobs:
           pattern: blob-report-*
           merge-multiple: true
 
-      # WHICH SHARDS RAN OUT OF CLOCK. A shard that finishes its tests, uploads a complete green
-      # report and is then killed by `timeout-minutes` while still inside the job is concluded
-      # `cancelled` by GitHub (run 38153870752, shard 5/10, issue #1025). The blobs cannot tell
-      # that shard from one that failed its last step, so the job conclusions are read here, and
-      # the planner lets a run whose every shard reported green pass rather than refusing with
-      # "nothing to re-run". An API hiccup leaves the list empty, which is the old behaviour.
-      - name: Which shards were cancelled at the cap
-        id: clock
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.run_id }}
-          ATTEMPT: ${{ github.run_attempt }}
-        run: |
-          CANCELLED="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/attempts/${ATTEMPT}/jobs?per_page=100" \
-            --jq '.jobs[] | select(.conclusion == "cancelled") | .name | capture("^E2E (?<i>[0-9]+)/") | .i' 2>/dev/null | paste -sd, - || true)"
-          echo "Shards concluded cancelled: ${CANCELLED:-none}"
-          echo "cancelled=$CANCELLED" >> "$GITHUB_OUTPUT"
-
       # `--shards` is how many reports there must be; `--shard-specs` is the plan's assignment, which
       # names the files of a shard that left none; `--changed` is what this change edits - the
-      # merge group's base, or the push's `before`; `--cancelled` is the step above. The script
-      # writes `specs`, `filters`, `unreported` and `unreported_filters` to GITHUB_OUTPUT itself.
+      # merge group's base, or the push's `before`. `RUN_ID` lets the script read this run's own
+      # shard jobs, which tells a shard cancelled after its verdict was in (every report in, none
+      # failing: green, nothing to run) from one that failed outside its specs (refused). The
+      # script writes `specs`, `filters`, `unreported` and `unreported_filters` to GITHUB_OUTPUT.
       - name: Name the failed spec files
         id: failed
         env:
           MATRIX: ${{ needs.plan.outputs.matrix }}
           SHARD_SPECS: ${{ needs.plan.outputs.shardSpecs }}
           CHANGED_SINCE: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.before }}
-          CANCELLED: ${{ steps.clock.outputs.cancelled }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
           SHARDS="$(node -e 'console.log(JSON.parse(process.env.MATRIX).shardTotal[0])')"
-          node scripts/e2e-retry.mjs --blobs all-blob-reports --shards "$SHARDS" --shard-specs "$SHARD_SPECS" --changed "$CHANGED_SINCE" --cancelled "$CANCELLED" --github-output
+          node scripts/e2e-retry.mjs --blobs all-blob-reports --shards "$SHARDS" --shard-specs "$SHARD_SPECS" --changed "$CHANGED_SINCE" --github-output
 
       # The same anchored filters the shards use (`specFilterArg`), deliberately unquoted so word
       # splitting hands Playwright one argument per file - see the shard step for why that is safe.
@@ -747,10 +736,12 @@ jobs:
 
       # Named OUTSIDE the `blob-report-*` glob the combined report downloads: this job runs beside
       # the report job, and a retry's blob merged into the report would show the same spec once red
-      # and once green with nothing saying which was which.
+      # and once green with nothing saying which was which. Only when a run happened: with nothing
+      # to re-run there is no report, and `if-no-files-found: error` turned run 38153870752's
+      # all-green verdict into a failed retry.
       - name: Upload the retry report
         uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && (steps.second.outcome != 'skipped' || steps.unreported.outcome != 'skipped') }}
         with:
           name: retry-blob-report
           path: |
@@ -1103,8 +1094,10 @@ jobs:
             E2E_RESULT=success
           elif [ "$E2E_RESULT" = "cancelled" ] && [ "$RETRY_RESULT" = "success" ]; then
             # The planner refuses multiple missing reports and replays the one missing shard's
-            # assigned files. Its completed verdict supplies the answer the matrix never reached.
-            echo "::notice title=CI gate::The bounded retry completed successfully after the E2E matrix was cancelled. Any failed specs are recorded separately by the retry and quarantine steps."
+            # assigned files. Its completed verdict supplies the answer the matrix never reached -
+            # or, when every report was in and green and the shard was cancelled only after its
+            # upload, the retry ran nothing because the matrix had reached it after all.
+            echo "::notice title=CI gate::The E2E matrix was cancelled and the bounded retry answered for it: it re-ran what had no verdict, or found every shard's report complete and green. Any failed specs are recorded separately by the retry and quarantine steps."
             E2E_RESULT=success
           fi
           fail() {
@@ -1120,6 +1113,8 @@ jobs:
           # The run is still NOT A PASS - no verdict was reached, and a gate that exits 0 here
           # would close the red-main issue and paint the commit green on the strength of tests
           # that never finished. So this still exits non-zero. What changes is what it SAYS.
+          # (A cancelled matrix reaches here only when the retry did not succeed; one whose shard
+          # was cancelled after its verdict was in is turned to success above, by the retry.)
           #
           # WHAT THIS STEP CANNOT SEE, and why it does not decide: `needs.e2e.result` collapses
           # nine matrix legs into one word, so a run where one shard FAILED a spec and another was
@@ -1213,7 +1208,7 @@ jobs:
       # that fails (GitHub refusing the push, the organisation not yet letting Actions open pull
       # requests) is a warning, never a red job over a green gate.
       - name: Quarantine the specs that failed and then passed
-        if: ${{ needs.gate.result == 'success' && needs.e2e-retry.result == 'success' && needs.e2e-retry.outputs.specs != '[]' && needs.e2e-retry.outputs.specs != '' }}
+        if: ${{ needs.gate.result == 'success' && needs.e2e-retry.result == 'success' && needs.e2e-retry.outputs.specs != '[]' }}
         continue-on-error: true
         env:
           GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}

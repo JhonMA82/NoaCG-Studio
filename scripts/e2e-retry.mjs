@@ -28,7 +28,15 @@
 //     one second run cannot cover several runners' worth of files inside its own time limit, and
 //     a file list that cannot be named cannot be re-run;
 //   - nothing to re-run: no failing spec in the reports and no dead shard - the failure was not a
-//     test;
+//     test. ONE SHAPE OF IT IS GREEN, not refused: every shard job of this run's attempt either
+//     succeeded or was cancelled with its specs, its clean-tree check and its report upload all
+//     passed (`cancelledAfterReport`, read off the run's own job list), and the merged report
+//     carries no run-level error. That is a shard that ran out of clock AFTER its verdict was in.
+//     Run 38153870752 was that: ten complete green reports, shard 5 ending at the 20-minute cap
+//     in its post steps, and main red (#1020, #1025) for a commit whose every spec passed. The
+//     matrix's one-word `needs.e2e.result` is not enough to decide it, because it can read
+//     `cancelled` beside a shard that FAILED (see the gate in ci.yml); the job list cannot. A job
+//     list that cannot be read refuses;
 //   - a failing spec that this change itself touched (`--changed <base>`): a flake in a spec the
 //     change wrote or edited is the change's, not the suite's; it is bounced to its author, never
 //     quarantined on the strength of a second run.
@@ -38,6 +46,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ghJsonLines } from './ci-failure-set.mjs';
 import { changedFilesSince } from './e2e-affected.mjs';
 import { parseArgs } from './e2e-quarantine.mjs';
 import { editedSpecs, planIdentity, specFilterArg, specPath } from './e2e-spec-names.mjs';
@@ -63,23 +72,53 @@ export function failedSpecFiles(report) {
 /** How many shards may die and still be re-run: one runner's worth of files fits the retry's cap. */
 export const MAX_DEAD_SHARDS = 1;
 
+/** The shard job's steps (ci.yml) that must all have passed for its cancellation to come after its verdict. */
+export const REPORTED_STEPS = ['E2E shard', 'Tests left the tree clean', 'Upload shard report'];
+
+/**
+ * Which shards this run's own job list shows cancelled only AFTER their verdict was in, or why
+ * that cannot be said. Every `E2E <n>/<total>` job must be there; each one either succeeded or was
+ * cancelled with all of `REPORTED_STEPS` passed. A failed leg, a cancelled leg whose specs, tree
+ * check or upload did not pass, or a list that is missing or short refuses.
+ * @param {{ name?: string, conclusion?: string | null, steps?: { name?: string, conclusion?: string | null }[] }[] | null} jobs
+ * @param {number} shards
+ * @returns {{ ok: true, capped: number[] } | { ok: false, why: string }}
+ */
+export function cancelledAfterReport(jobs, shards) {
+  const legs = (jobs ?? [])
+    .map((job) => ({ n: Number(/^E2E (\d+)\/\d+\b/.exec(String(job?.name ?? ''))?.[1]), job }))
+    .filter(({ n }) => Number.isInteger(n) && n > 0)
+    .sort((a, b) => a.n - b.n);
+  if (shards <= 0 || legs.length !== shards) {
+    return { ok: false, why: `this run's job list shows ${legs.length} of ${shards} shard jobs` };
+  }
+  const capped = [];
+  for (const { n, job } of legs) {
+    if (job.conclusion === 'success') continue;
+    const missed = REPORTED_STEPS.filter((name) => !(job.steps ?? []).some((s) => s?.name === name && s.conclusion === 'success'));
+    if (job.conclusion !== 'cancelled' || missed.length > 0) {
+      return { ok: false, why: `shard ${n} concluded ${job.conclusion ?? 'unknown'}${missed.length > 0 ? ` without passing ${missed.map((s) => `"${s}"`).join(', ')}` : ''}` };
+    }
+    capped.push(n);
+  }
+  if (capped.length === 0) return { ok: false, why: 'no shard job was cancelled' };
+  return { ok: true, capped };
+}
+
 /**
  * What to re-run, or why not. Pure: the decision the gate's verdict rests on.
  *
  * `specs` failed in a shard and get their SECOND run; `unreported` are the files of a shard that
  * uploaded no report, which get their FIRST. `reported` is the 1-based indices of the shards that
  * uploaded one, and `shardSpecs` the plan's assignment, one file list per shard in shard order.
- * `cancelled` is the 1-based indices of shard jobs GitHub concluded `cancelled`: a shard killed at
- * its 20-minute cap AFTER it uploaded a complete green report (run 38153870752, shard 5/10, issue
- * #1025) is such a job. Its report is whole - the upload step runs after Playwright and the
- * integrity reporter, and a partial zip fails the merge - so when every shard reported and none
- * names a failing spec, there is nothing to re-run and the plan says so with `ok: true` and empty
- * lists, which the gate reads as the matrix's verdict. Without a cancelled shard the same shape is
- * still the refusal: the failure was not a test.
- * @param {{ failed: string[], reported: number[], shards: number, shardSpecs?: string[][] | null, changed?: string[], cancelled?: number[] }} input
- * @returns {{ ok: true, specs: string[], unreported: string[], dead: number[], exhausted: number[] } | { ok: false, reason: string }}
+ * `jobs` is this run's job list and `errors` the number of run-level errors in the merged report
+ * (null when it says nothing); with no failing spec they tell a shard that ran out of clock after
+ * reporting from one that failed outside its specs. An `ok` with nothing to run says why, and
+ * names the shards that ran into their cap as `capped`.
+ * @param {{ failed: string[], reported: number[], shards: number, shardSpecs?: string[][] | null, changed?: string[], jobs?: Parameters<typeof cancelledAfterReport>[0], errors?: number | null }} input
+ * @returns {{ ok: true, specs: string[], unreported: string[], dead: number[], capped?: number[], reason?: string } | { ok: false, reason: string }}
  */
-export function retryPlan({ failed, reported, shards, shardSpecs = null, changed = [], cancelled = [] }) {
+export function retryPlan({ failed, reported, shards, shardSpecs = null, changed = [], jobs = null, errors = null }) {
   const have = new Set(reported);
   const dead = Array.from({ length: Math.max(0, shards) }, (_, i) => i + 1).filter((n) => !have.has(n));
   if (dead.length > MAX_DEAD_SHARDS) {
@@ -91,17 +130,24 @@ export function retryPlan({ failed, reported, shards, shardSpecs = null, changed
   }
   const failing = new Set(failed);
   const unreported = [...new Set(dead.flatMap((n) => shardSpecs[n - 1].map(specPath)))].filter((s) => !failing.has(s)).sort();
-  const exhausted = cancelled.filter((n) => have.has(n)).sort((a, b) => a - b);
   if (failed.length === 0 && unreported.length === 0) {
-    if (exhausted.length > 0) return { ok: true, specs: [], unreported: [], dead: [], exhausted };
-    return { ok: false, reason: 'the shard reports name no failing spec - the failure was not a test, so there is nothing to re-run' };
+    const refused = 'the shard reports name no failing spec - the failure was not a test, so there is nothing to re-run';
+    if (errors !== 0) {
+      return { ok: false, reason: `${refused} (${errors == null ? 'the merged report says nothing of run-level errors' : `the merged report holds ${errors} run-level error(s)`})` };
+    }
+    const legs = cancelledAfterReport(jobs, shards);
+    if (!legs.ok) return { ok: false, reason: `${refused} (${legs.why})` };
+    return {
+      ok: true, specs: [], unreported: [], dead: [], capped: legs.capped,
+      reason: `all ${shards} shard reports are in with no failing spec and no run error, and shard ${legs.capped.join(', ')} was cancelled only after its specs, clean-tree check and upload passed - every spec has its verdict, so there is nothing to re-run`,
+    };
   }
   const edited = editedSpecs(changed);
   const touched = failed.filter((spec) => edited.has(planIdentity(spec)));
   if (touched.length > 0) {
     return { ok: false, reason: `${touched.join(', ')} failed and this change edits ${touched.length === 1 ? 'it' : 'them'} - a flake in a spec the change wrote is the change's to fix, not the suite's to quarantine` };
   }
-  return { ok: true, specs: failed, unreported, dead, exhausted };
+  return { ok: true, specs: failed, unreported, dead };
 }
 
 /**
@@ -148,6 +194,16 @@ export function changedSince(base) {
   }
 }
 
+/**
+ * This run's jobs, latest attempt, with their step conclusions - or null without `GH_REPO` and
+ * `RUN_ID` (a local run), and empty when GitHub does not answer. Either refuses the green path.
+ */
+function runJobs() {
+  const { GH_REPO: repo, RUN_ID: runId } = process.env;
+  if (!repo || !runId) return null;
+  return ghJsonLines([`repos/${repo}/actions/runs/${runId}/jobs?per_page=100`, '--paginate', '--jq', '.jobs[] | {name, conclusion, steps: [.steps[]? | {name, conclusion}]}']);
+}
+
 /** The plan's per-shard assignment, or null when it is absent or unreadable. */
 function parseShardSpecs(raw) {
   if (typeof raw !== 'string' || raw.trim() === '') return null;
@@ -163,26 +219,32 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const { flags } = parseArgs(process.argv.slice(2));
   const dir = flags.get('--blobs');
   if (typeof dir !== 'string') {
-    console.error('usage: e2e-retry.mjs --blobs <directory of blob reports> --shards <n> [--shard-specs <json>] [--changed <base>] [--cancelled <i,j>] [--github-output]');
+    console.error('usage: e2e-retry.mjs --blobs <directory of blob reports> --shards <n> [--shard-specs <json>] [--changed <base>] [--github-output]');
     process.exit(2);
   }
   // No directory is no shard reporting at all, which the plan refuses or re-runs like any other.
   const zips = existsSync(dir) ? readdirSync(dir).filter((f) => /^report-\d+\.zip$/.test(f)) : [];
   const shards = Number(flags.get('--shards') ?? 0);
+  const report = zips.length > 0 ? mergeBlobReports(dir) : null;
+  const failed = failedSpecFiles(report);
   const plan = retryPlan({
-    failed: zips.length > 0 ? failedSpecFiles(mergeBlobReports(dir)) : [],
+    failed,
     reported: zips.map((f) => Number(/\d+/.exec(f)[0])),
     shards,
     shardSpecs: parseShardSpecs(flags.get('--shard-specs')),
     changed: changedSince(flags.get('--changed')),
-    cancelled: String(flags.get('--cancelled') ?? '').split(',').map((s) => Number(s.trim())).filter((n) => Number.isInteger(n) && n > 0),
+    // Read only when it can decide anything: with a failing spec the green path is never taken.
+    jobs: failed.length === 0 ? runJobs() : null,
+    errors: Array.isArray(report?.errors) ? report.errors.length : null,
   });
   if (!plan.ok) {
     console.error(`e2e-retry: not re-running - ${plan.reason}.`);
     process.exit(1);
   }
-  for (const n of plan.exhausted ?? []) {
-    console.error(`e2e-retry: shard ${n} uploaded a complete report and was then cancelled at its time limit - its verdict stands, so it is not re-run.`);
+  if (plan.reason) console.error(`e2e-retry: ${plan.reason}.`);
+  // Green, but the cap is still being reached: say which shard, so the pressure stays visible.
+  for (const n of plan.capped ?? []) {
+    console.log(`::warning title=E2E shard ${n} reached its cap::Shard ${n} was cancelled at its timeout after its report was in. Its specs all passed, so the run is green, but the shard is running out of time.`);
   }
   for (const n of plan.dead) {
     console.error(`e2e-retry: shard ${n} uploaded no report, so its files never ran on this commit - they run once now, as their first verdict.`);

@@ -6,14 +6,13 @@
       "since": "2026-10-11",
       "count": 5,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38159046420"
-    },
-    "e2e/configured/late-send-abandoned.spec.ts": {
-      "since": "2026-10-10",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38005906607"
     }
   },
   "released": {
+    "e2e/configured/late-send-abandoned.spec.ts": {
+      "count": 1,
+      "last": "2026-10-11"
+    },
     "e2e/configured/production-data-key.spec.ts": {
       "count": 1,
       "last": "2026-10-11"
