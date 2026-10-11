@@ -1,5 +1,5 @@
 ---
-description: Open a session with no task yet, then say "Ready."
+description: Open a session and ensure the local Claude Remote Control server is running.
 ---
 
 Read `.agent-workflows/start.md` now and follow it in full - that file is the canonical
