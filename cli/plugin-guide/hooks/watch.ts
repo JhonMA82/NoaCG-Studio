@@ -228,6 +228,11 @@ function verbAt(words: string[]): number | null {
   return words[i + 1] === '--' ? i + 2 : i + 1
 }
 
+/** Whether a command line runs the noacg CLI, any verb: what brings a hidden band back. */
+export function runsNoacg(line: string, escapes: boolean): boolean {
+  return /noacg/i.test(line) && commandsIn(line, escapes).some(words => verbAt(words) !== null)
+}
+
 /** A word naming a folder this mod can follow: no variable, glob or home shorthand in it. */
 function plain(word: string | undefined): word is string {
   return word !== undefined && word !== '' && !/[$*?~`{}]/.test(word)
@@ -375,9 +380,11 @@ export function terminalReports(command: string, cwd: string, escapes: boolean, 
   const { text, isError } = outcome
   const reports: Report[] = []
   const count = (verb: Verb) => runs.filter(r => r.verb === verb).length
+  // A scaffold writes only into an empty folder, so it comes before any other run on that folder
+  // in the same command: `scaffold && validate` starts it afresh, then checks it.
+  if (count('scaffold')) fromScaffold(text, isError, reports)
   const blocks = count('validate') ? blocksIn(text) : []
   fromBlocks(blocks, isError, reports)
-  if (count('scaffold')) fromScaffold(text, isError, reports)
 
   for (const run of runs) {
     const here = run.cwd

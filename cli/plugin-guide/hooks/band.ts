@@ -1,7 +1,7 @@
 // The band's two lines, fitted to the cells they have: the package names, then where they stand.
 import type { NoacgPackage, PackageStatus } from '../types'
 
-const SEPARATOR = ' · '
+export const SEPARATOR = ' · '
 
 const STATUS: Record<PackageStatus, string> = { checked: 'checked', edited: 'edited since check', unchecked: 'not checked' }
 

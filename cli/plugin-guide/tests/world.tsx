@@ -87,6 +87,15 @@ export type Session = {
   forbidden: string[]
   /** What the prompts carried down to the engine beside their text. */
   context: string[]
+  /** The slash commands the mod declared. */
+  commands: string[]
+  /** What the mod put in the prompt box, and what it showed as toasts. */
+  fills: string[]
+  toasts: string[]
+  /** How the prompt box answers a fill: taken, or refused for a reason (`no_composer` where none is bound). */
+  box: 'takes' | 'no_composer' | 'dialog'
+  /** What the prompt box holds: the person's draft and what fills put there. */
+  draft: string
   /** The rows the mod appended to the conversation. */
   appended: () => number
   start: () => Promise<void>
@@ -97,6 +106,8 @@ export type Session = {
   run: (command: string, ending: Ending, options?: { tool?: 'Bash' | 'PowerShell'; background?: Background }) => Promise<void>
   /** A call of the `noacg` MCP tool, answered as given; `tool` its name, the plugin server's by default. */
   mcp: (args: Record<string, unknown>, answer: McpAnswer, tool?: `mcp__${string}__noacg`) => Promise<void>
+  /** `/noacg-guide`, typed by the person. */
+  command: () => Promise<void>
   /** The band, drawn through the mod on a surface, `columns` cells wide. */
   mount: (surface: Surface, columns: number, hasSurvey?: boolean) => Promise<Mounted<Surface, 'AbovePrompt'>>
 }
@@ -112,6 +123,9 @@ export function session($: Engine, on: On, tree: Tree): Session {
   const storeCalls: string[] = []
   const forbidden: string[] = []
   const context: string[] = []
+  const commands: string[] = []
+  const fills: string[] = []
+  const toasts: string[] = []
   const store = new Map<string, unknown>()
   const clock = mock.clock(on, { now: Date.UTC(2026, 9, 11, 12) })
   let appended = 0
@@ -219,9 +233,23 @@ export function session($: Engine, on: On, tree: Tree): Session {
   on('agent.register', () => refuse('agent.register'))
   on('mcp.call', () => refuse('mcp.call'))
   on('tool.register', () => refuse('tool.register'))
-  on('command.register', () => refuse('command.register'))
+  on('command.register', ($, e) => {
+    commands.push(e.name)
+    return { value: { command: e.name } }
+  })
+  on('prompt.read', () => ({ value: { text: world.box === 'takes' ? world.draft : '', cursor: world.draft.length } }))
+  on('prompt.fill', ($, e) => {
+    if (e.origin.kind !== 'plugin') forbidden.push(`prompt.fill from ${e.origin.kind}`)
+    if (world.box !== 'takes') return { isFilled: false, refusal: world.box }
+    fills.push(e.text)
+    world.draft = e.mode === 'replace' ? e.text : world.draft + e.text
+    return { isFilled: true }
+  })
+  on('ui.toast', ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
   on('ui.open', () => refuse('ui.open'))
-  on('ui.toast', () => refuse('ui.toast'))
   on('ui.status', () => refuse('ui.status'))
   on('ui.log', () => refuse('ui.log'))
 
@@ -235,6 +263,11 @@ export function session($: Engine, on: On, tree: Tree): Session {
     storeFails: 0,
     forbidden,
     context,
+    commands,
+    fills,
+    toasts,
+    box: 'takes',
+    draft: '',
     appended: () => appended,
     start: async () => {
       await $.session.start({ cwd: '.', surface: 'terminal', isInteractive: true })
@@ -258,6 +291,10 @@ export function session($: Engine, on: On, tree: Tree): Session {
     mcp: async (args, given, tool = MCP_TOOL) => {
       answer = given
       await $.tool.call({ tool, ...args })
+      await clock.settle()
+    },
+    command: async () => {
+      await $.command.run({ command: 'noacg-guide', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 140 } })
       await clock.settle()
     },
     mount: (surface, columns, hasSurvey = false) =>
