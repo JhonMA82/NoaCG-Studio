@@ -699,6 +699,12 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-11: independent landed layer/property comparison (#967)
+
+- [Fresh checker receipt](work-specs/editor-layer-property-qualification/independent/README.md): fetched main a1949517 contains e51f0ca3; production served 80780c23 with e51f0ca3 as its last deployment-affecting change. Six unchanged layer/property, four transform and six CLI cases passed; three separately authored cumulative viewport/physical-zoom tasks, a fresh Studio interaction/cumulative task and a served-production task passed in CI, one worker, zero retries. No product code changed.
+- Independently inspected Studio pin 3142fc7d and hash-verified official v0.17 server (source a1e97761), with no diff in the 19 inspected files. Selection, stable-ID label/eye, numeric edits, explicit history, text/animation and native-source reopen match their bounded contracts. Preserve deliberate NoaCG differences: row Shift ranges/rename/context, Ctrl/Cmd fractional fine adjustment, distinct Scale/box size, one-gesture history and exact Escape. Studio uses Alt and integer pixel geometry, settled 500ms history bursts, and retained the active scrub after Escape.
+- Actual native 1366x768 outer window at zoom 1.25 again gives 1093x545 CSS content and a 94px canvas. Fresh desktop/laptop/native captures were inspected; the tiny Fit artboard is a usability limit despite functional completion and executable outputs. Separate correction [#981](https://github.com/NoaCG/NoaCG-Studio/issues/981) owns short-height allocation. Preserve #950/#960 and CLI/transform evidence unchanged. Wider conventions/owner acceptance, save/leave/cloud status, loops, R1.5/default switch, receiving hosts and paired MCP remain separate.
+
 ### 2026-10-10: bounded layer/property qualification
 
 - [Spec/research/receipts](work-specs/editor-layer-property-qualification/README.md): ordinary current-main and pinned Studio interactions preceded correction design. Existing additive selection, Composition return, persistent tools and pre-key inspector transforms already worked; do not replace them. Add visible-row Shift ranges, label-only double-click/Enter rename, eye, canvas/row context/Delete and unkeyed timeline transforms through existing source/session handlers.
