@@ -421,23 +421,27 @@ phase 2 has no counterpart.
 - `tests/world.tsx` answers Bash with the engine's record (`shellResult`): every optional key
   present, undefined where it does not apply, as a `tool.call` hook saw it on 2.1.287 and
   2.1.295. PowerShell gets its declared keys; no PowerShell run was seen. `world.run`'s
-  `background` is `'asked'` (`run_in_background`) or `'moved'` (moved while running: no
-  `run_in_background`, a task ID in the result, the output so far kept). With the `in` test put
-  back, 14 of 54 tests fail; with no result test at all, the `moved` test fails.
+  `background` is `'asked'` (`run_in_background`) or `'moved'` (moved by its timeout while
+  running, as the real one below: no `run_in_background`, a task ID and `timedOutAfterMs`, the
+  output so far kept). With the `in` test put back, 14 of 54 tests fail; with no result test at
+  all, the `moved` test fails.
 - CI: `guided-mod.yml` is gone. Its two steps are now the `guided-mod` job in `ci.yml`, on both
   builds. A step in the `plan` job runs it when the change under test touches
-  `cli/plugin-guide` or `ci.yml`, and on every push to main or dispatch. `CI gate` needs the job:
-  a skip passes (the plan is required), a failure fails it, a cancel is no verdict. The merge
-  queue runs the same, so a red guided-mod run keeps a change from landing.
-  `scripts/e2e-retry.test.mjs` runs the gate's shell and asserts that.
+  `cli/plugin-guide` or `ci.yml`. `CI gate` needs the job: a skip passes (the plan is
+  required), a failure fails it, a cancel is no verdict. The merge queue runs the same, so a red
+  guided-mod run keeps a change from landing. `scripts/e2e-retry.test.mjs` runs the gate's
+  shell and asserts that; `scripts/ci-guided-mod.test.mjs` runs the plan step's shell in a
+  scratch repository, so a pathspec or base that turns the checks off fails the build.
 
 **Decisions.**
 - A string, not `!== undefined`: the declarations type the key `string`, and a real run moved by
   its timeout carried `backgroundTaskId: "btwctsdzw"` with `timedOutAfterMs: 1500`.
-- The step diffs against the event's own base (the pull request's base, the merge group's
-  `base_sha`), since the commit under test is a merge onto it. With no base (a push, a
-  dispatch) or a diff that fails, the job runs. A pull request that leaves the folder alone
-  costs one `git diff` and no runner.
+- The step diffs against the event's own base: the pull request's base, the merge group's
+  `base_sha`, a push's `before`, a dispatch's `diff_base`. Unlike the E2E plan, a push to main
+  diffs too: the job's result moves only with these files, since the builds are pinned. With
+  no base, or one the clone lacks, the job runs. A change that leaves the folder alone costs one
+  `git diff` and no runner. The mod-only manual run is gone with the workflow; run the two
+  commands locally, or dispatch `ci.yml`.
 
 **Traps.**
 - A plugin that calls `$.tool.call` gets the result back without its undefined keys (the

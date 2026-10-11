@@ -58,8 +58,9 @@ export async function engineDraws(ui: { find: (q: { key: string }) => Promise<un
 export type Ending = { output: string; exit?: number }
 
 /**
- * A run in the background: `asked` with `run_in_background`, `moved` there while it ran (Ctrl+B,
- * or a timeout), with the output it had printed in the result.
+ * A run in the background: `asked` with `run_in_background`; `moved` there by its timeout while
+ * it ran, as a real one was (a task ID and `timedOutAfterMs`, nothing else set), here with the
+ * output it had printed kept in the result.
  */
 export type Background = 'asked' | 'moved'
 
@@ -114,8 +115,7 @@ export function session($: Engine, on: On, tree: Tree): Session {
   const store = new Map<string, unknown>()
   const clock = mock.clock(on, { now: Date.UTC(2026, 9, 11, 12) })
   let appended = 0
-  let ending: Ending = { output: '' }
-  let background: Background | undefined
+  let ending: Ending & { background?: Background } = { output: '' }
   let answer: McpAnswer = { blocks: [] }
 
   // The engine hands the hooks absolute paths, on Windows with a drive letter; a path outside
@@ -192,7 +192,7 @@ export function session($: Engine, on: On, tree: Tree): Session {
         const text = `Exit code ${ending.exit}\n${ending.output}`
         return { isError: true, result: text, text }
       }
-      return { result: shellResult(e.tool, ending.output, background), text: ending.output }
+      return { result: shellResult(e.tool, ending.output, ending.background), text: ending.output }
     }
     // The MCP tool: its content blocks as the result, the text blocks joined as the model's text.
     const content = answer.blocks.map(b => (typeof b === 'string' ? { type: 'text', text: b } : { type: 'image', data: 'iVBORw0K', mimeType: 'image/png' }))
@@ -246,15 +246,13 @@ export function session($: Engine, on: On, tree: Tree): Session {
     },
     tool: async name => {
       ending = { output: '' }
-      background = undefined
       if (name === 'Read') await $.tool.call({ tool: 'Read', file_path: 'a.txt' })
       else await $.tool.call({ tool: 'Bash', command: 'npx @noacg/cli scaffold --type lower-third --out new' })
       await clock.settle()
     },
-    run: async (command, end, { tool = 'Bash', background: moved } = {}) => {
-      ending = end
-      background = moved
-      await $.tool.call({ tool, command, ...(moved === 'asked' ? { run_in_background: true } : {}) })
+    run: async (command, end, { tool = 'Bash', background } = {}) => {
+      ending = { ...end, background }
+      await $.tool.call({ tool, command, ...(background === 'asked' ? { run_in_background: true } : {}) })
       await clock.settle()
     },
     mcp: async (args, given, tool = MCP_TOOL) => {
@@ -270,38 +268,29 @@ export function session($: Engine, on: On, tree: Tree): Session {
 
 /**
  * A shell run's result as the engine hands it to a `tool.call` hook. Every optional key of the
- * tool's record is present, undefined where it does not apply: seen for Bash on 2.1.287 and
- * 2.1.295 through `claude -p` (the keys below, in its order); PowerShell's are its declared ones.
+ * tool's record is present, undefined where it does not apply: Bash's twenty keys as a hook saw
+ * them on 2.1.287 and 2.1.295 through `claude -p`; PowerShell's as declared (none seen).
  * So `'backgroundTaskId' in result` holds for every run; only a run in the background names its
  * task.
  */
 function shellResult(tool: 'Bash' | 'PowerShell', stdout: string, background: Background | undefined): Record<string, unknown> {
   const unset = (keys: string[]) => Object.fromEntries(keys.map(key => [key, undefined]))
-  const moved = {
+  const both = {
+    stdout,
+    stderr: '',
+    interrupted: false,
+    ...unset(['returnCodeInterpretation', 'isImage', 'persistedOutputPath', 'persistedOutputSize', 'gitOperation']),
+    ...unset(['backgroundedByUser', 'backgroundedByTurnAbort', 'backgroundedToDeliverMessage', 'backgroundEndsWithFinalResponse']),
     backgroundTaskId: background ? 'b7k2m9x4q' : undefined,
-    backgroundedByUser: background === 'moved' ? true : undefined,
+    timedOutAfterMs: background === 'moved' ? 1500 : undefined,
   }
-  return tool === 'Bash'
-    ? {
-        stdout,
-        stderr: '',
-        interrupted: false,
-        isImage: false,
-        returnCodeInterpretation: undefined,
-        noOutputExpected: false,
-        ...moved,
-        ...unset(['backgroundedByTurnAbort', 'backgroundedToDeliverMessage', 'timedOutAfterMs', 'backgroundEndsWithFinalResponse']),
-        ...unset(['backgroundCwdHint', 'dangerouslyDisableSandbox', 'persistedOutputPath', 'persistedOutputSize']),
-        ...unset(['staleReadFileStateHint', 'ghRateLimitHint', 'gitOperation', 'bashEditDiff']),
-      }
-    : {
-        stdout,
-        stderr: '',
-        interrupted: false,
-        ...unset(['returnCodeInterpretation', 'isImage', 'persistedOutputPath', 'persistedOutputSize']),
-        ...moved,
-        ...unset(['backgroundedByTurnAbort', 'backgroundedToDeliverMessage', 'timedOutAfterMs', 'backgroundEndsWithFinalResponse', 'gitOperation']),
-      }
+  if (tool === 'PowerShell') return both
+  return {
+    ...both,
+    isImage: false,
+    noOutputExpected: false,
+    ...unset(['backgroundCwdHint', 'dangerouslyDisableSandbox', 'staleReadFileStateHint', 'ghRateLimitHint', 'bashEditDiff']),
+  }
 }
 
 /** A file's time, standing in for its last write: it changes whenever the text does. */

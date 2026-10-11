@@ -67,6 +67,6 @@ claude plugin validate --strict cli/plugin-guide
 claude plugin test cli/plugin-guide
 ```
 
-The tests mount the band on the `terminal` and `desktop` surfaces. CI runs both on pull requests
-that touch this folder (the `guided-mod` job in `.github/workflows/ci.yml`), and a red run keeps
-the change from landing.
+The tests mount the band on the `terminal` and `desktop` surfaces. CI runs both whenever a change
+touches this folder or `.github/workflows/ci.yml` (its `guided-mod` job), in the pull request and
+in the merge queue, and a red run keeps the change from landing.

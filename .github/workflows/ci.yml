@@ -262,17 +262,27 @@ jobs:
           fetch-depth: 0
 
       # The trial guided mod (cli/plugin-guide) ships in no package, so nothing else here looks at
-      # it: its checks run when a pull request or merge group changes it, or the job itself. Like
-      # the plan below, a missing base fails toward running: a push to main or a dispatch runs it.
+      # it: its checks run when the change under test touches it, or the job itself. Its result
+      # moves only with those files (the Claude Code builds are pinned), so unlike the plan below
+      # a push to main diffs too, from `before`. A missing or unusable base fails toward running.
+      # scripts/ci-guided-mod.test.mjs runs this step's shell.
       - name: Does this change touch the guided mod?
         id: guided
         env:
           EVENT: ${{ github.event_name }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+          PUSH_BASE: ${{ github.event.before }}
+          DISPATCH_BASE: ${{ inputs.diff_base }}
         run: |
           set -euo pipefail
-          if [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; elif [ "$EVENT" = "merge_group" ]; then BASE="$MERGE_GROUP_BASE"; else BASE=""; fi
+          case "$EVENT" in
+            pull_request) BASE="$PR_BASE" ;;
+            merge_group) BASE="$MERGE_GROUP_BASE" ;;
+            push) BASE="$PUSH_BASE" ;;
+            workflow_dispatch) BASE="${DISPATCH_BASE:-}" ;;
+            *) BASE="" ;;
+          esac
           RUN=true
           if [ -n "$BASE" ] && git cat-file -e "${BASE}^{commit}" 2>/dev/null \
             && git diff --quiet "$BASE" HEAD -- cli/plugin-guide .github/workflows/ci.yml; then

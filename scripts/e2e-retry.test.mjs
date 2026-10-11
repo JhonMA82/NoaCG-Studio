@@ -153,8 +153,11 @@ test('a successful retry never overrides any other required gate', () => {
 
 test('the guided mod holds the gate when it ran red, and only a plan that skipped it passes it by', () => {
   for (const result of ['success', 'skipped']) assert.equal(gate({ GUIDED_MOD_RESULT: result }).status, 0, result);
-  for (const result of ['failure', 'cancelled', '']) assert.notEqual(gate({ GUIDED_MOD_RESULT: result }).status, 0, result);
-  assert.match(gate({ GUIDED_MOD_RESULT: 'failure' }).stdout, /Guided mod finished 'failure'/);
+  for (const result of ['failure', 'cancelled', '']) {
+    const run = gate({ GUIDED_MOD_RESULT: result });
+    assert.notEqual(run.status, 0, result);
+    assert.match(run.stdout, new RegExp(`Guided mod finished '${result}'`), result);
+  }
   const gateNeeds = workflow.match(/\n {2}gate:\n[\s\S]*?\n {4}needs: \[([^\]]*)\]/)?.[1].split(',').map((job) => job.trim());
   assert.ok(gateNeeds?.includes('guided-mod'), 'CI gate needs the guided-mod job');
 });
