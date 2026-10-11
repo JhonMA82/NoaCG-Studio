@@ -85,7 +85,8 @@ export const KEPT_PICTURES = [
   // The README's two pictures: GitHub renders them on the repository's front page.
   /^docs\/images\/(browse|playout)\.png$/,
   // The tutorial examples' previews: the examples are handed to users (docs.html, downloads.html).
-  /^docs\/tutorials\/.+\.png$/i,
+  // A pack's frames/ is captured per run and stays untracked (.gitignore says why).
+  /^docs\/tutorials\/(?!.*\/frames\/).+\.png$/i,
   // The creative benchmark's reference images, read by scripts/creative-pilot-bench.mjs.
   /^benchmarks\/creative\/v1\/references\/[^/]+\.png$/i,
 ];

@@ -24,8 +24,9 @@ are what the next agent uses. The git history holds about 200 MB, most of it the
   `docs/images/playout.png`), the tutorial examples' previews (`docs/tutorials/**`), and the
   creative benchmark's references (`benchmarks/creative/v1/references/`).
 - Pictures outside `docs/` and `benchmarks/`: the e2e baselines, `public/`, the brand kit.
-- Every benchmark result and every text document. Their links to archived pictures no longer
-  resolve; the text around them stands.
+- Every benchmark result and every text document. Their links and recorded paths to archived
+  pictures no longer resolve (markdown, galleries, JSON records); no code reads them, and the text
+  around them stands.
 
 ## Non-goals
 

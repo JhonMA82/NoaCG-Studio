@@ -10,6 +10,7 @@ test('a picture under docs/ or benchmarks/ is refused, whatever its case or kind
     'docs/research/editor-review/after.png',
     'docs/work-specs/some-feature/evidence/desktop.JPG',
     'docs/images/a-new-shot.png',
+    'docs/tutorials/svg-import/frames/step-1.png',
     'benchmarks/pro/evidence/round/frame.webp',
     'benchmarks/video/run/clip.webm',
   ]) assert.ok(refused(file), file);
