@@ -30,8 +30,8 @@ passed. Output: the plan's phases landed on `main`, checked, and a short report.
 - **First open only**: `git fetch origin main`, read the plan's phases, acceptance and phase notes
   on `origin/main`, and copy the phases still to build, in order, as a numbered list under
   `## Phases` in the wave file, one line each with where its acceptance is. Try what the plan's
-  checks need on this machine (a signed-in `claude -p`, an app); ask for what is missing with the
-  window.
+  checks need on this machine (a signed-in `claude -p`, an app); ask the owner for what is missing
+  before the first launch.
 
 ## 2. The loop
 
@@ -42,8 +42,9 @@ means launch nothing and run `next` again. As each step finishes, read `npm run 
 alarm goes to the session whose landing caused it, or to a row when no session holds it.
 
 - **launch build** (or **repair**): a builder with the brief below, the repair one with the
-  checker's findings. When its pull request merges with every check green, record `landed` with
-  detail `#<n>`; a red check, required or not, goes back to that session first (`resume`).
+  checker's findings. When its pull request merges with every check green (`gh pr checks <n>`),
+  record `landed` with detail `#<n>`; a red check, required or not, goes back to that session first
+  (`resume`).
 - **launch check**: a checker with the brief below, after the phase is on `main`. When its notes
   pull request merges, record `pass` or `fail` and its findings in one line.
 - **wait**: the step is running. After a restart its session may be gone: a merged pull request is
