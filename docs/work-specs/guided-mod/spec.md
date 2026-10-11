@@ -878,3 +878,123 @@ and the band read well together and apart, the pane's width at 110 to 140 column
 records line wraps well, whether Esc closing the pane (focused on open) feels right or the pane
 should stay until closed, whether a `file:` link opens the frames folder in Windows Terminal and
 the Desktop, and the step wording. Use `npx -y @noacg/cli@0.10.1`: the global `noacg` is 0.3.3.
+
+### Check of phase 4 (on `main` at 38c6ac6ae, by a separate session)
+
+**Verdict: pass**, with one thing to fix before the owner's walk: the pane takes the keys with
+its focus ring on nothing, so the walk's first "Press Enter on it" does nothing. AC-14 to AC-17
+hold as far as this machine can show them, and AC-1 to AC-13 still hold.
+
+**How it was run.** The sign-in was still expired, so no model turn ran. As in the earlier checks,
+a scratch driver plugin outside the repository called `$.tool.call` from `prompt.submit`. Each
+step was a new `claude -p --plugin-dir cli/plugin-guide` process from main with
+`MSYS_NO_PATHCONV=1`, a scratch profile, and the published `@noacg/cli` 0.10.1 through `npx -y`.
+The packages were in a scratch folder outside the repository. A second scratch plugin answered
+`session.surfaces` with `terminal` and logged the mod's state writes and pane calls. No `save` or
+`pack --save` ran.
+
+**AC-14, the pane.**
+- The real engine (2.1.295, with the terminal stood in): the first `/noacg-guide` called
+  `$.ui.open({ id: 'noacg-guide', title: 'NoaCG', focus: true, closeOnEscape: true })`. That came
+  back placed, set `pane` true and answered no text. The second found the pane on screen and
+  closed it (`ui.close`, origin `plugin`), and the mod's `ui.close` hook set `pane` false.
+  Nothing was drawn: a plugin's `$` has no `ui.render` in a session, and `-p` draws nothing.
+- Content: the pane tests (77 pass on 2.1.287 and 2.1.295, terminal and desktop) hold every item
+  the criterion lists. Ten mutations were run on a scratch copy: no `closeOnEscape`, no `focus`,
+  a command that never closes, text everywhere, no text when the open is not placed, the band
+  beside the pane, no warning line, no records line, no `Next:` in the text, and a `ui.close`
+  hook that leaves `pane` set. Nine failed a test. The last passed all 77, because the band asks
+  `$.ui.panes()` anyway. That flag is only what redraws the band after Esc, and no test holds it.
+- **Finding: Enter on the first button.** Neither **Start a package** nor the primary **Fill** is
+  drawn `autoFocus`. The engine's declaration says a site's ring starts "on nothing" unless an
+  element is drawn `autoFocus`, which "Enter acts on at once". So a pane opened with `focus`
+  needs Tab before Enter. `tryout.md` step 1 ("Press Enter on it, then Esc") fails as written.
+  The fix is one prop, `autoFocus`, on the pane's first primary button, or else the walk saying
+  "Tab, then Enter". This comes from the declaration; no drawn pane was seen.
+- Unseen: the pane drawn on any surface, its width docked or inline, Esc closing it, a
+  `file:` link opening Explorer, and Tab between Fill buttons. These are for the owner's walk.
+  This machine's `~/.claude/settings.json` has `"tui": "fullscreen"`, so a terminal 110 columns
+  or wider docks the pane, as the walk expects.
+
+**AC-15, the text answer.** In the walk's folder, after two scaffolds, `validate evening
+--screenshots ./shots`, `validate scores` and a Bash `echo >>` to `scores/css/template.css`,
+`claude -p "/noacg-guide"` answered the same on 2.1.287 and 2.1.295. Exit 0, no model call:
+
+```
+noacg-guide: NoaCG packages here:
+
+Evening news: checked
+  Checked 19:57 · Frames 19:57 in shots/
+  Next: Save Evening news, or send all graphics to a production
+
+Scores: edited since check
+  Checked 19:58
+  Next: Check Scores again
+```
+
+In an empty folder both builds answered "No NoaCG package here. To start one, ask: Make
+broadcast graphics with NoaCG." The text matches the steps the scans stored, which the driver
+logged. A non-technical reader can follow it: one line of state and one next step per package.
+The transcript keeps it as a `local_command` row of 232 characters, under the engine's caveat
+that the command "was run directly ... recorded here as context". A later model turn can read
+the names, states and steps from it, but not the folders, which only Fill's requests name. The
+times carry no date on the day they were made. The debug logs show `$.session.surfaces`
+answering `[]`, the command settling in 4 to 12 ms, and no skipped hook, fault or refused tree
+naming the mod.
+
+**AC-16, the README.** It covers every item: what the band and pane show, what is recorded and
+where (`~/.claude/plugins/store/`; seen as `<profile>/plugins/store/noacg-guide_inline-<hash>.json`
+under `records:<root>`), no network request, process run or model call, the terminal and Desktop
+routes, how to turn it off, and the limits (VS Code, Codex, no previews, no artwork, brand or
+data). Followed literally:
+- Terminal: `--plugin-dir` with a Windows path in backslashes, as `tryout.md` writes it, loaded
+  the mod.
+- Desktop route: tried on the Desktop's 2.1.295 binary with a scratch profile and no
+  `--plugin-dir`. `CLAUDE_CODE_PLUGIN_DIRS` in `settings.json` `env` loaded the mod with
+  `C:/...` and with `C:\\...`. With a Windows path pasted in single backslashes, the file is not
+  valid JSON: nothing loaded, and the prompt went to the model. The README's placeholder is a
+  POSIX path. One line saying "use `/` or `\\` on Windows" would close that trap.
+- Records are per profile, so the Desktop app sees the terminal's states only if it uses the
+  same `~/.claude`.
+- The Desktop app itself was not opened.
+- `validate --strict` on 2.1.295 advises an install line in the README. That does not apply to a
+  trial that ships nowhere.
+
+**AC-17, the try-out**, read as the owner on this machine.
+- Before you start: doable in 2 minutes. `claude auth status` says `"loggedIn": false` here
+  today, so `/login` comes first. `npx -y @noacg/cli@0.10.1` works. The main checkout holds the
+  folder.
+- Step 1: blocked as written by the Enter finding above. Making and checking a lower third in 5
+  minutes depends on the model's pace, which was not measured here.
+- Steps 2 and 3: doable, and what to look for is clear.
+- Step 4: the save needs the CLI signed in to NoaCG. A first sign-in can push the walk past 15
+  minutes.
+- What to look for is specific at each step, and the walk asks nothing that waits on the owner.
+
+**AC-1 to AC-13 still hold.**
+- `validate --strict` passes on both builds. Its call list is `$.clock.now`,
+  `$.command.register`, `$.fs.list`, `$.fs.read`, `$.prompt.fill`, `$.prompt.read`,
+  `$.session.cwd`, `$.session.root`, `$.session.surfaces`, `$.state.*`, `$.store.*`,
+  `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` and `$.ui.toast`, with nothing AC-12
+  rules out.
+- 2.1.295 states `prompt.submit`, `ui.close` and `tool.call` as gating hooks without `.catch`,
+  as recorded.
+- In the walk, the scaffolds gave "Check Evening news" and "Check Scores".
+- `validate evening --screenshots ./shots` gave a check and frames with the absolute folder, and
+  "Save Evening news, or send all graphics to a production". `validate scores` gave "See how
+  Scores looks". The edit gave "edited" and "Check Scores again".
+- Each process started from the records the last one left. The packages hold only the CLI's
+  files.
+- `check-toolkit-distribution` passes, and only `ci.yml`, its test and the README name the
+  folder. #1021 ran both guided-mod legs green under `CI gate`.
+- `tsc -p` was not run.
+
+**Compared with the reference.** `code-modernization`'s `/modernize-panel` toggles a pane opened
+without `focus` or `closeOnEscape`, which stays until it is closed. It answers "Modernization pane
+shown" or "hidden" as text each time, and offers a `json` argument for the state. It opens
+`focus` and `closeOnEscape` only for its sign-off dialog, and the engine's own docs class those
+two (with `holdToasts`) as a dialog's. `noacg-guide` answers no text where the pane draws, which
+keeps the conversation clean, and gives the full list as text only where nothing draws, which the
+reference does not. Its Esc-to-close follows AC-14's wording. Whether a pane that closes on Esc
+suits a list the person keeps beside the work is the owner's call in the walk. Neither plugin
+draws a button `autoFocus`.
