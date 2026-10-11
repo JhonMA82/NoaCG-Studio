@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "ca3346e8d500000c736b8da752b0d8e5f3bdeb6234d63cfdecc64e073acb4622",
+  "authority": {
+    "status": "agreed",
+    "source": "docs/GOALS.md outcome 5 (one production workflow to every playout environment) and issue #760 part 1 (P1, owner ask: 2026-09-29, be compatible with vMix in every way we can, before the vMix trial ends about 2026-11-28); the route from docs/research/vmix-inside-vmix.md section 3, confirmed by the walk in docs/VMIX_ON_A_REAL_HOST.md; the decisions the spec marks derived are open to the owner's overrule"
+  },
+  "review": null
+}
