@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Research/baseline complete; product implementation awaits the owner layout choice. [Spec](spec.md). Source starts at fetched main `8ae5bbae5bbdedd39b67c95efa76bb24bea87c92`, not the main checkout's lagging HEAD. No product changes have been made.
+Research/baseline complete; the owner approved the compact timeline and implementation is in progress. [Spec](spec.md). Source starts at fetched main `8ae5bbae5bbdedd39b67c95efa76bb24bea87c92`, not the main checkout's lagging HEAD. The CSS correction is limited to short desktop windows.
 
 ## Fresh baseline
 
@@ -18,8 +18,8 @@ Inspected pinned Studio `3142fc7d02934494931eb14e7dc255393e4110d0`: AppShell mou
 
 [Run 38121789105](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38121789105), disposable probe `04da6572a`, freshly downloaded/hash-verified official v0.17 Linux server SHA256 `9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681` and ran a native 1366x768 / actual 125% reference window. Created text, typed X=150 and saved source. Dragging the timeline divider 40 CSS px reduced the timeline from 220 to 180px, increasing the canvas viewport from 171.4 to 211.4px. The 300px Properties panel remained, X retained 150, and saved compositions were exactly unchanged. Zoom remained 1.25; no page errors. [Receipt](evidence/reference-workspace.json), [before](evidence/reference-native-before.png), [after](evidence/reference-native-after.png), [CI metadata](evidence/reference-run.json). The reference's smaller canvas width and camera behavior differ; this is no whole-workspace usability claim.
 
-## Pending design choice
+## Approved design
 
-Recommendation sent to the owner: only on short windows (below approximately 600 CSS px height), use a 180px scrollable timeline while keeping a 280px Properties panel and at least 180px canvas. Normal 1366x768 keeps its 240px timeline. Alternative: retain the full timeline and scroll the workspace vertically. The existing panel contract changes, so agreement is required before implementation.
+On 2026-10-11 the owner selected Compact timeline: at widths >=901 CSS px and heights <=600 CSS px, use a 180px timeline with vertical track scrolling, retain 280px Properties and provide at least 180px canvas at the native target. Compact the existing header/document spacing, omit the canvas shortcut caption and allow internal arrangement-row scrolling. The status/error footer remains. Normal 1366x768 keeps its 240px timeline; the phone route remains stacked. No canvas camera or source/session handlers change.
 
 Preserve #950/#960, layer/property, CLI/transform and all source/history/output boundaries. No reference implementation code or disposable workflow will land. After correction and /check, /queue-merge owns landing; a fresh independent checker follows.
