@@ -1,0 +1,50 @@
+# The trial `noacg-guide` mod (cli/plugin-guide, docs/work-specs/guided-mod/spec.md) is checked
+# here and nowhere else: it ships in no package, so the build and the toolkit distribution never
+# look at it. On a pull request that touches it, Claude Code validates the plugin strictly and
+# runs its tests, which mount the band on the terminal and desktop surfaces.
+#
+# Only on changes to the mod, and without installing the app: under a minute.
+name: Guided mod
+
+on:
+  pull_request:
+    paths:
+      - 'cli/plugin-guide/**'
+      - '.github/workflows/guided-mod.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guided-mod-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mod-checks:
+    name: Validate and test the guided mod
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # The oldest build the mod supports (the spec's floor), pinned like the toolkit's checks: a
+      # newer Claude Code arrives as a reviewed change to this line.
+      CLAUDE_CODE_VERSION: 2.1.287
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Install Claude Code ${{ env.CLAUDE_CODE_VERSION }}
+        run: npm install -g "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION" && claude --version
+
+      # A throwaway profile: validating and testing read no account and need no sign-in.
+      - name: claude plugin validate --strict
+        env:
+          CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-profile
+        run: claude plugin validate --strict cli/plugin-guide
+
+      - name: claude plugin test
+        env:
+          CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-profile
+        run: claude plugin test cli/plugin-guide
