@@ -469,3 +469,76 @@ both builds; `tsc -p` passes.
 
 **For phase 3.** Nothing in "After phase 2" changes. The guided-mod job is now a required part
 of `CI gate`, so a red mod test blocks landing.
+
+### Second check of phase 2 (on `main` at bb56afae9, by a separate session)
+
+**Verdict: pass.** After the repair, terminal runs record in a real session and the guided-mod
+job holds `CI gate`. AC-6 to AC-9 were re-derived on both builds, and AC-1 to AC-5 still hold.
+
+**How it was run.** The sign-in was still expired, so no model turn ran. A scratch driver
+plugin outside the repository called `$.tool.call` from `prompt.submit`, and its own `tool.call`
+hook logged the result as a hook gets it. Each step ran as a new `claude -p --plugin-dir
+cli/plugin-guide` process from main. Every process had a scratch `CLAUDE_CONFIG_DIR`, the
+published `@noacg/cli` 0.10.1 in a scratch folder first on `PATH`, its MCP server through
+`--mcp-config` and an empty credentials folder. For `save` and `pack --save`, `NOACG_URL`
+pointed at a local stand-in. It passed noacg.studio's pages through, so the CLI's bridge loaded,
+and answered `/api/me/graphics` and `/api/me/packages` itself. That gave the CLI's real output
+without writing to any library.
+
+**The repair's trap, confirmed.** In the hook, a Bash result had all 20 keys, with
+`backgroundTaskId` present and undefined. The caller got 5. An MCP result reached the hook as an
+array of blocks, or as a string when `isError`.
+
+**Per criterion.**
+- AC-6, terminal, 2.1.287: `noacg scaffold` gave `evening` an empty record. `noacg validate
+  evening` recorded checked (`via: terminal`). After a break to `js/template.js`,
+  `npx @noacg/cli validate evening` (exit 1) recorded `ok: false` and took the pass back. Restored,
+  `npx` recorded checked. `scaffold solo && screenshot solo --out solo-onair.png` gave frames with
+  the PNG's folder and no check. `validate solo --screenshots ./shots` gave a check and frames in
+  `.../shots`.
+- AC-6, terminal, 2.1.295: `noacg validate third` recorded checked. `save` with no key recorded
+  nothing. `pack third solo --out` recorded `pack` with the file on both packages. `save third` to
+  the stand-in recorded a check and `saved` with the link. `pack --save` recorded `pack` with the
+  link on both. A broken `third`, then `save` (refused, exit 1), recorded `ok: false`.
+- AC-6, MCP, 2.1.295: `scaffold` gave an empty record. `validate` recorded checked
+  (`via: mcp`); after a break it recorded `ok: false`. `screenshot` gave frames with `dir: null`
+  and no check, and `validate` with `screenshots: true` gave both. `save` with no key recorded
+  nothing. `pack` with `out` recorded the file. `save`, and `pack` with `save: true`, to the
+  stand-in recorded the saved and sent links.
+- AC-7: a Node script written from the spec's wording gave the stored `3f50429e…` for a copy of
+  `evening` taken at its pass. Validating again after restoring the broken file stored the same
+  value. An edit inside a session (a Bash `echo >>` to `css/template.css`, not a `noacg` run)
+  marked `evening` edited at once. An edit outside any session marked `solo` edited in the next
+  session, on both builds.
+- AC-8: records are in `<profile>/plugins/store/noacg-guide_inline-<hash>.json` under
+  `records:<root, lower case>`. The packages hold only the CLI's files, and the checkout's
+  `git status` stayed clean. Each new process started from the states the last one left. In a
+  folder with no package, a Bash run wrote no state and made no store folder.
+- AC-9: main's `band.ts` was run over the states the sessions wrote. It gave, in order:
+  `1 checked · 1 not checked`, `2 checked`, `1 checked · 1 edited since check`,
+  `2 edited since check` and `2 checked · saved: Solo, Third`. After the outside edit it gave
+  `1 checked · 1 edited since check · saved: Solo, Third`, or `· 2 saved` at 40 columns.
+- All 25 sessions loaded the module. None logged a skipped hook, fault or refused tree naming
+  the mod.
+- AC-1 to AC-5: `validate --strict` passes on both builds, and its call list has no
+  `$.prompt.submit`, `$.mcp.call`, `$.process`, `$.http`, `$.model` or `$.agent`. 54 tests pass
+  on both builds. Under load (16 test processes at once, 6 rounds) 92 of 96 runs passed. All four
+  failures were in the first, cold round: the test kit's 5-second limit on the first terminal
+  test of `band.test.tsx` or `quiet.test.tsx`, which took about ten seconds there. No assertion
+  failed, and the other 80 runs passed. On #1011 the plan step printed `Guided mod checks: true`
+  and both legs ran (54 pass each), as did the merge group. The ruleset requires `CI gate`.
+  Run on its own, the gate's shell from `ci.yml` exits 1 and names the job when the guided-mod
+  result is `failure`, exits 1 on `cancelled`, and exits 0 on `success` or `skipped`. The two
+  CI script tests pass, `check-toolkit-distribution` passes, and only `ci.yml` and its test
+  name the folder.
+
+**For phase 3 and the try-out.**
+- `pack --save` runs the save gate on each graphic but records only `pack`, as decided. A save
+  refused for errors records `ok: false` and keeps the old `saved` record. The next step must read
+  the check before the saved record.
+- On this machine the global `noacg` is 0.3.3, not 0.10.1. A run through it gives output the mod
+  may not read. The try-out should start with `noacg --version` or use `npx @noacg/cli`.
+
+**Not seen.** A model's own tool call; the band drawn on a surface (its text comes from
+`band.ts`); a save into a real library (the stand-in took it). There was no reference comparison:
+the plan names `code-modernization` for commands and the pane, and phase 2 has no counterpart.
