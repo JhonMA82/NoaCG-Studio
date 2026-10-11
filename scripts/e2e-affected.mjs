@@ -466,11 +466,9 @@ export function planFor(
  * the 52 s of per-shard setup costs more than it saves" was understating its own case. Making a
  * shard cheap is what makes sharding finely correct.
  *
- * The full plan is now 123.6 measured minutes (2026-10-03, run 37143991356), so this target
- * asks for 42 shards and the ceiling holds it at ten. Refreshing the stale weights alone left
- * one of nine jobs at 18.65 minutes on full run 37149189106. Replaying that run's measured
- * file costs gives ten bins a slowest predicted job of 16.06 minutes, restoring the three-minute
- * safety margin without raising the timeout. See the shard-headroom backlog evidence.
+ * The full plan is now 169.4 measured minutes (2026-10-11, run 38144735534), so this target
+ * asks for 57 shards and the ceiling below holds it. Whatever the target says, a full run always
+ * gets exactly MAX_SHARDS runners, so that ceiling is what decides whether the suite fits.
  */
 export const SHARD_TARGET_MINUTES = 3;
 
@@ -479,8 +477,18 @@ export const SHARD_TARGET_MINUTES = 3;
  * runner, so the chance one of them hits an infrastructure hiccup grows with the count, and the
  * account's 20-concurrent-job limit is a real constraint here - runs starting while two other
  * branches were mid-gate waited 22 to 45 minutes for a runner over the 60 runs to 2026-08-19.
+ *
+ * SET AS THE SMALLEST COUNT THAT KEEPS THE THREE-MINUTE SAFETY MARGIN on the latest measured
+ * full run, which is how it went from nine to ten on 2026-10-03 (run 37149189106) and from ten to
+ * eleven on 2026-10-11. In that week 32 new spec files took the suite from 132 to 154-169
+ * measured minutes; the table, still from 2026-10-04, packed them at the 0.25-minute median, and
+ * two full runs on main lost a shard at the 20-minute cap (issue #1020). Re-recorded from run
+ * 38144735534, ten bins predict 17.5 minutes each, over the 17 the margin allows; eleven predict
+ * 16.0, and 15.7 when packed by that run and replayed on run 38149569873's file costs. When
+ * `emitJson` warns that the plan does not fit again, re-record the table first and raise this
+ * only if the re-recorded plan still does not fit.
  */
-export const MAX_SHARDS = 10;
+export const MAX_SHARDS = 11;
 
 /**
  * HOW MANY RUNNERS THIS PLAN IS WORTH, from measured minutes rather than from a file count.
