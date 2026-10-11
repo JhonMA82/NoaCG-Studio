@@ -123,3 +123,23 @@ check's findings.
   skips whole comment lines only; a config that loads a helper some other way (a computed path)
   would not be seen. ci.yml needed no change: it reads only the JSON, whose shape is unchanged.
 - **For a later phase:** none planned; this was the plan's last phase.
+
+### Check of phase 2 (on main 1c9355e)
+
+- **Verdict: PASS.** `node --test` passes 76/76 for the planner and 22/22 for the retry.
+  Reverting the one added condition (the `helpers` branch in `planFor`) fails both new tests.
+- **AC-3, all three specs:** `--list --files e2e/_ografParity.ts` gives `subset`,
+  `ograf-isolation.spec.ts` and `ograf-parity.spec.ts`, with `catalog: true`, with and without
+  `E2E_SPRINT_FOCUS=1`. The third importer, `e2e/catalog/ograf-parity.spec.ts`, is not in `specs`
+  and cannot be: `playwright.config.ts` ignores `**/catalog/**`. It runs because the flag starts the
+  `Catalog calibration gate` job, whose `npm run test:e2e:catalog` runs all of `e2e/catalog/` with
+  no design scope, and `CI gate` reads that job's result. The planner test pins the flag and names
+  the catalog spec as its reason.
+- **What a helper-only pull request's gate runs now:** a commit that changed only
+  `e2e/_ografParity.ts`, planned the way CI plans it (`--json --integration origin/main`, focus on),
+  gets one shard with the two default-suite importers plus the catalog gate. Before #1044 the same
+  change got the 76-spec focus set in CI, with neither importer and no catalog gate. Locally,
+  without focus, it got the full suite.
+- **AC-4:** a spec, `src/export/targets/ograf.ts` and `docs/GOALS.md` each plan the same mode, spec
+  count and catalog flag as the planner from before #1044, in both modes.
+- **Phase 1 still holds:** the retry tests for run 38153870752's shape and the three refusals pass.
