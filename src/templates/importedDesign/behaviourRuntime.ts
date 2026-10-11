@@ -1003,8 +1003,98 @@ function noacgRepaintWith(reason) {
       }
     }
   }
+  noacgReadoutInks(rules, lit);
   // Places last: the readouts above are already written, and a row moves as a whole.
   noacgPlaceAll(rules, reason);
+}
+
+// ── A readout stays legible on a look lit under it ──────────────────────────────────
+// A bingo tile lights an amber plate under a numeral drawn white for the dark board, and white on
+// amber is the one pairing there a room cannot read (#784). So a readout the board writes takes a
+// dark or a light ink wherever a lit look of its own row sits under it and its drawn ink falls
+// below 3:1 against that plate, and gets its drawn ink back the moment the plate goes. Only a
+// solid fill is read; a gradient or a picture is left as the designer drew it.
+var NOACG_INK_DARK = 'rgb(13, 16, 23)';
+var NOACG_INK_LIGHT = 'rgb(233, 231, 225)';   // NOACG_DEFAULT_INK
+
+// noacgLuminance(color): the relative luminance of a computed "rgb(...)" colour, or null for
+// anything that is not a mostly opaque solid colour.
+function noacgLuminance(color) {
+  var m = /rgba?\\(([^)]+)\\)/.exec(color || '');
+  if (!m) return null;
+  var p = m[1].split(',');
+  if (p.length > 3 && parseFloat(p[3]) < 0.5) return null;
+  var lin = function (v) {
+    v = parseFloat(v) / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * lin(p[0]) + 0.7152 * lin(p[1]) + 0.0722 * lin(p[2]);
+}
+
+function noacgContrast(a, b) {
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+// noacgPlateLuminance(look): the first solid fill a look paints, itself or a shape inside it. A
+// group's own fill is only what its children inherit, never paint, so a group is not read.
+var NOACG_SHAPES = 'rect, path, polygon, circle, ellipse';
+function noacgPlateLuminance(look) {
+  var shapes = [].slice.call(look.querySelectorAll(NOACG_SHAPES));
+  if (look.matches && look.matches(NOACG_SHAPES)) shapes.unshift(look);
+  for (var i = 0; i < shapes.length; i++) {
+    var s = getComputedStyle(shapes[i]);
+    if (s.display === 'none' || parseFloat(s.fillOpacity) < 0.5) continue;
+    var l = noacgLuminance(s.fill);
+    if (l !== null) return l;
+  }
+  return null;
+}
+
+// noacgReadoutInk(el, plates): put the drawn ink back, then change it only if a plate under the
+// readout's middle makes it unreadable.
+function noacgReadoutInk(el, plates) {
+  if (el.noacgDrawnFill === undefined) el.noacgDrawnFill = el.style.getPropertyValue('fill');
+  el.style.fill = el.noacgDrawnFill;
+  if (!plates.length) return;
+  var ink = noacgLuminance(getComputedStyle(el).fill);
+  if (ink === null) return;
+  var box = el.getBoundingClientRect();
+  var cx = box.left + box.width / 2;
+  var cy = box.top + box.height / 2;
+  for (var i = 0; i < plates.length; i++) {
+    var plate = plates[i];
+    if (plate.contains(el)) continue;            // a look that IS the readout's own drawing
+    var pb = plate.getBoundingClientRect();
+    if (cx < pb.left || cx > pb.right || cy < pb.top || cy > pb.bottom) continue;
+    var under = noacgPlateLuminance(plate);
+    if (under === null || noacgContrast(ink, under) >= 3) continue;
+    var dark = noacgLuminance(NOACG_INK_DARK);
+    var light = noacgLuminance(NOACG_INK_LIGHT);
+    el.style.fill = noacgContrast(under, dark) >= noacgContrast(under, light) ? NOACG_INK_DARK : NOACG_INK_LIGHT;
+    return;
+  }
+}
+
+// noacgReadoutInks(rules, lit): every readout, against the looks of its own row that are lit.
+function noacgReadoutInks(rules, lit) {
+  for (var r = 0; r < rules.length; r++) {
+    var rule = rules[r];
+    if (!rule.write) continue;
+    var keys = rule.row ? [rule.row] : rule.rows ? noacgRowsOf(rule.rows) : [null];
+    for (var k = 0; k < keys.length; k++) {
+      var plates = [];
+      for (var t in lit) {
+        if (!Object.prototype.hasOwnProperty.call(lit, t)) continue;
+        var slash = t.indexOf('/');
+        var key = slash === -1 ? null : t.slice(slash + 1);
+        if (key !== (keys[k] === null ? null : String(keys[k]))) continue;
+        var els = noacgRoleEls(slash === -1 ? t : t.slice(0, slash), key);
+        for (var e = 0; e < els.length; e++) plates.push(els[e]);
+      }
+      var targets = noacgRoleEls(rule.write, keys[k]);
+      for (var g = 0; g < targets.length; g++) noacgReadoutInk(targets[g], plates);
+    }
+  }
 }
 
 // noacgRepaint(): a STATE was entered - named by every recipe state's timeline. Snap replays
