@@ -37,13 +37,8 @@ function Start-RemoteProcess($Executable, $RepoRoot, $StateDir) {
     if (-not $relay.WaitForExit(10000)) { $relay.Kill(); throw 'Remote Control launcher timed out.' }
     $server = Get-RemoteProcess (Join-Path $StateDir 'server.json')
     if (-not $server) {
-        $log = Read-RemoteLog $StateDir
-        if ($log -match 'must be logged in|not logged in|claude auth login') {
-            throw 'Claude CLI is not signed in. Run claude auth login in a laptop terminal, then /start again.'
-        }
-        if ($log -match 'Enable Remote Control\?|Workspace not trusted|Trust .+\[y/N\]') {
-            throw 'First-time setup required. Run claude remote-control interactively on the laptop, complete its consent/trust prompts, stop it, then /start again.'
-        }
+        $failure = Get-RemoteFailure $StateDir $true
+        if ($failure) { throw $failure }
         throw 'Remote Control exited during launch. Inspect the local stdout.log, stderr.log and launch-error.txt.'
     }
     return $server
@@ -81,6 +76,22 @@ function Read-RemoteLog($StateDir) {
     return ($parts -join "`n")
 }
 
+function Get-RemoteFailure($StateDir, [bool]$Startup = $false) {
+    $log = Read-RemoteLog $StateDir
+    if ($log -match 'must be logged in|not logged in|claude auth login') {
+        return 'Claude CLI is not signed in. Run claude auth login in a laptop terminal, then /start again.'
+    }
+    if ($log -match 'Enable Remote Control\?|Workspace not trusted|Trust .+\[y/N\]') {
+        return 'First-time setup required. Run claude remote-control --spawn worktree --no-create-session-in-dir --capacity 4 interactively, complete its consent/trust prompts, stop it with Ctrl+C, then run /start again.'
+    }
+    if ($log -match 'This folder is already served') {
+        return 'Claude rejected Remote Control: this folder is already served. Stop any manually started server, allow its registration a few minutes to expire, then retry /start.'
+    }
+    if ($Startup -and $log -match '(?m)^Error:') {
+        return 'Claude reported a Remote Control error. Inspect the local stdout.log and stderr.log, then retry /start.'
+    }
+}
+
 function Invoke-ClaudeRemote($Mode, $RepoRoot, $StateDir) {
     [IO.Directory]::CreateDirectory($StateDir) | Out-Null
     $hash = [Security.Cryptography.SHA256]::Create()
@@ -106,7 +117,17 @@ function Invoke-ClaudeRemote($Mode, $RepoRoot, $StateDir) {
             Write-Output 'Managed Remote Control server stopped.'
             return
         }
-        if ($server) { Write-RemoteStatus $server 'already running'; return }
+        if ($server) {
+            $failure = Get-RemoteFailure $StateDir
+            if ($failure) {
+                $server.Kill()
+                $server.WaitForExit(5000) | Out-Null
+                Remove-Item -LiteralPath $stateFile -ErrorAction SilentlyContinue
+                throw $failure
+            }
+            Write-RemoteStatus $server 'already running'
+            return
+        }
         if ($Mode -eq 'status') { Write-Output 'Managed Remote Control server is not running.'; return }
 
         $cli = Get-Command claude.exe -CommandType Application -ErrorAction SilentlyContinue
@@ -118,13 +139,8 @@ function Invoke-ClaudeRemote($Mode, $RepoRoot, $StateDir) {
             for ($attempt = 0; $attempt -lt 10; $attempt++) {
                 Start-Sleep -Milliseconds 500
                 $server.Refresh()
-                $log = Read-RemoteLog $StateDir
-                if ($log -match 'must be logged in|not logged in|claude auth login') {
-                    throw 'Claude CLI is not signed in. Run claude auth login in a laptop terminal, then /start again.'
-                }
-                if ($log -match 'Enable Remote Control\?|Workspace not trusted|Trust .+\[y/N\]') {
-                    throw 'First-time setup required. Run claude remote-control --spawn worktree --no-create-session-in-dir --capacity 4 interactively, complete its consent/trust prompts, stop it with Ctrl+C, then run /start again.'
-                }
+                $failure = Get-RemoteFailure $StateDir $true
+                if ($failure) { throw $failure }
                 if ($server.HasExited) {
                     throw ("Remote Control exited ({0}). Inspect the local stdout.log and stderr.log in {1}; complete any CLI setup in a laptop terminal, then retry /start." -f $server.ExitCode, $StateDir)
                 }

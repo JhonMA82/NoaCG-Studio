@@ -62,3 +62,25 @@ starting Claude. Claude reports the result without claiming phone access was ver
 
 The Windows launcher uses an explicit ShellExecute relay and a short-lived Node process to
 avoid inheriting the command tool's pipes. Both helpers exit; only the native server persists.
+
+## Live startup follow-up on 2026-10-11
+
+After CLI login and consent, live startup exposed a delayed rejection: Claude prints
+`Error: This folder is already served` and remains alive for roughly a minute before exiting.
+Process liveness alone incorrectly reported success during that delay.
+
+AC-2 additionally requires startup to fail on an explicit Claude error and start/status to reject
+an already-served error even while the recorded process is alive. Cleanup targets only the
+matching failed managed process. Generic historical session errors must not stop an established
+server. No retry daemon or takeover of unrelated sessions is added.
+
+The owner's idle manual setup server had no child sessions and was replaced with the requested
+background server. Claude temporarily rejected the folder registration after the old process
+stopped, then accepted the background server. The native CLI reported Ready with capacity 0/4;
+repeated start reused its PID. Its idle process tree contained only Claude: about 115 MiB working
+set and 258 MiB private committed memory, with under one second of accumulated CPU time.
+Phone session creation still awaits confirmation from the owner.
+
+Follow-up verification: all 13 Windows lifecycle tests passed, including delayed duplicate rejection,
+startup errors, late status/reuse rejection and preservation after a generic historical error.
+Affected repository checks and git diff --check passed. Full builds remain on pull request CI.
