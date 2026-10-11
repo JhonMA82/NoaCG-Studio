@@ -2,8 +2,9 @@
 // gate: build
 // guards: *
 //
-// Refuse tracked files that nobody meant to commit: an unexpected entry at the repo ROOT, or a
-// path segment that is really a mistyped command-line flag.
+// Refuse tracked files that nobody meant to commit: an unexpected entry at the repo ROOT, a
+// path segment that is really a mistyped command-line flag, or a picture under docs/ or
+// benchmarks/.
 //
 // Why this exists. On 2026-08-09 a sweep was invoked as `node scripts/l3-sweep.mjs --category
 // lower-third`. That script takes POSITIONAL arguments, so `--category` became its output
@@ -15,6 +16,13 @@
 // that takes an out-dir). This is the layer under that: it does not care WHICH tool produced a
 // stray file or which flag was mistyped, only that something is tracked which should not be. The
 // two shapes below are the ones that cost real time, and both are cheap to state exactly.
+//
+// The third shape is the same mistake at scale. By 2026-10-11 nearly 1,500 screenshots, frames
+// and clips (87 MB) had been committed under docs/ and benchmarks/ as proof of work, about 500 of
+// them in ten days, and every fork and every new worktree downloaded them. They moved to a local
+// archive and .gitignore now keeps new ones on the machine that made them; this refuses one
+// added anyway, with `git add -f` or from a checkout whose ignore rules differ in case
+// (docs/work-specs/repo-pictures/spec.md).
 //
 // It is a hard gate rather than a report because the failure is invisible by nature - junk at the
 // root breaks nothing, so nothing else will ever complain about it, and it propagates into every
@@ -69,6 +77,19 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   'supabase', 'terms.html', 'tsconfig.api.json', 'tsconfig.json', 'vercel.json', 'vite.config.ts', 'whats-new.html',
 ]);
 
+const PICTURE = /\.(png|jpe?g|webp|gif|avif|webm|mp4|mov)$/i;
+
+/** The pictures that may be tracked under docs/ and benchmarks/. Keep in step with the
+ *  exceptions in .gitignore. */
+export const KEPT_PICTURES = [
+  // The README's two pictures: GitHub renders them on the repository's front page.
+  /^docs\/images\/(browse|playout)\.png$/,
+  // The tutorial examples' previews: the examples are handed to users (docs.html, downloads.html).
+  /^docs\/tutorials\/.+\.png$/i,
+  // The creative benchmark's reference images, read by scripts/creative-pilot-bench.mjs.
+  /^benchmarks\/creative\/v1\/references\/[^/]+\.png$/i,
+];
+
 /** Tracked paths, one per line, from git itself rather than a directory walk - the question is
  *  "what is COMMITTED", and a walk would also see ignored and untracked files. */
 export function trackedPaths(cwd = repoRoot) {
@@ -81,6 +102,7 @@ export function treeShapeProblems(paths, allowed = ALLOWED_ROOT_ENTRIES) {
   const problems = [];
   const unexpectedRoots = new Map();
   const flagSegments = new Map();
+  const pictures = [];
 
   for (const file of paths) {
     const segments = file.split('/');
@@ -91,6 +113,8 @@ export function treeShapeProblems(paths, allowed = ALLOWED_ROOT_ENTRIES) {
     // root: the same mistake inside scripts/ or benchmarks/ would pass the allowlist above.
     const flagged = segments.find((segment) => segment.startsWith('-'));
     if (flagged) flagSegments.set(flagged, (flagSegments.get(flagged) ?? 0) + 1);
+    if ((segments[0] === 'docs' || segments[0] === 'benchmarks') && PICTURE.test(file)
+      && !KEPT_PICTURES.some((kept) => kept.test(file))) pictures.push(file);
   }
 
   for (const [entry, count] of [...unexpectedRoots].sort()) {
@@ -98,6 +122,9 @@ export function treeShapeProblems(paths, allowed = ALLOWED_ROOT_ENTRIES) {
   }
   for (const [segment, count] of [...flagSegments].sort()) {
     problems.push(`path segment "${segment}" looks like a command-line flag (${count} tracked file(s))`);
+  }
+  for (const file of pictures.sort()) {
+    problems.push(`picture under docs/ or benchmarks/ "${file}" - keep it on your machine, describe it in words`);
   }
   return problems;
 }
@@ -107,13 +134,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   measured(paths.length, 'tracked paths');
   const problems = treeShapeProblems(paths);
   if (!problems.length) {
-    console.log('Tree shape OK - no unexpected top-level entries, no flag-shaped path segments.');
+    console.log('Tree shape OK - no unexpected top-level entries, no flag-shaped path segments, no pictures under docs/ or benchmarks/.');
   } else {
     for (const problem of problems) console.error(`  x ${problem}`);
     console.error(
       `\n${problems.length} problem(s). Either the files should not be committed - delete them and `
       + 'check which tool wrote them - or the entry is a deliberate new part of the repo, in which '
-      + 'case add it to ALLOWED_ROOT_ENTRIES in scripts/check-tree-shape.mjs.',
+      + 'case add it to ALLOWED_ROOT_ENTRIES in scripts/check-tree-shape.mjs. A picture leaves the '
+      + 'commit with `git rm --cached <path>` and stays on disk, ignored; only a picture users or a '
+      + 'script actually read belongs in KEPT_PICTURES.',
     );
     process.exit(1);
   }
