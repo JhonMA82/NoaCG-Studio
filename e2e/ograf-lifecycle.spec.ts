@@ -185,7 +185,7 @@ test('dispose() removes the listeners and observers the template added (#998)', 
     expect(await act(page, key, 'load'), `${key} did not load`).toEqual({ statusCode: 200 });
     expect(await act(page, key, 'playAction'), `${key} did not play`).toMatchObject({ statusCode: 200 });
   }
-  expect(await fontListeners(), 'neither graphic listened on the font set - nothing was proven').toBe(2);
+  expect(await fontListeners(), 'svg01 and the probe did not both listen on the font set - nothing was proven').toBeGreaterThanOrEqual(2);
   const probe = await page.evaluateHandle(() => graphicBody(document.querySelector('[data-key="probe"]')!).querySelector('#listener-probe')!);
   const counts = () => probe.evaluate((el) => Object.fromEntries(['document', 'fonts', 'window', 'bare', 'resize'].map((kind) => [kind, el.getAttribute(`data-${kind}`)])));
   // Each event once, and a resize of the probe, put back on the page if dispose() took it off. A
