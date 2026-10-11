@@ -1,15 +1,19 @@
-// The engine beneath the mod, for its tests: a working directory in memory that `$.fs.list` and
-// `$.fs.read` answer and a test can change while it runs, the band the engine draws when the mod
-// passes, the session's events as a session raises them, and a record of every call a quiet mod
-// never makes.
+// The engine beneath the mod, for its tests: a project folder in memory at ROOT that `$.fs.list`
+// and `$.fs.read` answer and a test can change while it runs, the mod's store, the band the
+// engine draws when the mod passes, the session's events as a session raises them, `noacg` runs
+// with the output the published CLI 0.10.1 prints, and a record of every call a quiet mod never
+// makes.
 import type { Elements, FsEntry, On, RenderPropsOf } from 'claude-code'
 import type { Engine, Mounted } from 'claude-code/testing'
 import { mock } from 'claude-code/testing'
 
-/** Each key a folder relative to the working directory (`.` itself): a string a file, null a folder. */
+/** Each key a folder relative to the project root (`.` itself): a string a file, null a folder. */
 export type Tree = Record<string, Record<string, string | null>>
 
 export const SURFACES = ['terminal', 'desktop'] as const
+
+/** The session's project root, as `$.session.root()` answers it. */
+export const ROOT = '/work'
 
 /** What `noacg scaffold` writes: a manifest with the `v_noacg` block, and the sources. */
 export function scaffolded(name: string, manifest: object = { v_noacg: { type: 'lower-third' } }): Record<string, string | null> {
@@ -23,12 +27,21 @@ export function scaffolded(name: string, manifest: object = { v_noacg: { type: '
   }
 }
 
+/** A whole package at `dir`: the folder `scaffolded` describes and its two source folders. */
+export function scaffoldedAt(dir: string, name: string): Tree {
+  return {
+    [dir]: { ...scaffolded(name), 'README.md': `# ${name}`, 'controlpanel.html': '<form></form>' },
+    [`${dir}/css`]: { 'template.css': '.box { color: red }' },
+    [`${dir}/js`]: { 'template.js': 'export {}' },
+  }
+}
+
 /** The band's props as the engine hands them, `bodyColumns` cells wide. */
 export function band(bodyColumns: number, hasSurvey = false): RenderPropsOf['AbovePrompt'] {
   return { hasSurvey, isWorking: false, maxRows: 8, bodyColumns, scroll: { offset: 0, bodyRows: 7 }, view: {} }
 }
 
-/** The band's texts as drawn: the title, then the names. */
+/** The band's texts as drawn: the title, the names, then where they stand. */
 export async function texts(ui: { findAll: (q: { type: string }) => Promise<{ text: string }[]> }): Promise<string[]> {
   return (await ui.findAll({ type: 'Text' })).map(found => found.text)
 }
@@ -41,12 +54,28 @@ export async function engineDraws(ui: { find: (q: { key: string }) => Promise<un
   return (await ui.find({ key: ENGINE })) !== undefined
 }
 
+/** A run's end as the session saw it: what it printed and how it exited. */
+export type Ending = { output: string; exit?: number }
+
+/** An MCP answer: its content blocks, images as `{ image: true }`, and whether the server called it an error. */
+export type McpAnswer = { blocks: (string | { image: true })[]; isError?: boolean }
+
 export type Session = {
   /** The folders and files, changeable while the test runs. */
   tree: Tree
-  /** Every path listed and read, relative to the working directory. */
+  /** The mod's store, by key. */
+  store: Map<string, unknown>
+  /** The folder the shell is in, absolute; ROOT unless a test moves it. */
+  cwd: string
+  /** Every path listed and read, relative to the project root. */
   lists: string[]
   reads: string[]
+  /** Every store call, as `get key` or `set key`. */
+  storeCalls: string[]
+  /** How many store writes to refuse, as a locked file would. */
+  storeFails: number
+  /** Called as the store is read: work landing while a scan is under way. */
+  onStoreRead?: () => void
   /** Every call made that a quiet mod never makes, by event. */
   forbidden: string[]
   /** What the prompts carried down to the engine beside their text. */
@@ -57,40 +86,49 @@ export type Session = {
   submit: (text?: string) => Promise<void>
   /** A tool call: Bash writes, Read only reads. */
   tool: (name: 'Bash' | 'Read') => Promise<void>
+  /** A shell command, by Bash or PowerShell, ending as given; `background` as `run_in_background`. */
+  run: (command: string, ending: Ending, options?: { tool?: 'Bash' | 'PowerShell'; background?: boolean }) => Promise<void>
+  /** A call of the `noacg` MCP tool, answered as given; `tool` its name, the plugin server's by default. */
+  mcp: (args: Record<string, unknown>, answer: McpAnswer, tool?: `mcp__${string}__noacg`) => Promise<void>
   /** The band, drawn through the mod on a surface, `columns` cells wide. */
   mount: (surface: Surface, columns: number, hasSurvey?: boolean) => Promise<Mounted<Surface, 'AbovePrompt'>>
 }
 
 type Surface = (typeof SURFACES)[number]
 
+/** The tool name a plugin-installed `noacg` MCP server gets. */
+export const MCP_TOOL = 'mcp__plugin_noacg-mcp_noacg__noacg'
+
 export function session($: Engine, on: On, tree: Tree): Session {
   const lists: string[] = []
   const reads: string[] = []
+  const storeCalls: string[] = []
   const forbidden: string[] = []
   const context: string[] = []
-  const clock = mock.clock(on)
+  const store = new Map<string, unknown>()
+  const clock = mock.clock(on, { now: Date.UTC(2026, 9, 11, 12) })
   let appended = 0
+  let ending: Ending = { output: '' }
+  let answer: McpAnswer = { blocks: [] }
 
-  // The engine hands the hooks absolute paths, and a test's `$` has no `fs` or `session.cwd` to
-  // ask where `.` lands. The mod's first call of every scan lists the working directory, so that
-  // first path is the root; a path outside it is recorded as forbidden. A first call to a parent
-  // folder would move the root unseen: the reach test of a later phase needs a stronger anchor.
-  let root: string | undefined
+  // The engine hands the hooks absolute paths, on Windows with a drive letter; a path outside
+  // the root is recorded as forbidden.
   const relative = (path: string) => {
-    const clean = path.replace(/\\/g, '/').replace(/\/$/, '')
-    root ??= clean
-    if (clean === root) return '.'
-    if (!clean.startsWith(`${root}/`)) {
-      forbidden.push(`outside the working directory: ${path}`)
-      throw new Error(`outside the working directory: ${path}`)
+    const clean = path.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '').replace(/\/$/, '')
+    if (clean === ROOT) return '.'
+    if (!clean.startsWith(`${ROOT}/`)) {
+      forbidden.push(`outside the project root: ${path}`)
+      throw new Error(`outside the project root: ${path}`)
     }
-    return clean.slice(root.length + 1)
+    return clean.slice(ROOT.length + 1)
   }
 
+  on('session.root', () => ({ value: ROOT }))
+  on('session.cwd', () => ({ value: world.cwd }))
   on('fs.list', ($, e) => {
     const path = relative(e.path)
     lists.push(path)
-    const folder = tree[path]
+    const folder = world.tree[path]
     if (!folder) throw new Error(`ENOENT: ${path}`)
     const value = Object.entries(folder).map(
       ([name, text]): FsEntry => ({
@@ -107,9 +145,24 @@ export function session($: Engine, on: On, tree: Tree): Session {
     const path = relative(e.path)
     reads.push(path)
     const cut = path.lastIndexOf('/')
-    const text = tree[cut < 0 ? '.' : path.slice(0, cut)]?.[path.slice(cut + 1)]
+    const text = world.tree[cut < 0 ? '.' : path.slice(0, cut)]?.[path.slice(cut + 1)]
     if (typeof text !== 'string') throw new Error(`ENOENT: ${path}`)
-    return { value: text }
+    return { value: e.as === 'bytes' ? { base64: base64(text) } : text }
+  })
+  on('store.get', ($, e) => {
+    storeCalls.push(`get ${e.key}`)
+    const value = structuredClone(store.get(e.key))
+    world.onStoreRead?.()
+    return { value }
+  })
+  on('store.set', ($, e) => {
+    storeCalls.push(`set ${e.key}`)
+    if (world.storeFails > 0) {
+      world.storeFails -= 1
+      throw new Error('EBUSY: the store file is locked')
+    }
+    store.set(e.key, JSON.parse(JSON.stringify(e.value)))
+    return { value: undefined }
   })
 
   on('session.append', ($, e, next) => {
@@ -122,11 +175,23 @@ export function session($: Engine, on: On, tree: Tree): Session {
     context.push(...(e.context ?? []))
     return { text: e.text, context: e.context, origin: e.origin }
   })
-  on('tool.call', ($, e) =>
-    e.tool === 'Read'
-      ? { result: { type: 'text', file: { filePath: 'a.txt', content: '', numLines: 0, startLine: 1, totalLines: 0 } }, isReadOnly: true }
-      : { result: { stdout: '', stderr: '', interrupted: false } },
-  )
+  on('tool.call', ($, e) => {
+    if (e.tool === 'Read') {
+      return { result: { type: 'text', file: { filePath: 'a.txt', content: '', numLines: 0, startLine: 1, totalLines: 0 } }, isReadOnly: true }
+    }
+    if (e.tool === 'Bash' || e.tool === 'PowerShell') {
+      // As a session reports a shell command: stdout and the model's text, or "Exit code N" as an error.
+      if (ending.exit) {
+        const text = `Exit code ${ending.exit}\n${ending.output}`
+        return { isError: true, result: text, text }
+      }
+      return { result: { stdout: ending.output, stderr: '', interrupted: false }, text: ending.output }
+    }
+    // The MCP tool: its content blocks as the result, the text blocks joined as the model's text.
+    const content = answer.blocks.map(b => (typeof b === 'string' ? { type: 'text', text: b } : { type: 'image', data: 'iVBORw0K', mimeType: 'image/png' }))
+    const text = answer.blocks.filter((b): b is string => typeof b === 'string').join('\n')
+    return answer.isError ? { isError: true, result: content, text } : { result: content, text }
+  })
   on('ui.render', ($, e) => {
     const { Box } = $.ui.resolve(e) as Elements['terminal']
     return <Box key={ENGINE} />
@@ -153,10 +218,14 @@ export function session($: Engine, on: On, tree: Tree): Session {
   on('ui.status', () => refuse('ui.status'))
   on('ui.log', () => refuse('ui.log'))
 
-  return {
+  const world: Session = {
     tree,
+    store,
+    cwd: ROOT,
     lists,
     reads,
+    storeCalls,
+    storeFails: 0,
     forbidden,
     context,
     appended: () => appended,
@@ -169,13 +238,25 @@ export function session($: Engine, on: On, tree: Tree): Session {
       await clock.settle()
     },
     tool: async name => {
+      ending = { output: '' }
       if (name === 'Read') await $.tool.call({ tool: 'Read', file_path: 'a.txt' })
       else await $.tool.call({ tool: 'Bash', command: 'npx @noacg/cli scaffold --type lower-third --out new' })
+      await clock.settle()
+    },
+    run: async (command, end, { tool = 'Bash', background = false } = {}) => {
+      ending = end
+      await $.tool.call({ tool, command, ...(background ? { run_in_background: true } : {}) })
+      await clock.settle()
+    },
+    mcp: async (args, given, tool = MCP_TOOL) => {
+      answer = given
+      await $.tool.call({ tool, ...args })
       await clock.settle()
     },
     mount: (surface, columns, hasSurvey = false) =>
       $.ui.mount({ plugin: 'noacg-guide', surface, component: 'AbovePrompt', props: band(columns, hasSurvey) }),
   }
+  return world
 }
 
 /** A file's time, standing in for its last write: it changes whenever the text does. */
@@ -183,4 +264,10 @@ function stamp(text: string): number {
   let hash = 7
   for (const char of text) hash = (hash * 31 + char.charCodeAt(0)) % 1_000_000_007
   return hash
+}
+
+function base64(text: string): string {
+  let binary = ''
+  for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte)
+  return btoa(binary)
 }

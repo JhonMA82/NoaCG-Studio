@@ -1,6 +1,6 @@
 // AC-2: where there is no NoaCG package and no noacg activity, the mod draws nothing, adds
 // nothing to the model's context and registers nothing, and makes no network request, process
-// run or model call, on the terminal and the Desktop surface alike.
+// run or model call, on the terminal and the Desktop surface alike. It does not open its store.
 import { describe, expect, test } from 'claude-code/testing'
 
 import { engineDraws, scaffolded, session, SURFACES } from './world'
@@ -31,6 +31,7 @@ describe('quiet outside graphics work', () => {
       expect(world.appended()).toBe(0)
       expect(world.forbidden).toEqual([])
       expect(world.reads).toEqual([])
+      expect(world.storeCalls).toEqual([])
       await ui.unmount()
     })
 
@@ -47,6 +48,7 @@ describe('quiet outside graphics work', () => {
       expect(world.context).toEqual([])
       expect(world.appended()).toBe(0)
       expect(world.forbidden).toEqual([])
+      expect(world.storeCalls).toEqual([])
       await ui.unmount()
     })
   }

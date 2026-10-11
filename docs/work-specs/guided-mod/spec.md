@@ -250,3 +250,96 @@ drawn anywhere outside the test kit.
 folder, registers three commands, runs shell hooks at session start and takes about 320 ms there;
 `noacg-guide` registers nothing and does only two folder listings. Phase 3's `/noacg-guide` is
 where that quiet is spent: the reference registers its commands unconditionally.
+
+### After phase 2 (recorded results)
+
+**Layout.** `hooks/watch.ts` is the watching module: it reads `noacg` runs into reports, takes
+fingerprints, and folds reports into records and states. `register.tsx` only calls its exports,
+so a CLI `status` read replaces that one file; discovery stays in `hooks/packages.ts` (its
+`Found` is `{ dir, name }`). `types/index.d.ts` now gives each `NoacgPackage` a `status`
+(`checked`, `edited`, `unchecked`) and a `record` (`PackageRecord`: `check` with `ok`, `frames`
+with `dir`, `saved` with `url`, `pack` with `url` or `file`, each with `at`, `sha256` and `via`
+`terminal` or `mcp`). `tests/cli.ts` holds the published CLI 0.10.1's output, copied from real
+runs; `tests/world.tsx` stands the project at `ROOT` (`/work`), answers `session.root`,
+`session.cwd` and the store, and runs commands (`world.run`) and MCP calls (`world.mcp`) with
+given output.
+
+**Decisions.**
+- Paths are anchored on `$.session.root()`, absolute, not on `.`: a shell `cd` moves the
+  session's working directory, so phase 1's relative listing could follow it. A terminal run's
+  paths resolve against `$.session.cwd()` read before the call and any `cd` in the command; an
+  MCP call's against the root, where its server runs. A `cd` inside a subshell ends with it, and
+  `pushd`/`popd` are followed. Windows paths compare without case; against a Windows root, Git
+  Bash's `/c/...` reads as `c:/...`.
+- A check passes only on the CLI's `OK - n error(s)` verdict from a run that exited 0, whose
+  frames did not stop part way, and that ran the full gate: `--no-bench`, `--no-house-contract`
+  (MCP `bench: false`, `houseContract: false`) pass nothing. A `FAIL` verdict records a failed
+  check, which takes an earlier pass back. Anything else (a usage error, a network failure,
+  output cut before the verdict, a run in the background) records nothing, so it neither passes
+  nor demotes a package. The verdict is tied to its package by the
+  `Regenerated the package in <dir>.` line that follows it, which covers loops, pipes and the
+  MCP tool. `validate` exits 0 exactly when its report says OK with every frame shot, so where
+  several ran in one command each report is its own evidence; a lone one must also end a call
+  that exited 0, and a lone one with no such line falls back to the verdict alone.
+- A `save` that went through records a passing check and `saved` with the same fingerprint (it
+  runs the same gate); one refused for errors fails the check; not logged in records nothing.
+  `pack` records `pack` for every package named, never a check. A `screenshot` counts only when
+  its output names the file (its `Wrote` line or its JSON), since the call's exit code may be
+  another command's. A `scaffold` clears the record of the folder it wrote, so a new package
+  where an old one stood starts with none. Frames keep their folder, absolute; through MCP they
+  come back as images, so `dir` is null.
+- The fingerprint is SHA-256 over lines of path and file SHA-256, in path order, read with
+  `$.fs.read(file, { as: 'bytes' })` and `crypto.subtle`. Left out: the generated files at the
+  package's top (the list in `cli/src/workspace.ts`), folders marked `.noacg-frames`,
+  `node_modules` and `.git`. A file over 4 MiB (what `$.fs.read` takes) counts by size and time;
+  at most 2,000 files, 8 folders deep. File digests are kept in memory by size and time; a file
+  that cannot be read is read again next time. It is taken in the `tool.call` hook straight after
+  the run, before anything else can edit the files, and on each scan only for packages with a
+  passing check. Only the root and folders directly below it are fingerprinted.
+- Records live in `$.store` under `records:<root>` as `{ packages: { <dir>: PackageRecord } }`,
+  read on every scan that finds a package (no module cache, so a reload or a second session in
+  the folder sees the same) and written only when a run is recorded, straight after that read. A
+  write that fails keeps its runs for the next scan. The mod writes no file; a
+  test refuses `fs.write`. Where no package exists the store is never opened (the quiet tests
+  now assert it).
+- The band has a second line under the names: the counts with zeros left out, then
+  `saved: <names>` as many as fit, else `<n> saved`; with one package, its state alone
+  (`checked · saved`). Phase 1's band test was changed on purpose to expect that line.
+
+**Traps.**
+- A Bash run that exits non-zero reaches `tool.call` as `isError` with the text
+  `Exit code N` and the output; the Bash result has no exit code field. With `--json` the
+  report's lines go to stderr, which the session's text includes unless the command drops it,
+  and the JSON names no package folder.
+- `validate` rewrites the generated half on every run and may rewrite sources on the first
+  (normalize, a stale generated half), so the fingerprint must be taken after the run. On a real
+  scaffolded package, validating again without an edit kept the fingerprint, and an edit to
+  `css/template.css` changed it.
+- The scaffold's hint, `noacg validate <dir> --screenshots ./shots`, writes frames beside the
+  package, in an unmarked folder; only frames inside a package are marked.
+- MCP `pack` also sends to NoaCG Home whenever the machine holds a key, `out` or not.
+- `$` still cannot be passed to a helper, so the scan's closures are written out twice, in
+  `scanThenPass` and in the `tool.call` hook.
+- 2.1.295's validator states `tool.call` and `prompt.submit` as gating hooks without `.catch`;
+  the `tool.call` hook catches everything after `next`, so a run it cannot read never fails it.
+- In tests, `session.root`, `session.cwd`, `store.get` and `store.set` are answered with
+  `{ value }`; `fs.read` asked `as: 'bytes'` answers `{ value: { base64 } }`.
+
+**For phase 3.** The next step reads `record.check` (`ok: false` is a failed check),
+`record.frames` and `record.saved`; "saved and edited since" is `saved.sha256` against the
+current fingerprint, which a scan already takes for any package with a passing check. The band
+is two lines now; the step makes a third or replaces the counts.
+
+**Check findings (build).** `claude plugin validate --strict` and `claude plugin test` (52
+tests) pass on 2.1.287 and on the Desktop's 2.1.295 binary; `tsc -p cli/plugin-guide` passes.
+Thirteen mutations each failed a test before the review's fixes, and each fix came with a test
+that fails without it. The mutations included: a pass from a run that exited non-zero, a pass
+with stopped frames, a screenshot counted as a check, no `FAIL` verdict, generated files or
+frames folders in the fingerprint, a fingerprint ignored, records cached past a session start, a
+background run read, and paths compared with case on Windows. The watch module, run under Node
+on the real output of `npx @noacg/cli@0.10.1` (`validate` passing, failing, with frames, `--json`
+and a missing folder, `screenshot`, `save` without a key, `pack --out`, and the same verbs through
+`noacg mcp`), reported each as the tests expect. Not seen: a model turn (the machine's sign-in
+had expired), so the shape of a real session's `tool.call` result for the MCP tool comes from the
+types and the tests; `save` and `pack --save` going through were read from `cli/src`, not run,
+since that writes to a real library.

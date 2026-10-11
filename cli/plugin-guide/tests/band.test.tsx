@@ -1,5 +1,6 @@
 // AC-4: where packages exist, the band above the prompt shows "NoaCG" and the packages by name,
-// sized to the band's width, on the terminal and the Desktop surface.
+// sized to the band's width, on the terminal and the Desktop surface. AC-9's line under the
+// names is tests/records.test.tsx's.
 import { describe, expect, test } from 'claude-code/testing'
 
 import { fitNames } from '../hooks/band'
@@ -18,20 +19,21 @@ describe('the band', () => {
       const world = session($, on, THREE)
       await world.start()
 
+      // The names, then where they stand (tests/records.test.tsx has the states).
       const wide = await world.mount(surface, 100)
-      expect(await texts(wide)).toEqual(['NoaCG', 'Lower third · Scoreboard · Ticker'])
+      expect(await texts(wide)).toEqual(['NoaCG', 'Lower third · Scoreboard · Ticker', '3 not checked'])
       await wide.unmount()
 
       // 30 cells: the title and its gap take 7, leaving 23 for names; 16 leave 9.
       const narrow = await world.mount(surface, 30)
-      expect(await texts(narrow)).toEqual(['NoaCG', 'Lower third · +2 more'])
+      expect(await texts(narrow)).toEqual(['NoaCG', 'Lower third · +2 more', '3 not checked'])
       await narrow.redraw(band(100))
-      expect(await texts(narrow)).toEqual(['NoaCG', 'Lower third · Scoreboard · Ticker'])
+      expect(await texts(narrow)).toEqual(['NoaCG', 'Lower third · Scoreboard · Ticker', '3 not checked'])
       await narrow.unmount()
 
       const tiny = await world.mount(surface, 16)
-      expect(await texts(tiny)).toEqual(['NoaCG', '3 packages'])
-      expect((await tiny.findAll({ type: 'Text' }))[1]?.props.wrap).toBe('truncate-end')
+      expect(await texts(tiny)).toEqual(['NoaCG', '3 packages', '3 not checked'])
+      for (const line of (await tiny.findAll({ type: 'Text' })).slice(1)) expect(line.props.wrap).toBe('truncate-end')
       await tiny.unmount()
     })
 
