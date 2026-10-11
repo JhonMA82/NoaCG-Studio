@@ -200,30 +200,42 @@ test('a stretch design measures the same room whether or not the renderer offset
   await page.goto('/app');
   // The stretch runtime as the importer emits it, over a box anchored 1400 px in: its stretch
   // line holds a 600 px run in a 300 px slot, so it asks for 301 px, and the frame edge (4%
-  // inside 1920) caps it at 143.2.
-  const files = await packageOf(page, {
-    kind: 'probe',
+  // inside 1920) caps it at 143.2. And the same runtime as a design imported before the edge walk
+  // stopped at the canvas carries it in its saved code, which the export upgrades (#925).
+  const savedBefore = await page.evaluate(async () => {
+    const { stretchRuntimeJs } = await import('/src/templates/importedDesign/stretch.ts');
+    const now = 'for (var el = box; el && el !== document.body; el = el.offsetParent) x += el.offsetLeft;';
+    const js = stretchRuntimeJs('probe');
+    if (!js.includes(now)) throw new Error('the stretch runtime no longer walks its edge as this case expects - update the case');
+    return js.replace(now, 'for (var el = box; el; el = el.offsetParent) x += el.offsetLeft;');
+  });
+  const probe = {
+    kind: 'probe' as const,
     name: 'Stretch Probe',
-    stretch: true,
     html: '<div class="probe-box"><div data-stretch><span data-fit="shrink">wide</span></div></div>',
     css: [
       '.probe-box { position: absolute; left: 1400px; top: 100px; width: calc(300px + var(--stretch-x, 0px)); height: 40px; }',
       '.probe-box [data-stretch] { width: calc(300px + var(--stretch-x, 0px)); overflow: hidden; white-space: nowrap; }',
       '.probe-box [data-fit] { display: inline-block; width: 600px; }',
     ].join('\n'),
+  };
+  await serveRenderer(page, {
+    stretch: await packageOf(page, { ...probe, stretch: true }),
+    saved: await packageOf(page, { ...probe, js: savedBefore }),
   });
-  await serveRenderer(page, { stretch: files });
-  const stretchAt = async (left: number) => {
+  const stretchAt = async (folder: string, left: number) => {
     await page.evaluate((left) => { document.getElementById('stage')!.style.left = `${left}px`; }, left);
-    await place(page, 'stretch', 'ograf-isolation-stretch');
-    const value = await page.evaluate(() =>
-      graphicBody(document.querySelector('[data-folder="stretch"]')!).querySelector<HTMLElement>('.probe-box')!.style.getPropertyValue('--stretch-x'));
-    await unmount(page, 'stretch');
+    await place(page, folder, `ograf-isolation-${folder}`);
+    const value = await page.evaluate((folder) =>
+      graphicBody(document.querySelector(`[data-folder="${folder}"]`)!).querySelector<HTMLElement>('.probe-box')!.style.getPropertyValue('--stretch-x'), folder);
+    await unmount(page, folder);
     return value;
   };
-  const atOrigin = await stretchAt(0);
-  expect(atOrigin, 'the fixture did not stretch at all - nothing was proven').toBe('143.2px');
-  expect(await stretchAt(240), 'an offset stage changed how far the design stretches').toBe(atOrigin);
+  for (const [folder, label] of [['stretch', 'the design'], ['saved', 'a design saved before #924']]) {
+    const atOrigin = await stretchAt(folder, 0);
+    expect(atOrigin, `${label} did not stretch at all - nothing was proven`).toBe('143.2px');
+    expect(await stretchAt(folder, 240), `an offset stage changed how far ${label} stretches`).toBe(atOrigin);
+  }
 });
 
 /** Run one OGraf action on a mounted graphic and return its status code. */
