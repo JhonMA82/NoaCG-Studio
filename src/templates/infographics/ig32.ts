@@ -188,6 +188,7 @@ export const ig32: TemplateVariant = defineInfographicVariant(
           value: 'MILESTONES',
         },
       ],
+      numberStyle: true,
       runtimeExtraJs: milestoneRuntimeJs(),
     };
   },

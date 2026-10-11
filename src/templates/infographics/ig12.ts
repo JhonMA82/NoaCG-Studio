@@ -135,6 +135,8 @@ export const ig12: TemplateVariant = defineInfographicVariant(
         { field: 'f1', ftype: 'textfield', title: o.lines[1]?.title || 'Heading', value: headingText },
       ],
 
+      numberStyle: true,
+
       // Shared bars rebuild — one "Label | value" per line (dataRuntimes.ts).
       runtimeExtraJs: barsRuntimeJs(),
     };

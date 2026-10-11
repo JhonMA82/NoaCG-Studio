@@ -249,6 +249,7 @@ export const ig24: TemplateVariant = defineInfographicVariant(
         { field: 'f2', ftype: 'textfield', title: 'Label', value: 'MILESTONES' },
       ],
 
+      numberStyle: true,
       runtimeExtraJs: milestoneRuntimeJs(),
     };
   },

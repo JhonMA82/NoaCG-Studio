@@ -147,6 +147,8 @@ export const ig02: TemplateVariant = defineInfographicVariant(
         { field: 'f1', ftype: 'textfield', title: o.lines[1]?.title || 'Heading', value: headingText },
       ],
 
+      numberStyle: true,
+
       // rebuildInfographic(): re-render the bar rows from the hidden #f0 source (one
       // "Label | value" per line). Shared by every poll design — see dataRuntimes.ts.
       runtimeExtraJs: barsRuntimeJs(),

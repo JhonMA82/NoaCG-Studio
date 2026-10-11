@@ -180,21 +180,11 @@ export const ig05: TemplateVariant = defineInfographicVariant(
         { field: 'f2', ftype: 'textfield', title: 'Kicker', value: 'TOTAL RAISED' },
       ],
 
+      numberStyle: true,
+
       // rebuildInfographic(): thousand-separate the figures, write the footer lines,
       // and set the bar's percent — the count-up preset animates from there.
-      runtimeExtraJs: `// parseIgNumber(): read the number out of operator text — tolerant of the currency
-// marks and thousand separators people paste in ("€124,213" -> 124213).
-function parseIgNumber(text) {
-  var n = parseFloat(String(text).replace(/[^0-9.+-]/g, ''));
-  return isNaN(n) ? 0 : n;
-}
-
-// formatThousands(): 124213 -> "124,213" — broadcast figures always group digits.
-function formatThousands(n) {
-  return String(Math.round(n)).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',');
-}
-
-// rebuildInfographic(): read total (f0) + goal (hidden f1), rewrite the displayed
+      runtimeExtraJs: `// rebuildInfographic(): read total (f0) + goal (hidden f1), rewrite the displayed
 // figures thousand-separated, and clamp the bar to total/goal percent. The fill is
 // rendered already at its value so an on-air update() shows fresh data at once; on
 // play() the 'count-up' preset grows it back from empty to its data-value percent.

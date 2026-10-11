@@ -227,6 +227,8 @@ export const ig35: TemplateVariant = defineInfographicVariant(
         { field: 'f3', ftype: 'textfield', title: o.lines[3]?.title || 'Coalition', value: coalitionText },
       ],
 
+      numberStyle: true,
+
       // Shared majority-meter rebuild - seats, the majority line and the chamber (dataRuntimes.ts).
       runtimeExtraJs: majorityMeterRuntimeJs(),
     };

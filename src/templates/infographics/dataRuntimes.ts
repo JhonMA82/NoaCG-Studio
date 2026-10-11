@@ -132,27 +132,10 @@ if (document.readyState === 'loading') {
 }`;
 }
 
-/** The tolerant number parse every figure in the pack reads through. Its own const because the
- *  election runtimes below need it WITHOUT the grouping: a seat count is never four digits, and
- *  a helper nothing calls is dead code sitting in a template the user is invited to read. */
-const PARSE_NUMBER_JS = `// parseIgNumber(): read the number out of operator text — tolerant of the currency marks
-// and thousand separators people paste in ("€124,213" -> 124213).
-function parseIgNumber(text) {
-  var n = parseFloat(String(text).replace(/[^0-9.+-]/g, ''));
-  return isNaN(n) ? 0 : n;
-}`;
-
-/** The thousand grouping ig05 authored inline — money figures always group. */
-const GROUP_DIGITS_JS = `// formatThousands(): 124213 -> "124,213" — broadcast figures always group digits.
-function formatThousands(n) {
-  return String(Math.round(n)).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',');
-}`;
-
-/** Number helpers shared by the goal and milestone runtimes — the same tolerant parse and the
- *  same thousand-grouping ig05 authored inline, so every figure in the pack reads alike. */
-const NUMBER_HELPERS_JS = `${PARSE_NUMBER_JS}
-
-${GROUP_DIGITS_JS}`;
+// The number helpers every figure below reads and prints through - parseIgNumber(),
+// formatThousands(), igNumberText(), igPercent() - are not emitted here: they ship in every
+// infographic from igNumbers.ts, because the count builders read figures too and all of them
+// must agree on the board's number style.
 
 /**
  * The GOAL-METER rebuild, in its two drawn shapes.
@@ -187,9 +170,7 @@ export function goalRuntimeJs(shape: 'bar' | 'ring'): string {
     ring.style.strokeDashoffset = (100 - percent);
   }`;
 
-  return `${NUMBER_HELPERS_JS}
-
-// rebuildInfographic(): read the raised total (#f0) and the hidden goal (#f1), then derive
+  return `// rebuildInfographic(): read the raised total (#f0) and the hidden goal (#f1), then derive
 // everything the panel shows — the grouped figure, the share of the goal, the "of <goal>"
 // caption, and the percent readout. Read from data-target where it exists: update() keeps it
 // current, while the count-up preset rewrites the live textContent mid-count ("0", "43,207"…).
@@ -220,7 +201,7 @@ ${writeShare}
 
   // The percent readout — rounded, because a goal meter showing 43.7% reads as noise.
   var readout = document.getElementById('infographic-percent');
-  if (readout) readout.textContent = Math.round(percent) + '%';
+  if (readout) readout.textContent = igPercent(Math.round(percent));
 }
 
 // Render once on load so the preview shows real figures before the first update().
@@ -247,9 +228,7 @@ if (document.readyState === 'loading') {
  * (a line at raised/max over evenly spaced nodes) would draw a position that means nothing.
  */
 export function milestoneRuntimeJs(): string {
-  return `${NUMBER_HELPERS_JS}
-
-// escapeHtml(): the nodes below are built with innerHTML — operator text is escaped first so
+  return `// escapeHtml(): the nodes below are built with innerHTML — operator text is escaped first so
 // input like "1,000 & rising" reads as text and never runs as markup.
 function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -275,7 +254,7 @@ function rebuildInfographic() {
     if (split === -1) return;                      // no pipe: not a "Label | target" line
     var label = line.slice(0, split).trim();
     var targetText = line.slice(split + 1).trim();
-    var target = parseFloat(targetText.replace(/[^0-9.+-]/g, ''));
+    var target = parseFloat(igNumberSource(targetText).replace(/[^0-9.+-]/g, ''));
     if (label === '' || isNaN(target)) return;     // skip lines without a label or a number
     stops.push({ label: label, targetText: targetText, target: target });
   });
@@ -366,7 +345,7 @@ function rebuildInfographic() {
     var parts = line.split('|');
     var label = parts[0].trim();
     var valueText = (parts[1] || '').trim();       // the figure exactly as the operator typed it
-    var value = parseFloat(valueText);             // NaN when the value part is missing
+    var value = parseFloat(igNumberSource(valueText));  // NaN when the value part is missing
     if (label === '' || isNaN(value)) return;      // skip lines without a label or a number
     var fill = Math.max(0, Math.min(100, value));  // clamp only the DRAWN fill to the 0-100 track
     html += '<div class="infographic-row">'
@@ -411,9 +390,7 @@ if (document.readyState === 'loading') {
  * share, so the picture compares and the number states.
  */
 export function seatBarsRuntimeJs(): string {
-  return `${PARSE_NUMBER_JS}
-
-// escapeHtml(): the rows below are built with innerHTML - operator text is escaped first so a
+  return `// escapeHtml(): the rows below are built with innerHTML - operator text is escaped first so a
 // party name like "Left & Green <2026>" reads as text and never runs as markup.
 function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -435,7 +412,7 @@ function rebuildInfographic() {
     if (split === -1) return;                      // no pipe: not a "Party | seats" line
     var name = line.slice(0, split).trim();
     var seatsText = line.slice(split + 1).trim();
-    var seats = parseFloat(seatsText.replace(/[^0-9.+-]/g, ''));
+    var seats = parseFloat(igNumberSource(seatsText).replace(/[^0-9.+-]/g, ''));
     if (name === '' || isNaN(seats) || seats < 0) return;  // skip lines without a name or a count
     parties.push({ name: name, seats: seats });
   });
@@ -461,8 +438,8 @@ function rebuildInfographic() {
                    // The readout cap - anchored to the fill's tip in CSS, so it rides the growth,
                    // and carrying its own data-target so the count lands on the real seat figure.
           +       '<span class="infographic-bar-cap">'
-          +         '<span class="infographic-bar-num" data-target="' + parties[j].seats + '">'
-          +           parties[j].seats
+          +         '<span class="infographic-bar-num" data-target="' + igNumberText(parties[j].seats) + '">'
+          +           igNumberText(parties[j].seats)
           +         '</span>'
           +       '</span>'
           +     '</div>'
@@ -496,9 +473,7 @@ if (document.readyState === 'loading') {
  * text is inert by construction rather than by escaping.
  */
 export function majorityMeterRuntimeJs(): string {
-  return `${PARSE_NUMBER_JS}
-
-// rebuildInfographic(): read the coalition's seats (#f0) and the two hidden sources - the seats
+  return `// rebuildInfographic(): read the coalition's seats (#f0) and the two hidden sources - the seats
 // a majority needs (#f1) and the size of the chamber (#f2) - then derive the whole panel: the
 // fill's share, where the majority line sits, the distance to it, and the caption. Read from
 // data-target where it exists: update() keeps it current, while the count-up preset rewrites the
@@ -573,9 +548,7 @@ if (document.readyState === 'loading') {
  * rather than a different graphic. Nothing here reaches innerHTML - textContent only.
  */
 export function turnoutRuntimeJs(): string {
-  return `${PARSE_NUMBER_JS}
-
-// rebuildInfographic(): compare this turnout (#f0) with the hidden previous one (#f2) and write
+  return `// rebuildInfographic(): compare this turnout (#f0) with the hidden previous one (#f2) and write
 // the swing. Read from data-target where it exists: update() keeps it current, while the
 // ring-fill preset rewrites the live textContent mid-count ("0", "43"…).
 function rebuildInfographic() {
@@ -598,7 +571,7 @@ function rebuildInfographic() {
   // report "0" for a real change on a night when the change IS the story.
   var change = Math.round((turnout - previous) * 10) / 10;
 
-  swing.textContent = (change < 0 ? '-' : '+') + Math.abs(change).toFixed(1) + ' pts';
+  swing.textContent = (change < 0 ? '-' : '+') + igNumberText(Math.abs(change).toFixed(1)) + ' pts';
   // Direction is a CLASS, not a second colour written from JS: the stylesheet decides how a fall
   // reads, and the graphic keeps its single accent.
   if (change < 0) swing.classList.add('is-down');

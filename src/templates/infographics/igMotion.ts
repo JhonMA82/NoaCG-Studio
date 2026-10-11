@@ -30,18 +30,25 @@ function infographicStat(el) {
     text = el.textContent;                       // seed it from the markup once
     el.setAttribute('data-target', text);
   }
-  var value = parseFloat(text.replace(/,/g, '')); // leading number: "1,234%" -> 1234
-  if (isNaN(value)) return null;                 // not a stat — leave the text alone
+  // The leading number, in the board's number style (igNumbers.ts): "1,234%" -> 1234, and in
+  // Finnish style "1 234,5 %" -> 1234.5. A Finnish figure groups its thousands with spaces, so
+  // only a space with three digits after it belongs to the number - "52 %" keeps its " %".
+  var nordic = igNordic();
+  var number = nordic
+    ? /^\\s*[-+]?\\d+(?:[ \\u00a0\\u202f]\\d{3})*(?:[.,]\\d+)?/.exec(text)
+    : /^\\s*[-+]?[0-9.,]+/.exec(text);
+  var value = parseFloat(nordic ? igNumberSource(text) : text.replace(/,/g, ''));
+  if (!number || isNaN(value)) return null;      // not a stat — leave the text alone
   return {
     text: text,                                  // the exact text, restored when the count lands
     value: value,
-    suffix: text.replace(/^\\s*[-+]?[0-9.,]+/, ''), // what follows the number: '%', ' pts'…
+    suffix: text.slice(number[0].length),        // what follows the number: '%', ' pts'…
     // Does the operator's own figure carry thousand separators? Every count below renders in
     // the notation its figure LANDS in, so the number never changes shape as it arrives: a
     // grouped figure counts grouped, a plain one counts plain. Reading it off their text is
     // what keeps that true both ways - grouping "1200" would be as wrong as counting "124213"
     // up to "124,213".
-    grouped: text.indexOf(',') >= 0
+    grouped: nordic ? /\\d[ \\u00a0\\u202f]\\d/.test(number[0]) : text.indexOf(',') >= 0
   };
 }
 
@@ -279,13 +286,6 @@ function infographicGoalRing(target, opts) {
   return tl;
 }
 
-// infographicGroupDigits(): 124213 -> "124,213". A money figure counting up without thousand
-// separators reads as a different order of magnitude every few frames, so the count formats
-// as it goes and the rebuild's exact text is restored at the end.
-function infographicGroupDigits(n) {
-  return String(n).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',');
-}
-
 // infographicCountText(): one frame of a count, in the notation the figure LANDS in.
 //
 // THE ONE FORMATTER EVERY COUNT SHARES - all four of them: the stat count, the ring fill's
@@ -298,7 +298,10 @@ function infographicGroupDigits(n) {
 // Deciding it per builder is what let the four drift apart, and grouping unconditionally would
 // have been the same mistake pointing the other way - a count of 537, 1,200 landing on 1200.
 function infographicCountText(n, stat) {
-  return (stat.grouped ? infographicGroupDigits(n) : String(n)) + stat.suffix;
+  // A money figure counting up without its separators reads as a different order of magnitude
+  // every few frames, so a grouped figure groups as it goes - formatThousands(), in the board's
+  // number style (igNumbers.ts) - and the rebuild's exact text is restored at the end.
+  return (stat.grouped ? formatThousands(n) : String(n)) + stat.suffix;
 }
 
 // infographicMilestoneRun(): the progress line grows along the milestone track, and each node

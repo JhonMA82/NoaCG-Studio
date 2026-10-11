@@ -259,6 +259,7 @@ export const ig38: TemplateVariant = defineInfographicVariant(
         { field: 'f4', ftype: 'textfield', title: o.lines[4]?.title || 'Unit', value: unit },
       ],
 
+      numberStyle: true,
       runtimeExtraJs: seatBarsRuntimeJs(),
     };
   },
