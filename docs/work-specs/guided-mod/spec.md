@@ -998,3 +998,17 @@ keeps the conversation clean, and gives the full list as text only where nothing
 reference does not. Its Esc-to-close follows AC-14's wording. Whether a pane that closes on Esc
 suits a list the person keeps beside the work is the owner's call in the walk. Neither plugin
 draws a button `autoFocus`.
+
+### After the phase 4 check (try-out fixes)
+
+- The pane's main button is drawn `autoFocus`: **Start a package**, or the primary **Fill**
+  (the package the band would name, which need not be drawn first). A pane opened with `focus`
+  then starts its ring there, so Enter acts at once. The kit raises no such take, so the tests
+  hold the prop.
+- The kit's `$` has no `ui.close` and a test's own hooks may make no call, but an inline plugin
+  loaded with `test(name, { plugins }, ...)` can: `ESCAPE` in `tests/world.tsx` closes the pane
+  as Esc does, writing nothing else, and the band test fails without the `ui.close` hook. This
+  replaces the phase 4 trap that a test cannot raise the person's Esc.
+- `tryout.md` no longer promises 15 minutes in all: about 15 of the owner's own, plus setup
+  (now including the CLI's NoaCG sign-in, so step 4 does not stop for it) and the model's pace
+  in step 1.
