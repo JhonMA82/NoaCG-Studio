@@ -266,10 +266,24 @@ OBS-specific notes (the dock, local-file and refresh behaviour below was measure
 ## 5. vMix
 
 1. **Add Input → More → Web Browser**.
-2. URL: the cloud output URL, or the full local path to an exported file
-   (`file:///C:/overlays/lower-third.html`).
+2. URL: the production's output URL. For an exported file, its relay address or its full local
+   path (`file:///C:/overlays/lower-third.html`).
 3. Set the width and height to the graphic's resolution.
-4. Use it as an overlay channel input.
+4. Put it on an overlay channel and leave it there for the whole show. Higher-numbered channels
+   draw on top of lower ones, so use one above any overlay that should sit under the graphics.
+5. Take, update and take out from NoaCG: the production page, its control link or a phone. The
+   graphics animate in and out inside the input, several layers at once.
+
+- **Taking the input off its overlay in vMix removes every graphic at once**, with no exit
+  animation: Out runs the channel's transition, Off cuts. Use it as the emergency
+  clear, not as the way to end a graphic.
+- **vMix 27 to 29 render with Chromium 115**, below NoaCG's floor of 117 but above everything the
+  catalogue uses. vMix leaves no mark on the page, so the playout status names it "Chrome 115";
+  add `&name=vMix` to the output URL to see it by name.
+- **An exported HTML overlay plays its entrance when vMix loads it.** For a live show use the
+  output URL, or the export's launcher and relay so its controller can take and out.
+
+Measured on vMix 29.0.0.49, with a three-layer production: `docs/VMIX_ON_A_REAL_HOST.md`.
 
 ## 6. SPX Graphics
 
@@ -365,8 +379,12 @@ than one that admits the gaps.
   §11): the replay after a page loads on a preview, the hand-over to the panel's Stop and Play,
   the one stale frame on a Cut measured from recordings of the program output, and the OBS Bridge
   proof's every verb (`docs/research/obs-bridge-proof/`).
+- **Verified on vMix 29.0.0.49 (trial) on this machine** (2026-10-12,
+  `docs/VMIX_ON_A_REAL_HOST.md`): the cloud output URL in a Web Browser input on an overlay
+  channel, with a lower third, a clock bug and a ticker taken, updated, replaced and taken out
+  from the control link, each seen in vMix's Program; and the engine, Chromium 115.
 - **Not yet verified on hardware**: a Decklink card, a LAN hop between the Bridge and CasparCG,
-  vMix, a Linux CasparCG and whether its media scanner is running, and the hosted studio's
+  vMix with an exported file, a Linux CasparCG and whether its media scanner is running, and the hosted studio's
   local-network permission prompt with a person at the keyboard.
 
 The maintainer's own acceptance checklist is `docs/ACCEPTANCE_SPX_CASPARCG.md`, and
