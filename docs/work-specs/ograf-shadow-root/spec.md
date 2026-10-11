@@ -480,6 +480,14 @@ included.
   it loads again. The second is only reported: one of the five matched on Linux in the default
   slice, where other designs come before it on the renderer page, so the difference depends on
   what the page mounted earlier, which is the lead #986 records.
+- **#986, after phase 4: the harness, not the package.** All five follow `sb21` or `sb22` in
+  their unit. Those two fail to load in the OGraf page only, which then skipped 4.2 s of their
+  4.3 s of clock, so every later design there met the clock's 16 ms frames 8 ms off the studio
+  pages' phase, and a moving entrance was sampled a frame apart. It reproduced on Windows too
+  (`pl01` 2143 at 300 ms). Each design now starts at its own instant on every page
+  (`DESIGN_SLOT_MS` in `e2e/_ografParity.ts`), and the five are compared like any other design.
+  The disposed countdowns `ss20` and `gt09` still leave their `setInterval` running on the OGraf
+  page, and both units match with it, so that leak did not move these frames.
 - **The quarantined `e2e/editor-base-edits.spec.ts`.** Not the shadow mount. Its seed's async
   evaluate ended in `applyTemplate` and answered from the render's microtasks (the trap
   `e2e/async-whose-last-act-starts-work`). A `gc()` two microtasks after the store write

@@ -6,7 +6,8 @@
 // clock the harness owns (decision 5):
 //
 //  - each renderer page runs on Playwright's page clock, paused, so `Date`, the timers and
-//    `requestAnimationFrame` move only when the harness runs it forward;
+//    `requestAnimationFrame` move only when the harness runs it forward, and each design starts
+//    at its own instant on it, the same in every page (`DESIGN_SLOT_MS`);
 //  - GSAP's ticker is detached (`GSAP_DETACH_JS`, as the non-real-time document detaches it) and
 //    `gsap.updateRoot` is driven from the renderer page's own animation frames and clock, for a
 //    studio document in an iframe too, whose timers, `Date` and `performance` are the renderer
@@ -39,21 +40,6 @@ const KNOWN_OGRAF_FAILURES: Record<string, string> = {
   sb22: 'https://github.com/NoaCG/NoaCG-Studio/issues/964',
 };
 
-/**
- * Designs whose package paints a different entrance frame from the studio's on Linux in their
- * whole-catalog unit, measured identically on main with the light mount before the shadow root:
- * an OGraf defect older than it, with its own issue (decision 5). Their comparison is reported and
- * excused, not enforced either way: the difference depends on which designs were mounted before
- * on the same renderer page (`pl01` matches in the default slice), and on Windows all five match.
- */
-const KNOWN_STUDIO_DIFFERENCES: Record<string, string> = {
-  pl01: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
-  pl02: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
-  tt01: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
-  tt02: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
-  ig04: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
-};
-
 /** Fewer differing pixels than this, a frame matches (the conformance spec's bound). */
 export const PARITY_BOUND = 1_000;
 /** Per colour channel, the difference two pixels may have and still match (the conformance spec's). */
@@ -71,6 +57,14 @@ const GROUND = 'rgb(10, 20, 30)';
 const START = new Date('2026-10-10T12:00:00Z');
 /** Where the paused clock stands once a renderer page has loaded: the same instant in every page. */
 const PAUSED_AT = new Date('2026-10-10T12:00:30Z');
+/**
+ * Design `i` of a sweep starts at `PAUSED_AT + i * DESIGN_SLOT_MS` in every page, whatever the
+ * designs before it did: a variant that cannot show a design skips its samples' clock time, and
+ * its page then met the 16 ms animation frames at another phase, a frame apart from the studio's
+ * (#986). A whole number of frames, longer than a design's samples take; an overrun makes
+ * `pauseAt` throw.
+ */
+const DESIGN_SLOT_MS = 4_800;
 
 /** What the renderer serves each package file as: an SVG picture, for one, renders only as image/svg+xml. */
 const CONTENT_TYPES: Record<string, string> = {
@@ -459,7 +453,9 @@ export async function paritySweep(app: Page, browser: Browser, sources: ParitySo
         rows.push({ key: design.key, error: design.error, against: {} });
         continue;
       }
-      // Every variant is taken even when one fails, so the pages keep seeing the same designs.
+      // Every variant is taken even when one fails, so the pages keep seeing the same designs,
+      // each from the same instant on the clock.
+      await Promise.all(pages.map((page) => page.clock.pauseAt(PAUSED_AT.getTime() + index * DESIGN_SLOT_MS)));
       const frames: Record<string, Buffer[]> = {};
       const errors: string[] = [];
       for (const [i, variant] of variants.entries()) {
@@ -503,7 +499,7 @@ function unstable(rows: ParityRow[]): ParityRow[] {
 /** What a `PARITY_VARIANTS` sweep read, one line per design that is not a clean match. */
 function report(label: string, rows: ParityRow[]): string {
   const odd = rows.filter((row) => row.error || !matches(row, 'studioAgain') || !matches(row, 'ograf'));
-  const known = (row: ParityRow) => row.key in KNOWN_OGRAF_FAILURES || row.key in KNOWN_STUDIO_DIFFERENCES;
+  const known = (row: ParityRow) => row.key in KNOWN_OGRAF_FAILURES;
   const failing = parityFailures(rows);
   return [
     `[ograf-parity] ${label}: ${rows.length} designs, ${unstable(rows).length} not compared, ` +
@@ -530,7 +526,7 @@ export async function expectParity(label: string, rows: ParityRow[], expected: n
   const excused = known.filter((row) => /^ograf: [^;]*$/.test(row.error ?? ''));
   expect(known.filter((row) => !excused.includes(row)).map((row) => row.key), `${label}: a known OGraf failure shows now - take it off KNOWN_OGRAF_FAILURES`).toEqual([]);
   expect(rows.filter((row) => row.error && !refused.includes(row) && !excused.includes(row)), `${label}: a design did not mount`).toEqual([]);
-  expect(parityFailures(rows).filter((row) => !excused.includes(row) && !(row.key in KNOWN_STUDIO_DIFFERENCES)), `${label}: the OGraf package paints a different frame from the studio's (bound ${PARITY_BOUND} pixels)`).toEqual([]);
+  expect(parityFailures(rows).filter((row) => !excused.includes(row)), `${label}: the OGraf package paints a different frame from the studio's (bound ${PARITY_BOUND} pixels)`).toEqual([]);
   const built = rows.filter((row) => !refused.includes(row) && !excused.includes(row));
   expect(unstable(built).length, `${label}: too many designs painted two different frames from one studio document`).toBeLessThanOrEqual(Math.ceil(built.length / 10));
 }
