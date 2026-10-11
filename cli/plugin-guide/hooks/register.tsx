@@ -1,5 +1,5 @@
 // noacg-guide: a trial mod that shows the NoaCG packages a session works on, where each stands
-// and what to ask for next, above the prompt.
+// and what to ask for next, above the prompt, and every package in a pane on `/noacg-guide`.
 //
 // Quiet outside graphics work (docs/work-specs/guided-mod/spec.md, AC-2): with no package in the
 // working directory it draws nothing, adds nothing to the model's context and registers no tool.
@@ -13,7 +13,8 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { NoacgPackage, Run } from '../types'
-import { fitNames, SEPARATOR, summary } from './band'
+import { fitNames, STATUS, summary } from './band'
+import { factsMarkdown, factsOf, textAnswer } from './pane'
 import { findPackages, isObject, type Folders } from './packages'
 import { firstStep, linkOf, START, stepOf } from './steps'
 import {
@@ -38,6 +39,7 @@ import {
 const packages = atom({ plugin: 'noacg-guide', key: 'packages' } as const, [] as NoacgPackage[])
 const hidden = atom({ plugin: 'noacg-guide', key: 'hidden' } as const, false)
 const offer = atom({ plugin: 'noacg-guide', key: 'offer' } as const, false)
+const pane = atom({ plugin: 'noacg-guide', key: 'pane' } as const, false)
 
 /** How long a request shown as a toast stays, where the prompt box could not take it. */
 const TOAST_MS = 12_000
@@ -45,6 +47,26 @@ const TOAST_MS = 12_000
 const TITLE = 'NoaCG'
 /** Cells between the title and the names. */
 const GAP = 2
+/** The package pane's id. */
+const PANE = 'noacg-guide'
+
+/** The prompt box as one dispatch reaches it: `$` cannot be passed on, so closures over it. */
+type PromptBox = {
+  read: () => Promise<string>
+  fill: (text: string, mode: 'replace' | 'append') => Promise<boolean>
+  toast: (text: string) => void
+}
+
+/**
+ * A Fill button's press: the request goes into the prompt box for the person to send, on a line
+ * after a draft they typed, never over it, and not twice; where no box takes it, a toast.
+ */
+const filler = (box: PromptBox) => (text: string) => async () => {
+  const draft = await box.read()
+  if (draft.includes(text)) return
+  const filled = await (draft.trim() ? box.fill(`\n${text}`, 'append') : box.fill(text, 'replace')).catch(() => false)
+  if (!filled) box.toast(text)
+}
 
 /** What one pass needs from the dispatch that asked for it; every path absolute. */
 type Scan = Folders &
@@ -156,14 +178,40 @@ export const register: Register = on => {
   on('session.start', scanThenPass)
   on('prompt.submit', scanThenPass)
 
-  // Brings the band back; with no package here, it offers to start one.
+  // Opens the package pane, or closes it when open; brings a hidden band back, and with no
+  // package here offers to start one. Where no surface draws a pane (`claude -p`, the VS Code
+  // panel), it answers with the same list as text, which the engine also hands the model.
   on('command.run', { command: 'noacg-guide' }, async $ => {
     // A scan under way (the session's start) settles first, so a package is not missed.
     await scanning
-    const none = (await read($, packages)).length === 0
+    const list = await read($, packages)
     await update($, hidden, () => false)
-    await update($, offer, () => none)
-    return {}
+    await update($, offer, () => list.length === 0)
+
+    // The engine's record, not the module's: it outlives a reload.
+    if ((await $.ui.panes()).some(open => open.id === PANE)) {
+      await $.ui.close({ id: PANE })
+      return {}
+    }
+    const surfaces = await $.session.surfaces()
+    if (surfaces.includes('terminal') || surfaces.includes('desktop')) {
+      // Asked by the person, a pane is placed at any width; one that waits undrawn is on a
+      // surface that places none, so it goes and the text answers instead.
+      const opened = await $.ui.open({ id: PANE, title: TITLE, focus: true, closeOnEscape: true })
+      if (opened.isPlaced) {
+        await update($, pane, () => true)
+        return {}
+      }
+      await $.ui.close({ id: PANE })
+    }
+    return { text: textAnswer(list, normalize(await $.session.root()), await $.clock.now()) }
+  })
+
+  // However the pane closes (Esc, its close mark, the command), the band comes back.
+  on('ui.close', async ($, e, next) => {
+    const closed = await next(e)
+    if (e.id === PANE) await update($, pane, () => false).catch(() => undefined)
+    return closed
   })
 
   on('tool.call', async ($, e, next) => {
@@ -226,18 +274,16 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
-    const [isHidden, list, offered] = await Promise.all([read($, hidden), read($, packages), read($, offer)])
-    if (isHidden || (list.length === 0 && !offered)) return next(e)
+    const [isHidden, list, offered, isPaneOpen] = await Promise.all([read($, hidden), read($, packages), read($, offer), read($, pane)])
+    // The pane says all the band would.
+    if (isHidden || isPaneOpen || (list.length === 0 && !offered)) return next(e)
 
     const { Box, Button, Link, Text } = $.ui.resolve(e)
-    // A request goes into the prompt box for the person to send, on a line after a draft they
-    // typed, never over it; where no box takes it, a toast.
-    const fill = (text: string) => async () => {
-      const draft = (await $.prompt.read()).text
-      if (draft.includes(text)) return
-      const filled = await $.prompt.fill(draft.trim() ? { text: `\n${text}`, mode: 'append' } : { text }).catch(() => ({ isFilled: false }))
-      if (!filled.isFilled) $.ui.toast(text, { timeoutMs: TOAST_MS })
-    }
+    const fill = filler({
+      read: async () => (await $.prompt.read()).text,
+      fill: async (text, mode) => (await $.prompt.fill({ text, mode })).isFilled,
+      toast: text => $.ui.toast(text, { timeoutMs: TOAST_MS }),
+    })
     const hide = <Button key="hide" label="Hide" dimColor role="dismiss" onPress={() => update($, hidden, () => true)} />
 
     const focus = firstStep(list) ?? list.find(p => linkOf(p.record))
@@ -261,15 +307,71 @@ export const register: Register = on => {
             <Box flexDirection="row" gap={1}>
               {step && (
                 <Box flexShrink={1}>
-                  <Text wrap="truncate-end">{step.warning ? `${step.label}${SEPARATOR}${step.warning}` : step.label}</Text>
+                  <Text wrap="truncate-end">{step.label}</Text>
                 </Box>
               )}
               {step && <Button key="fill" label="Fill prompt" variant="primary" onPress={fill(step.request)} />}
               {link && <Link href={link}>Open in NoaCG</Link>}
               {hide}
             </Box>
+            {/* A line of its own: beside the buttons it was cut at ordinary widths. */}
+            {step?.warning && (
+              <Text wrap="truncate-end" color="warning">
+                {step.warning}
+              </Text>
+            )}
           </Box>
         )}
+      </Box>
+    )
+  })
+
+  // The package pane: every package with its state, when each record was made, its frames
+  // folder and pack file, its saved or sent link, and its next step with a Fill button. It
+  // reads the same state as the band, so it follows every scan.
+  on('ui.render', { component: 'Pane', requestId: 'noacg-guide' }, async ($, e) => {
+    const [list, root, now] = await Promise.all([read($, packages), $.session.root(), $.clock.now()])
+    const { Box, Button, Markdown, Text } = $.ui.resolve(e)
+    const fill = filler({
+      read: async () => (await $.prompt.read()).text,
+      fill: async (text, mode) => (await $.prompt.fill({ text, mode })).isFilled,
+      toast: text => $.ui.toast(text, { timeoutMs: TOAST_MS }),
+    })
+    if (list.length === 0) {
+      return (
+        <Box flexDirection="column">
+          <Button key="start" label="Start a package" variant="primary" onPress={fill(START)} />
+        </Box>
+      )
+    }
+    const first = firstStep(list)
+    return (
+      <Box flexDirection="column" gap={1}>
+        {list.map(p => {
+          const facts = factsOf(p.record)
+          return (
+            <Box key={`package:${p.dir}`} flexDirection="column">
+              <Box flexDirection="row" gap={2}>
+                <Box flexShrink={1}>
+                  <Text bold wrap="truncate-end">
+                    {p.name}
+                  </Text>
+                </Box>
+                <Text dimColor>{STATUS[p.status]}</Text>
+              </Box>
+              {facts.length > 0 && <Markdown text={factsMarkdown(facts, normalize(root), now)} dimColor />}
+              {p.next && (
+                <Box flexDirection="row" gap={1}>
+                  <Box flexShrink={1}>
+                    <Text>{p.next.label}</Text>
+                  </Box>
+                  <Button key={`fill:${p.dir}`} label="Fill" {...(p === first ? { variant: 'primary' as const } : {})} onPress={fill(p.next.request)} />
+                </Box>
+              )}
+              {p.next?.warning && <Text color="warning">{p.next.warning}</Text>}
+            </Box>
+          )
+        })}
       </Box>
     )
   })

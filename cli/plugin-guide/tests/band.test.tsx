@@ -4,7 +4,8 @@
 import { describe, expect, test } from 'claude-code/testing'
 
 import { fitNames } from '../hooks/band'
-import { band, engineDraws, scaffolded, session, SURFACES, texts } from './world'
+import * as cli from './cli'
+import { band, engineDraws, scaffolded, scaffoldedAt, session, SURFACES, texts } from './world'
 
 const THREE = {
   '.': { 'lower-third': null, scoreboard: null, ticker: null },
@@ -35,6 +36,24 @@ describe('the band', () => {
       expect(await texts(tiny)).toEqual(['NoaCG', '3 packages', '3 not checked', 'Check Lower third'])
       for (const line of (await tiny.findAll({ type: 'Text' })).slice(1)) expect(line.props.wrap).toBe('truncate-end')
       await tiny.unmount()
+    })
+
+    test(`the second-copy warning has a line of its own at 80 columns (${surface})`, async ($, on) => {
+      const world = session($, on, { '.': { evening: null }, ...scaffoldedAt('evening', 'Evening news') })
+      await world.start()
+      await world.run('noacg save evening', { output: cli.saved('Evening news', 'https://noacg.studio/#/graphic/6f1c2b') })
+      world.tree['evening/css'] = { 'template.css': '.box { color: blue }' }
+      await world.submit()
+
+      // Beside the buttons and the link a step has about 34 cells at 80 columns; the warning
+      // goes under them, where the whole width less the title is its own.
+      const ui = await world.mount(surface, 80)
+      const warning = 'saving again adds a second library copy'
+      expect(await texts(ui)).toEqual(['NoaCG', 'Evening news', 'edited since check · saved', 'Check Evening news again', warning])
+      expect(warning.length).toBeLessThanOrEqual(80 - 'NoaCG'.length - 2)
+      const line = (await ui.findAll({ type: 'Text' }))[4]
+      expect(line?.props.color).toBe('warning')
+      await ui.unmount()
     })
 
     test(`gives way to a survey (${surface})`, async ($, on) => {

@@ -45,7 +45,7 @@ export type NextStep = {
   label: string
   /** What "Fill prompt" puts in the prompt box for the person to send. */
   request: string
-  /** Set when the package was saved and its files changed since: saving again adds a second library copy. */
+  /** Set when the package was saved and its files changed since: saving again adds a second library copy. Drawn on a line of its own. */
   warning?: string
 }
 
@@ -57,6 +57,8 @@ declare module 'claude-code' {
       hidden: boolean
       /** `/noacg-guide` ran: with no package here, the band offers to start one. */
       offer: boolean
+      /** The package pane is drawn; the band steps aside while it is. */
+      pane: boolean
     }
   }
 }

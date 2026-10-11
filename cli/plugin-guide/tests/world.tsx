@@ -1,9 +1,9 @@
 // The engine beneath the mod, for its tests: a project folder in memory at ROOT that `$.fs.list`
 // and `$.fs.read` answer and a test can change while it runs, the mod's store, the band the
-// engine draws when the mod passes, the session's events as a session raises them, `noacg` runs
-// with the output the published CLI 0.10.1 prints, and a record of every call a quiet mod never
-// makes.
-import type { Elements, FsEntry, On, RenderPropsOf } from 'claude-code'
+// engine draws when the mod passes, the surfaces the session draws on and the panes they place,
+// the session's events as a session raises them, `noacg` runs with the output the published CLI
+// 0.10.1 prints, and a record of every call a quiet mod never makes.
+import type { CommandRunResult, Elements, FsEntry, On, RenderPropsOf, RenderSurface } from 'claude-code'
 import type { Engine, Mounted } from 'claude-code/testing'
 import { mock } from 'claude-code/testing'
 
@@ -39,6 +39,11 @@ export function scaffoldedAt(dir: string, name: string): Tree {
 /** The band's props as the engine hands them, `bodyColumns` cells wide. */
 export function band(bodyColumns: number, hasSurvey = false): RenderPropsOf['AbovePrompt'] {
   return { hasSurvey, isWorking: false, maxRows: 8, bodyColumns, scroll: { offset: 0, bodyRows: 7 }, view: {} }
+}
+
+/** The pane's props as the engine hands them, docked `bodyColumns` cells wide. */
+export function paneProps(bodyColumns: number): RenderPropsOf['Pane'] {
+  return { title: 'NoaCG', isFocused: true, bodyColumns, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} }
 }
 
 /** The band's texts as drawn: the title, the names, then where they stand. */
@@ -89,6 +94,13 @@ export type Session = {
   context: string[]
   /** The slash commands the mod declared. */
   commands: string[]
+  /** Where the session draws (`$.session.surfaces()`): the terminal unless a test says. */
+  surfaces: RenderSurface[]
+  /** Whether those surfaces place a pane the person asked for; an older desktop places none. */
+  placesPanes: boolean
+  /** Every pane the mod asked to open, as it asked, and the ids open now. */
+  opened: Record<string, unknown>[]
+  panes: string[]
   /** What the mod put in the prompt box, and what it showed as toasts. */
   fills: string[]
   toasts: string[]
@@ -106,10 +118,14 @@ export type Session = {
   run: (command: string, ending: Ending, options?: { tool?: 'Bash' | 'PowerShell'; background?: Background }) => Promise<void>
   /** A call of the `noacg` MCP tool, answered as given; `tool` its name, the plugin server's by default. */
   mcp: (args: Record<string, unknown>, answer: McpAnswer, tool?: `mcp__${string}__noacg`) => Promise<void>
-  /** `/noacg-guide`, typed by the person. */
-  command: () => Promise<void>
+  /** `/noacg-guide`, typed by the person; what the command answered. */
+  command: () => Promise<CommandRunResult>
+  /** The pane closes: `/noacg-guide` again, as the test kit raises no Esc or close mark. */
+  closePane: () => Promise<void>
   /** The band, drawn through the mod on a surface, `columns` cells wide. */
   mount: (surface: Surface, columns: number, hasSurvey?: boolean) => Promise<Mounted<Surface, 'AbovePrompt'>>
+  /** The package pane, drawn through the mod on a surface, `columns` cells wide. */
+  mountPane: (surface: Surface, columns: number) => Promise<Mounted<Surface, 'Pane'>>
 }
 
 type Surface = (typeof SURFACES)[number]
@@ -126,6 +142,8 @@ export function session($: Engine, on: On, tree: Tree): Session {
   const commands: string[] = []
   const fills: string[] = []
   const toasts: string[] = []
+  const opened: Record<string, unknown>[] = []
+  const panes: string[] = []
   const store = new Map<string, unknown>()
   const clock = mock.clock(on, { now: Date.UTC(2026, 9, 11, 12) })
   let appended = 0
@@ -249,7 +267,19 @@ export function session($: Engine, on: On, tree: Tree): Session {
     toasts.push(e.text)
     return { value: undefined }
   })
-  on('ui.open', () => refuse('ui.open'))
+  on('session.surfaces', () => ({ value: world.surfaces }))
+  on('ui.open', ($, e) => {
+    opened.push({ ...e })
+    if (!panes.includes(e.id)) panes.push(e.id)
+    return { value: world.placesPanes ? { isPlaced: true } : { isPlaced: false, reason: 'the attached surfaces place no panes' } }
+  })
+  on('ui.panes', () => ({
+    value: panes.map(id => ({ id, title: 'NoaCG', isShown: true, isFocused: false, isPlaced: world.placesPanes })),
+  }))
+  on('ui.close', ($, e) => {
+    if (panes.includes(e.id)) panes.splice(panes.indexOf(e.id), 1)
+    return { value: undefined }
+  })
   on('ui.status', () => refuse('ui.status'))
   on('ui.log', () => refuse('ui.log'))
 
@@ -264,6 +294,10 @@ export function session($: Engine, on: On, tree: Tree): Session {
     forbidden,
     context,
     commands,
+    surfaces: ['terminal'],
+    placesPanes: true,
+    opened,
+    panes,
     fills,
     toasts,
     box: 'takes',
@@ -294,11 +328,20 @@ export function session($: Engine, on: On, tree: Tree): Session {
       await clock.settle()
     },
     command: async () => {
-      await $.command.run({ command: 'noacg-guide', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 140 } })
+      const answered = await $.command.run({ command: 'noacg-guide', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 140 } })
       await clock.settle()
+      return answered
+    },
+    closePane: async () => {
+      // The test kit raises no `ui.close` of the person's (Esc, the close mark); the command's
+      // own close runs the same hook.
+      if (!panes.includes('noacg-guide')) throw new Error('the pane is not open')
+      await world.command()
     },
     mount: (surface, columns, hasSurvey = false) =>
       $.ui.mount({ plugin: 'noacg-guide', surface, component: 'AbovePrompt', props: band(columns, hasSurvey) }),
+    mountPane: (surface, columns) =>
+      $.ui.mount({ plugin: 'noacg-guide', surface, component: 'Pane', requestId: 'noacg-guide', props: paneProps(columns) }),
   }
   return world
 }
