@@ -102,10 +102,12 @@ export function liveInstanceId(): string {
  * The markers are what each host puts on the page itself. OBS exposes `window.obsstudio`.
  * CasparCG's HTML producer defines `window.caspar` (2.3.3 and 2.5.0, read off both servers'
  * binaries on 2026-09-30; 2.5 adds `window.casparcg`). It is injected by the host rather than
- * sent in the user agent, so this is asked at call time, never cached at module load. vMix has no
- * marker this could verify (vMix is not installed here), so it is named only if its user agent
- * says so, and otherwise reads as the Chromium it embeds. The CasparCG VERSION is not guessed
- * from the Chromium number: the embedded CEF changed inside the 2.3 line.
+ * sent in the user agent, so this is asked at call time, never cached at module load. vMix puts no
+ * marker on the page: vMix 29's Web Browser input sends a plain Chrome 115 user agent and adds no
+ * globals (docs/VMIX_ON_A_REAL_HOST.md), so this reads it as "Chrome 115" and an operator names it
+ * with `&name=` on the output URL. The user-agent test below is for a vMix that ever says so. The
+ * CasparCG VERSION is not guessed from the Chromium number: the embedded CEF changed inside the
+ * 2.3 line.
  */
 export function hostEngine(
   ua: string = typeof navigator === 'undefined' ? '' : navigator.userAgent,

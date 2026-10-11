@@ -136,8 +136,9 @@ export interface PlayoutEngine {
  * THE SUPPORTED FLOOR: the oldest browser engine a catalogue template must render correctly on.
  *
  * 117 is CasparCG 2.4 — not an audience estimate, but the server the maintainer's school runs
- * productions on, which makes it the oldest engine anyone here has to satisfy. Everything else
- * measured sits above it: OBS 32.2.1 reports 127 (2026-09-30) and CasparCG 2.5 reports 142. SPX is
+ * productions on, which makes it the oldest engine anyone here has to satisfy. OBS 32.2.1 reports
+ * 127 (2026-09-30) and CasparCG 2.5 reports 142. vMix 29 reports 115 (2026-10-12): below the floor,
+ * but above everything the catalogue uses, so it renders the catalogue as designed. SPX is
  * not an engine of its own: on air its renderer runs in whatever host loads it (OBS, vMix,
  * CasparCG), and the operator's browser runs a monitor copy (docs/SPX_ON_A_REAL_SERVER.md §5).
  * The catalogue's own ceiling is 111 (`color-mix()`), so it clears this today with six versions
@@ -175,7 +176,7 @@ export const SUPPORTED_FLOOR = 117;
 export const PLAYOUT_ENGINES: PlayoutEngine[] = [
   { id: 'casparcg-23', label: 'CasparCG 2.3.x', chromium: 71, note: 'measured 2026-09-10 on the 2.3.3 LTS download, below the supported floor' },
   { id: 'obs-30', label: 'OBS Studio 30.x', chromium: 103, note: 'an OBS not updated since 2023 — below the floor' },
-  { id: 'vmix', label: 'vMix 27+', chromium: 103, note: 'changelog only, never measured here' },
+  { id: 'vmix', label: 'vMix 27+', chromium: 115, note: 'measured 2026-10-12 on 29.0.0.49, below the supported floor' },
   { id: 'casparcg-24', label: 'CasparCG 2.4.x', chromium: SUPPORTED_FLOOR, note: 'THE SUPPORTED FLOOR' },
   { id: 'obs', label: 'OBS Studio 31.x and 32.x', chromium: 127, note: 'measured 2026-09-30 on 32.2.1' },
   { id: 'casparcg-25', label: 'CasparCG 2.5.x', chromium: 142, note: 'measured 2026-08-07' },

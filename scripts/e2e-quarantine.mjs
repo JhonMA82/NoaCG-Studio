@@ -54,6 +54,44 @@ export const RELEASE_AFTER = 20;
 /** How many main commits to read when counting passes: enough to hold RELEASE_AFTER plus skipped ones. */
 const HISTORY_RUNS = 40;
 
+/**
+ * Days after which a quarantined spec that has not earned its release is STALE and is reported as
+ * work owed, not forgotten. Twenty passes take two or three days of ordinary landing traffic, so
+ * two weeks means the spec keeps failing, or nothing runs it: `configured/dashboard-hosted-walk`
+ * entered five times in 2026-10 and nothing said so. Nothing is released or deleted by age.
+ */
+export const STALE_AFTER_DAYS = 14;
+
+/** The title of the rolling issue `stale --issue` keeps; one issue, closed when the list empties. */
+export const STALE_ISSUE_TITLE = 'Quarantined specs older than 14 days';
+
+/**
+ * Quarantined specs whose `since` is STALE_AFTER_DAYS or more before `today` (ISO dates), oldest first.
+ * @param {{ specs: Record<string, { since: string, count: number, run?: string }> }} store
+ * @param {string} today YYYY-MM-DD
+ */
+export function staleEntries(store, today = new Date().toISOString().slice(0, 10)) {
+  const now = Date.parse(`${today}T00:00:00Z`);
+  return Object.entries(store.specs ?? {})
+    .map(([spec, e]) => ({ spec, since: e.since, count: e.count ?? 1, run: e.run ?? '', days: Math.floor((now - Date.parse(`${e.since}T00:00:00Z`)) / 86_400_000) }))
+    .filter((e) => Number.isFinite(e.days) && e.days >= STALE_AFTER_DAYS)
+    .sort((a, b) => b.days - a.days || a.spec.localeCompare(b.spec));
+}
+
+/** The issue body for a stale list: what is owed and how it ends. The last line is the set's identity. */
+export function staleIssueBody(stale, today) {
+  return [
+    `These specs have sat in \`e2e/quarantine.json\` for ${STALE_AFTER_DAYS} days or more without earning their ${RELEASE_AFTER} consecutive passes (read ${today}).`,
+    "A quarantined spec is a flake the suite has stopped reading, so this is coverage owed: reproduce the flake, fix the cause, and let the passes release it; or, under the owner's ruling for a retired surface, retire it with a maintenance entry (docs/work-specs/e2e-suite-budget/spec.md). Nothing is released by age.",
+    '',
+    '| Spec | Since | Days | Entries | Last run |',
+    '|---|---|---|---|---|',
+    ...stale.map((e) => `| \`${e.spec}\` | ${e.since} | ${e.days} | ${e.count} | ${e.run || '-'} |`),
+    '',
+    `<!-- quarantine-stale-set: ${stale.map((e) => e.spec).sort().join(' ')} -->`,
+  ].join('\n');
+}
+
 /** The commit status one quarantined spec's run posts (quarantine.yml, through `status` below). */
 export function statusContext(spec) {
   return `noacg/quarantine/${specPath(spec)}`;
@@ -360,6 +398,46 @@ function main(argv) {
     return releaseSpecs([specPath(rest[0])], { queue, runUrl, reason: 'released by hand' });
   }
 
+  if (command === 'stale') {
+    // The expiry: list what is stale, and with --issue keep ONE rolling issue about it on the
+    // repository - opened when the list is non-empty, body replaced when it changes, closed when it
+    // empties. A repeat of the same set edits nothing, so the issue does not mail every landing.
+    const todayIso = String(flags.get('--today') ?? today());
+    const stale = staleEntries(readStore(), todayIso);
+    for (const e of stale) console.log(`stale: ${e.spec}  since ${e.since}  ${e.days} day(s)  entries ${e.count}`);
+    if (stale.length === 0) console.log(`quarantine: nothing older than ${STALE_AFTER_DAYS} days.`);
+    if (!flags.has('--issue')) return 0;
+    if (!repo) {
+      console.error('stale --issue: GH_REPO (or GITHUB_REPOSITORY) must name the repository.');
+      return 2;
+    }
+    const gh = spawnRunner('gh');
+    const found = gh(['issue', 'list', '-R', repo, '--state', 'open', '--search', `"${STALE_ISSUE_TITLE}" in:title`, '--json', 'number,body', '--jq', '.[0]']).out;
+    const existing = found ? JSON.parse(found) : null;
+    if (stale.length === 0) {
+      if (existing) {
+        gh(['issue', 'close', '-R', repo, String(existing.number), '--comment', `Every quarantined spec is now younger than ${STALE_AFTER_DAYS} days or released (${runUrl || 'quarantine.yml'}).`]);
+        console.log(`::notice title=Quarantine::closed #${existing.number} - nothing stale.`);
+      }
+      return 0;
+    }
+    const body = staleIssueBody(stale, todayIso);
+    const setLine = body.split('\n').at(-1);
+    if (existing && String(existing.body ?? '').includes(setLine)) {
+      console.log(`::notice title=Quarantine::#${existing.number} already lists this stale set.`);
+      return 0;
+    }
+    if (existing) {
+      gh(['issue', 'edit', '-R', repo, String(existing.number), '--body', body]);
+      gh(['issue', 'comment', '-R', repo, String(existing.number), '--body', `The stale set changed: ${stale.map((e) => e.spec).join(', ')}.`]);
+      console.log(`::warning title=Quarantine::#${existing.number} updated - ${stale.length} spec(s) older than ${STALE_AFTER_DAYS} days.`);
+    } else {
+      gh(['issue', 'create', '-R', repo, '--title', STALE_ISSUE_TITLE, '--body', body, '--label', 'dev']);
+      console.log(`::warning title=Quarantine::opened "${STALE_ISSUE_TITLE}" - ${stale.length} spec(s).`);
+    }
+    return 0;
+  }
+
   if (command === 'release-due') {
     const store = readStore();
     const specs = quarantinedSpecs(store);
@@ -381,7 +459,7 @@ function main(argv) {
     return releaseSpecs(due, { queue, runUrl, reason: `${RELEASE_AFTER} consecutive passes on main` });
   }
 
-  console.error('usage: e2e-quarantine.mjs list | matrix | filter <spec> | status <spec> <outcome> --run <url> | enter <spec...> --run <url> [--queue] | release <spec> [--queue] | release-due [--queue]');
+  console.error('usage: e2e-quarantine.mjs list | matrix | filter <spec> | status <spec> <outcome> --run <url> | enter <spec...> --run <url> [--queue] | release <spec> [--queue] | release-due [--queue] | stale [--issue] [--today YYYY-MM-DD]');
   return 2;
 }
 
