@@ -99,6 +99,10 @@ export function alreadyInSnapshot(
 // hosted page on the previous question's reveal, and the in-app page did the same until issue #762.
 // Both replay what the renderer replays: the commands after each on-air graphic's own baseline.
 
+/** A replayed command, with the row's server time: a clock started minutes ago is replayed from
+ *  then, not from the moment of the replay (matchClockWire.ts `clockRowEffect`). */
+export type ReplayItem = ControlSendItem & { created_at?: string };
+
 /** The renderer commands a monitor replays over the reports when it opens. `onAir` are the layers
  *  with a live cue, `snapshotAt` their plan's baselines and `rows` the log read from the plan's
  *  `followFrom` to the resolve's head. Which cue is live comes off the resolve, already current,
@@ -107,12 +111,12 @@ export function monitorReplay(
   onAir: readonly string[],
   snapshotAt: ReadonlyMap<string, number>,
   rows: readonly ControlEventRow[],
-): ControlSendItem[] {
+): ReplayItem[] {
   return rows.flatMap((row) => {
     const msg = row.msg;
     if (msg.t === 'cue' || msg.t === 'staged' || msg.t === 'live' || msg.t === 'ping') return [];
     if (!onAir.includes(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, row.id)) return [];
-    return [{ graphic: row.graphic, msg }];
+    return [{ graphic: row.graphic, msg, ...(row.created_at ? { created_at: row.created_at } : {}) }];
   });
 }
 

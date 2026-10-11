@@ -99,6 +99,11 @@ test('re-adding the same design does not count; what the publish reads from the 
   assert.equal(recordChangedSincePublish(write(live, (s) => { s.graphics[0].layer = 21; })), true);
   assert.equal(recordChangedSincePublish(write(live, (s) => { delete s.graphics[0].graphicId; })), true);
   assert.equal(recordChangedSincePublish(write(live, (s) => { s.name = 'Saturday quiz'; })), true);
+  // A linked graphic's copy is what a teammate without its library record would publish.
+  assert.equal(recordChangedSincePublish(write(live, (s) => { s.graphics[0].template.html = '<p></p>'; })), true);
+  // An unlinked graphic's render is compared by content elsewhere, so only its fields count here.
+  const own = published(show({ graphics: [{ ...show().graphics[0], graphicId: undefined }] }));
+  assert.equal(recordChangedSincePublish(write(own, (s) => { s.graphics[0].template.html = '<p></p>'; })), false);
   assert.equal(recordChangedSincePublish(write(live, (s) => { s.cues.push({ id: 'cue-2', sourceId: 'pool-1', label: 'Guest', values: {} }); })), true);
 });
 

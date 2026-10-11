@@ -22,7 +22,7 @@ const rows = [
   { id: 42, graphic: 'Quiz', msg: { t: 'cue', cue: 'cue-q2' } },
   { id: 43, graphic: 'Quiz', msg: { t: 'staged', data: { question: 'Q3 draft' } } },
   { id: 44, graphic: 'Scorebug', msg: { t: 'update', data: { home: '2' } } },
-  { id: 45, graphic: 'Quiz', msg: { t: 'event', event: 'lock', payload: { locked: 'B' } } },
+  { id: 45, graphic: 'Quiz', msg: { t: 'event', event: 'lock', payload: { locked: 'B' } }, created_at: '2026-10-12T10:00:01.000Z' },
   { id: 46, graphic: 'Quiz', msg: { t: 'live', data: { question: 'Q2' } } },
 ];
 
@@ -38,6 +38,8 @@ test('the monitor replays the commands after the report, and only those', () => 
   assert.deepEqual(replay.map((item) => item.msg.t), ['update', 'event']);
   // Off-air layers, typing, cue markers and reports are never replayed.
   assert.ok(replay.every((item) => item.graphic === 'Quiz'));
+  // A replayed row keeps its server time, so a clock it moved is moved from then.
+  assert.equal(replay[1].created_at, '2026-10-12T10:00:01.000Z');
 });
 
 test('what air shows is the report moved on by those rows, not the report alone (the defect)', () => {

@@ -502,9 +502,10 @@ const libraryDigestMemo = new Map<string, string>();
  * the library, never touching the production record, still counts as an unpublished change.
  *
  * A graphic that falls back to the snapshot embedded in the production record is left out: that
- * copy changes only with the record, whose own timestamp already says so. In a team production a
- * member without the publisher's library record therefore never reads the publisher's newer design
- * as a change of their own to publish over it (https://github.com/NoaCG/NoaCG-Studio/issues/779).
+ * copy changes only with the record, whose own digest says so (model/publishedRecord.ts). In a
+ * team production a member without the publisher's library record therefore never reads the
+ * publisher's newer design as a change of their own to publish over it
+ * (https://github.com/NoaCG/NoaCG-Studio/issues/779).
  */
 export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<Record<string, string>> {
   const digests: Record<string, string> = {};

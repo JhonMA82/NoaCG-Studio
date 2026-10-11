@@ -10,10 +10,13 @@
 // What the digest leaves out:
 //   - what a publish writes BACK (the slugs, `publishedAt`, this digest) and bookkeeping that never
 //     reaches an output (`updatedAt`, `outputOpenedAt`, the tombstone);
-//   - each pool graphic's save time and embedded template. What a graphic RENDERS is compared by
+//   - each pool graphic's save time, so re-adding the same design is no change;
+//   - the embedded template of a graphic with no library link. What it RENDERS is compared by
 //     content already (`libraryGraphicDigests` against the published stamp, usePublishDrift), and
-//     re-adding the same design must not read as a change. Its fields stay in, because the hosted
-//     panel is built from them and the render digest does not cover them.
+//     a production's picture graphic can carry megabytes. Its fields stay in, because the hosted
+//     panel is built from them and the render digest does not cover them. A LINKED graphic's
+//     copy stays in whole: where this browser has no library record for it (a teammate's), the
+//     render digest skips it and this copy is what a publish would send.
 // Everything else stays in, so the check errs towards "changed", never towards hiding a change.
 //
 // Pure, synchronous and Node-runnable (scripts/published-record.test.mjs).
@@ -44,7 +47,7 @@ export function publishedRecordDigest(show: Show): string {
   if (known !== undefined) return known;
   const kept: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(show)) if (!NOT_PUBLISHED.has(key)) kept[key] = value;
-  kept.graphics = show.graphics.map(({ savedAt: _savedAt, template, ...graphic }) => ({ ...graphic, fields: template.fields }));
+  kept.graphics = show.graphics.map(({ savedAt: _savedAt, template, ...graphic }) => ({ ...graphic, ...(graphic.graphicId ? { template } : { fields: template.fields }) }));
   const digest = contentHash(canonical(kept));
   memo.set(show, digest);
   return digest;
