@@ -289,7 +289,8 @@ given output.
   where an old one stood starts with none. Frames keep their folder, absolute; through MCP they
   come back as images, so `dir` is null.
 - The fingerprint is SHA-256 over lines of path and file SHA-256, in path order, read with
-  `$.fs.read(file, { as: 'bytes' })` and `crypto.subtle`. Left out: the generated files at the
+  `$.fs.read(file, { as: 'bytes' })` and hashed in place (`sha256` in `watch.ts`, checked against
+  the FIPS 180-4 vectors and Node's on a real package). Left out: the generated files at the
   package's top (the list in `cli/src/workspace.ts`), folders marked `.noacg-frames`,
   `node_modules` and `.git`. A file over 4 MiB (what `$.fs.read` takes) counts by size and time;
   at most 2,000 files, 8 folders deep. File digests are kept in memory by size and time; a file
@@ -324,13 +325,18 @@ given output.
   the `tool.call` hook catches everything after `next`, so a run it cannot read never fails it.
 - In tests, `session.root`, `session.cwd`, `store.get` and `store.set` are answered with
   `{ value }`; `fs.read` asked `as: 'bytes'` answers `{ value: { base64 } }`.
+- `crypto.subtle.digest` resolves off the event loop, so the test kit's `clock.settle()` does not
+  wait for it. With it, the scan after a run could still be under way when a test looked at the
+  band: CI on Linux failed "edited since check, and back" on both builds (PR #1006, run
+  38140503638), and six test processes in parallel here failed about one run in three. Hashing
+  in place keeps a scan's work on the loop; 42 such parallel runs then passed on both builds.
 
 **For phase 3.** The next step reads `record.check` (`ok: false` is a failed check),
 `record.frames` and `record.saved`; "saved and edited since" is `saved.sha256` against the
 current fingerprint, which a scan already takes for any package with a passing check. The band
 is two lines now; the step makes a third or replaces the counts.
 
-**Check findings (build).** `claude plugin validate --strict` and `claude plugin test` (52
+**Check findings (build).** `claude plugin validate --strict` and `claude plugin test` (53
 tests) pass on 2.1.287 and on the Desktop's 2.1.295 binary; `tsc -p cli/plugin-guide` passes.
 Thirteen mutations each failed a test before the review's fixes, and each fix came with a test
 that fails without it. The mutations included: a pass from a run that exited non-zero, a pass

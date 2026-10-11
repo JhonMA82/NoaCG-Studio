@@ -4,7 +4,7 @@
 // or a screenshot alone never reads as a pass.
 import { describe, expect, test } from 'claude-code/testing'
 
-import { mcpReports, normalize, outcomeOf, relativeTo, resolvePath, terminalReports, type Outcome } from '../hooks/watch'
+import { mcpReports, normalize, outcomeOf, relativeTo, resolvePath, sha256, terminalReports, type Outcome } from '../hooks/watch'
 import * as cli from './cli'
 
 const ROOT = 'C:/Users/me/shows'
@@ -215,5 +215,16 @@ describe('paths', () => {
     expect(relativeTo(ROOT, ROOT)).toBe('.')
     expect(relativeTo(ROOT, 'C:/Users/me/showsandtell')).toBe(null)
     expect(relativeTo('/work', '/Work/evening')).toBe(null)
+  })
+})
+
+describe('SHA-256', () => {
+  test('matches the FIPS 180-4 test vectors', () => {
+    const text = (s: string) => sha256(new TextEncoder().encode(s))
+    expect(text('')).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+    expect(text('abc')).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad')
+    // 56 bytes: the length no longer fits in the first block.
+    expect(text('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq')).toBe('248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1')
+    expect(sha256(new Uint8Array(1_000_000).fill(0x61))).toBe('cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0')
   })
 })
