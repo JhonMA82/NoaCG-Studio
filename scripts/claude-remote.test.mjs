@@ -32,6 +32,8 @@ public class Fake {
     if (mode == "login") { Console.Error.WriteLine("You must be logged in"); return 1; }
     if (mode == "exit") return 2;
     if (mode == "consent") Console.WriteLine("Enable Remote Control? (y/n)");
+    if (mode == "duplicate") Console.Error.WriteLine("Error: This folder is already served by a terminal claude remote-control on this device. Stop it first.");
+    if (mode == "error") Console.Error.WriteLine("Error: Registration failed");
     Thread.Sleep(300000);
     return 0;
   }
@@ -148,6 +150,8 @@ for (const [behavior, expected] of [
   ['login', /not signed in.*claude auth login/],
   ['consent', /First-time setup required/],
   ['exit', /Remote Control exited/],
+  ['duplicate', /already served.*registration.*expire/],
+  ['error', /Remote Control error.*local stdout.log/],
 ]) {
   test(`startup ${behavior} produces an actionable failure without leaving a server`, windows, () => {
     const f = fixture();
@@ -160,6 +164,33 @@ for (const [behavior, expected] of [
     } finally { f.cleanup(); }
   });
 }
+
+for (const action of ['ensure', 'status']) {
+  test(`late rejection is not reported as running by ${action}`, windows, () => {
+    const f = fixture();
+    try {
+      assert.equal(f.run('ensure').status, 0);
+      writeFileSync(path.join(f.stateDir, 'stderr.log'), 'Error: This folder is already served');
+      const result = f.run(action);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /already served/);
+      assert.doesNotMatch(result.stdout, /already running/);
+      assert.equal(existsSync(path.join(f.stateDir, 'server.json')), false);
+    } finally { f.cleanup(); }
+  });
+}
+
+test('a generic historical error does not stop an established server', windows, () => {
+  const f = fixture();
+  try {
+    assert.equal(f.run('ensure').status, 0);
+    const original = f.record();
+    writeFileSync(path.join(f.stateDir, 'stderr.log'), 'Error: A session operation failed');
+    assert.equal(f.run('status').status, 0);
+    assert.equal(f.run('ensure').status, 0);
+    assert.equal(f.record().pid, original.pid);
+  } finally { f.cleanup(); }
+});
 
 test('missing CLI is reported before creating a process', windows, () => {
   const f = fixture();
