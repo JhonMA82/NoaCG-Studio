@@ -275,10 +275,18 @@ ${CREDITS_PARSER_JS}
 // them on air left the running motion animating nodes that were gone - measured on cr03 as every
 // page drawn at once, stacked. An update that changes nothing the rows draw (a speed press, or a
 // cue resent as it stands) leaves them alone; a correction is written INTO them
-// (creditsPatchRows); and only one that changes the list's shape replaces them, after which the
-// motion is built again on the new ones (creditsRestartLive). play() always rebuilds, because a
+// (creditsPatchRows); and only one that changes the list's shape replaces them. After a
+// replacement, or a correction that changes a block's size, a page swap or a reel is built again
+// at the same point (creditsRestartLive). play() always rebuilds, because a
 // take must start from clean rows.
 var creditsBuiltHtml = null;
+
+// creditsBlockSizes(track): every block's height and row count, as one comparable string.
+function creditsBlockSizes(track) {
+  return [].map.call(track.querySelectorAll('.credits-page, .credits-end'), function (block) {
+    return block.offsetHeight + ':' + block.children.length;
+  }).join(',');
+}
 
 // creditsPatchRows(track, html): write new rows into the blocks already on the track - the
 // pages and the end block, in the reel's run and in every clone of it - keeping each block, and
@@ -342,9 +350,12 @@ ${hasLogo
   var onAir = keepIfSame === true;
   if (!(onAir && html === creditsBuiltHtml)) {
     creditsBuiltHtml = html;
+    var sizes = onAir ? creditsBlockSizes(track) : '';
     if (!(onAir && creditsPatchRows(track, html))) {
       track.innerHTML = html;
       if (onAir) creditsRestartLive();
+    } else if (creditsBlockSizes(track) !== sizes) {
+      creditsRestartLive();      // a name added to a page: the reel's travel and the holds change
     }
   }
   fitBoardToFrame();               // a board re-fits itself to the frame after every rebuild

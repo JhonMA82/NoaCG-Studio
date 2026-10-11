@@ -1421,7 +1421,7 @@ const MAX_OUTLINE_CANDIDATES = 24;
 
 /** Cap on the panel rectangles offered. A design with more rectangles than this is a chart or
  *  a table, and its panel is not among the twentieth-widest of them. Named shapes past it are
- *  kept as well, up to as many again, because a behaviour binds those (see the inventory). */
+ *  kept as well, because a behaviour binds those (see the inventory). */
 const MAX_SHAPE_CANDIDATES = 12;
 
 /**
@@ -1789,14 +1789,12 @@ export function importSvgMarkup(source: string): SvgImportResult {
   // THE INVENTORY ANSWERS A SECOND QUESTION TOO: which drawn part a behaviour binds. A vote's bar
   // drawn at full length is exactly as wide as its track, and the tracks come first, so on a
   // board of more than five options the widest twelve stopped before the last bars and the vote
-  // could neither propose nor pick them (#784). A NAMED shape past the widest twelve is kept as
-  // well, up to as many again: a designer who named a layer "Bar 7" has said it is a part, the
-  // same reason a named outline survives its cap.
+  // could neither propose nor pick them (#784). Every NAMED shape past the widest twelve is kept
+  // as well: a designer who named a layer "Bar 7" has said it is a part, the same reason a named
+  // outline survives its cap. A design app's own names ("Rectangle 118") do not count
+  // (`isGeneratedId`), so a chart exported from Figma still stops at twelve.
   const widest = plainShapes.slice(0, MAX_SHAPE_CANDIDATES);
-  const named = plainShapes
-    .slice(MAX_SHAPE_CANDIDATES)
-    .filter((r) => layerName(r.el))
-    .slice(0, MAX_SHAPE_CANDIDATES);
+  const named = plainShapes.slice(MAX_SHAPE_CANDIDATES).filter((r) => layerName(r.el));
   let minted = 0;
   const shapes: SvgShapeCandidate[] = [
     ...alreadyPictures.slice(0, MAX_SHAPE_CANDIDATES),

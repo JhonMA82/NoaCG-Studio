@@ -92,10 +92,11 @@ export function behaviourRuntimeJs(withClock: boolean): string {
 
 ${motionSpeedJs}
 
-// What the runtime remembers between repaints: measured gauge lengths and a path gauge's drawn
-// points (at rest, once), each number field's last value and which one rose most recently, where each row's slot was drawn
-// (at rest, once) and every layer a place rule has moved.
-var noacgBehaviourMemory = { gauges: {}, shapes: {}, numbers: {}, rose: {}, defaults: {}, slots: {}, places: [] };
+// What the runtime remembers between repaints: measured gauge lengths (at rest, once), each
+// number field's last value and which one rose most recently, where each row's slot was drawn
+// (at rest, once) and every layer a place rule has moved. A path gauge keeps its drawn points
+// on the element itself (noacgGaugeShape).
+var noacgBehaviourMemory = { gauges: {}, numbers: {}, rose: {}, defaults: {}, slots: {}, places: [] };
 
 // noacgRoleEls(role, key): every layer stamped with this role token.
 function noacgRoleToken(role, key) {
@@ -728,20 +729,20 @@ function noacgGaugeFull(el, token) {
   return w > 0 ? w : 0;
 }
 
-// noacgGaugeShape(el, token): what a gauge drawn as a PATH or a POLYGON needs to be filled
-// without squashing its ends, read once at rest: its drawn points and its box. Null for any
-// other drawing, which is scaled instead.
-function noacgGaugeShape(el, token) {
+// noacgGaugeShape(el): what a gauge drawn as a PATH or a POLYGON needs to be filled without
+// squashing its ends, read once at rest and kept on the element itself, since one role may
+// stamp several drawings: its drawn points and its box. Null for any other drawing, which is
+// scaled instead.
+function noacgGaugeShape(el) {
   var tag = (el.tagName || '').toLowerCase();
   var attr = tag === 'path' ? 'd' : tag === 'polygon' ? 'points' : null;
   if (!attr || typeof svgShiftPoints !== 'function') return null;
-  var memory = noacgBehaviourMemory.shapes;
-  if (memory[token]) return memory[token];
+  if (el.noacgGaugeShape) return el.noacgGaugeShape;
   var box;
   try { box = el.getBBox(); } catch (e) { return null; }
   if (!(box.width > 0)) return null;
-  memory[token] = { attr: attr, drawn: el.getAttribute(attr), box: box, state: { share: 1 }, squeezed: false };
-  return memory[token];
+  el.noacgGaugeShape = { attr: attr, drawn: el.getAttribute(attr), box: box, state: { share: 1 }, squeezed: false };
+  return el.noacgGaugeShape;
 }
 
 // noacgGaugeFill(el, shape, share): a path gauge at a share. Its far half moves in, the way a
@@ -771,7 +772,7 @@ function noacgGauge(el, token, share, motion) {
   if (!(full > 0) || typeof gsap === 'undefined') return;
   if (share < 0) share = 0;
   if (share > 1) share = 1;
-  var shape = el.hasAttribute('width') ? null : noacgGaugeShape(el, token);
+  var shape = el.hasAttribute('width') ? null : noacgGaugeShape(el);
   if (shape) {
     // The share itself is tweened, and every frame redraws the points from the drawn ones.
     gsap.killTweensOf(shape.state);
@@ -1035,13 +1036,16 @@ function noacgContrast(a, b) {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
-// noacgPlateLuminance(look): the first solid fill a look paints, itself or a shape inside it. A
-// group's own fill is only what its children inherit, never paint, so a group is not read.
+/// noacgPlateUnder(look, x, y): the luminance of the solid fill a look paints at a screen point -
+// the topmost of its shapes there, itself included. A group's own fill is only what its children
+// inherit, never paint, so a group is not read; a shadow drawn under the plate is not the plate.
 var NOACG_SHAPES = 'rect, path, polygon, circle, ellipse';
-function noacgPlateLuminance(look) {
+function noacgPlateUnder(look, x, y) {
   var shapes = [].slice.call(look.querySelectorAll(NOACG_SHAPES));
   if (look.matches && look.matches(NOACG_SHAPES)) shapes.unshift(look);
-  for (var i = 0; i < shapes.length; i++) {
+  for (var i = shapes.length - 1; i >= 0; i--) {
+    var b = shapes[i].getBoundingClientRect();
+    if (x < b.left || x > b.right || y < b.top || y > b.bottom) continue;
     var s = getComputedStyle(shapes[i]);
     if (s.display === 'none' || parseFloat(s.fillOpacity) < 0.5) continue;
     var l = noacgLuminance(s.fill);
@@ -1051,8 +1055,10 @@ function noacgPlateLuminance(look) {
 }
 
 // noacgReadoutInk(el, plates): put the drawn ink back, then change it only if a plate under the
-// readout's middle makes it unreadable.
+// readout's middle makes it unreadable. A readout never touched and with nothing lit under it
+// costs nothing, which is every readout on every tick of a board with nothing lit.
 function noacgReadoutInk(el, plates) {
+  if (!plates.length && el.noacgDrawnFill === undefined) return;
   if (el.noacgDrawnFill === undefined) el.noacgDrawnFill = el.style.getPropertyValue('fill');
   el.style.fill = el.noacgDrawnFill;
   if (!plates.length) return;
@@ -1062,11 +1068,8 @@ function noacgReadoutInk(el, plates) {
   var cx = box.left + box.width / 2;
   var cy = box.top + box.height / 2;
   for (var i = 0; i < plates.length; i++) {
-    var plate = plates[i];
-    if (plate.contains(el)) continue;            // a look that IS the readout's own drawing
-    var pb = plate.getBoundingClientRect();
-    if (cx < pb.left || cx > pb.right || cy < pb.top || cy > pb.bottom) continue;
-    var under = noacgPlateLuminance(plate);
+    if (plates[i].contains(el)) continue;        // a look that IS the readout's own drawing
+    var under = noacgPlateUnder(plates[i], cx, cy);
     if (under === null || noacgContrast(ink, under) >= 3) continue;
     var dark = noacgLuminance(NOACG_INK_DARK);
     var light = noacgLuminance(NOACG_INK_LIGHT);
@@ -1077,20 +1080,21 @@ function noacgReadoutInk(el, plates) {
 
 // noacgReadoutInks(rules, lit): every readout, against the looks of its own row that are lit.
 function noacgReadoutInks(rules, lit) {
+  var byRow = {};                                 // row key ('' for none) -> its lit looks
+  for (var t in lit) {
+    if (!Object.prototype.hasOwnProperty.call(lit, t)) continue;
+    var slash = t.indexOf('/');
+    var key = slash === -1 ? null : t.slice(slash + 1);
+    var els = noacgRoleEls(slash === -1 ? t : t.slice(0, slash), key);
+    var row = byRow[key === null ? '' : key] = byRow[key === null ? '' : key] || [];
+    for (var e = 0; e < els.length; e++) row.push(els[e]);
+  }
   for (var r = 0; r < rules.length; r++) {
     var rule = rules[r];
     if (!rule.write) continue;
     var keys = rule.row ? [rule.row] : rule.rows ? noacgRowsOf(rule.rows) : [null];
     for (var k = 0; k < keys.length; k++) {
-      var plates = [];
-      for (var t in lit) {
-        if (!Object.prototype.hasOwnProperty.call(lit, t)) continue;
-        var slash = t.indexOf('/');
-        var key = slash === -1 ? null : t.slice(slash + 1);
-        if (key !== (keys[k] === null ? null : String(keys[k]))) continue;
-        var els = noacgRoleEls(slash === -1 ? t : t.slice(0, slash), key);
-        for (var e = 0; e < els.length; e++) plates.push(els[e]);
-      }
+      var plates = byRow[keys[k] === null ? '' : String(keys[k])] || [];
       var targets = noacgRoleEls(rule.write, keys[k]);
       for (var g = 0; g < targets.length; g++) noacgReadoutInk(targets[g], plates);
     }

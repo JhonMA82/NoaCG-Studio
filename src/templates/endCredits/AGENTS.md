@@ -66,8 +66,9 @@ Owner walk 2026-08-28, and it holds for anything in here that moves:
   `update()` never replaces the blocks on air lightly, because a page swap tweens the
   `.credits-page` nodes themselves and a reel moves its clones (replacing them drew every page at
   once, #784): unchanged markup is left alone, a correction is written INTO the blocks
-  (`creditsPatchRows`), and only a change of shape (a section added or removed) replaces them,
-  after which `creditsRestartLive()` builds the page swap or reel again at the same point.
+  (`creditsPatchRows`), and only a change of shape (a section added or removed) replaces them.
+  After a replacement or a change of a block's size, `creditsRestartLive()` builds the page swap
+  or reel again at the same point, inside the same step timeline.
   `scripts/on-air-corrections.test.mjs` holds every credits design and motion to that.
 - **`creditsRoll()` and `creditsCrawl()` run the LIST off the frame**, then bring the
   `.credits-end` block in as its own beat (`creditsEndBeat()`), centred, with the pages faded

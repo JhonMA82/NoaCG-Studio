@@ -2015,10 +2015,10 @@ ${rows.join(',\n')}
 `;
 }
 
-/** THE TWO POINT SHIFTERS, emitted for a design that grows a panel or binds a behaviour: a panel
+/** THE TWO POINT SHIFTERS, emitted for a design that grows a panel or fills a gauge: a panel
  *  drawn as a path or a polygon grows by them, and so does a behaviour's gauge drawn that way
  *  (behaviourRuntime.ts `noacgGauge`), which is why they are not inside the growth runtime. */
-export const SHAPE_SHIFT_JS = `
+const SHAPE_SHIFT_JS = `
 // ── Growing a PATH panel ──────────────────────────────────────────────────────
 // A rounded rectangle exported as a <path> grows the way a 9-slice does: every point on the
 // GROWING side of the shape's middle moves by the grant, so the two straight runs get longer
@@ -3122,6 +3122,9 @@ ${creditsRollCss(PREFIX)}
   const clockHook = `  if (typeof clockDataUpdated === 'function') clockDataUpdated();  // the countdown's length (below)`;
   // A bound credits list rebuilds its rows from the value just written, in the sample's looks.
   const creditsHook = `  if (typeof creditsDataUpdated === 'function') creditsDataUpdated();  // the credit roll's rows (below)`;
+  const behaviourJs = behaviour ? behaviour.js(artworkFields.length) : '';
+  // Only a behaviour that fills a gauge can have one drawn as a path to fill.
+  const gauges = /"gauge":/.test(behaviourJs);
   const js =
     runtimeJs(name, preset.emit(cfg)).replace(
       PLACED_TEXT_HOOK,
@@ -3145,8 +3148,8 @@ ${creditsRollCss(PREFIX)}
     '\n' +
     (clockField ? `\n${clockRuntimeJs(PREFIX, clockField.field)}\n` : '') +
     // The point shifters a path panel grows by and a path gauge fills by.
-    (grows || behaviour ? `\n${SHAPE_SHIFT_JS}` : '') +
-    (behaviour ? `\n${behaviour.js(artworkFields.length)}` : '') +
+    (grows || gauges ? `\n${SHAPE_SHIFT_JS}` : '') +
+    (behaviour ? `\n${behaviourJs}` : '') +
     // AFTER the behaviour's table: the roll engine reads its field ids out of NOACG_BEHAVIOUR the
     // moment it first renders, and in a document whose markup is already parsed that is now.
     (creditsField ? `\n${creditsRollRuntimeJs(PREFIX)}` : '') +

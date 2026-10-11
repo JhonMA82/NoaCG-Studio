@@ -69,7 +69,9 @@ const CREDITS_RUN = async ({ id, presetId, plan }) => {
   const fixed = base.replace(/([a-z])(?!\1)([a-z])/, '$2$1');
   // A section added at the foot of the list: the shape changes.
   const grown = `${base}\n\nWith thanks to Northwind Studios`;
-  const texts = { none: base, fixed, grown };
+  // A name added to the last section: the same blocks, one of them taller.
+  const longer = `${base}\nNorthwind Studios`;
+  const texts = { none: base, fixed, grown, longer };
 
   const w = await window.__mountDesign(template);
   const round = (n) => Math.round(Number(n) * 100) / 100;
@@ -86,6 +88,10 @@ const CREDITS_RUN = async ({ id, presetId, plan }) => {
       shown: blocks.filter((el) => w.getComputedStyle(el).visibility === 'visible' && Number(w.getComputedStyle(el).opacity) > 0.01).length,
       endShown: blocks.some((el) => el.classList.contains('credits-end') && Number(w.getComputedStyle(el).opacity) > 0.5),
       clones: track.querySelectorAll('.credits-loop-clone').length,
+      // A reel travels exactly one run; anything else jumps at the seam.
+      seam: track.querySelector('.credits-loop-run') && w.creditsMotionLive
+        ? Math.abs(track.querySelector('.credits-loop-run').offsetHeight + Number(w.creditsMotionLive.vars.y))
+        : 0,
       text: track.textContent.replace(/\s+/g, ' ').trim(),
     };
   };
@@ -130,8 +136,15 @@ const CLOCK_RUN = async ({ id }) => {
   const afterUnrelated = read();
   w.update(JSON.stringify({ ...corrected, [minutes]: '0.1' }));        // six seconds
   const afterNewLength = read();
+  // Run out again, take it out, and correct the caption: off air it previews its length.
+  w.play();
+  w.__advance(10000);
+  w.stop();
+  w.__advance(3000);
+  w.update(JSON.stringify({ ...corrected, [minutes]: '0.1', ...(other ? { [other.field]: other.value } : {}) }));
+  const afterOut = read();
   document.getElementById('fx')?.remove();
-  return { id, unrelated: other ? other.field : '(the same data again)', finished, afterUnrelated, afterNewLength };
+  return { id, unrelated: other ? other.field : '(the same data again)', finished, afterUnrelated, afterNewLength, afterOut };
 };
 
 const { ids: only } = parseOnly(process.argv.slice(2));
@@ -171,6 +184,7 @@ const runs = await withBundledPage(SPECS, async (page) => {
           corrected: await run({ at: ms, from: 'none', to: 'fixed' }),
           typedSo: await run({ at: ms, from: 'fixed', to: 'fixed' }),
           grown: BLOCK_MOTIONS.includes(presetId) ? await run({ at: ms, from: 'none', to: 'grown' }) : null,
+          longer: BLOCK_MOTIONS.includes(presetId) ? await run({ at: ms, from: 'none', to: 'longer' }) : null,
         });
       }
     }
@@ -205,6 +219,13 @@ test('a finished countdown given a new length is no longer finished', () => {
   assert.deepEqual(stuck, []);
 });
 
+test('a finished countdown taken out stops holding 0:00: a correction then previews its length', () => {
+  const held = runs.clocks
+    .filter((r) => r.afterOut.left !== 6 || r.afterOut.done)
+    .map((r) => `${r.id}: ${JSON.stringify(r.afterOut)}`);
+  assert.deepEqual(held, []);
+});
+
 test('the correction really changed the credit text (the comparison below is not vacuous)', () => {
   const same = runs.credits.filter((r) => !r.corrected.changed || r.corrected.samples[0].text === r.untouched.samples[0].text).map(name);
   assert.deepEqual(same, []);
@@ -235,24 +256,29 @@ test('a credits correction on air leaves every block where the running motion ha
   assert.deepEqual(moved, []);
 });
 
-test('a section added on air: a page swap still shows one page at a time and reaches its last page', () => {
-  const broken = [];
-  for (const r of runs.credits.filter((x) => x.presetId === 'credits-pages')) {
-    const s = r.grown.samples;
-    s.forEach((x, i) => { if (x.shown > 2) broken.push(`${name(r)}, +${SAMPLES_MS[i]} ms: ${x.shown} pages drawn at once`); });
-    if (!s.at(-1).endShown) broken.push(`${name(r)}: the closing page never arrived`);
-    if (!/northwind/i.test(s.at(-1).text)) broken.push(`${name(r)}: the added section is not in the list`);
-  }
-  assert.deepEqual(broken, []);
-});
+const RESHAPES = { grown: 'a section added', longer: 'a name added to a section' };
 
-test('a section added on air: a reel keeps its copies and keeps moving', () => {
-  const broken = [];
-  for (const r of runs.credits.filter((x) => x.presetId === 'credits-loop')) {
-    const s = r.grown.samples;
-    if (s.some((x) => x.clones < 1)) broken.push(`${name(r)}: the reel lost its copies (${s.map((x) => x.clones).join(', ')})`);
-    if (new Set(s.map((x) => x.track)).size < s.length) broken.push(`${name(r)}: the reel stopped (${s.map((x) => x.track).join(' / ')})`);
-    if (!/northwind/i.test(s.at(-1).text)) broken.push(`${name(r)}: the added section is not in the list`);
-  }
-  assert.deepEqual(broken, []);
-});
+for (const [plan, what] of Object.entries(RESHAPES)) {
+  test(`${what} on air: a page swap still shows one page at a time and reaches its last page`, () => {
+    const broken = [];
+    for (const r of runs.credits.filter((x) => x.presetId === 'credits-pages')) {
+      const s = r[plan].samples;
+      s.forEach((x, i) => { if (x.shown > 2) broken.push(`${name(r)}, +${SAMPLES_MS[i]} ms: ${x.shown} pages drawn at once`); });
+      if (!s.at(-1).endShown) broken.push(`${name(r)}: the closing page never arrived`);
+      if (!/northwind/i.test(s.at(-1).text)) broken.push(`${name(r)}: the added name is not in the list`);
+    }
+    assert.deepEqual(broken, []);
+  });
+
+  test(`${what} on air: a reel keeps its copies, keeps moving and travels exactly one run`, () => {
+    const broken = [];
+    for (const r of runs.credits.filter((x) => x.presetId === 'credits-loop')) {
+      const s = r[plan].samples;
+      if (s.some((x) => x.clones < 1)) broken.push(`${name(r)}: the reel lost its copies (${s.map((x) => x.clones).join(', ')})`);
+      if (new Set(s.map((x) => x.track)).size < s.length) broken.push(`${name(r)}: the reel stopped (${s.map((x) => x.track).join(' / ')})`);
+      if (s.some((x) => x.seam > 1)) broken.push(`${name(r)}: the travel misses one run by ${Math.max(...s.map((x) => x.seam))} px`);
+      if (!/northwind/i.test(s.at(-1).text)) broken.push(`${name(r)}: the added name is not in the list`);
+    }
+    assert.deepEqual(broken, []);
+  });
+}

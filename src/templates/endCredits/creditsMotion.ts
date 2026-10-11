@@ -86,23 +86,26 @@ function creditsLive(motion, rebuild) {
   return motion;
 }
 
-// creditsRestartLive(): a reel and a page swap animate the rows' own blocks, so a correction
-// that changes the list's SHAPE (a section added or taken away) and therefore replaces those
-// blocks leaves them animating nodes that are gone. This builds the motion again on the new
-// blocks and puts it at the same point: a page swap still hands over (a finished one stays on
-// its last page), a reel keeps travelling, and a paused preview stays paused. A roll and a crawl
-// move the track, which every rebuild keeps, so they carry on as they are.
+// creditsRestartLive(): a reel and a page swap animate the rows' own blocks and measure them at
+// play(), so a correction that replaces those blocks (a section added or taken away) or changes
+// their size leaves the motion animating nodes that are gone, or travelling a stale distance.
+// This builds the motion again on the blocks as they are now and puts it where the old one
+// was, IN THE SAME STEP TIMELINE at the same start, so the step still drives it: a page swap
+// still hands over (a finished one stays on its last page), a reel keeps travelling, and a
+// paused or scrubbed preview stays with its playhead. A roll and a crawl move the track, which
+// every rebuild keeps, so they carry on as they are.
 function creditsRestartLive() {
   var live = creditsMotionLive;
   var rebuild = creditsMotionRebuild;
   if (!live || !rebuild) return;
+  var parent = live.parent;
+  var start = live.startTime();
   var at = live.totalTime();
-  var held = !!(live.parent && live.parent.paused());
   live.kill();
   var next = rebuild();
   if (!next) return;
-  next.pause().totalTime(Math.min(at, next.totalDuration()));
-  if (!held) next.play();
+  if (parent) parent.add(next, start);
+  next.totalTime(Math.min(at, next.totalDuration()));
 }
 
 function creditsApplySpeed() {
