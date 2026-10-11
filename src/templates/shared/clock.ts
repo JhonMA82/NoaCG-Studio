@@ -167,9 +167,12 @@ function clockDataUpdated() {
   clockArmedFrom = signature;
 
   if (!clockTimer) {
-    // Not counting. A PAUSED clock is holding a remaining time the operator chose to freeze,
-    // so it only re-derives when they change the length; an idle one previews it either way.
-    if (!clockPaused || changed) {
+    // Not counting. A PAUSED clock is holding a remaining time the operator chose to freeze, and
+    // a FINISHED one holds 0:00 until it is taken out, so both re-derive only when the operator
+    // changes the length; an idle one previews it either way. (A finished clock is neither
+    // counting nor paused, so without its own test a caption fix put the full count back.)
+    var holding = clockPaused || clockSecondsLeft <= 0;
+    if (!holding || changed) {
       clockSecondsLeft = clockSeconds();
       renderClock();
     }

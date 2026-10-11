@@ -270,12 +270,47 @@ ${CREDITS_PARSER_JS}
 
 // rebuildCredits(): re-render the track from the hidden #f0 / #f1 / #f2 sources.
 //
-// update() passes keepIfSame, and then an update that changes nothing the rows draw (a speed
-// press, or a cue resent as it stands) leaves the rows alone. It has to: a page swap tweens the
-// .credits-page elements themselves and a reel moves its clones, so replacing them on air leaves
-// the running motion animating nodes that are gone - measured on cr03 as every page drawn at
-// once, stacked. play() always rebuilds, because a take must start from clean rows.
+// update() passes keepIfSame, and then the blocks on air are never thrown away lightly: a page
+// swap tweens the .credits-page elements themselves and a reel moves its clones, so replacing
+// them on air left the running motion animating nodes that were gone - measured on cr03 as every
+// page drawn at once, stacked. An update that changes nothing the rows draw (a speed press, or a
+// cue resent as it stands) leaves them alone; a correction is written INTO them
+// (creditsPatchRows); and only one that changes the list's shape replaces them, after which the
+// motion is built again on the new ones (creditsRestartLive). play() always rebuilds, because a
+// take must start from clean rows.
 var creditsBuiltHtml = null;
+
+// creditsPatchRows(track, html): write new rows into the blocks already on the track - the
+// pages and the end block, in the reel's run and in every clone of it - keeping each block, and
+// so the pose the motion gave it. Returns false, touching nothing, when the new list does not
+// have the same blocks (a section added or taken away), because there is then nothing to write
+// into.
+function creditsPatchRows(track, html) {
+  var fresh = document.createElement('div');
+  fresh.innerHTML = html;
+  var blocks = fresh.children;
+  var run = track.querySelector('.credits-loop-run');
+  var holders = run ? [run].concat([].slice.call(track.querySelectorAll('.credits-loop-clone'))) : [track];
+  var shell = function (el) {     // the block itself, without its children or the motion's pose
+    var copy = el.cloneNode(false);
+    copy.removeAttribute('style');
+    return copy.outerHTML;
+  };
+  for (var h = 0; h < holders.length; h++) {
+    var live = holders[h].children;
+    if (live.length !== blocks.length) return false;
+    for (var i = 0; i < blocks.length; i++) {
+      if (shell(live[i]) !== shell(blocks[i])) return false;
+    }
+  }
+  for (var k = 0; k < holders.length; k++) {
+    for (var j = 0; j < blocks.length; j++) {
+      var block = holders[k].children[j];
+      if (block.innerHTML !== blocks[j].innerHTML) block.innerHTML = blocks[j].innerHTML;
+    }
+  }
+  return true;
+}
 function rebuildCredits(keepIfSame) {
   var track = document.getElementById('credits-track');
   var text = document.getElementById('f0').textContent;
@@ -304,9 +339,13 @@ ${hasLogo
   // Both escaped: the year is written as markup and the logo path is written INTO an
   // src="..." attribute, so an unescaped quote in either would break out of it.
   html += renderEndBlock(escapeHtml(year), logo ? escapeHtml(logo) : null);
-  if (!(keepIfSame === true && html === creditsBuiltHtml)) {
+  var onAir = keepIfSame === true;
+  if (!(onAir && html === creditsBuiltHtml)) {
     creditsBuiltHtml = html;
-    track.innerHTML = html;
+    if (!(onAir && creditsPatchRows(track, html))) {
+      track.innerHTML = html;
+      if (onAir) creditsRestartLive();
+    }
   }
   fitBoardToFrame();               // a board re-fits itself to the frame after every rebuild
 }
@@ -369,6 +408,7 @@ function play() {
 // stop(): take the credits off air.
 function stop() {
   gsap.killTweensOf('*');
+  creditsMotionLive = null;       // off air, a correction must not start the motion again
   buildOutTimeline();
 }
 

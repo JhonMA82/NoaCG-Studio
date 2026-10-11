@@ -77,11 +77,32 @@ function creditsMotionSpeed() {
 // so a paused roll takes the plain timeScale and the next seek shows it.
 var creditsMotionLive = null;   // the running roll, crawl, reel or page swap, or null
 var creditsMotionBuiltAt = 1;   // the speed it was built at
+var creditsMotionRebuild = null; // builds it again on new rows (a reel and a page swap only)
 
-function creditsLive(motion) {
+function creditsLive(motion, rebuild) {
   creditsMotionLive = motion;
   creditsMotionBuiltAt = creditsMotionSpeed();
+  creditsMotionRebuild = rebuild || null;
   return motion;
+}
+
+// creditsRestartLive(): a reel and a page swap animate the rows' own blocks, so a correction
+// that changes the list's SHAPE (a section added or taken away) and therefore replaces those
+// blocks leaves them animating nodes that are gone. This builds the motion again on the new
+// blocks and puts it at the same point: a page swap still hands over (a finished one stays on
+// its last page), a reel keeps travelling, and a paused preview stays paused. A roll and a crawl
+// move the track, which every rebuild keeps, so they carry on as they are.
+function creditsRestartLive() {
+  var live = creditsMotionLive;
+  var rebuild = creditsMotionRebuild;
+  if (!live || !rebuild) return;
+  var at = live.totalTime();
+  var held = !!(live.parent && live.parent.paused());
+  live.kill();
+  var next = rebuild();
+  if (!next) return;
+  next.pause().totalTime(Math.min(at, next.totalDuration()));
+  if (!held) next.play();
 }
 
 function creditsApplySpeed() {
@@ -232,7 +253,7 @@ function creditsLoop(target) {
   return creditsLive(gsap.fromTo(track,
     { y: 0 },
     { y: -distance, duration: distance / pixelsPerSecond, ease: 'none', repeat: -1 }
-  ));
+  ), function () { return creditsLoop(target); });
 }
 
 // creditsCrawl(): a single-line horizontal crawl. Same idea as the roll, along x — the strip
@@ -289,6 +310,6 @@ function creditsPages(target) {
       seq.to(page, { opacity: 0, duration: 0.4 / speed, ease: 'power2.in' }, '+=' + holdSeconds);
     }
   });
-  return creditsLive(seq);
+  return creditsLive(seq, function () { return creditsPages(target); });
 }`;
 }

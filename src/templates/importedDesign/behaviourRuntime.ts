@@ -93,9 +93,9 @@ export function behaviourRuntimeJs(withClock: boolean): string {
 ${motionSpeedJs}
 
 // What the runtime remembers between repaints: measured gauge lengths (at rest, once), each
-// number field's last value and which one rose most recently, a finished clock's length, where
-// each row's slot was drawn (at rest, once) and every layer a place rule has moved.
-var noacgBehaviourMemory = { gauges: {}, numbers: {}, rose: {}, clockRanOut: 0, defaults: {}, slots: {}, places: [] };
+// number field's last value and which one rose most recently, where each row's slot was drawn
+// (at rest, once) and every layer a place rule has moved.
+var noacgBehaviourMemory = { gauges: {}, numbers: {}, rose: {}, defaults: {}, slots: {}, places: [] };
 
 // noacgRoleEls(role, key): every layer stamped with this role token.
 function noacgRoleToken(role, key) {
@@ -494,22 +494,13 @@ noacgKinds['vote-status'] = {
 
 // clock: the shared countdown engine's own numbers (templates/shared/clock.ts). Facts: "warning"
 // inside the threshold the warnAt field holds, "expired" at zero; derives "fraction", the share
-// of the count still to run. ONCE IT HAS RUN OUT IT STAYS RUN OUT (owner ruling: at zero it
-// holds at 0:00 until taken out) - an unrelated update re-derives the full length in the shared
-// runtime, and this refuses to repaint that; a NEW length is the one thing that un-finishes it.
+// of the count still to run. Once it has run out it stays run out (owner ruling: at zero it holds
+// at 0:00 until taken out): the shared runtime keeps 0:00 across an unrelated update, and only a
+// NEW length un-finishes it.
 noacgKinds.clock = {
   left: function () { return typeof clockSecondsLeft === 'number' ? clockSecondsLeft : 0; },
   total: function () { return typeof clockSeconds === 'function' ? clockSeconds() : 0; },
-  ranOut: function () {
-    var total = this.total();
-    var memory = noacgBehaviourMemory;
-    if (memory.clockRanOut > 0) {
-      if (total === memory.clockRanOut) return true;
-      memory.clockRanOut = 0;
-    }
-    if (this.left() <= 0) memory.clockRanOut = total;
-    return this.left() <= 0;
-  },
+  ranOut: function () { return this.left() <= 0; },
   fact: function (id, spec, name) {
     var up = this.ranOut();
     if (name === 'expired') return up;
@@ -522,17 +513,14 @@ noacgKinds.clock = {
   },
   derive: function (id, spec, name) {
     if (name !== 'fraction') return null;
-    // A finished count's bar stays empty: the shared engine re-derives the full length on an
-    // unrelated update, and refilling the bar would repaint the lie the fact above refuses.
     if (this.ranOut()) return 0;
     var total = this.total();
     var share = total > 0 ? this.left() / total : 0;
     return share < 0 ? 0 : share > 1 ? 1 : share;
   },
-  // noacgClockReset(): Reset. Stop the count, put it back to the length the operator asked for,
-  // and forget that it ran out - so the plate and the bar the last run left can be repainted.
+  // noacgClockReset(): Reset. Stop the count and put it back to the length the operator asked
+  // for, so the plate and the bar the last run left are repainted.
   reset: function () {
-    noacgBehaviourMemory.clockRanOut = 0;
     if (typeof stopClock === 'function') stopClock();
     var root = document.querySelector('.${PREFIX}');
     if (root) root.classList.remove('${PREFIX}-done');
