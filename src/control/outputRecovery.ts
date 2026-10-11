@@ -40,7 +40,7 @@
 // rather than trusted, which is the same doctrine seen from the other side: a needless
 // re-animation is recoverable, a lost take is not.
 
-import type { LiveReportMap } from './hostedControl';
+import type { ControlEventRow, ControlSendItem, LiveReportMap } from './hostedControl';
 
 export interface OutputRecoveryPlan {
   /** The row to follow the log FROM — rows after it are fetched and replayed at boot. */
@@ -88,6 +88,55 @@ export function alreadyInSnapshot(
 ): boolean {
   const at = snapshotAt.get(graphic);
   return at !== undefined && rowId <= at;
+}
+
+// ── THE SAME RULE FOR AN OPERATOR'S PROGRAM MONITOR ─────────────────────────────────────────────
+//
+// The hosted control page and the in-app production page each rebuild a PROGRAM monitor from the
+// renderer's reports when they open. A report is written 800 ms after its graphic's last change, so
+// a page reloaded straight after a press reads one from BEFORE that press, and a monitor rebuilt
+// from the report alone came back on the previous picture: configured run 36281126714 caught the
+// hosted page on the previous question's reveal, and the in-app page did the same until issue #762.
+// Both replay what the renderer replays: the commands after each on-air graphic's own baseline.
+
+/** A replayed command, with the row's server time: a clock started minutes ago is replayed from
+ *  then, not from the moment of the replay (matchClockWire.ts `clockRowEffect`). */
+export type ReplayItem = ControlSendItem & { created_at?: string };
+
+/** The renderer commands a monitor replays over the reports when it opens. `onAir` are the layers
+ *  with a live cue, `snapshotAt` their plan's baselines and `rows` the log read from the plan's
+ *  `followFrom` to the resolve's head. Which cue is live comes off the resolve, already current,
+ *  and typing, reports and pings are not commands. */
+export function monitorReplay(
+  onAir: readonly string[],
+  snapshotAt: ReadonlyMap<string, number>,
+  rows: readonly ControlEventRow[],
+): ReplayItem[] {
+  return rows.flatMap((row) => {
+    const msg = row.msg;
+    if (msg.t === 'cue' || msg.t === 'staged' || msg.t === 'live' || msg.t === 'ping') return [];
+    if (!onAir.includes(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, row.id)) return [];
+    return [{ graphic: row.graphic, msg, created_at: row.created_at }];
+  });
+}
+
+/** What each graphic shows on air, by field. */
+export type AiredMap = Record<string, Record<string, string>>;
+
+/** What each graphic shows once a renderer command has run: the baseline both pages judge "not on
+ *  air yet" against, and what a monitor's replay leaves on air. */
+export function airedAfter(prev: AiredMap, graphic: string, msg: ControlEventRow['msg']): AiredMap {
+  if (msg.t === 'update') return { ...prev, [graphic]: { ...prev[graphic], ...msg.data } };
+  // AN ACCEPTED EVENT'S PAYLOAD IS ALSO WHAT AIR SHOWS: a goal's +1 moves through the same field
+  // path an update takes, so the next press counts from it and no chip calls it unsent.
+  if (msg.t === 'event' && msg.payload) return { ...prev, [graphic]: { ...prev[graphic], ...msg.payload } };
+  // Off air: forget it, or the next rebuild would restore a graphic nobody is running any more.
+  if (msg.t === 'stop' && prev[graphic]) {
+    const next = { ...prev };
+    delete next[graphic];
+    return next;
+  }
+  return prev;
 }
 
 // ── THE SAME RULE ON THE RELAY PLANE (control/hostedReceiver.ts) ──────────────────────────────
