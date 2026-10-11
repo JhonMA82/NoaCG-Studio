@@ -3,7 +3,7 @@
 // passes, the session's events as a session raises them, and a record of every call a quiet mod
 // never makes.
 import type { Elements, FsEntry, On, RenderPropsOf } from 'claude-code'
-import type { Engine } from 'claude-code/testing'
+import type { Engine, Mounted } from 'claude-code/testing'
 import { mock } from 'claude-code/testing'
 
 /** Each key a folder relative to the working directory (`.` itself): a string a file, null a folder. */
@@ -57,9 +57,11 @@ export type Session = {
   submit: (text?: string) => Promise<void>
   /** A tool call: Bash writes, Read only reads. */
   tool: (name: 'Bash' | 'Read') => Promise<void>
-  /** Lets the work the mod left running finish. */
-  settle: () => Promise<void>
+  /** The band, drawn through the mod on a surface, `columns` cells wide. */
+  mount: (surface: Surface, columns: number, hasSurvey?: boolean) => Promise<Mounted<Surface, 'AbovePrompt'>>
 }
+
+type Surface = (typeof SURFACES)[number]
 
 export function session($: Engine, on: On, tree: Tree): Session {
   const lists: string[] = []
@@ -69,14 +71,19 @@ export function session($: Engine, on: On, tree: Tree): Session {
   const clock = mock.clock(on)
   let appended = 0
 
-  // The engine hands the hooks absolute paths. The mod's first call of every scan lists the
-  // working directory, so that first path is the root the tree's keys are relative to.
+  // The engine hands the hooks absolute paths, and a test's `$` has no `fs` or `session.cwd` to
+  // ask where `.` lands. The mod's first call of every scan lists the working directory, so that
+  // first path is the root; a path outside it is recorded as forbidden. A first call to a parent
+  // folder would move the root unseen: the reach test of a later phase needs a stronger anchor.
   let root: string | undefined
   const relative = (path: string) => {
     const clean = path.replace(/\\/g, '/').replace(/\/$/, '')
     root ??= clean
     if (clean === root) return '.'
-    if (!clean.startsWith(`${root}/`)) throw new Error(`outside the working directory: ${path}`)
+    if (!clean.startsWith(`${root}/`)) {
+      forbidden.push(`outside the working directory: ${path}`)
+      throw new Error(`outside the working directory: ${path}`)
+    }
     return clean.slice(root.length + 1)
   }
 
@@ -166,7 +173,8 @@ export function session($: Engine, on: On, tree: Tree): Session {
       else await $.tool.call({ tool: 'Bash', command: 'npx @noacg/cli scaffold --type lower-third --out new' })
       await clock.settle()
     },
-    settle: () => clock.settle(),
+    mount: (surface, columns, hasSurvey = false) =>
+      $.ui.mount({ plugin: 'noacg-guide', surface, component: 'AbovePrompt', props: band(columns, hasSurvey) }),
   }
 }
 

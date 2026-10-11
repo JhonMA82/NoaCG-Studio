@@ -22,13 +22,18 @@ concurrency:
 
 jobs:
   mod-checks:
-    name: Validate and test the guided mod
+    name: Validate and test the guided mod (Claude Code ${{ matrix.claude-code }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest build the mod supports (the spec's floor) and the one the Desktop app bundled
+        # on 2026-10-11, pinned like the toolkit's checks: a newer Claude Code arrives as a
+        # reviewed change to this list.
+        claude-code: ['2.1.287', '2.1.295']
     env:
-      # The oldest build the mod supports (the spec's floor), pinned like the toolkit's checks: a
-      # newer Claude Code arrives as a reviewed change to this line.
-      CLAUDE_CODE_VERSION: 2.1.287
+      CLAUDE_CODE_VERSION: ${{ matrix.claude-code }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

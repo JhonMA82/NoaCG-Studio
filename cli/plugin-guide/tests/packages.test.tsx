@@ -3,7 +3,7 @@
 // during the session appears without a restart.
 import { describe, expect, test } from 'claude-code/testing'
 
-import { band, engineDraws, scaffolded, session, SURFACES, texts } from './world'
+import { engineDraws, scaffolded, session, SURFACES, texts } from './world'
 
 const names = async (ui: Parameters<typeof texts>[0]) => (await texts(ui))[1]
 
@@ -23,7 +23,7 @@ describe('finding packages', () => {
       })
       await world.start()
 
-      const ui = await $.ui.mount({ plugin: 'noacg-guide', surface, component: 'AbovePrompt', props: band(100) })
+      const ui = await world.mount(surface, 100)
       expect(await names(ui)).toBe('Here · Score bug · ticker')
       expect(world.lists).not.toContain('deep/inner')
       expect(world.lists).not.toContain('node_modules')
@@ -35,7 +35,7 @@ describe('finding packages', () => {
     test(`a package made during the session appears, and one removed goes (${surface})`, async ($, on) => {
       const world = session($, on, { '.': { notes: null }, notes: { 'todo.md': '' } })
       await world.start()
-      const ui = await $.ui.mount({ plugin: 'noacg-guide', surface, component: 'AbovePrompt', props: band(100) })
+      const ui = await world.mount(surface, 100)
       expect(await engineDraws(ui)).toBe(true)
 
       // The agent scaffolds one with a tool call.
@@ -63,6 +63,13 @@ describe('finding packages', () => {
       await ui.unmount()
     })
   }
+
+  test('a name is drawn as one line of plain text', async ($, on) => {
+    const world = session($, on, { '.': { score: null }, score: scaffolded('Score\n\tbug\u001b]8;;x\u0007') })
+    await world.start()
+    const ui = await world.mount('terminal', 100)
+    expect(await names(ui)).toBe('Score bug ]8;;x')
+  })
 
   test('a manifest is read again only when it changes', async ($, on) => {
     const world = session($, on, { '.': { 'lower-third': null }, 'lower-third': scaffolded('Lower third') })

@@ -19,11 +19,15 @@ export type Folders = {
 
 const MANIFEST = /\.ograf\.json$/i
 const FRAMES_MARKER = '.noacg-frames'
-/** A bound on the folders looked into, so a session started in a huge folder stays cheap. */
+/** A bound on the folders looked into, by name, so a session started in a huge folder stays cheap. */
 const MAX_FOLDERS = 500
+/** Folders listed at once. */
+const BATCH = 16
 
-/** Manifests already read, by path, size and time: a rescan reads only what changed. */
-const seen = new Map<string, { stamp: string; name: string | null }>()
+type Manifests = Map<string, { stamp: string; name: string | null }>
+
+/** The manifests the last scan met, by path, size and time: a rescan reads only what changed. */
+let seen: Manifests = new Map()
 
 async function listed(fs: Folders, dir: string): Promise<FsEntry[] | null> {
   try {
@@ -33,31 +37,32 @@ async function listed(fs: Folders, dir: string): Promise<FsEntry[] | null> {
   }
 }
 
-/** The graphic's name when `file` is a NoaCG manifest, else null. */
-async function manifestName(fs: Folders, file: string, entry: FsEntry): Promise<string | null> {
+/** The graphic's name when `file` is a NoaCG manifest ('' when it names none), else null. */
+async function manifestName(fs: Folders, file: string, entry: FsEntry, met: Manifests): Promise<string | null> {
   const stamp = `${entry.size}:${entry.mtimeMs}`
   const known = seen.get(file)
-  if (known?.stamp === stamp) return known.name
-  let name: string | null = null
-  try {
-    const manifest: unknown = JSON.parse(String(await fs.read(file)))
-    if (isObject(manifest) && isObject(manifest.v_noacg)) {
-      name = typeof manifest.name === 'string' ? manifest.name.trim() : ''
-    }
-  } catch {
-    name = null
-  }
-  seen.set(file, { stamp, name })
+  const name = known?.stamp === stamp ? known.name : await readName(fs, file)
+  met.set(file, { stamp, name })
   return name
 }
 
-async function packageIn(fs: Folders, dir: string, entries: FsEntry[]): Promise<NoacgPackage | null> {
+async function readName(fs: Folders, file: string): Promise<string | null> {
+  try {
+    const manifest: unknown = JSON.parse(String(await fs.read(file)))
+    if (!isObject(manifest) || !isObject(manifest.v_noacg)) return null
+    return typeof manifest.name === 'string' ? oneLine(manifest.name) : ''
+  } catch {
+    return null
+  }
+}
+
+async function packageIn(fs: Folders, dir: string, entries: FsEntry[], met: Manifests): Promise<NoacgPackage | null> {
   if (entries.some(e => e.kind === 'file' && e.name === FRAMES_MARKER)) return null
   for (const entry of entries) {
     if (entry.kind !== 'file' || !MANIFEST.test(entry.name)) continue
     const file = dir === '.' ? entry.name : `${dir}/${entry.name}`
-    const name = await manifestName(fs, file, entry)
-    if (name !== null) return { dir, name: name || folderName(dir) }
+    const name = await manifestName(fs, file, entry, met)
+    if (name !== null) return { dir, name: name || (dir === '.' ? 'This folder' : dir) }
   }
   return null
 }
@@ -66,17 +71,24 @@ async function packageIn(fs: Folders, dir: string, entries: FsEntry[]): Promise<
 export async function findPackages(fs: Folders): Promise<NoacgPackage[]> {
   const top = await listed(fs, '.')
   if (top === null) return []
-  const found: NoacgPackage[] = []
-  const here = await packageIn(fs, '.', top)
-  if (here) found.push(here)
+  const met: Manifests = new Map()
+  const here = await packageIn(fs, '.', top, met)
+  const found: NoacgPackage[] = here ? [here] : []
   const folders = top
     .filter(e => e.kind === 'dir' && e.name !== 'node_modules' && !e.name.startsWith('.'))
+    .map(e => e.name)
+    .sort()
     .slice(0, MAX_FOLDERS)
-  for (const folder of folders) {
-    const entries = await listed(fs, folder.name)
-    const one = entries && (await packageIn(fs, folder.name, entries))
-    if (one) found.push(one)
+  for (let at = 0; at < folders.length; at += BATCH) {
+    const batch = await Promise.all(
+      folders.slice(at, at + BATCH).map(async dir => {
+        const entries = await listed(fs, dir)
+        return entries && packageIn(fs, dir, entries, met)
+      }),
+    )
+    for (const one of batch) if (one) found.push(one)
   }
+  seen = met
   return found.sort((a, b) => a.name.localeCompare(b.name) || a.dir.localeCompare(b.dir))
 }
 
@@ -84,8 +96,9 @@ export function samePackages(a: readonly NoacgPackage[], b: readonly NoacgPackag
   return a.length === b.length && a.every((p, i) => p.dir === b[i]?.dir && p.name === b[i]?.name)
 }
 
-function folderName(dir: string): string {
-  return dir === '.' ? 'This folder' : dir
+/** A name as one line of plain text: control characters and runs of white space become a space. */
+function oneLine(text: string): string {
+  return text.replace(/[\u0000-\u001f\u007f-\u009f\s]+/g, ' ').trim()
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

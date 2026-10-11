@@ -170,18 +170,26 @@ which ignores itself); `tsc -p cli/plugin-guide` works once a session has loaded
 
 **Decisions.** A package is a folder holding a `*.ograf.json` whose manifest has a `v_noacg`
 object, so a plain OGraf graphic does not count. Its name is the manifest's `name`, else the
-folder's. Dot folders are skipped as well as `node_modules` and frames folders, and at most 500
-folders are looked into. Packages are sorted by name. The band is "NoaCG", then the names joined
-by ` · `, with `+n more` (or a count, then an ellipsis) when they do not fit `bodyColumns`; it
-gives way while a survey holds the band. Folders are listed again at `session.start`, at
-`prompt.submit` and after a `tool.call` that is not read-only (`isReadOnly`), never on a timer;
-a package made outside the session shows at the next prompt. Manifests are read again only when
-their size or time changes. The scan runs after the hook has returned, one at a time.
+folder's, cut to one line of plain text (control characters become spaces). Dot folders are
+skipped as well as `node_modules` and frames folders, and at most the first 500 folders by name
+are looked into, 16 at a time. Packages are sorted by name. The band is "NoaCG", then the names
+joined by ` · `, with `+n more` when they do not fit `bodyColumns` (else a lone name or a
+count, which the `Text`'s `truncate-end` cuts), measured in terminal cells by a small table
+(East Asian wide characters and most emoji count two; joined emoji do not); it gives way
+while a survey holds the band. Folders are listed again at `session.start`, at `prompt.submit`
+and after a `tool.call` that is not read-only (`isReadOnly`), never on a timer; a package made
+outside the session shows at the next prompt. Manifests are read again only when their size or
+time changes. The scan runs after the hook has returned, one at a time, and a trigger during a
+scan gets one more pass.
 
 **Traps (Claude Code 2.1.287).**
-- `$` can never be assigned, passed or captured as a value: the validator refuses the module.
-  Helpers take closures (`dir => $.fs.list(dir)`) or the state library's `read($, atom)`.
-  Calling those closures after the hook returned works, in tests and in a real session.
+- `$` can never be assigned or passed as a value (`latest = $` is refused by the validator).
+  Helpers take closures (`dir => $.fs.list(dir)`) or the state library's `read($, atom)`, and
+  one named hook function may serve two events (`on('session.start', scanThenPass)`). Calling
+  the closures after the hook returned works, in tests and in a real session.
+- A test's `$` has no `fs` noun and no `session.cwd`, so `tests/world.tsx` takes the first
+  path the mod lists as the working directory. AC-12's reach test needs a firmer anchor, such as
+  an inline test plugin that lists `.` first.
 - The engine hands `fs.*` hooks absolute paths; a test hook answering a `$` call returns
   `{ value }`, never the bare value.
 - 2.1.287's test kit has no `mock.session` and no `ui.notify` event; a test that names either
@@ -197,11 +205,14 @@ their size or time changes. The scan runs after the hook has returned, one at a 
   `noacg` runs there.
 - `$.store` is not mocked unless the test calls `mock.store(on)`.
 
-**Check findings.** `claude plugin validate --strict` and `claude plugin test` (16 tests, terminal
-and desktop) pass on 2.1.287 and 2.1.295, also under an empty profile as CI runs them. Six
+**Check findings.** `claude plugin validate --strict` and `claude plugin test` (17 tests, terminal
+and desktop) pass on 2.1.287 and 2.1.295, also under an empty profile as CI runs them; CI runs
+both builds. Six
 mutations (no `v_noacg` check, no frames skip, no `node_modules` skip, no rescan after a tool call,
 a band drawn with no package, a scan two levels deep) each fail a test. A headless
 `claude -p --plugin-dir cli/plugin-guide` session in a scratch folder loaded the module with no
 skipped hook or refused tree, and a temporary log line showed the scan finding the package and
-ignoring the frames folder. Not seen: the band in a real terminal or the Desktop app (no sign-in
-on the build machine and no pseudo-terminal); the phase-4 try-out is where it is looked at.
+ignoring the frames folder. The same session loaded the mod from `CLAUDE_CODE_PLUGIN_DIRS` in a
+profile's `settings.json` `env`, the README's Desktop route, on the 2.1.287 CLI. Not seen: the
+band in a real terminal or the Desktop app (no sign-in on the build machine and no
+pseudo-terminal); the phase-4 try-out is where it is looked at.

@@ -6,7 +6,7 @@
 // The only work it does is listing folders: at session start, when a prompt is submitted and
 // after a tool call that may have written files.
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 import type { NoacgPackage } from '../types'
 import { fitNames } from './band'
@@ -27,48 +27,45 @@ type Scan = Folders & {
 let scanning: Promise<void> | undefined
 let latest: Scan | undefined
 
-function rescan(scan: Scan): Promise<void> {
+function rescan(scan: Scan): void {
   latest = scan
-  scanning ??= (async () => {
-    while (latest) {
-      const now = latest
-      latest = undefined
+  scanning ??= drain()
+}
+
+async function drain(): Promise<void> {
+  while (latest) {
+    const now = latest
+    latest = undefined
+    try {
       const found = await findPackages(now)
       if (!samePackages(await now.known(), found)) await now.keep(found)
+    } catch {
+      // The next trigger scans again.
     }
-  })()
-    .catch(() => undefined)
-    .finally(() => {
-      scanning = undefined
-    })
-  return scanning
+  }
+  // Cleared in the same step the loop ends, so no trigger can land between the two.
+  scanning = undefined
+}
+
+/** Starts a scan with this dispatch's access and passes the event on unchanged. */
+function scanThenPass<E, R>($: EngineInterface, e: E, next: (e: E) => R): R {
+  rescan({
+    list: dir => $.fs.list(dir),
+    read: file => $.fs.read(file),
+    known: () => read($, packages),
+    keep: found => update($, packages, () => found),
+  })
+  return next(e)
 }
 
 export const register: Register = on => {
-  on('session.start', ($, e, next) => {
-    void rescan({
-      list: dir => $.fs.list(dir),
-      read: file => $.fs.read(file),
-      known: () => read($, packages),
-      keep: found => update($, packages, () => found),
-    })
-    return next(e)
-  })
-
-  on('prompt.submit', ($, e, next) => {
-    void rescan({
-      list: dir => $.fs.list(dir),
-      read: file => $.fs.read(file),
-      known: () => read($, packages),
-      keep: found => update($, packages, () => found),
-    })
-    return next(e)
-  })
+  on('session.start', scanThenPass)
+  on('prompt.submit', scanThenPass)
 
   on('tool.call', async ($, e, next) => {
     const ran = await next(e)
     if (ran.deny === undefined && ran.isReadOnly !== true) {
-      void rescan({
+      rescan({
         list: dir => $.fs.list(dir),
         read: file => $.fs.read(file),
         known: () => read($, packages),

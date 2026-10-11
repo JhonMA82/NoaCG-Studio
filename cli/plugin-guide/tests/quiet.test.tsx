@@ -3,7 +3,7 @@
 // run or model call, on the terminal and the Desktop surface alike.
 import { describe, expect, test } from 'claude-code/testing'
 
-import { band, engineDraws, scaffolded, session, SURFACES } from './world'
+import { engineDraws, scaffolded, session, SURFACES } from './world'
 
 /** A folder with no package in it, and the near misses that must not count as one. */
 const NO_PACKAGE = {
@@ -25,7 +25,7 @@ describe('quiet outside graphics work', () => {
       await world.tool('Read')
       await world.submit('thanks')
 
-      const ui = await $.ui.mount({ plugin: 'noacg-guide', surface, component: 'AbovePrompt', props: band(100) })
+      const ui = await world.mount(surface, 100)
       expect(await engineDraws(ui)).toBe(true)
       expect(world.context).toEqual([])
       expect(world.appended()).toBe(0)
@@ -40,7 +40,7 @@ describe('quiet outside graphics work', () => {
       await world.submit()
       await world.tool('Bash')
 
-      const ui = await $.ui.mount({ plugin: 'noacg-guide', surface, component: 'AbovePrompt', props: band(100) })
+      const ui = await world.mount(surface, 100)
       expect(await engineDraws(ui)).toBe(true)
       expect(world.lists).not.toContain('node_modules')
       expect(world.lists).not.toContain('.cache')
