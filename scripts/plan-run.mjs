@@ -123,12 +123,13 @@ function windowEnd(text) {
  *   { action: 'stop', phase, why }     a second failed or blocked check: record `stop`, ask the owner, report
  *   { action: 'stopped', phase, why }  stopped and waiting for the owner's answer
  *   { action: 'done' | 'time-limit' | 'no-phases', why }
- * In the window's last 45 minutes every answer also carries `closingMinutes`, the whole minutes left.
+ * In the window's last 45 minutes a launch, wait or retro also carries `closingMinutes`, the whole minutes left.
  */
 export function nextStep(text, now = Date.now()) {
   const next = stepFor(text, now);
   const left = windowEnd(text) - now;
-  return left > 0 && left <= CLOSING_MS ? { ...next, closingMinutes: Math.ceil(left / 60_000) } : next;
+  const closing = ['launch', 'wait', 'retro'].includes(next.action) && left > 0 && left <= CLOSING_MS;
+  return closing ? { ...next, closingMinutes: Math.ceil(left / 60_000) } : next;
 }
 
 function stepFor(text, now) {
@@ -145,13 +146,13 @@ function stepFor(text, now) {
     if (expect.includes('landed') || expect.includes('pass')) {
       return { action: 'wait', phase, step: waiting?.event ?? expect[0], launched: waiting?.detail ?? '' };
     }
-    // Nothing is in flight. The one midpoint retro comes before the next launch, never during a step.
+    const end = windowEnd(text);
+    if (!Number.isNaN(end) && now >= end) return { action: 'time-limit', phase, why: `the window ended at ${new Date(end).toISOString()}` };
+    // Nothing is in flight and the window is open. The one midpoint retro comes before the next launch.
     const middle = Math.floor(phases.length / 2);
     if (phases.length >= 4 && phase > middle && !/^## Midpoint retro\b/m.test(text.replace(/\r\n/g, '\n'))) {
       return { action: 'retro', phase: middle, why: 'the middle phase passed: write ## Midpoint retro (orchestrator.md step 6, at most five lines), then run next again' };
     }
-    const end = windowEnd(text);
-    if (!Number.isNaN(end) && now >= end) return { action: 'time-limit', phase, why: `the window ended at ${new Date(end).toISOString()}` };
     const launch = { action: 'launch', phase, step: expect[0] };
     const carry = launch.step === 'build' ? lastDetail(steps, phase - 1, 'pass') : launch.step === 'repair' ? lastDetail(steps, phase, 'fail') : undefined;
     if (carry) launch.carry = carry;
