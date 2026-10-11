@@ -52,13 +52,19 @@ host or a port:
 |---|---|---|
 | `not-running` | nothing listening on the port | vMix is not running on this computer. Start vMix. |
 | `not-vmix` | the port accepts, but no `VERSION OK` greeting comes within 3 s | Something on port `<port>` is not vMix's TCP API. |
-| `edition` | `XML` names Basic HD | This vMix edition has one overlay channel and four inputs. The output runs on it; cues are taken from NoaCG. |
+
+   A Basic HD edition connects like any other, with `overlays` 1: the page says **This vMix has
+   one overlay channel and four inputs: the output runs on it, cues are taken from NoaCG**, offers
+   Put on air, and disables Set up in vMix.
 
 4. Per production: **Links > vMix > Set up in vMix**, **Put on air** and **Take off**, beside the
    CasparCG ones. **Settings > Playout** gets a vMix section: the connection line,
-   **Connect**, and the overlay channel the output goes on (default the highest channel this vMix
-   offers, so the graphics draw over the operator's own overlays: higher channels draw on top,
-   measured). The page stores it app-wide as `PlayoutSettings.vmix = { overlay }`
+   **Connect**, and the overlay channel the output goes on (default `overlays`, the highest
+   channel this vMix offers, so the graphics draw over the operator's own overlays: higher
+   channels draw on top, measured). `overlays` is the count of channels the vMix UI offers, which
+   the Bridge derives in one function from the XML's `version` and `edition`: 8 from vMix 29, 4
+   before it, 1 on Basic HD; the XML's own `<overlay>` count (16 on vMix 29, measured) is not it.
+   The page stores the choice app-wide as `PlayoutSettings.vmix = { overlay }`
    (`src/control/playoutLink.ts`); a missing `vmix` means vMix is not set up.
 5. **Set up in vMix** (per production, once, and again after the rundown changes) hands the Bridge
    the production's link and the Bridge makes the inputs (below). The page then shows one line per
@@ -79,7 +85,9 @@ the take-capable capability the hosted control page uses (the Data API key canno
 - `POST /vmix/link` (token) with `{ target, link: { slug, outputUrl, backend: { url, key } } }`:
   the control slug, the production's output URL and the backend the page itself speaks to (its
   REST address and public anon key, both already in every page load). The Bridge resolves the
-  production through the slug (`control_show_by_slug`: title, cues, graphics), makes or updates
+  production through the slug the way the hosted page does (`control_show_resolve`, falling back
+  to `control_show_by_slug`: the title, the output payload's cues and graphics, the staging
+  buffer, the live cue map, and `seq` when the server has the sequence road), makes or updates
   its inputs, writes `vmix-links.json` beside its token and answers the production's title, id
   and cue count. Linking again updates: new cues get inputs, renamed cues are renamed, and the
   inputs the Bridge made for cues that no longer exist are removed (`RemoveInput`); an input the
@@ -102,7 +110,9 @@ the take-capable capability the hosted control page uses (the Data API key canno
   byte-identical (measured).
 
 `vmix-links.json`: per production `{ id, title, slug, outputUrl, backend, output: { key }, cues: {
-[cueId]: { key, title, graphic } }, linkedAt }`. A file that cannot be read is an empty list.
+[cueId]: { key, title, graphic } }, linkedAt }`. A file that cannot be read is an empty list. A key
+the XML no longer lists (whether a vMix restart keeps keys is a check) is re-found by the title the
+Bridge gave the input, and the new key is written back.
 
 ### Target, slot and item (protocol v2, additive on the wire)
 
@@ -121,35 +131,41 @@ the take-capable capability the hosted control page uses (the Data API key canno
 `AdapterId`, `Target` and `Slot` gain the vMix members; `readTarget` and the slot reader in
 `cli/src/playout/server.ts` get a vMix branch; `targetKey` and `slotKey` in `slots.ts` key vMix by
 port and by overlay; `adapters/vmix.ts` is new, with `vmixLinks.ts` beside `servers.ts`. The
-senders the hosted page uses, `takeCueItems` and `clearCueItems` (`src/control/hostedControl.ts`,
-which imports supabase-js and browser modules), move into a dependency-free module mirrored into
-the CLI with a drift test, the way `protocol.ts` is.
+senders and the value resolver the hosted page uses, `takeCueItems`, `clearCueItems` and
+`hostedCueValues` (`src/control/hostedControl.ts`, which imports supabase-js and browser modules;
+`resolveBindings` in `src/model/productionData.ts` for the bound data), move into a
+dependency-free module mirrored into the CLI with a drift test, the way `protocol.ts` is.
 
 ### The verbs, as vMix TCP API commands
 
 Every command goes over the one TCP connection (`FUNCTION <name> <params>`, `XML`,
 `SUBSCRIBE ACTS`), the way vMix documents it. The HTTP API on 8088 is not used, so the Web
-Controller's port and password do not matter. A function's `Input=` is always a key.
+Controller's port and password do not matter. Where a function takes `Input=`, it is always a
+key; `Out` and `Off` act on whatever the channel holds, so the Bridge reads the channel first and
+never sends them over somebody else's input.
 
 | Verb | Commands |
 |---|---|
 | connect | TCP `127.0.0.1:8099`; wait for `VERSION OK <version>`; `SUBSCRIBE ACTS` when a link exists |
 | status | `XML` → `version`, `edition`, the `overlays` and the inputs by key, number, title, type |
 | take url (Put on air) | `XML`; find the output input by key, else by name; none: `AddInput Value=Browser\|<url>` → `XML` → `SetInputName`; another kind of input holds the name: refused, nothing more sent. Then `OverlayInput<N>In Input=<key>` |
-| out url (Take off) | `OverlayInput<N>Out Input=<key>` (the channel's transition); an input not on the channel is already off |
-| clear url | `OverlayInput<N>Off Input=<key>` (at once) |
+| out url (Take off) | `XML`; only when channel N holds the output's key: `OverlayInput<N>Out` (the channel's transition). Anything else on the channel, or nothing, is left alone: already off |
+| clear url | the same read, then `OverlayInput<N>Off` (at once) |
 | state | `XML` |
 | take template or media, update, next, pause, resume, sequence, thumbnail | refused `unsupported` before anything is sent |
 
-**The presses, as `ACTS` lines.** With a link held, the connection is kept open and every
-`ACTS OK Overlay<N> <input number> <0|1>` line is resolved to a key with one `XML` read (numbers
-are positions, measured, so none is ever cached) and handled like this:
+**The presses, as `ACTS` lines.** With a link held, the connection is kept open. `ACTS OK
+Overlay<N> <input number> <0|1>` lines are collected for one **settle window** (50 ms, derived: a
+replace sends the old input's `0` and the new input's `1` in the same millisecond, and `AllOff`
+one `0` per channel at once, measured), then resolved to keys with **one** `XML` read for the
+whole window (numbers are positions, measured, so none is ever cached; one read per burst, not per
+line, keeps a preset's forty lines from forty reads) and handled in this order:
 
 | Line | Input | The Bridge does |
 |---|---|---|
-| `… 1` | a cue input of a linked production | **Take** that cue: `update` with its values as published, `play`, and its `cue` marker, one batch, the hosted page's own `takeCueItems` |
-| `… 0` | a cue input | waits the **replace window** (50 ms, derived: a replace sends the old input's 0 and the new input's 1 in the same millisecond, measured). A 1 inside it for another cue on the **same layer**: this 0 is dropped, the Take replaces. Otherwise, it reads which cue is live on the layer (`live_cue`, which the send RPCs mirror onto `control_shows`); this cue: **Out** (`clearCueItems`: `stop`, `cue: null`); another, or none: nothing |
-| `… 0` | the output input | **clears every live layer** of that production (All out, `clearCueItems` per live layer, in batches of four), so putting the output back up brings nothing back with it. Nothing is sent to vMix |
+| `… 0` | the output input | **clears every live layer** of that production (All out, `clearCueItems` per live layer, in batches of four), so putting the output back up brings nothing back with it. Every cue `0` of that production in the same window is dropped, and so is one that arrives while the clear is in flight. Nothing is sent to vMix |
+| `… 1` | a cue input of a linked production | **Take** that cue: `update` with the values the hosted page's own Take would send (`hostedCueValues`: the published values under the shared staging buffer and the production's bound data), `play`, and its `cue` marker, one batch, `takeCueItems`. The Bridge records it as the last cue it took on that layer |
+| `… 0` | a cue input | a `1` in the same window for another cue on the **same layer**: dropped, the Take replaces. The last cue the Bridge itself took on that layer is another one (a Take still in flight, or pressed on another channel): dropped. Otherwise it reads which cue is live on the layer (`live_cue`, which the send RPCs mirror onto `control_shows`); this cue: **Out** (`clearCueItems`: `stop`, `cue: null`); another, or none: nothing |
 | `… 1` | the output input | nothing |
 | any | an input of no linked production, or any other activator (`Input`, `InputPreview`, `InputPlaying`, `Fullscreen`, `MasterVolume` …) | nothing |
 
@@ -193,9 +209,9 @@ are positions, measured, so none is ever cached) and handled like this:
 ### Security
 
 - The control slug is a full operator capability that cannot be rotated (`docs/CLOUD_PLAYOUT.md`
-  §7, migration 0040). It lives in `vmix-links.json` in the Bridge's per-user config directory beside the token,
-  arrives over the paired channel or standard input, and appears in no reply, log line, URL or
-  argument. Unlink forgets it. The owner may prefer the alternative recorded in
+  §7, migration 0040). It lives in `vmix-links.json` in the Bridge's per-user config directory
+  beside the token, arrives over the paired channel or standard input, and appears in no reply,
+  log line, URL or argument. Unlink forgets it. The owner may prefer the alternative recorded in
   `research/vmix-inside-vmix.md` §3: the Bridge only reports presses and a paired page sends the
   take, which keeps the capability out of the Bridge but makes every press depend on a page
   staying open and awake.
@@ -225,10 +241,13 @@ a Web Browser input (a guide paragraph, measured to render); Companion and Strea
 3. Cue inputs are transparent images the Bridge makes and names, mapped by vMix input key and
    re-found by the name it gave them when a key is gone; the adapter never removes an input it
    did not make.
-4. A cue input's 0 is an Out only when its cue is still live on its layer, and a 0 followed within
-   50 ms by a 1 on the same layer is a replace, not an Out; the output's 0 clears every layer.
+4. Lines are handled per 50 ms window from one `XML` read. A cue input's 0 is an Out only when its
+   cue is still live on its layer and the Bridge itself took no other cue there since; a 0 with a
+   1 for the same layer in its window is a replace; the output's 0 clears every layer once and
+   drops the cue 0s that come with it.
 5. Put on air is `OverlayInput<N>In` of the output input on the channel in Settings and nothing
-   else; the adapter never changes Program, Preview, a transition or any vMix setting.
+   else; Take off and clear act only when that channel holds the output; the adapter never changes
+   Program, Preview, a transition or any vMix setting.
 6. A press on any channel counts; the per-layer channel suggestion is guidance for the tally.
 
 ### AC-1: The Bridge finds vMix on this computer
@@ -236,7 +255,8 @@ a Web Browser input (a guide paragraph, measured to render); Companion and Strea
 Against a fake vMix TCP server in `cli/test` (greeting, `XML` with version, edition, overlays and
 inputs, `FUNCTION` answers, `ACTS` lines): `/status` for `{ adapter: 'vmix' }` reports the version
 and edition; nothing listening is `not-running`, a port that greets wrongly is `not-vmix` within
-3 s, Basic HD is `edition`; `--vmix-port` is honoured; `/health` lists `vmix` and `vmix-link`.
+3 s; `overlays` is 8 for a vMix 29, 4 for a 28 and 1 for Basic HD; `--vmix-port` is honoured;
+`/health` lists `vmix` and `vmix-link`.
 
 ### AC-2: Pairing connects to vMix by itself
 
@@ -249,8 +269,9 @@ defaulting to the highest one; with vMix closed it says the `not-running` senten
 
 Put on air creates `NoaCG <title>` as a Browser input on the output URL (or reuses one of that
 name) and puts it on the chosen overlay by key; Take off takes it off with the channel's
-transition; a name held by another kind of input is refused with nothing changed; Program and
-Preview are never addressed; every function names the input by key.
+transition, and sends nothing when the channel holds another input or none; a name held by
+another kind of input is refused with nothing changed; Program and Preview are never addressed;
+every function that takes an input names it by key.
 
 ### AC-4: Set up in vMix links the production and makes its cue inputs
 
@@ -265,9 +286,10 @@ works with no page.
 Against the fake vMix server and the local stack (an e2e spec beside `e2e/bridge-ograf.spec.ts`):
 a `1` on a cue input puts that cue on air on the production's output page with the published
 values; its `0` takes it out; a `0` and a `1` for two cues of one layer in the same millisecond
-replace without an Out; a `0` for a cue another cue has replaced changes nothing; the output
-input's `0` clears every live layer and its `1` nothing; lines for unlinked inputs, other
-activators and the preset-open burst air nothing.
+replace without an Out; a `0` for a cue another cue has replaced, from any surface or by the
+Bridge's own Take still in flight, changes nothing; the output input's `0` with every cue's `0`
+at once (`AllOff`) clears each live layer exactly once and its `1` nothing; a burst of lines costs
+one `XML` read; lines for unlinked inputs, other activators and the preset-open burst air nothing.
 
 ### AC-6: Failure and reconnect never air anything
 
@@ -315,9 +337,10 @@ Chrome 115; the hosted control page renders in a Web Browser input.
 4. A Cut (0 ms) overlay transition reports its `0` at the press.
 5. Whether a preset opened with cue inputs already on overlays sends `Overlay<N> … 1` lines.
 6. `AddInput Value=Image|<path>` with the Bridge's PNG, `SetInputName`, `RemoveInput` and
-   `OverlayInput<N>In` with `Input=<key>`; the cue input's thumbnail in the input bar.
+   `OverlayInput<N>In` with `Input=<key>`; whether `OverlayInput<N>Out` and `Off` take an
+   `Input=` at all; the cue input's thumbnail in the input bar.
 7. Enhanced security on with a Web Controller password: the TCP API still answers a local client.
-8. The `edition` string in the XML, and how many overlay channels the UI offers per version
-   (4 before vMix 29, 8 from it; the XML's 16 is not it).
+8. The `edition` string in the XML for Basic HD, and that vMix 28 offers four channels and 29
+   eight, which the `overlays` function encodes.
 9. The Browser input's size when the production's resolution differs from vMix's output.
 10. Press-to-animation delay through the Bridge (AC-7).
