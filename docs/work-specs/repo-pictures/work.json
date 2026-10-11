@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "2c8636e74ddff0916c23038f22fac02e87cced0bab582f9fc924f56940088da1",
+  "specSha256": "c13ec1ac6a50f8a4aba3b22f0cd3912233a4b988c5e016920c6ff67fe0667f8b",
   "authority": {
     "status": "agreed",
     "source": "owner conversation 2026-10-11: stop adding pictures to GitHub now; keep them locally as a record; benchmark results stay, their pictures do not; docs are what agents read; rewrite history later in a quiet window, after reviewing tracked text for private context"

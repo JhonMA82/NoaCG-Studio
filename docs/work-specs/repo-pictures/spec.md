@@ -64,4 +64,5 @@ picture they had.
 
 ## Phase notes
 
-- Step 1 landed with this spec: 1,457 files archived (1,320 PNG, 130 JPEG, 7 WebM).
+- Step 1 landed with this spec: 1,474 files archived (1,337 PNG, 130 JPEG, 7 WebM), 17 of them
+  committed to main while this branch was in review.
