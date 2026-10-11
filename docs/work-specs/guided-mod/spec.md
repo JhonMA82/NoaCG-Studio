@@ -216,3 +216,37 @@ ignoring the frames folder. The same session loaded the mod from `CLAUDE_CODE_PL
 profile's `settings.json` `env`, the README's Desktop route, on the 2.1.287 CLI. Not seen: the
 band in a real terminal or the Desktop app (no sign-in on the build machine and no
 pseudo-terminal); the phase-4 try-out is where it is looked at.
+
+### Check of phase 1 (on `main` at a6545aa9d, by a separate session)
+
+**Verdict: pass.** Re-derived on `main`, not taken from the build's report:
+- AC-1: `claude plugin validate --strict` and `claude plugin test` (17 pass, terminal and desktop)
+  pass on the 2.1.287 CLI and the Desktop's 2.1.295 binary. 2.1.295 also lists `prompt.submit` and
+  `tool.call` as "gating hook without .catch": a fact the validator states, not a warning (a hook
+  that throws there is skipped). Loaded with `--plugin-dir` under `claude -p` on both builds, the
+  debug log shows the module admitted and its hooks settling (about 14 ms at start, 60 to 90 ms
+  at a prompt), with no skipped hook, fault or refused tree. `tsc -p cli/plugin-guide` passes
+  once the engine has laid the types.
+- AC-2 and AC-3, real run: published `@noacg/cli` 0.10.1 scaffolded `evening/` in a scratch
+  folder outside the repository; `validate --screenshots` wrote frames beside it and, run inside
+  the package, a `shots/` folder marked `.noacg-frames`. A scratch copy of the mod with debug log
+  lines on its reads (the product code unchanged) showed: `evening` found as "Evening news";
+  `node_modules` (holding a NoaCG manifest) never listed; a marked folder holding a NoaCG manifest
+  listed but its manifest never read; a plain OGraf manifest read and refused; the second scan
+  reading no manifest again; the package itself as the working directory found as `.`. In a folder
+  with no package it listed `.` and `src`, read no file and stored nothing.
+- AC-5: `cli/plugin-guide` is in no file of the five assembled distribution packages
+  (`assemble()`), not in `.claude-plugin/marketplace.json`, not in `npm pack --dry-run` (the
+  `files` list is `dist`, `skill` and three documents), and no workflow but `guided-mod.yml`
+  names it (release-cli.yml and toolkit-distribution.yml name only `cli/plugin` and
+  `cli/plugin-mcp`). `check-toolkit-distribution.mjs` passes. The Guided mod workflow ran on
+  PR #1001 on both builds (17 pass each); main's CI at the merge was green where finished.
+
+**Not checked.** No model turn ran: the machine's sign-in had expired, so a rescan after a real
+tool call and a package appearing mid-session were seen only in the tests. The band was not seen
+drawn anywhere outside the test kit.
+
+**Compared with the reference.** Anthropic's `code-modernization`, loaded the same way in an empty
+folder, registers three commands, runs shell hooks at session start and takes about 320 ms there;
+`noacg-guide` registers nothing and does only two folder listings. Phase 3's `/noacg-guide` is
+where that quiet is spent: the reference registers its commands unconditionally.
