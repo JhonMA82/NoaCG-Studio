@@ -153,8 +153,8 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   production and its rundown belong to the team, not to one account.
 - **Current state:** CasparCG with NoaCG Bridge is production-proven and the main production path;
   Bridge cues the server's clips from the rundown, with the owner's real-production check open. OBS
-  and browser sources are proven; a NoaCG output in a real vMix 29 browser input has taken and
-  cleared a graphic. Real SPX 1.2.1 and 1.4.1 play the SPX exports with fields, Continue and Stop,
+  and browser sources are proven; in a real vMix 29 a NoaCG output ran a three-layer production
+  (take, live update, replace, out). Real SPX 1.2.1 and 1.4.1 play the SPX exports with fields, Continue and Stop,
   and open a production export's rundown copied in by hand; 1.4.1 also plays the OGraf package.
   Values with ' & < > or a line break show as HTML entities, Update on the OGraf package is an SPX
   defect, and cueing through the output embed is unproven (`SPX_ON_A_REAL_SERVER.md`). A
@@ -168,7 +168,7 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
     it stays accessible when its creator is absent; its graphics and data are available to the
     team rather than trapped in one account; normal playout from it works.
   - **Targets:** vMix runs a production-realistic walk (browser input, take, update, out, several
-    layers); SPX installs and operates a graphic on a real SPX server (done, `SPX_ON_A_REAL_SERVER.md`); CasparCG and OBS stay green.
+    layers; done, `VMIX_ON_A_REAL_HOST.md`); SPX installs and operates a graphic on a real SPX server (done, `SPX_ON_A_REAL_SERVER.md`); CasparCG and OBS stay green.
 - **Needs the owner's accounts:** custom email (SMTP), the Google sign-in client, the status page.
 - **Plans:** `BRIDGE.md`, `CLOUD_PLAYOUT.md`, `CONTROL_PANEL_ROAD.md`, `TEAMS_PLAN.md`, `STATUS_PAGE.md`.
 
