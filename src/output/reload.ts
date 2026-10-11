@@ -28,12 +28,8 @@ export interface ReloadDoors {
 
 /** Reload if this page's own URL answers and nothing is on air once it has; whether it reloads. */
 export async function reloadWhenClear({ probe, onAir, reload }: ReloadDoors): Promise<boolean> {
-  let served = false;
-  try {
-    served = await probe();
-  } catch {
-    // Unreachable: the caller carries on and asks again later.
-  }
+  // Unreachable counts as no: the caller carries on and asks again later.
+  const served = await probe().catch(() => false);
   if (!served || onAir() > 0) return false;
   reload();
   return true;
