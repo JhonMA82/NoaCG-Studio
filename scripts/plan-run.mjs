@@ -15,20 +15,33 @@
 // after a restart is exactly the reader that gets those wrong, so the ledger refuses an event that
 // is not the expected next one, and `next` answers from the ledger rather than from memory.
 //
-// Events, per phase and in order: build -> landed -> check -> pass, or fail -> repair -> landed ->
-// check -> pass, or a second fail -> stop. `resume` notes that an interrupted step's session was
-// started again in its own worktree; it never counts as a launch. `stop` may also end any step
-// that met a decision the owner reserves, and `answered` (his answer) lets the stopped step go on,
-// with one more repair if it stopped on failed checks.
+// Events, per phase and in order: build -> landed -> check -> pass. A `fail` names its kind in its
+// detail: `fail product:` (the phase misses its outcome) gets one repair -> landed -> check, and a
+// second product fail stops the run; `fail blocked:` (a prerequisite or the infrastructure failed)
+// runs the check again without a repair, and a second blocked fail stops the run. The pass or fail
+// detail is the checker's findings: `next` carries them to the next build or repair, and tells the
+// last phase's check, or a check after a fail, to land the notes. `resume` notes that an interrupted
+// step's session was started again in its own worktree and `paused` that a running step was
+// checkpointed at the window's end; neither counts as a launch or changes the state. `stop` may also
+// end any step that met a decision the owner reserves, and `answered` (his answer) lets the stopped
+// step go on, with one more repair or check if it stopped on failed checks. Once the middle phase of
+// a plan of four or more has passed, `next` asks once for the `## Midpoint retro` before it goes on.
 
 import { appendFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const EVENTS = Object.freeze(['build', 'landed', 'check', 'pass', 'fail', 'repair', 'resume', 'stop', 'answered']);
+export const EVENTS = Object.freeze(['build', 'landed', 'check', 'pass', 'fail', 'repair', 'resume', 'paused', 'stop', 'answered']);
 
 /** A failed check gets this many repairs before the run stops at it. */
 const REPAIRS = 1;
+
+/** A `fail` detail starts with its kind. */
+const FAIL_KIND = /^(product|blocked):/i;
+const BLOCKED = /^blocked:/i;
+
+/** `next` says closing this long before the window ends. */
+const CLOSING_MS = 45 * 60_000;
 
 const STEP_LINE = /^- (\S+) phase (\d+) (\w+)\b ?(.*)$/;
 
@@ -52,10 +65,11 @@ export function readSteps(text) {
 function phaseState(steps) {
   let state = 'new';
   let fails = 0;
+  let blocked = 0;
   let before = null;
   let waiting = null;
   for (const step of steps) {
-    if (step.event === 'resume') continue;
+    if (step.event === 'resume' || step.event === 'paused') continue;
     if (step.event === 'stop') {
       before = state;
       state = 'stopped';
@@ -64,35 +78,60 @@ function phaseState(steps) {
     if (step.event === 'answered') {
       state = before ?? 'new';
       if (state === 'failed' && fails > REPAIRS) fails = REPAIRS;
+      if (state === 'built' && blocked > REPAIRS) blocked = REPAIRS;
       continue;
     }
     if (step.event === 'build' || step.event === 'repair' || step.event === 'check') waiting = step;
     state = { build: 'building', repair: 'repairing', landed: 'built', check: 'checking', pass: 'passed', fail: 'failed' }[step.event];
-    if (step.event === 'fail') fails += 1;
+    // A blocked check is not the phase's fault: it goes back to built and the check runs again.
+    if (step.event === 'fail' && BLOCKED.test(step.detail)) {
+      state = 'built';
+      blocked += 1;
+    } else if (step.event === 'fail') fails += 1;
     if (step.event === 'landed' || step.event === 'pass' || step.event === 'fail') waiting = null;
   }
   const expect = {
     new: ['build'],
     building: ['landed'],
     repairing: ['landed'],
-    built: ['check'],
+    built: blocked > REPAIRS ? [] : ['check'],
     checking: ['pass', 'fail'],
     failed: fails > REPAIRS ? [] : ['repair'],
     stopped: ['answered'],
     passed: [],
   }[state];
-  return { state, fails, expect, waiting };
+  return { state, fails, blocked, expect, waiting };
+}
+
+/** The detail of the last `event` line recorded for `phase`, or undefined when there is none or it is empty. */
+function lastDetail(steps, phase, event) {
+  return steps.filter((step) => step.phase === phase && step.event === event).at(-1)?.detail || undefined;
+}
+
+function windowEnd(text) {
+  return Date.parse(/^Window ends: (\S+)\s*$/m.exec(text)?.[1] ?? '');
 }
 
 /**
  * The one next step for the run in `text` at `now`:
- *   { action: 'launch', phase, step }   start a fresh session for build, check or repair, after `record`
+ *   { action: 'launch', phase, step, carry?, notes? }   start a fresh session for build, check or repair, after
+ *                                      `record`; `carry` is the findings the worker takes along (the previous
+ *                                      phase's pass for a build, this phase's fail for a repair), `notes` says
+ *                                      a check lands the plan's notes ('final phase' or 'second check')
  *   { action: 'wait', phase, step, launched }   a launched step's result is out (resume it if its session is gone)
- *   { action: 'stop', phase, why }     a second failed check: record `stop`, ask the owner, report
+ *   { action: 'retro', phase, why }    the middle phase passed: write `## Midpoint retro`, then ask again
+ *   { action: 'stop', phase, why }     a second failed or blocked check: record `stop`, ask the owner, report
  *   { action: 'stopped', phase, why }  stopped and waiting for the owner's answer
  *   { action: 'done' | 'time-limit' | 'no-phases', why }
+ * In the window's last 45 minutes every answer also carries `closingMinutes`, the whole minutes left.
  */
 export function nextStep(text, now = Date.now()) {
+  const next = stepFor(text, now);
+  const left = windowEnd(text) - now;
+  return left > 0 && left <= CLOSING_MS ? { ...next, closingMinutes: Math.ceil(left / 60_000) } : next;
+}
+
+function stepFor(text, now) {
   const phases = readPhases(text);
   if (phases.length === 0) return { action: 'no-phases', why: 'copy the plan\'s phases into the wave file under "## Phases" first' };
   const steps = readSteps(text);
@@ -100,20 +139,35 @@ export function nextStep(text, now = Date.now()) {
     const { state, expect, waiting } = phaseState(steps.filter((step) => step.phase === phase));
     if (state === 'passed') continue;
     if (state === 'stopped') return { action: 'stopped', phase, why: 'stopped; the owner\'s answer is recorded as `answered`' };
-    if (expect.length === 0) return { action: 'stop', phase, why: 'its check failed again after a repair' };
+    if (expect.length === 0) {
+      return { action: 'stop', phase, why: state === 'built' ? 'its check was blocked twice' : 'its check failed again after a repair' };
+    }
     if (expect.includes('landed') || expect.includes('pass')) {
       return { action: 'wait', phase, step: waiting?.event ?? expect[0], launched: waiting?.detail ?? '' };
     }
-    const end = Date.parse(/^Window ends: (\S+)\s*$/m.exec(text)?.[1] ?? '');
+    // Nothing is in flight. The one midpoint retro comes before the next launch, never during a step.
+    const middle = Math.floor(phases.length / 2);
+    if (phases.length >= 4 && phase > middle && !/^## Midpoint retro\b/m.test(text.replace(/\r\n/g, '\n'))) {
+      return { action: 'retro', phase: middle, why: 'the middle phase passed: write ## Midpoint retro (orchestrator.md step 6, at most five lines), then run next again' };
+    }
+    const end = windowEnd(text);
     if (!Number.isNaN(end) && now >= end) return { action: 'time-limit', phase, why: `the window ended at ${new Date(end).toISOString()}` };
-    return { action: 'launch', phase, step: expect[0] };
+    const launch = { action: 'launch', phase, step: expect[0] };
+    const carry = launch.step === 'build' ? lastDetail(steps, phase - 1, 'pass') : launch.step === 'repair' ? lastDetail(steps, phase, 'fail') : undefined;
+    if (carry) launch.carry = carry;
+    if (launch.step === 'check' && phase === phases.length) launch.notes = 'final phase';
+    else if (launch.step === 'check' && steps.some((step) => step.phase === phase && step.event === 'fail')) launch.notes = 'second check';
+    return launch;
   }
   return { action: 'done', why: `all ${phases.length} phases built, landed and checked` };
 }
 
 /** Is `event` for `phase` the one the ledger expects now? Returns a refusal string, or null. */
-export function refuseStep(text, phase, event) {
+export function refuseStep(text, phase, event, detail = '') {
   if (!EVENTS.includes(event)) return `the event must be one of ${EVENTS.join(', ')}, got "${event}"`;
+  if (event === 'fail' && !FAIL_KIND.test(detail)) {
+    return 'a fail names its kind: the detail starts with "product:" (the phase misses its outcome, so repair) or "blocked:" (a prerequisite failed, so check again)';
+  }
   const phases = readPhases(text);
   if (!Number.isInteger(phase) || phase < 1 || phase > phases.length) {
     return `phase must be 1 to ${phases.length} (the "## Phases" list), got "${phase}"`;
@@ -125,8 +179,8 @@ export function refuseStep(text, phase, event) {
     }
   }
   const { state, expect } = phaseState(steps.filter((step) => step.phase === phase));
-  if (event === 'resume') {
-    return ['building', 'repairing', 'checking'].includes(state) ? null : `nothing in phase ${phase} is waiting to be resumed (${state})`;
+  if (event === 'resume' || event === 'paused') {
+    return ['building', 'repairing', 'checking'].includes(state) ? null : `nothing in phase ${phase} is running to be ${event === 'resume' ? 'resumed' : 'paused'} (${state})`;
   }
   if (event === 'stop') return state === 'passed' || state === 'stopped' ? `phase ${phase} is ${state}` : null;
   if (expect.includes(event)) return null;
@@ -139,7 +193,7 @@ export function refuseStep(text, phase, event) {
 /** Append the step to the wave file, or return why not. */
 export function recordStep(file, phase, event, detail = '', now = Date.now()) {
   const text = readFileSync(file, 'utf8');
-  const refusal = refuseStep(text, phase, event);
+  const refusal = refuseStep(text, phase, event, detail);
   if (refusal) return { refusal };
   const line = `- ${new Date(now).toISOString()} phase ${phase} ${event}${detail ? ` ${detail}` : ''}`;
   appendFileSync(file, `${text.endsWith('\n') ? '' : '\n'}${line}\n`, 'utf8');
@@ -150,10 +204,17 @@ const USAGE = `Usage: node scripts/plan-run.mjs next <wave file>
        node scripts/plan-run.mjs record <wave file> <phase> <${EVENTS.join('|')}> [detail]`;
 
 function describe(next) {
-  if (next.action === 'launch') return `launch ${next.step} phase ${next.phase}`;
-  if (next.action === 'wait') return `wait ${next.step} phase ${next.phase}${next.launched ? ` (${next.launched})` : ''}`;
-  if (next.action === 'stop' || next.action === 'stopped') return `${next.action} phase ${next.phase}: ${next.why}`;
-  return `${next.action}: ${next.why}`;
+  const lines = [];
+  if (next.action === 'launch') {
+    lines.push(`launch ${next.step} phase ${next.phase}${next.notes ? ` (land notes: ${next.notes})` : ''}`);
+    if (next.carry) lines.push(`  carry: ${next.carry}`);
+  } else if (next.action === 'wait') lines.push(`wait ${next.step} phase ${next.phase}${next.launched ? ` (${next.launched})` : ''}`);
+  else if (['retro', 'stop', 'stopped'].includes(next.action)) lines.push(`${next.action} phase ${next.phase}: ${next.why}`);
+  else lines.push(`${next.action}: ${next.why}`);
+  if (next.closingMinutes !== undefined) {
+    lines.push(`window ends in ${next.closingMinutes} min: launch only a step that lands before then, else checkpoint and record paused`);
+  }
+  return lines.join('\n');
 }
 
 export function main(argv = process.argv.slice(2)) {

@@ -1,89 +1,89 @@
 # plan-run - run a long plan phase by phase
 
-Shared procedure: `/plan-run <plan> until <time>` in Claude Code, `$plan-run` in Codex; translate
-`/check` and `/queue-merge` the same way. The owner names the plan and the time limit. Each phase is
-built by one fresh session and checked by another, and the next phase starts only after the check
-passed. Output: the plan's phases landed on `main`, checked, and a short report.
+Shared procedure: `/plan-run <plan> until <time>` in Claude Code, `$plan-run` in Codex. The owner
+names the plan and the window; each phase is built by one fresh session and checked by another, and
+the next starts only after the check passed. Output: the phases landed on `main`, checked, a report.
 
 **Runnable plans** (a name here and nothing else):
 
 - `editor`: `docs/EDITOR_REBUILD_PLAN.md`; its order and acceptance are in `docs/EDITOR_PLAN.md`.
 - `guided-mod`: `docs/work-specs/guided-mod/spec.md`; phases, acceptance and phase notes are in it.
+- `ci-plan`: `docs/work-specs/ci-plan-reliability/spec.md`; the same.
 
 ## Boundaries
 
 - **One plan run or one wave, never both.** Each refuses to open while the other is open.
-- **24 hours is the ceiling**; opening refuses a longer window.
-- **Only phases written in the plan.** Refuse a plan whose next phases have no acceptance criteria;
-  never invent a phase or build past the plan's end.
+- **24 hours is the ceiling** of one authorised window; opening refuses a longer one.
+- **Only phases written in the plan.** Refuse a plan whose phases lack acceptance; never invent one.
 - **Only the merge queue writes `main`.** Sessions land themselves with `/queue-merge`.
-- **The coordinator stays thin**: it reads the plan's phase list and short results, never code,
-  and keeps its state in the wave file. All real work runs in fresh sessions.
+- **The coordinator stays thin**: it reads the plan's phase list and short results, never code, and
+  keeps its state in the wave file. Real work runs in fresh `wave-row` sessions (Opus, high effort);
+  workflow fan-out (`ultracode`) only when the owner's prompt for the run says so.
 - **Never touch another session's worktree**, and `docs/private/` stays private.
 
 ## 1. Start
 
-- **The window** is what the owner names, in Helsinki time with its offset. Unstated: ask him, with
-  anything the plan's checks need that this machine lacks (a signed-in `claude -p`, an app).
-- **Open the run**: `node scripts/wave-plan-store.mjs --open <date> plan-<plan> --until <iso>`. It
-  prints the wave file. After a restart, open it again with the date the run started.
-- **First open only**: `git fetch origin main`, read the plan's phases, acceptance and phase notes
-  on `origin/main`, and copy the phases still to build, in order, as a numbered list under
-  `## Phases` in the wave file, one line each with where its acceptance is.
+- **Open the run** with the owner's window, in Helsinki time with its offset (unstated: ask, along
+  with what the plan's checks need on this machine, such as a signed-in `claude -p`):
+  `node scripts/wave-plan-store.mjs --open <date> plan-<plan> --until <iso>`, the date being the
+  run's first day. The same `--until` resumes after a restart; a new one is a new window, which only
+  the owner names.
+- **First open only**: read the plan on `origin/main` (`git fetch origin main`) and copy the phases
+  still to build, numbered, under `## Phases` in the wave file, each with where its acceptance is.
 
 ## 2. The loop
 
-`node scripts/plan-run.mjs next <wave file>` names the one next step, from the file alone. Before
-launching a step, record it: `node scripts/plan-run.mjs record <wave file> <phase> <event> <detail>`
-with the branch and worktree. The ledger refuses a step out of order or launched twice; a refusal
-means launch nothing and run `next` again. As each step finishes, read `npm run jobs`: a red-on-main
-alarm goes to the session whose landing caused it, or to a row when no session holds it.
+`node scripts/plan-run.mjs next <wave file>` names the one next step; record it before launching,
+`node scripts/plan-run.mjs record <wave file> <phase> <event> <detail>`, with branch and worktree.
+The ledger refuses a step out of order or launched twice: then launch nothing and run `next` again.
 
-- **launch build** (or **repair**): a builder with the brief below, the repair one with the
-  checker's findings. Once its pull request merged with every check green (`gh pr checks <n>`),
-  record `landed` `#<n>`; a red check, required or not, first goes back to that session (`resume`).
-- **launch check**: a checker with the brief below, after the phase is on `main`. When its notes
-  pull request merges, record `pass` or `fail` and its findings in one line.
-- **wait**: the step is running. After a restart its session may be gone: a merged pull request is
-  recorded as `landed`; a queued one is waited for; otherwise start a fresh session in the recorded
-  worktree with the same brief, and record `resume`. Never a second branch for one step.
-- **stop**: the check failed after a repair, or a step met a decision the owner reserves
-  (`verify.md` step 5). Record `stop <why>`, ask him at once with your recommendation and a phone
-  notification, go no further in the plan, and record his answer as `answered <answer>`.
-- **done** or **time-limit**: write the report.
+- **launch build** (or **repair**): a builder with the brief below. Record `landed #<n> <merge sha>`
+  once its pull request merged with every check green (`gh pr checks <n>`); a red check, required or
+  not, or a red-on-main alarm on that sha (`npm run jobs`), goes back to that session (`resume`).
+- **launch check**: a checker with the brief below, once the phase is on `main`. Its final report
+  says PASS or FAIL with findings; it opens a pull request only when `next` said `land notes`.
+  Record `pass <findings>`, `fail product: <findings>` (next: a repair) or `fail blocked: <what
+  was missing>` (remove the obstacle, or `stop` and ask; next: the check again, once).
+- **wait**: the step is running. After a restart reconcile first (`gh pr list --head <branch>`,
+  `npm run jobs`): merged is recorded `landed`, queued is waited for, otherwise a fresh session
+  starts in the recorded worktree with the same brief, and `resume` is recorded. No second branch.
+- **retro**: write `## Midpoint retro` (`orchestrator.md` step 6, five lines) and run `next` again.
+- **stop**: a second failed check, or a reserved decision (`verify.md` step 5): record `stop <why>`,
+  ask him at once (recommendation, phone notification), go no further, record `answered <answer>`.
+- **closing** (the last 45 minutes, or "I need to close the laptop"): launch only a step that lands
+  before the end (the median step so far plus ten minutes); otherwise, and at the end, tell running
+  sessions to commit, push and stop, leave queued pull requests to GitHub, record `paused <what
+  remains, pending jobs>` and report; never extend the window yourself.
+- **done** or **time-limit**: after the last notes pull request, confirm `main` is green (`npm run
+  jobs`), run the retro (`orchestrator.md` step 6), write `## Report` in the wave file (15 plain
+  lines: **Needs you** first or "nothing", each phase's pull requests and verdict, where it stopped
+  or paused and what remains, what was not checked, the retro); send it with a phone notification.
 
-Sessions, each in its own worktree on `<tool>/plan-<plan>-p<phase>-<build|check|repair>` (`-2` on
-a second check):
-
-- **Claude Code:** the Agent tool with `run_in_background`, agent `wave-row`, which wakes you when
-  it finishes; a background `node scripts/jobs.mjs wait <landing job>` wakes you when that ends.
-- **Codex:** `git worktree add -b <branch> <path> origin/main`, then `spawn_agent` without your
-  context, that absolute path its only working directory; `wait_agent` with a timeout, and a
-  30-minute thread heartbeat as the fallback wake. Ask the owner in this thread.
+Sessions get their own worktrees on `<tool>/plan-<plan>-p<phase>-<build|check|repair>` (`-2` on a
+second check). Claude Code: the Agent tool, `run_in_background`, agent `wave-row` (it wakes you when
+it finishes), a background `node scripts/jobs.mjs wait <landing job>` per landing and, armed again
+after a restart, a one-shot `CronCreate` 45 minutes before the window ends plus a background
+`sleep 1800` as fallback. Codex: `spawn_agent` without your context, `wait_agent` with a timeout,
+the 30-minute thread heartbeat as the fallback; ask the owner in this thread.
 
 **The builder brief**: the row brief from `orchestrator.md` step 3, after these lines:
 
 ```
-PHASE   <n> of <plan document>: <phase name>. Build it against its acceptance criteria and nothing
-        else; read the plan's phase notes and the decisions it records first.
-NOTES   In the same pull request, add the next phase's notes under the plan's `## Phase notes`:
-        what changed that it must allow for, decisions taken, traps found, the check's findings.
+PHASE    <n> of <plan document>: <phase name>. Build it against its acceptance criteria and nothing
+         else; read the plan's phase notes and the decisions it records first.
+NOTES    Same pull request, under the plan's `## Phase notes`: FINDINGS below as the last check's
+         findings, then what the next phase must allow for, decisions, traps.
+FINDINGS <the carry: line from next, or "none">
 ```
-
 **The checker brief**:
-
 ```
-CHECK   Phase <n> of <plan document>: <phase name>. You did not build it. On current origin/main,
-        do the phase's task the way a user would, check each acceptance criterion and the user
-        outcome the plan states, and where the plan names reference products, do the same task
-        there and compare. Change no product code. Add your findings under the plan's
-        `## Phase notes` in a docs-only pull request, /check and /queue-merge it. Finish with one
-        line, PASS or FAIL, then at most five lines of findings.
+CHECK   Phase <n> of <plan document>: <phase name>. You did not build it. On current origin/main, do
+        the phase's task the way a user would (and in the reference products the plan names), check
+        each acceptance criterion and the user outcome the plan states; change no product code. PASS
+        only when all of it holds on evidence you produced; anything to fix first (a try-out the
+        plan asks for included) is FAIL product; a prerequisite you could not get (a sign-in, a
+        tool, a flaky runner) is FAIL blocked, named. End with that line, then at most five lines of
+        findings, blockers first.
+NOTES   <land notes: Also add your findings under the plan's `## Phase notes` in a docs-only pull
+        request, /check and /queue-merge it. | otherwise: Open no pull request.>
 ```
-
-## 3. Report
-
-At the end, confirm `main` is green (`npm run jobs`) and run the retro (`orchestrator.md` step 6).
-Write under `## Report` in the wave file and send it to the owner, at most 15 lines in plain words:
-**Needs you** first (or "nothing"), then each phase with its pull requests and the check's verdict,
-where and why the run stopped, what was not checked, and the retro.

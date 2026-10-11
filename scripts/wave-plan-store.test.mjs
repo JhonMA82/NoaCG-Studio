@@ -1,12 +1,12 @@
 // The store's guard. What matters here is the LOCATION check: it decides whether a wave launches,
 // so a false "outside the store" stops every wave and a false "inside" loses the week's record.
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { inStore, main, openNightWave, openWave, waveSessions, PLAN_SUFFIX, wavePlanFiles, wavePlanName, wavePlansDir, ensureWavePlansDir } from './wave-plan-store.mjs';
+import { inStore, main, openNightWave, openWave, openWaves, waveSessions, PLAN_SUFFIX, wavePlanFiles, wavePlanName, wavePlansDir, ensureWavePlansDir } from './wave-plan-store.mjs';
 
 /** A throwaway job store, so nothing here can touch the machine's real one. */
 function store() {
@@ -124,14 +124,18 @@ test('a plan nobody has written to for a day no longer blocks a new wave', () =>
   assert.ok(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).file);
 });
 
-test('a resumed wave is measured from the start its file records, so a restart cannot stretch it', () => {
+test('a restart keeps the window its file records, and a new --until is measured from its own start, CRLF or not', () => {
   const dir = store();
   const first = openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW });
-  // A Windows editor may have rewritten the file with CRLF; the recorded start must still be read.
+  // A Windows editor may have rewritten the file with CRLF; the recorded lines must still be read and rewritten.
   writeFileSync(first.file, readFileSync(first.file, 'utf8').replace(/\n/g, '\r\n'), 'utf8');
+  assert.deepEqual(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW + 6 * 3_600_000 }), { file: first.file, window: 'resumed' });
+  assert.match(readFileSync(first.file, 'utf8'), /^Window starts: 2026-10-08T20:00:00\.000Z\r$/m, 'a restart does not move the start');
+  // 25 hours from now is refused even though the owner named it; 9 hours is a new window, 31 after the first start.
   const later = NOW + 22 * 3_600_000;
-  assert.match(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-10T06:00:00+03:00', dir, now: later }).refusal, /24 hours from its start/);
-  assert.equal(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T23:00:00+03:00', dir, now: later }).file, first.file);
+  assert.match(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-10T22:00:00+03:00', dir, now: later }).refusal, /24 hours from now/);
+  assert.equal(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-10T06:00:00+03:00', dir, now: later }).window, 'new');
+  assert.match(readFileSync(first.file, 'utf8'), /^Window starts: 2026-10-09T18:00:00\.000Z\r\nWindow ends: 2026-10-10T06:00:00\+03:00\r\n/m, 'rewritten in place, CRLF kept');
 });
 
 test('a wave nobody has written to for six hours stops blocking, and the refusal says how to resume', () => {
@@ -222,4 +226,80 @@ test('a plan run and a wave refuse each other, and a plan run gets the same 24-h
   assert.match(openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-09T06:00:00+03:00', dir: other, now: NOW }).refusal, /another wave or plan run is open/);
 
   assert.match(openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-10T00:00:00+03:00', dir: store(), now: NOW }).refusal, /24 hours/);
+});
+
+// A plan run's WINDOW: the owner names a new `--until` to authorise more time, and a restart repeats
+// the old one. Measured 2026-10-11: the new one was ignored and `next` answered time-limit.
+
+/** A plan run's ledger: `## Phases` for `phases` and the four events of every phase in `passed`. */
+function ledger(phases, passed) {
+  const steps = passed.flatMap((phase) => ['build', 'landed', 'check', 'pass'].map((event) => `- 2026-10-08T21:00:00.000Z phase ${phase} ${event}`));
+  return `\n## Phases\n\n${phases.map((name, i) => `${i + 1}. ${name}`).join('\n')}\n\n## Steps\n\n${steps.join('\n')}\n`;
+}
+
+test('a new --until the same day is a new window: the lines are rewritten, the ceiling counts from now, the ledger stays, and a wave is refused again beside it', () => {
+  const dir = store();
+  const morning = openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-09T02:00:00+03:00', session: 'orch-1', dir, now: NOW });
+  assert.equal(morning.window, 'opened');
+  writeFileSync(morning.file, `${readFileSync(morning.file, 'utf8')}${ledger(['Shell', 'Keys'], [1])}\n## Report\n\nPhase 1 passed; out of time.\n`, 'utf8');
+  const later = NOW + 4 * 3_600_000;
+  touch(morning.file, later);
+  assert.deepEqual(openWaves(dir, later), [], 'the report let a wave open beside the run');
+  // 27 hours after the morning start, 23 after now: only a window measured from now accepts it.
+  const evening = openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-10T02:00:00+03:00', session: 'orch-2', dir, now: later });
+  assert.deepEqual(evening, { file: morning.file, window: 'new', previousEnd: '2026-10-09T02:00:00+03:00' });
+  touch(evening.file, later);
+  const text = readFileSync(evening.file, 'utf8');
+  assert.match(text, /^Window starts: 2026-10-09T00:00:00\.000Z$/m);
+  assert.match(text, /^Window ends: 2026-10-10T02:00:00\+03:00$/m);
+  assert.deepEqual(waveSessions(evening.file), ['orch-1', 'orch-2'], 'the sessions stay under the window');
+  assert.match(text, /^1\. Shell$/m);
+  assert.match(text, /phase 1 pass$/m, 'the ledger stays');
+  assert.match(text, /^## Earlier report$/m);
+  assert.doesNotMatch(text, /^## Report/m);
+  assert.deepEqual(openWaves(dir, later), [evening.file], 'the run counts as open again');
+  assert.match(openWave({ date: '2026-10-09', kind: 'day', until: '2026-10-09T12:00:00+03:00', dir, now: later }).refusal, /another wave or plan run is open/);
+});
+
+test('the same --until restarts the run without touching the window', () => {
+  const dir = store();
+  const first = openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-09T06:00:00+03:00', dir, now: NOW });
+  writeFileSync(first.file, `${readFileSync(first.file, 'utf8')}${ledger(['Shell'], [])}\n## Report\n\nPaused.\n`, 'utf8');
+  const before = readFileSync(first.file, 'utf8');
+  // The same instant written differently is still the same window.
+  const again = openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-09T06:00+03:00', dir, now: NOW + 3_600_000 });
+  assert.deepEqual(again, { file: first.file, window: 'resumed' });
+  assert.equal(readFileSync(first.file, 'utf8'), before, 'nothing rewritten, the report stays');
+});
+
+test('a new window is still capped at 24 hours from its own start', () => {
+  const dir = store();
+  const first = openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-09T02:00:00+03:00', dir, now: NOW });
+  const before = readFileSync(first.file, 'utf8');
+  const later = NOW + 4 * 3_600_000;
+  assert.match(openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-10T04:00:00+03:00', dir, now: later }).refusal, /24 hours from now/);
+  assert.equal(readFileSync(first.file, 'utf8'), before, 'a refused window changes nothing');
+  assert.ok(openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-10T03:00:00+03:00', dir, now: later }).file);
+});
+
+test('a new date for a plan whose run is not done is refused and names the file to reopen', () => {
+  const dir = store();
+  const first = openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-09T02:00:00+03:00', dir, now: NOW });
+  writeFileSync(first.file, `${readFileSync(first.file, 'utf8')}${ledger(['Shell', 'Keys'], [1])}\n## Report\n\nPhase 1 passed; out of time.\n`, 'utf8');
+  const tomorrow = NOW + 24 * 3_600_000;
+  touch(first.file, tomorrow);
+  const until = '2026-10-10T06:00:00+03:00';
+  const refused = openWave({ date: '2026-10-09', kind: 'plan-editor', until, dir, now: tomorrow });
+  assert.match(refused.refusal, /unfinished run/);
+  assert.ok(refused.refusal.includes(first.file), refused.refusal);
+  assert.match(refused.refusal, /--open 2026-10-08 plan-editor --until 2026-10-10T06:00:00\+03:00/);
+  assert.equal(existsSync(path.join(dir, 'wave-plans', wavePlanName('2026-10-09', 'plan-editor'))), false, 'no empty ledger is started');
+  // Once every phase has passed, the plan is done and a new date is free.
+  writeFileSync(first.file, `${readFileSync(first.file, 'utf8')}${ledger(['Shell', 'Keys'], [1, 2])}`, 'utf8');
+  touch(first.file, tomorrow);
+  assert.equal(openWave({ date: '2026-10-09', kind: 'plan-editor', until, dir, now: tomorrow }).window, 'opened');
+  // A run that never got its phases is not a run to continue.
+  const bare = store();
+  writeFileSync(path.join(bare, 'wave-plans', wavePlanName('2026-10-08', 'plan-editor')), '# Plan run editor 2026-10-08\n\n## Report\n\nNever started.\n', 'utf8');
+  assert.ok(openWave({ date: '2026-10-09', kind: 'plan-editor', until, dir: bare, now: tomorrow }).file);
 });
