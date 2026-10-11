@@ -39,6 +39,21 @@ const KNOWN_OGRAF_FAILURES: Record<string, string> = {
   sb22: 'https://github.com/NoaCG/NoaCG-Studio/issues/964',
 };
 
+/**
+ * Designs whose package paints a different entrance frame from the studio's on Linux, measured
+ * identically on main with the light mount before the shadow root: an OGraf defect older than it,
+ * each with its own issue (decision 5). Their comparison is reported and excused. One that
+ * matches again on Linux, where it was measured, fails the sweep until it leaves this list; on
+ * Windows all five already match.
+ */
+const KNOWN_STUDIO_DIFFERENCES: Record<string, string> = {
+  pl01: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
+  pl02: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
+  tt01: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
+  tt02: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
+  ig04: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
+};
+
 /** Fewer differing pixels than this, a frame matches (the conformance spec's bound). */
 export const PARITY_BOUND = 1_000;
 /** Per colour channel, the difference two pixels may have and still match (the conformance spec's). */
@@ -488,8 +503,10 @@ function unstable(rows: ParityRow[]): ParityRow[] {
 /** What a `PARITY_VARIANTS` sweep read, one line per design that is not a clean match. */
 function report(label: string, rows: ParityRow[]): string {
   const odd = rows.filter((row) => row.error || !matches(row, 'studioAgain') || !matches(row, 'ograf'));
+  const known = (row: ParityRow) => row.key in KNOWN_OGRAF_FAILURES || row.key in KNOWN_STUDIO_DIFFERENCES;
   return [
-    `[ograf-parity] ${label}: ${rows.length} designs, ${unstable(rows).length} not compared, ${parityFailures(rows).length} failing`,
+    `[ograf-parity] ${label}: ${rows.length} designs, ${unstable(rows).length} not compared, ` +
+      `${parityFailures(rows).filter((row) => !known(row)).length} failing, ${rows.filter(known).length} known exceptions`,
     ...odd.map((row) => `[ograf-parity]   ${row.key} ${JSON.stringify(row.against)}${row.error ? ` ${row.error}` : ''}`),
   ].join('\n');
 }
@@ -512,7 +529,11 @@ export async function expectParity(label: string, rows: ParityRow[], expected: n
   const excused = known.filter((row) => /^ograf: [^;]*$/.test(row.error ?? ''));
   expect(known.filter((row) => !excused.includes(row)).map((row) => row.key), `${label}: a known OGraf failure shows now - take it off KNOWN_OGRAF_FAILURES`).toEqual([]);
   expect(rows.filter((row) => row.error && !refused.includes(row) && !excused.includes(row)), `${label}: a design did not mount`).toEqual([]);
-  expect(parityFailures(rows).filter((row) => !excused.includes(row)), `${label}: the OGraf package paints a different frame from the studio's (bound ${PARITY_BOUND} pixels)`).toEqual([]);
+  expect(parityFailures(rows).filter((row) => !excused.includes(row) && !(row.key in KNOWN_STUDIO_DIFFERENCES)), `${label}: the OGraf package paints a different frame from the studio's (bound ${PARITY_BOUND} pixels)`).toEqual([]);
+  if (process.platform === 'linux') {
+    const healed = rows.filter((row) => row.key in KNOWN_STUDIO_DIFFERENCES && matches(row, 'studioAgain') && matches(row, 'ograf'));
+    expect(healed.map((row) => row.key), `${label}: a known studio difference matches now - take it off KNOWN_STUDIO_DIFFERENCES`).toEqual([]);
+  }
   const built = rows.filter((row) => !refused.includes(row) && !excused.includes(row));
   expect(unstable(built).length, `${label}: too many designs painted two different frames from one studio document`).toBeLessThanOrEqual(Math.ceil(built.length / 10));
 }
