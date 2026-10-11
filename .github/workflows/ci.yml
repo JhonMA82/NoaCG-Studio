@@ -303,6 +303,8 @@ jobs:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           DISPATCH_BASE: ${{ inputs.diff_base }}
           MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+          # What this push moved main by: the catalog gate on a full run follows this diff.
+          PUSH_BASE: ${{ github.event.before }}
           GH_TOKEN: ${{ github.token }}
           # Student-release sprint (docs/GOALS_ARCHIVE.md "Student release"): a would-be FULL
           # escalation runs the focus set instead; the nightly still runs everything.
@@ -384,9 +386,14 @@ jobs:
           # the repo is public. The sprint's focus collapse is skipped here on purpose; focus
           # is a device for keeping BRANCH runs cheap, and main is where the paused areas are
           # supposed to be watched.
+          # THE CATALOG GATE FOLLOWS THE PUSH'S OWN DIFF. Every full run used to carry it (--all
+          # assumed the catalog could have moved), 4.5 minutes on about 140 landings a week, most of
+          # which touched no template; the pull request and the merge group had already run it
+          # wherever the change could move a design. --catalog-since asks the planner's own
+          # catalog rule about before..sha; an unusable before raises the gate, as --all always did.
           if [ "$EVENT" = "push" ] && [ "$REF" = "refs/heads/main" ]; then
             echo "::notice title=E2E plan::main - running the FULL suite regardless of the diff."
-            PLAN="$(node scripts/e2e-affected.mjs --json --all)"
+            PLAN="$(node scripts/e2e-affected.mjs --json --all "--catalog-since=${PUSH_BASE:-}")"
           # An absent or garbage-collected base means we cannot know what changed.
           # Then we do not guess: the fallback is the whole suite, because the one thing a
           # fallback must never do is run LESS than the truth. It is the LAST resort - what a
@@ -648,6 +655,9 @@ jobs:
     # 20 minutes on them; the same cap here would kill the second run for the same reason. A hung
     # test cannot use the extra room - Playwright stops each test at 60 s.
     timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read # this run's own job conclusions, to tell a shard cancelled at the cap from one that failed
     outputs:
       # The spec files that failed in a shard and were re-run, as a JSON array of repo-relative
       # paths - what the gate quarantines when this job passes, and what the revert counts as
@@ -678,20 +688,39 @@ jobs:
           pattern: blob-report-*
           merge-multiple: true
 
+      # WHICH SHARDS RAN OUT OF CLOCK. A shard that finishes its tests, uploads a complete green
+      # report and is then killed by `timeout-minutes` while still inside the job is concluded
+      # `cancelled` by GitHub (run 38153870752, shard 5/10, issue #1025). The blobs cannot tell
+      # that shard from one that failed its last step, so the job conclusions are read here, and
+      # the planner lets a run whose every shard reported green pass rather than refusing with
+      # "nothing to re-run". An API hiccup leaves the list empty, which is the old behaviour.
+      - name: Which shards were cancelled at the cap
+        id: clock
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          CANCELLED="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/attempts/${ATTEMPT}/jobs?per_page=100" \
+            --jq '.jobs[] | select(.conclusion == "cancelled") | .name | capture("^E2E (?<i>[0-9]+)/") | .i' 2>/dev/null | paste -sd, - || true)"
+          echo "Shards concluded cancelled: ${CANCELLED:-none}"
+          echo "cancelled=$CANCELLED" >> "$GITHUB_OUTPUT"
+
       # `--shards` is how many reports there must be; `--shard-specs` is the plan's assignment, which
       # names the files of a shard that left none; `--changed` is what this change edits - the
-      # merge group's base, or the push's `before`. The script writes `specs`, `filters`,
-      # `unreported` and `unreported_filters` to GITHUB_OUTPUT itself.
+      # merge group's base, or the push's `before`; `--cancelled` is the step above. The script
+      # writes `specs`, `filters`, `unreported` and `unreported_filters` to GITHUB_OUTPUT itself.
       - name: Name the failed spec files
         id: failed
         env:
           MATRIX: ${{ needs.plan.outputs.matrix }}
           SHARD_SPECS: ${{ needs.plan.outputs.shardSpecs }}
           CHANGED_SINCE: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.before }}
+          CANCELLED: ${{ steps.clock.outputs.cancelled }}
         run: |
           set -euo pipefail
           SHARDS="$(node -e 'console.log(JSON.parse(process.env.MATRIX).shardTotal[0])')"
-          node scripts/e2e-retry.mjs --blobs all-blob-reports --shards "$SHARDS" --shard-specs "$SHARD_SPECS" --changed "$CHANGED_SINCE" --github-output
+          node scripts/e2e-retry.mjs --blobs all-blob-reports --shards "$SHARDS" --shard-specs "$SHARD_SPECS" --changed "$CHANGED_SINCE" --cancelled "$CANCELLED" --github-output
 
       # The same anchored filters the shards use (`specFilterArg`), deliberately unquoted so word
       # splitting hands Playwright one argument per file - see the shard step for why that is safe.
@@ -1184,7 +1213,7 @@ jobs:
       # that fails (GitHub refusing the push, the organisation not yet letting Actions open pull
       # requests) is a warning, never a red job over a green gate.
       - name: Quarantine the specs that failed and then passed
-        if: ${{ needs.gate.result == 'success' && needs.e2e-retry.result == 'success' }}
+        if: ${{ needs.gate.result == 'success' && needs.e2e-retry.result == 'success' && needs.e2e-retry.outputs.specs != '[]' && needs.e2e-retry.outputs.specs != '' }}
         continue-on-error: true
         env:
           GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}

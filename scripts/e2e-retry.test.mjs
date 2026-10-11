@@ -41,19 +41,26 @@ const all = (n) => Array.from({ length: n }, (_, i) => i + 1);
 const bins = [['a.spec.ts', 'b.spec.ts'], ['c.spec.ts'], ['d.spec.ts', 'e.spec.ts']];
 
 test('the retry runs the failed files when every shard reported and none of them is the change\'s own', () => {
-  assert.deepEqual(retryPlan({ failed: ['e2e/a.spec.ts'], reported: all(9), shards: 9, changed: ['src/x.ts'] }), { ok: true, specs: ['e2e/a.spec.ts'], unreported: [], dead: [] });
+  assert.deepEqual(retryPlan({ failed: ['e2e/a.spec.ts'], reported: all(9), shards: 9, changed: ['src/x.ts'] }), { ok: true, specs: ['e2e/a.spec.ts'], unreported: [], dead: [], exhausted: [] });
   assert.equal(retryPlan({ failed: ['e2e/a.spec.ts'], reported: all(3), shards: 0 }).ok, true, 'an unknown shard count cannot refuse');
 });
 
 test('a shard that left no report has its assigned files run, as unreported and never as failed', () => {
   // Runs 37096120413 and 37118148332: one shard failed e2e/layout.spec.ts, another died at the cap.
   const plan = retryPlan({ failed: ['e2e/c.spec.ts'], reported: [1, 2], shards: 3, shardSpecs: bins });
-  assert.deepEqual(plan, { ok: true, specs: ['e2e/c.spec.ts'], unreported: ['e2e/d.spec.ts', 'e2e/e.spec.ts'], dead: [3] });
+  assert.deepEqual(plan, { ok: true, specs: ['e2e/c.spec.ts'], unreported: ['e2e/d.spec.ts', 'e2e/e.spec.ts'], dead: [3], exhausted: [] });
 });
 
 test('a dead shard with no failing spec anywhere still gets its files run, and nothing is named a flake', () => {
   const plan = retryPlan({ failed: [], reported: [2, 3], shards: 3, shardSpecs: bins });
-  assert.deepEqual(plan, { ok: true, specs: [], unreported: ['e2e/a.spec.ts', 'e2e/b.spec.ts'], dead: [1] });
+  assert.deepEqual(plan, { ok: true, specs: [], unreported: ['e2e/a.spec.ts', 'e2e/b.spec.ts'], dead: [1], exhausted: [] });
+});
+
+test('every shard reported, none failed, and one was cancelled at the cap after uploading: nothing to re-run and the plan passes (#1025)', () => {
+  assert.deepEqual(retryPlan({ failed: [], reported: all(10), shards: 10, cancelled: [5] }), { ok: true, specs: [], unreported: [], dead: [], exhausted: [5] });
+  assert.equal(retryPlan({ failed: [], reported: all(10), shards: 10 }).ok, false, 'without a cancelled shard the refusal stands: the failure was not a test');
+  assert.equal(retryPlan({ failed: [], reported: all(10), shards: 10, cancelled: [11] }).ok, false, 'a cancelled index that uploaded no report is a dead shard, not an exhausted one');
+  assert.deepEqual(retryPlan({ failed: ['e2e/a.spec.ts'], reported: all(10), shards: 10, cancelled: [5] }), { ok: true, specs: ['e2e/a.spec.ts'], unreported: [], dead: [], exhausted: [5] }, 'a failing spec beside an exhausted shard is still re-run');
 });
 
 test('more than one dead shard refuses: one second run cannot hold several runners\' files', () => {

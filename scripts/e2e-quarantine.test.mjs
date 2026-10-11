@@ -10,7 +10,10 @@ import path from 'node:path';
 
 import {
   RELEASE_AFTER,
+  STALE_AFTER_DAYS,
   STORE_VERSION,
+  staleEntries,
+  staleIssueBody,
   consecutivePasses,
   dueForRelease,
   emptyStore,
@@ -161,4 +164,20 @@ test('quarantine.yml runs only the specs it can, and still releases the configur
   const onlyConfigured = enter(emptyStore(), [C], { date: '2026-10-09', run: 'r' }).store;
   assert.deepEqual(matrixOf(onlyConfigured), []);
   assert.deepEqual(matrixOf(onlyConfigured, { all: true }), [C], 'so the release job is not skipped');
+});
+
+test('an entry older than STALE_AFTER_DAYS is stale, oldest first, and nothing younger is', () => {
+  const store = { ...emptyStore(), specs: {
+    'e2e/a.spec.ts': { since: '2026-09-20', count: 2, run: 'https://example/run/1' },
+    'e2e/b.spec.ts': { since: '2026-10-01', count: 1 },
+    'e2e/c.spec.ts': { since: '2026-09-10', count: 5 },
+  } };
+  const stale = staleEntries(store, '2026-10-12');
+  assert.deepEqual(stale.map((e) => [e.spec, e.days, e.count]), [['e2e/c.spec.ts', 32, 5], ['e2e/a.spec.ts', 22, 2]]);
+  assert.deepEqual(staleEntries(store, '2026-09-23'), [], 'nothing is stale before the fourteenth day');
+  assert.equal(staleEntries(store, '2026-09-24').length, 1, 'the fourteenth day counts');
+  const body = staleIssueBody(stale, '2026-10-12');
+  assert.match(body, /\| `e2e\/c\.spec\.ts` \| 2026-09-10 \| 32 \| 5 \| - \|/);
+  assert.ok(body.endsWith('<!-- quarantine-stale-set: e2e/a.spec.ts e2e/c.spec.ts -->'), 'the last line identifies the set so a repeat edits nothing');
+  assert.equal(STALE_AFTER_DAYS, 14);
 });

@@ -122,6 +122,7 @@ jobs:
       pull-requests: write # open it, label it, auto-merge it
       statuses: write # the mechanical `noacg/reviewed` stamp
       actions: write # dispatch the release branch's run when the bot App is not set up
+      issues: write # the rolling "older than 14 days" issue below
     steps:
       # THE BOT'S OWN TOKEN. It queues the release branch below.
       # A GitHub App installation token makes the bot's push and pull request start their own CI,
@@ -151,3 +152,15 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/e2e-quarantine.mjs release-due --queue --run "$RUN_URL"
+
+      # THE EXPIRY. A spec nobody releases is coverage the suite has stopped reading; after
+      # STALE_AFTER_DAYS it is reported as owed work in one rolling issue (opened, updated when the
+      # set changes, closed when it empties), never released by age. The workflow token, not the
+      # bot's: an issue is a statement about main, and this workflow runs on main alone.
+      - name: Report entries older than 14 days
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/e2e-quarantine.mjs stale --issue --run "$RUN_URL"
