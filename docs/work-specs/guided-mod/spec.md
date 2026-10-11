@@ -349,3 +349,66 @@ and a missing folder, `screenshot`, `save` without a key, `pack --out`, and the 
 had expired), so the shape of a real session's `tool.call` result for the MCP tool comes from the
 types and the tests; `save` and `pack --save` going through were read from `cli/src`, not run,
 since that writes to a real library.
+
+### Check of phase 2 (on `main` at de98eaf52, by a separate session)
+
+**Verdict: fail.** In a real session a terminal `noacg` run records nothing, so AC-6 and AC-9
+hold for the MCP form only. Everything else re-derived holds.
+
+**The defect.** The engine's Bash record carries every optional key, `backgroundTaskId` among
+them, set to `undefined` on a foreground run. `register.tsx` reads a run as backgrounded with
+`'backgroundTaskId' in ran.result`, so every terminal run counts as one in the background and
+gives no report. Seen on 2.1.287 and 2.1.295: a passing `noacg validate late` and
+`npx @noacg/cli validate late` left `late` "not checked" with no record. The tests miss it because
+`tests/world.tsx` answers Bash with `{ stdout, stderr, interrupted }` alone; with
+`backgroundTaskId: undefined` added there, 14 of the 53 tests fail on main. A scratch copy that
+reads `ran.result.backgroundTaskId !== undefined` passes all 53 with that harness and recorded
+every terminal case below correctly. The fix for phase 3: that line, and the harness answering
+Bash with the record's real keys.
+
+**How it was run.** The machine's sign-in had expired, so no model turn ran. A scratch driver
+plugin (outside the repository) called `$.tool.call` from `prompt.submit`, which goes through
+every other plugin's `tool.call` hook, the permission check and the real tool, as a model's call
+does. Each step was a new `claude -p` process with `--plugin-dir cli/plugin-guide` from main, a
+scratch `CLAUDE_CONFIG_DIR`, published `@noacg/cli` 0.10.1 in a scratch folder, and its MCP
+server through `--mcp-config`. The driver logged each value the mod wrote to its `packages` state.
+
+**Per criterion.**
+- AC-6, MCP form: a `scaffold` through MCP cleared its folder's record. A passing `validate` was
+  recorded as checked. A `validate` of a package with a broken `js/template.js` (FAIL, the
+  tool's `isError`) was recorded as `ok: false` and took the earlier pass back. `screenshot` alone
+  gave frames with no folder and no check. `validate` with `screenshots: true` gave a check and
+  frames with no folder. Terminal form: recorded nothing on main (above). With the one-line fix:
+  `validate --screenshots ./shots` gave a check and frames with the absolute folder.
+  `scaffold && validate && break && npx @noacg/cli validate` (exit 1, as `Exit code 1` and
+  `isError`) ended as a failed check. `scaffold && screenshot --out frames/solo.png` gave frames
+  with no check. `save` and `pack` were not run (they write to a real library).
+- AC-7: the stored SHA-256 of `evening` (8 files, two binary fonts among them) matched a Node
+  script written from the spec's wording. The script leaves out the generated files at the top,
+  marked frames folders, `node_modules` and `.git`. After an edit to `css/template.css` outside
+  any session, a new session showed the package "edited since check", on both forms.
+- AC-8: records are in `<config>/plugins/store/noacg-guide_inline-<hash>.json` under
+  `records:<root, lower case>`. The mod writes no file (`validate` lists no `$.fs.write`).
+  Every step was a new process, and each started from the states the last one left. A run in a
+  folder with no package wrote no state and opened no store key.
+- AC-9: main's `band.ts` was run over the states the sessions wrote. It gave
+  `1 checked · 2 not checked` after the MCP checks and `1 edited since check · 2 not checked`
+  after the edit, at 100 columns and the same at 40. Saved names were not seen in a real run
+  (no save).
+- AC-1 to AC-5 still hold: `validate --strict` passes on both builds and lists no
+  `$.prompt.submit`, `$.mcp.call`, `$.process`, `$.http`, `$.model` or `$.agent` call; 53 tests
+  pass on both builds. Under load (16 test processes at once, 4 rounds, both builds, each run about
+  ten times slower) 64 of 64 runs passed, so #1007 removed the race. `check-toolkit-distribution`
+  passes and no file but `guided-mod.yml` names the folder.
+
+**AC-5's "CI covers it" does not hold in practice.** The Guided mod check is not required: the
+main ruleset requires only `CI gate` and `Reviewed`, so #1006 landed with both guided-mod jobs
+red. The simplest fix is to run the same two steps as a job in `ci.yml`, skipped unless
+`cli/plugin-guide/**` changed, and add it to `CI gate`'s `needs`. A path-filtered workflow cannot
+be a required check, since it never reports on pull requests that leave the folder alone.
+
+**Not seen.** A model's own tool call: its result shape is inferred from the driver's, since
+`$.tool.call` is documented as the same call. The band drawn on a surface: a plugin's `$` has no
+`ui.render` here, so the band text comes from `band.ts`. A real `save` or `pack`. The reference
+plugin was not compared: the plan names it for commands and the pane (phases 3 and 4), and
+phase 2 has no counterpart.
