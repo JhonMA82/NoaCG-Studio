@@ -1,8 +1,8 @@
 // HAS THE PRODUCTION CHANGED SINCE IT WAS PUBLISHED? (docs/work-specs/studio-day-playout AC-5)
 //
-// Two ways. The production record itself (cues, items, folders) moved past its publish: its own
-// timestamps say so. Or a publish would render something different although the record did not
-// move: a publish resolves every graphic's CURRENT template out of the library (model/library.ts
+// Two ways. The production record itself (cues, items, folders) differs from the one published:
+// its digest says so (model/publishedRecord.ts), so a change undone reads clean again. Or a
+// publish would render something different although the record did not move: a publish resolves every graphic's CURRENT template out of the library (model/library.ts
 // `templateForSavedGraphic`), so a graphic edited in the editor changes the next publish without
 // touching the record. On the studio day of 2026-10-01 that second kind stayed invisible: graphics
 // stayed off air until somebody published again, and Prepare for Live said "Nothing changed".
@@ -15,15 +15,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { libraryGraphicDigests } from '../../control/hostedControl';
 import { rendersDiffer } from '../../control/payloadVersion';
 import { loadGraphics } from '../../model/library';
+import { recordChangedSincePublish as recordChanged } from '../../model/publishedRecord';
 import type { Show } from '../../model/shows';
 
 /** How long the production must sit still before the digests are read again. */
 const SETTLE_MS = 400;
-
-/** The record moved past its publish. */
-function recordChanged(show: Show | null): boolean {
-  return !!show?.publishedAt && show.updatedAt > show.publishedAt;
-}
 
 /**
  * `unpublished`: publishing `show` now would change something - the record, or what its outputs

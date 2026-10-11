@@ -17,6 +17,7 @@ import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
 import type { ResolvedValues } from '../model/productionData';
 import { designEditedAt, loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
+import { publishedRecordDigest } from '../model/publishedRecord';
 import type { Resolution, SpxField, SpxTemplate, SoundAssetRef } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
@@ -486,6 +487,8 @@ export interface PublishedCapabilities {
   presenterSlug: string | null;
   /** The version stamp this publish wrote into the payload (payloadVersion.ts). */
   version?: PayloadVersion;
+  /** The digest of the production record this publish was built from (model/publishedRecord.ts). */
+  record?: string;
 }
 
 /** Digests already computed, by library record, its save time and the graphic's layer: a record
@@ -629,7 +632,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     const legacy = await sb.from('control_shows').select('slug, outputSlug:output_slug').eq('id', show.id).single();
     if (legacy.error) throw new Error(legacy.error.message);
     const row = legacy.data as { slug: string; outputSlug: string | null };
-    return { ...row, joinSlug: null, presenterSlug: null, version };
+    return { ...row, joinSlug: null, presenterSlug: null, version, record: publishedRecordDigest(show) };
   }
   const row = readBack.data as {
     slug: string;
@@ -661,6 +664,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     joinSlug,
     presenterSlug: row.presenterSlug,
     version,
+    record: publishedRecordDigest(show),
   };
 }
 

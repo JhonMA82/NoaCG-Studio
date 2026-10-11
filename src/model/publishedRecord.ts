@@ -1,0 +1,59 @@
+// IS THE PRODUCTION RECORD STILL THE ONE THAT WAS PUBLISHED? (docs/work-specs/studio-day-playout
+// AC-5 and D5: unpublished changes are judged by CONTENT.)
+//
+// The production page's "Unpublished changes" used to read `updatedAt > publishedAt`. Every write
+// moves `updatedAt`, and changing a cue back is itself a write, so a cue changed and changed back
+// kept asking for a publish that would send nothing new (issue #762). A publish now records a
+// digest of the record it was built from, and the record counts as changed only while its digest
+// differs.
+//
+// What the digest leaves out:
+//   - what a publish writes BACK (the slugs, `publishedAt`, this digest) and bookkeeping that never
+//     reaches an output (`updatedAt`, `outputOpenedAt`, the tombstone);
+//   - each pool graphic's save time and embedded template. What a graphic RENDERS is compared by
+//     content already (`libraryGraphicDigests` against the published stamp, usePublishDrift), and
+//     re-adding the same design must not read as a change. Its fields stay in, because the hosted
+//     panel is built from them and the render digest does not cover them.
+// Everything else stays in, so the check errs towards "changed", never towards hiding a change.
+//
+// Pure, synchronous and Node-runnable (scripts/published-record.test.mjs).
+
+import { contentHash } from './contentHash.ts';
+import type { Show } from './shows';
+
+/** Record fields a publish does not read from the record, or writes back itself. */
+const NOT_PUBLISHED = new Set(['updatedAt', 'publishedAt', 'publishedRecord', 'hostedSlug', 'outputSlug', 'joinSlug', 'presenterSlug', 'outputOpenedAt', 'deleted']);
+
+/** JSON with every object's keys sorted, so a record read back from the server (Postgres jsonb
+ *  re-orders keys) or rewritten by a mutator digests the same. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map((v) => (v === undefined ? 'null' : canonical(v))).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).filter((k) => record[k] !== undefined).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${canonical(record[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+const memo = new WeakMap<Show, string>();
+
+/** The digest of what a publish reads from this record. */
+export function publishedRecordDigest(show: Show): string {
+  const known = memo.get(show);
+  if (known !== undefined) return known;
+  const kept: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(show)) if (!NOT_PUBLISHED.has(key)) kept[key] = value;
+  kept.graphics = show.graphics.map(({ savedAt: _savedAt, template, ...graphic }) => ({ ...graphic, fields: template.fields }));
+  const digest = contentHash(canonical(kept));
+  memo.set(show, digest);
+  return digest;
+}
+
+/** The record moved past its publish. A record published before digests were recorded falls
+ *  back to its timestamps, the old reading, until its next publish. */
+export function recordChangedSincePublish(show: Show | null): boolean {
+  if (!show?.publishedAt) return false;
+  if (show.publishedRecord === undefined) return show.updatedAt > show.publishedAt;
+  return publishedRecordDigest(show) !== show.publishedRecord;
+}

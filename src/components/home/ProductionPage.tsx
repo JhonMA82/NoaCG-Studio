@@ -2709,7 +2709,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           joinSlug: published.joinSlug,
           presenterSlug: published.presenterSlug,
         });
-        setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
+        setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined, published.record));
         if (published.version) setPublishedStamp(published.version);
         // A REPUBLISH PINS A NEW PAYLOAD, and the follow effect does not run again for it (the
         // slug is deliberately the same one). A graphic that has just gained a clock would
