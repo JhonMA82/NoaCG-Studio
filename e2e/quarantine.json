@@ -14,7 +14,7 @@
       "last": "2026-10-11"
     },
     "e2e/configured/production-data-key.spec.ts": {
-      "count": 1,
+      "count": 2,
       "last": "2026-10-11"
     },
     "e2e/cross-tab.spec.ts": {

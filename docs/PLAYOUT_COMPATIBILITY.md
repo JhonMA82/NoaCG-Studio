@@ -26,7 +26,7 @@ own browser, so the template has to work there too (measured on SPX 1.4.1 and 1.
 |---|---|---|
 | CasparCG 2.3.x (the `v2.3.3-lts-stable` download) | Chromium 71 | measured 2026-09-10 — **unsupported for authoring**, see §2; flex `gap` is shimmed |
 | OBS Studio 30.x | Chromium 103 | an OBS not updated since 2023 — below the floor |
-| vMix 27+ | Chromium 103 | changelog only, never measured here |
+| vMix 27+ | Chromium 115 | measured 2026-10-12 on 29.0.0.49 (`docs/VMIX_ON_A_REAL_HOST.md`), below the floor |
 | **CasparCG 2.4.x** | **Chromium 117** | **THE SUPPORTED FLOOR** |
 | OBS Studio 31.x and 32.x | Chromium 127 | measured 2026-09-30 on 32.2.1 (`docs/OBS_ON_A_REAL_HOST.md`) |
 | CasparCG 2.5.x | Chromium 142 | measured 2026-08-07 |
@@ -86,10 +86,13 @@ What is deliberately excluded, and why:
   (one browser, about eight minutes) and is not in CI or the nightly, so nothing re-checks the
   shim when a design starts doing something new with flex
   ([`docs/backlog/flex-gap-shim-follow-ups.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/flex-gap-shim-follow-ups.md)).
-- **OBS 30.x and vMix 27 (103).** Below the floor, so a design using `color-mix()` (111) loses
-  its fills there. OBS 31 and 32 are fine (127, measured on 32.2.1); vMix has never been measured
-  here. Left as a known, recorded gap rather than a reason to migrate 189 declarations
-  speculatively — revisit if a real vMix user appears.
+- **OBS 30.x (103).** Below the floor, so a design using `color-mix()` (111) loses its fills
+  there. OBS 31 and 32 are fine (127, measured on 32.2.1). Left as a known, recorded gap rather
+  than a reason to migrate 189 declarations speculatively.
+- **vMix 27 to 29 (115).** Below the floor by two versions, measured on vMix 29.0.0.49
+  (`docs/VMIX_ON_A_REAL_HOST.md`). It sits above the catalogue's ceiling of 111, so today's
+  designs render there as designed; what it would lose is the three features in §3. A production
+  of three catalogue graphics aired correctly in it.
 
 The catalogue's own ceiling is **111** (`color-mix()`), so it clears the floor with room. The
 floor's value is not what it forbids today; it is what it catches tomorrow.

@@ -42,6 +42,9 @@ jobs:
     outputs:
       specs: ${{ steps.list.outputs.specs }}
       all: ${{ steps.list.outputs.all }}
+    permissions:
+      contents: read
+      issues: write # the rolling "older than 14 days" issue below
     steps:
       - uses: actions/checkout@v5
         with:
@@ -53,6 +56,19 @@ jobs:
         run: |
           echo "specs=$(node scripts/e2e-quarantine.mjs matrix)" >> "$GITHUB_OUTPUT"
           echo "all=$(node scripts/e2e-quarantine.mjs matrix --all)" >> "$GITHUB_OUTPUT"
+
+      # THE EXPIRY. A spec nobody releases is coverage the suite has stopped reading; after
+      # STALE_AFTER_DAYS it is reported as owed work in one rolling issue (opened, updated when the
+      # set changes, closed when it empties), never released by age. It lives in this job, which
+      # runs on every push, so an issue can also be CLOSED once the store is empty - the release job
+      # below is skipped then. The workflow token, not the bot's: an issue is a statement about
+      # main, and this workflow runs on main alone.
+      - name: Report entries older than 14 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/e2e-quarantine.mjs stale --issue --run "$RUN_URL"
 
   spec:
     name: Quarantine (${{ matrix.spec }})

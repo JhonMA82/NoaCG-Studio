@@ -15,7 +15,6 @@ import { publishAudio } from '../backend/productionAudio';
 import { graphicLayer, type CueAuto, type CueEnd, type Show } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
-import type { ResolvedValues } from '../model/productionData';
 import { designEditedAt, loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { Resolution, SpxField, SpxTemplate, SoundAssetRef } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
@@ -143,28 +142,8 @@ export interface OutputCue {
   next?: string;
 }
 
-/**
- * THE VALUES THE HOSTED PAGE'S OPERATOR SEES FOR ONE CUE: the published cue with the SHARED
- * staging buffer over them, so another operator typing is part of what a Take would send.
- *
- * One function because the page's ⟳ TAKE, ✎ Update, the snap's trailing write and the cue editor
- * all have to send the same values; two readings of "the cue as it stands" is how one
- * production's Take comes to mean two things. It lives outside the component so an offline spec
- * can measure it (`e2e/hosted-control.spec.ts`), since the page itself needs a configured backend.
- */
-export function hostedCueValues(
-  cue: OutputCue,
-  staged: Record<string, Record<string, string>>,
-  resolved: ResolvedValues,
-): Record<string, string> {
-  const own = (map: Record<string, Record<string, string>>, key: string) =>
-    Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
-  // BOUND VALUES SIT ON TOP OF BOTH (plan §2.7): a bound field is never a cue value, so taking a
-  // cue prepared at 1-0 while the tree says 3-2 airs 3-2, and neither the published cue nor an
-  // operator typing into the shared buffer can push it back. Without this the page's own ± press
-  // moved the shared value and the very next ⟳ Take put the old figure back on air.
-  return { ...cue.values, ...(own(staged, cue.graphic) ?? {}), ...(own(resolved, cue.graphic) ?? {}) };
-}
+/** What the hosted page airs for one cue, scoped to its own staged edits (cueStaging.ts). */
+export { cueStageData, hostedCueValues } from './cueStaging';
 
 /** One cue over the playout server's own library (docs/BRIDGE.md §5), as published. The
  *  renderer ignores these - nothing here renders in a browser - and the hosted control page

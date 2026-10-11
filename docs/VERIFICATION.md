@@ -60,10 +60,19 @@ Now the gate says where it runs, in its own file, and the line never changes.
 every laptop are all good reasons. What is not fine is a gate outside the build AND outside CI,
 because that gate protects nothing while looking exactly like one that does.
 
-There is **no application unit-test suite**; focused Node tests cover infrastructure scripts.
-Verify product changes with targeted checks plus in-browser checks (`.agent-workflows/verify.md`);
-the full build and the browser suites run on GitHub Actions. Never mark work done on green checks
-alone if the behaviour is observable.
+**Product logic can be unit-tested in Node, and 62 of the `scripts/*.test.mjs` files already do**
+(`scripts/editor-arrangement.test.mjs` imports `src/components/editorFoundation/arrangementGeometry.ts`
+through Node's type stripping; the others bundle with rolldown or sucrase). A durable check goes to
+the cheapest layer that proves the behaviour: a Node test under `scripts/` for pure logic, a
+blank-page browser spec for DOM, canvas, fonts or layout, one journey spec per user-visible flow,
+the configured suite for backend-dependent behaviour, scheduled validation for exhaustive walks
+(`docs/work-specs/e2e-suite-budget/spec.md`, decision 9). Verify product changes with targeted
+checks plus in-browser checks (`.agent-workflows/verify.md`); the full build and the browser
+suites run on GitHub Actions. Never mark work done on green checks alone if the behaviour is
+observable. Coverage leaves the merge gate only with a `## Test maintenance` entry in the work
+spec (`scripts/check-e2e-protection.mjs`), and a change that adds spec-minutes above the capacity
+line needs a `## Budget exceptions` entry (`scripts/e2e-capacity.mjs`); an automatic repair writes
+neither.
 
 ## E2E is TIERED
 

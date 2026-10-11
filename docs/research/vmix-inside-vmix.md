@@ -267,7 +267,9 @@ slice 1's details are marked there, and running them first saves rework.
 
 ## 5. Checks for the vMix walk
 
-Only a running vMix answers these. The first five decide slice 1.
+Only a running vMix answers these. The first five decide slice 1. Checks 1, 2 (within one vMix
+session), 3, 6, 7, 9 (it renders) and 10 were answered on vMix 29 on 2026-10-12, in
+`docs/VMIX_ON_A_REAL_HOST.md` §3; the rest are open.
 
 1. The exact `SUBSCRIBE ACTS` line for an overlay change (`ACTS OK Overlay2 <input> 1`?), whether
    it arrives when the transition starts or ends, and what a replace on the same channel sends
