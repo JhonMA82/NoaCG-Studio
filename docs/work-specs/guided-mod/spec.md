@@ -767,3 +767,114 @@ first, appends after a draft, and toasts the request alone, which reads better.
 
 **Not seen.** A model's own tool call, the band or a toast drawn on a surface, a press of any
 button, a click on the link, and a save into a real library.
+
+### After phase 4 (package pane and try-out)
+
+**Layout.** `hooks/pane.ts` holds what the pane and the text answer say: `factsOf` (each record
+with its time and its folder, file or link), `when` (local time: `14:02` today, `10 Oct 14:02`
+this year), `factsMarkdown` (the pane's line) and `textAnswer`. `register.tsx` gains the `Pane`
+render hook, a `ui.close` hook and the command's new answer; the band and the pane share one
+`filler` for their Fill buttons. `types/index.d.ts` adds `pane` to the mod's `$.state`.
+`tests/world.tsx` answers `session.surfaces` (`world.surfaces`, the terminal by default),
+`ui.open` (`world.opened`, placed unless `world.placesPanes` is false), `ui.panes` and
+`ui.close`, mounts the pane (`world.mountPane`) and returns the command's answer.
+`tests/pane.test.tsx` covers AC-14 and AC-15.
+
+**Decisions.**
+- `/noacg-guide` toggles the pane: shown (in `$.ui.panes()`, the engine's record, which outlives
+  a reload, `isShown` and `isPlaced`), it closes it; else it opens it with `focus` and
+  `closeOnEscape`, so Esc closes it and Tab walks its Fill buttons (a tab behind another pane is
+  opened again, which brings it forward). It answers no text where the pane draws. It opens a
+  pane only when `$.session.surfaces()` holds `terminal` or `desktop`; otherwise (`[]` under
+  `claude -p` and the SDK, `vscode`, `mobile`), when the open comes back `isPlaced: false` (a
+  surface that places no panes; a pane the person asked for is placed at any width), or when a
+  pane call fails (another plugin refusing the open), it answers with the text, closing what it
+  opened. It still clears `hidden` and sets `offer` as in phase 3.
+- The band steps aside while the pane is on screen. `pane` in state (set on a placed open,
+  cleared by any `ui.close` of the pane: Esc, the close mark, the command) redraws the band;
+  while it is set the band asks `$.ui.panes()`, so a pane gone without a close the module heard
+  (an unload) or behind another pane's tab leaves the band showing. Docked or inline, the pane
+  says all the band would, and two Fill buttons for one step would compete.
+- The pane lists every package by name: the name in bold with its state, one dim `Markdown` line
+  of records (`Checked 14:02 · Frames 14:03 shots/ · Saved 13:50 Open in NoaCG`), the step with a
+  **Fill** button (primary on the package the band would name), and the warning on its own line
+  in the theme's `warning` colour. With no package it shows **Start a package** alone.
+- Folders and pack files are `file:` links in a `Markdown` line: a `Link`'s `href` takes only
+  `https:` or `http://localhost` and refuses the whole tree otherwise. Labels are paths relative
+  to the root, Markdown's own characters escaped; every URL in the line has its parentheses and
+  spaces percent-encoded, so none ends its link early.
+- `linkOf` now hands out only what a `Link` takes (`webLink`: `https:`, or `http://localhost` for
+  a stand-in, no `user@`, at most 2,048 characters), spelled as `new URL(href).href`. Phase 3 let
+  any `http:` through, which would have refused the band's tree. The pane and the text use the
+  same filter, so a LAN stand-in's `http:` link is left out of them too.
+- The text answer is short and plain, as the engine records it in the conversation for a later
+  turn's model: a header, then per package its state, its records on one line and `Next:` with
+  the step's label. With no package: "No NoaCG package here. To start one, ask: Make broadcast
+  graphics with NoaCG."
+- The band's second-copy warning has a line of its own under the step (the phase 3 check's
+  finding). Wording: "Show the frames of X" is now "See how X looks", its request "Show me how X
+  looks."; a request names the folder in brackets only when it does not repeat the name
+  ("Check Scores.", "Check Evening news (evening/).", "Check X (this folder).").
+
+**Traps.**
+- The test kit's `$.ui` has no `open` or `close` (it has `render`, `scroll`, `focus`, `press`,
+  `input`, `select`, `mount`), so a test cannot raise the person's Esc. The tests close the pane
+  with the command, which runs the same `ui.close` hook; Esc itself is the engine's and is shown
+  only by the open's `closeOnEscape`.
+- A headless run prints the text under the plugin's name: `claude -p "/noacg-guide"` printed
+  `noacg-guide: NoaCG packages here: ...`, exit 0, no model call, on both builds.
+- `Date` in the hooks' environment keeps the machine's time zone: a run at 19:21 local (UTC+3)
+  showed `19:21`.
+- 2.1.295's validator also states `ui.close` as a gating hook without `.catch`; its state write
+  is caught, so the close always goes through.
+- `--plugin-dir` paths under `MSYS_NO_PATHCONV=1` must be Windows paths (`C:/...`); a Git Bash
+  `/c/...` path loads nothing and the prompt goes to the model.
+
+**Check findings (build).** `claude plugin validate --strict` passes on 2.1.287 and 2.1.295 and
+lists `$.clock.now`, `$.command.register`, `$.fs.list`, `$.fs.read`, `$.prompt.fill`,
+`$.prompt.read`, `$.session.cwd`, `$.session.root`, `$.session.surfaces`, `$.state.*`,
+`$.store.*`, `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` and `$.ui.toast`: nothing
+AC-12 rules out. `claude plugin test`: 77 tests pass on both builds; `tsc -p cli/plugin-guide`
+passes (after a load with `CLAUDE_CODE_USE_POWERSHELL_TOOL=1`, the phase 2 trap). Real run: a scratch driver plugin calling `$.tool.call` from `prompt.submit`, a new
+`claude -p --plugin-dir cli/plugin-guide` process per step, a scratch profile, and published
+`@noacg/cli` 0.10.1 through `npx -y`: two scaffolds, `validate evening --screenshots ./shots`,
+then `validate scores && pack scores --out night.noacgpack.json`. Then `claude -p "/noacg-guide"`
+on 2.1.287 and on 2.1.295 each answered:
+
+```
+noacg-guide: NoaCG packages here:
+
+Evening news: checked
+  Checked 19:21 · Frames 19:21 in shots/
+  Next: Save Evening news, or send all graphics to a production
+
+Scores: checked
+  Checked 19:21 · Pack written 19:21 to night.noacgpack.json
+```
+
+In an empty folder it answered "No NoaCG package here. To start one, ask: Make broadcast
+graphics with NoaCG."; the debug log showed `$.session.surfaces` answering `[]` and the command
+settling in 3 ms, with no refused tree or skipped hook. Not seen: the pane or the band drawn on a
+surface, Esc closing the pane, a click on a `file:` link, and the Desktop route (no sign-in and
+no pseudo-terminal on the build machine).
+
+**Review.** The pre-merge review's ten findings, each checked against the code. Fixed: the band
+trusting its own `pane` flag after a pane went without a close it heard, the command closing a
+pane that sat behind another tab, a refused open leaving no answer, the desktop branch untested
+with a placed pane, a link over 2,048 characters refusing the band, parentheses ending a Markdown
+link, the try-out asking for the band while the pane hid it and for Enter while the pane held the
+keys, and the README's mock-up and a dropped limit. Kept: the Fill closures built in each render
+hook, since `$` cannot be passed to a helper. The simplify pass shared the on-screen test, the
+separator and the percent-encoding, and dropped a redundant `user@` check. It also suggested
+raising a person's `ui.close` from the tests: the kit's `$.ui` has no `close` at run time.
+
+**For the phase 4 check.** Re-derive AC-14 and AC-15 on main as above: the text answer through
+`claude -p` on both builds (with records, and in an empty folder), the pane through the tests.
+Read `tryout.md` against AC-17 and the README against AC-16. Check that nothing in a quiet folder
+opens a pane (the quiet tests assert `world.opened` is empty).
+
+**For the owner's try-out** (`tryout.md`). What only a person can judge: whether the docked pane
+and the band read well together and apart, the pane's width at 110 to 140 columns, whether the
+records line wraps well, whether Esc closing the pane (focused on open) feels right or the pane
+should stay until closed, whether a `file:` link opens the frames folder in Windows Terminal and
+the Desktop, and the step wording. Use `npx -y @noacg/cli@0.10.1`: the global `noacg` is 0.3.3.

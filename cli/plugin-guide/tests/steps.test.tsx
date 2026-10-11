@@ -31,6 +31,8 @@ function threePackages(): Tree {
 
 /** The step line of the band: the fourth text, after the title, the names and the counts. */
 const stepText = async (ui: Parameters<typeof texts>[0]) => (await texts(ui))[3]
+/** The line under the step, where a saved package's warning stands. */
+const warningText = async (ui: Parameters<typeof texts>[0]) => (await texts(ui))[4]
 
 /** The keys of the band's buttons and the targets of its links, in order. */
 async function controls(ui: { findAll: (q: { type: string }) => Promise<{ key: string | undefined; props: Record<string, unknown> }[]> }): Promise<string[]> {
@@ -45,21 +47,21 @@ describe('the next step', () => {
     const at = (record: PackageRecord, current: string | null) =>
       stepOf({ dir: 'evening', name: 'Evening news', record }, current)
 
-    expect(at({}, null)).toEqual({ rank: 2, label: 'Check Evening news', request: 'Check Evening news in evening/.' })
+    expect(at({}, null)).toEqual({ rank: 2, label: 'Check Evening news', request: 'Check Evening news (evening/).' })
     expect(at({ check: { ...run('a'), ok: false } }, null)).toEqual({
       rank: 0,
       label: 'Fix Evening news and check it again',
-      request: 'Fix what the last check found in Evening news in evening/, then check it again.',
+      request: 'Fix what the last check found in Evening news (evening/), then check it again.',
     })
     expect(at({ check: { ...run('a'), ok: true } }, 'b')).toMatchObject({ rank: 1, label: 'Check Evening news again' })
-    expect(at({ check: { ...run('a'), ok: true } }, 'a')).toMatchObject({ rank: 3, request: 'Show me the frames of Evening news in evening/.' })
+    expect(at({ check: { ...run('a'), ok: true } }, 'a')).toMatchObject({ rank: 3, label: 'See how Evening news looks', request: 'Show me how Evening news (evening/) looks.' })
     // Frames of other files are no frames of these.
     expect(at({ check: { ...run('a'), ok: true }, frames: { ...run('z'), dir: null } }, 'a')).toMatchObject({ rank: 3 })
     const ready = { check: { ...run('a'), ok: true }, frames: { ...run('a'), dir: null } }
     expect(at(ready, 'a')).toEqual({
       rank: 4,
       label: 'Save Evening news, or send all graphics to a production',
-      request: 'Save Evening news in evening/ to my NoaCG library, or send all the graphics here to a production on NoaCG Home.',
+      request: 'Save Evening news (evening/) to my NoaCG library, or send all the graphics here to a production on NoaCG Home.',
     })
     // Saved or sent as it is: nothing to ask.
     expect(at({ ...ready, saved: { ...run('a'), url: SAVED } }, 'a')).toBeNull()
@@ -72,16 +74,23 @@ describe('the next step', () => {
     expect(at({ ...savedThen, check: { ...run('b'), ok: true }, frames: { ...run('b'), dir: null } }, 'b')).toEqual({
       rank: 5,
       label: 'Save Evening news again, or send all graphics to a production',
-      request: 'Save Evening news in evening/ to my NoaCG library again, as a second copy, or send all the graphics here to a production on NoaCG Home.',
+      request: 'Save Evening news (evening/) to my NoaCG library again, as a second copy, or send all the graphics here to a production on NoaCG Home.',
       warning: SECOND,
     })
     // Edited back to the files it saved: those were checked then.
     expect(at({ ...savedThen, check: { ...run('b'), ok: true } }, 'a')).toBeNull()
-    // Only a web address is a link.
+    // Only a web address a Link draws is a link: https, or a local stand-in for NoaCG.
     expect(linkOf(savedThen)).toBe(SAVED)
     expect(linkOf({ saved: { ...run('a'), url: 'file:///C:/evil.exe' } })).toBeUndefined()
-    // The working directory itself.
-    expect(stepOf({ dir: '.', name: 'Here', record: {} }, null)?.request).toBe('Check Here in this folder.')
+    expect(linkOf({ saved: { ...run('a'), url: 'http://example.com/x' } })).toBeUndefined()
+    expect(linkOf({ saved: { ...run('a'), url: 'https://user@noacg.studio/x' } })).toBeUndefined()
+    expect(linkOf({ saved: { ...run('a'), url: `https://noacg.studio/#/${'a'.repeat(2048)}` } })).toBeUndefined()
+    expect(linkOf({ saved: { ...run('a'), url: 'http://localhost:8787/#/graphic/1' } })).toBe('http://localhost:8787/#/graphic/1')
+    expect(linkOf({ saved: { ...run('a'), url: 'HTTPS://NoaCG.studio/#/graphic/1' } })).toBe('https://noacg.studio/#/graphic/1')
+    // The working directory itself, and a folder that only repeats the name, named once.
+    expect(stepOf({ dir: '.', name: 'Here', record: {} }, null)?.request).toBe('Check Here (this folder).')
+    expect(stepOf({ dir: 'scores', name: 'Scores', record: {} }, null)?.request).toBe('Check Scores.')
+    expect(stepOf({ dir: 'lower-third', name: 'Lower third', record: {} }, null)?.request).toBe('Check Lower third.')
   })
 
   for (const surface of SURFACES) {
@@ -93,7 +102,7 @@ describe('the next step', () => {
       expect(await controls(ui)).toEqual(['fill', 'hide'])
 
       await world.run('noacg validate evening', { output: cli.validate(`${ROOT}/evening`, true) })
-      expect(await stepText(ui)).toBe('Show the frames of Evening news')
+      expect(await stepText(ui)).toBe('See how Evening news looks')
       await world.run('noacg validate evening --screenshots ./shots', { output: cli.validate(`${ROOT}/evening`, true, `${ROOT}/shots`) })
       expect(await stepText(ui)).toBe('Save Evening news, or send all graphics to a production')
 
@@ -105,12 +114,15 @@ describe('the next step', () => {
 
       world.tree['evening/css'] = { 'template.css': '.box { color: blue }' }
       await world.submit()
-      expect(await stepText(ui)).toBe(`Check Evening news again · ${SECOND}`)
+      expect(await stepText(ui)).toBe('Check Evening news again')
+      expect(await warningText(ui)).toBe(SECOND)
       await world.run('noacg validate evening --screenshots ./shots', { output: cli.validate(`${ROOT}/evening`, true, `${ROOT}/shots`) })
-      expect(await stepText(ui)).toBe(`Save Evening news again, or send all graphics to a production · ${SECOND}`)
+      expect(await stepText(ui)).toBe('Save Evening news again, or send all graphics to a production')
+      expect(await warningText(ui)).toBe(SECOND)
       // A save refused for errors keeps the old link; the failed check comes first.
       await world.run('noacg save evening', { output: cli.saveRefused(), exit: 1 })
-      expect(await stepText(ui)).toBe(`Fix Evening news and check it again · ${SECOND}`)
+      expect(await stepText(ui)).toBe('Fix Evening news and check it again')
+      expect(await warningText(ui)).toBe(SECOND)
       expect(await controls(ui)).toEqual(['fill', 'hide', `link ${SAVED}`])
       await ui.unmount()
     })
@@ -133,7 +145,7 @@ describe('the next step', () => {
 
       // Equal ranks go by the band's order, by name.
       await world.run('noacg validate beta gamma', { output: [cli.validate(`${ROOT}/beta`, true), cli.validate(`${ROOT}/gamma`, true)].join('\n') })
-      expect(await stepText(ui)).toBe('Show the frames of Beta')
+      expect(await stepText(ui)).toBe('See how Beta looks')
       await ui.unmount()
     })
 
@@ -142,22 +154,22 @@ describe('the next step', () => {
       await world.start()
       const ui = await world.mount(surface, 140)
       await ui.press({ key: 'fill' })
-      expect(world.fills).toEqual(['Check Evening news in evening/.'])
+      expect(world.fills).toEqual(['Check Evening news (evening/).'])
       expect(world.toasts).toEqual([])
 
       world.box = 'no_composer'
       await ui.press({ key: 'fill' })
       world.box = 'dialog'
       await ui.press({ key: 'fill' })
-      expect(world.fills).toEqual(['Check Evening news in evening/.'])
-      expect(world.toasts).toEqual(['Check Evening news in evening/.', 'Check Evening news in evening/.'])
+      expect(world.fills).toEqual(['Check Evening news (evening/).'])
+      expect(world.toasts).toEqual(['Check Evening news (evening/).', 'Check Evening news (evening/).'])
 
       // A draft the person typed stays: the request goes on a line after it, once.
       world.box = 'takes'
       world.draft = 'Make the strap blue.'
       await ui.press({ key: 'fill' })
       await ui.press({ key: 'fill' })
-      expect(world.draft).toBe('Make the strap blue.\nCheck Evening news in evening/.')
+      expect(world.draft).toBe('Make the strap blue.\nCheck Evening news (evening/).')
 
       // Nothing was sent, run or added to the model's context.
       expect(world.forbidden).toEqual([])
@@ -197,7 +209,10 @@ describe('the next step', () => {
       await ui.press({ key: 'hide' })
       expect(await engineDraws(ui)).toBe(true)
 
+      // The command opens the pane, which says all the band would; closed, the band is back.
       await world.command()
+      expect(await engineDraws(ui)).toBe(true)
+      await world.closePane()
       expect(await stepText(ui)).toBe('Check Evening news')
 
       await ui.press({ key: 'hide' })
@@ -226,12 +241,20 @@ describe('the next step', () => {
       const ui = await world.mount(surface, 100)
       expect(await engineDraws(ui)).toBe(true)
 
+      // The pane offers it; closed, the band does.
       await world.command()
+      const pane = await world.mountPane(surface, 40)
+      expect(await controls(pane)).toEqual(['start'])
+      await pane.press({ key: 'start' })
+      expect(world.fills).toEqual([START])
+      world.draft = ''
+      await world.closePane()
+      await pane.unmount()
       expect(await texts(ui)).toEqual(['NoaCG'])
       expect(await controls(ui)).toEqual(['start', 'hide'])
       expect((await ui.find({ key: 'start' }))?.props.label).toBe('Start a package')
       await ui.press({ key: 'start' })
-      expect(world.fills).toEqual([START])
+      expect(world.fills).toEqual([START, START])
       world.box = 'no_composer'
       await ui.press({ key: 'start' })
       expect(world.toasts).toEqual([START])
@@ -239,6 +262,7 @@ describe('the next step', () => {
       await ui.press({ key: 'hide' })
       expect(await engineDraws(ui)).toBe(true)
       await world.command()
+      await world.closePane()
       expect(await controls(ui)).toEqual(['start', 'hide'])
 
       // The package it asked for appears in its place.
@@ -249,6 +273,7 @@ describe('the next step', () => {
 
       // Run where a package exists, the command offers nothing that outlives it.
       await world.command()
+      await world.closePane()
       world.tree['.'] = { 'notes.md': '' }
       await world.submit()
       expect(await engineDraws(ui)).toBe(true)
@@ -277,7 +302,12 @@ describe('the next step', () => {
       await ui.press({ key: 'fill' })
       await ui.press({ key: 'hide' })
       await world.command()
-      expect(world.fills).toEqual(['Check Evening news in evening/ again; it changed since its last check.'])
+      const pane = await world.mountPane(surface, 40)
+      world.draft = ''
+      await pane.press({ key: 'fill:evening' })
+      await world.command()
+      await pane.unmount()
+      expect(world.fills).toEqual(Array(2).fill('Check Evening news (evening/) again; it changed since its last check.'))
 
       expect(world.forbidden).toEqual([])
       for (const path of [...world.lists, ...world.reads]) expect(path.startsWith('..') || path.startsWith('/')).toBe(false)

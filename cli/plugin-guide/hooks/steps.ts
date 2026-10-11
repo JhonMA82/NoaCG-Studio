@@ -18,7 +18,7 @@ const WARNING = 'saving again adds a second library copy'
 export function stepOf(p: { dir: string; name: string; record: PackageRecord }, current: string | null): NextStep | null {
   const { check, frames, saved, pack } = p.record
   const status = statusOf(p.record, current)
-  const where = p.dir === '.' ? 'in this folder' : `in ${p.dir}/`
+  const n = named(p.dir, p.name)
   // A save records a passing check on the same files, so a later check's files differ from the
   // save's exactly when the package changed since; without a fingerprint, the check's tell.
   const files = current ?? check?.sha256
@@ -26,15 +26,25 @@ export function stepOf(p: { dir: string; name: string; record: PackageRecord }, 
   const step = (rank: number, label: string, request: string): NextStep => ({ rank, label, request, ...warning })
 
   // The check comes before the save: a save refused for errors keeps the old `saved` record.
-  if (check?.ok === false) return step(0, `Fix ${p.name} and check it again`, `Fix what the last check found in ${p.name} ${where}, then check it again.`)
+  if (check?.ok === false) return step(0, `Fix ${p.name} and check it again`, `Fix what the last check found in ${n}, then check it again.`)
   // Files back to what was saved or packed were checked then: nothing to ask.
   if (saved?.sha256 === current || pack?.sha256 === current) return null
-  if (status === 'edited') return step(1, `Check ${p.name} again`, `Check ${p.name} ${where} again; it changed since its last check.`)
-  if (status === 'unchecked') return step(2, `Check ${p.name}`, `Check ${p.name} ${where}.`)
-  if (frames?.sha256 !== current) return step(3, `Show the frames of ${p.name}`, `Show me the frames of ${p.name} ${where}.`)
+  if (status === 'edited') return step(1, `Check ${p.name} again`, `Check ${n} again; it changed since its last check.`)
+  if (status === 'unchecked') return step(2, `Check ${p.name}`, `Check ${n}.`)
+  if (frames?.sha256 !== current) return step(3, `See how ${p.name} looks`, `Show me how ${n} looks.`)
   const send = 'or send all the graphics here to a production on NoaCG Home.'
-  if (!saved) return step(4, `Save ${p.name}, or send all graphics to a production`, `Save ${p.name} ${where} to my NoaCG library, ${send}`)
-  return step(5, `Save ${p.name} again, or send all graphics to a production`, `Save ${p.name} ${where} to my NoaCG library again, as a second copy, ${send}`)
+  if (!saved) return step(4, `Save ${p.name}, or send all graphics to a production`, `Save ${n} to my NoaCG library, ${send}`)
+  return step(5, `Save ${p.name} again, or send all graphics to a production`, `Save ${n} to my NoaCG library again, as a second copy, ${send}`)
+}
+
+/**
+ * The package as a request names it: with its folder, unless the folder only repeats the name
+ * ("Scores", not "Scores in scores/").
+ */
+function named(dir: string, name: string): string {
+  if (dir === '.') return `${name} (this folder)`
+  const slug = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '')
+  return slug(dir) === slug(name) ? name : `${name} (${dir}/)`
 }
 
 /** The package that needs attention first: the lowest rank, then the band's order (by name). */
@@ -51,5 +61,21 @@ export function firstStep(packages: readonly NoacgPackage[]): NoacgPackage | und
 export function linkOf(record: PackageRecord): string | undefined {
   const { saved, pack } = record
   const url = pack?.url && (!saved || pack.at >= saved.at) ? pack.url : saved?.url
-  return url && /^https?:\/\//i.test(url) ? url : undefined
+  return url ? webLink(url) : undefined
+}
+
+/**
+ * A link a `Link` element draws, spelled as the engine wants it (`new URL(href).href`), or
+ * undefined: only `https:` and `http://localhost` (a local stand-in for NoaCG), with no
+ * `user@host` part and at most 2048 characters; anything else would refuse the whole tree it is in.
+ */
+export function webLink(url: string): string | undefined {
+  try {
+    const parsed = new URL(url)
+    const isWeb = parsed.protocol === 'https:' || (parsed.protocol === 'http:' && parsed.hostname === 'localhost')
+    const fits = parsed.href.length <= 2048 && !parsed.href.includes('@')
+    return isWeb && fits ? parsed.href : undefined
+  } catch {
+    return undefined
+  }
 }

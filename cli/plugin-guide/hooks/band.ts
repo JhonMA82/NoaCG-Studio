@@ -3,7 +3,7 @@ import type { NoacgPackage, PackageStatus } from '../types'
 
 export const SEPARATOR = ' · '
 
-const STATUS: Record<PackageStatus, string> = { checked: 'checked', edited: 'edited since check', unchecked: 'not checked' }
+export const STATUS: Record<PackageStatus, string> = { checked: 'checked', edited: 'edited since check', unchecked: 'not checked' }
 
 /**
  * The names joined, or as many as fit followed by `+n more`, measured in terminal cells. With no
