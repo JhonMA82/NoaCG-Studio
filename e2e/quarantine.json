@@ -6,16 +6,15 @@
       "since": "2026-10-10",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38005906607"
-    },
-    "e2e/configured/production-data-key.spec.ts": {
-      "since": "2026-10-10",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38084274673"
     }
   },
   "released": {
     "e2e/configured/dashboard-hosted-walk.spec.ts": {
       "count": 4,
+      "last": "2026-10-11"
+    },
+    "e2e/configured/production-data-key.spec.ts": {
+      "count": 1,
       "last": "2026-10-11"
     },
     "e2e/cross-tab.spec.ts": {
