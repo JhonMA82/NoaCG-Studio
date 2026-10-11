@@ -12,8 +12,7 @@ passed. Output: the plan's phases landed on `main`, checked, and a short report.
 
 ## Boundaries
 
-- **One plan run or one wave, never both.** Opening the run refuses while a wave is open, and a
-  wave refuses while the run is open.
+- **One plan run or one wave, never both.** Each refuses to open while the other is open.
 - **24 hours is the ceiling**; opening refuses a longer window.
 - **Only phases written in the plan.** Refuse a plan whose next phases have no acceptance criteria;
   never invent a phase or build past the plan's end.
@@ -24,14 +23,13 @@ passed. Output: the plan's phases landed on `main`, checked, and a short report.
 
 ## 1. Start
 
-- **The window** is what the owner names, in Helsinki time with its offset. Unstated: ask him.
+- **The window** is what the owner names, in Helsinki time with its offset. Unstated: ask him, with
+  anything the plan's checks need that this machine lacks (a signed-in `claude -p`, an app).
 - **Open the run**: `node scripts/wave-plan-store.mjs --open <date> plan-<plan> --until <iso>`. It
   prints the wave file. After a restart, open it again with the date the run started.
 - **First open only**: `git fetch origin main`, read the plan's phases, acceptance and phase notes
   on `origin/main`, and copy the phases still to build, in order, as a numbered list under
-  `## Phases` in the wave file, one line each with where its acceptance is. Try what the plan's
-  checks need on this machine (a signed-in `claude -p`, an app); ask the owner for what is missing
-  before the first launch.
+  `## Phases` in the wave file, one line each with where its acceptance is.
 
 ## 2. The loop
 
@@ -42,26 +40,23 @@ means launch nothing and run `next` again. As each step finishes, read `npm run 
 alarm goes to the session whose landing caused it, or to a row when no session holds it.
 
 - **launch build** (or **repair**): a builder with the brief below, the repair one with the
-  checker's findings. When its pull request merges with every check green (`gh pr checks <n>`),
-  record `landed` with detail `#<n>`; a red check, required or not, goes back to that session first
-  (`resume`).
+  checker's findings. Once its pull request merged with every check green (`gh pr checks <n>`),
+  record `landed` `#<n>`; a red check, required or not, first goes back to that session (`resume`).
 - **launch check**: a checker with the brief below, after the phase is on `main`. When its notes
   pull request merges, record `pass` or `fail` and its findings in one line.
 - **wait**: the step is running. After a restart its session may be gone: a merged pull request is
   recorded as `landed`; a queued one is waited for; otherwise start a fresh session in the recorded
   worktree with the same brief, and record `resume`. Never a second branch for one step.
 - **stop**: the check failed after a repair, or a step met a decision the owner reserves
-  (`verify.md` step 5). Record `stop <why>`, ask him here at once with your recommendation and a
-  phone notification, and do not continue the plan past that phase. Record his answer as
-  `answered <answer>`, then run `next` again.
+  (`verify.md` step 5). Record `stop <why>`, ask him at once with your recommendation and a phone
+  notification, go no further in the plan, and record his answer as `answered <answer>`.
 - **done** or **time-limit**: write the report.
 
 Sessions, each in its own worktree on `<tool>/plan-<plan>-p<phase>-<build|check|repair>` (`-2` on
 a second check):
 
-- **Claude Code:** the Agent tool with `run_in_background`, agent `wave-row`. Each finished session
-  wakes you; while you wait on a landing, a background `node scripts/jobs.mjs wait <job>` on the
-  landing job its report names wakes you when it lands or fails (re-armed after 30 minutes).
+- **Claude Code:** the Agent tool with `run_in_background`, agent `wave-row`, which wakes you when
+  it finishes; a background `node scripts/jobs.mjs wait <landing job>` wakes you when that ends.
 - **Codex:** `git worktree add -b <branch> <path> origin/main`, then `spawn_agent` without your
   context, that absolute path its only working directory; `wait_agent` with a timeout, and a
   30-minute thread heartbeat as the fallback wake. Ask the owner in this thread.
@@ -88,8 +83,7 @@ CHECK   Phase <n> of <plan document>: <phase name>. You did not build it. On cur
 
 ## 3. Report
 
-At the end, confirm `main`'s CI is green after the last landing (`npm run jobs` as in step 2) and run
-the retro (`orchestrator.md` step 6). Write under `## Report` in the wave file and send it to the
-owner, at most 15 lines in plain words: **Needs you** first (or "nothing"), then each phase with its
-pull requests and the check's verdict, where and why the run stopped, what was not checked, and
-the retro.
+At the end, confirm `main` is green (`npm run jobs`) and run the retro (`orchestrator.md` step 6).
+Write under `## Report` in the wave file and send it to the owner, at most 15 lines in plain words:
+**Needs you** first (or "nothing"), then each phase with its pull requests and the check's verdict,
+where and why the run stopped, what was not checked, and the retro.
