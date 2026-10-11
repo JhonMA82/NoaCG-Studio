@@ -2,7 +2,7 @@
 
 ## Current phase
 
-The approved correction is implemented and engineering verification passed; landing, a fresh independent check and owner acceptance remain separate. [Spec](spec.md). Source starts at fetched main `8ae5bbae5bbdedd39b67c95efa76bb24bea87c92`, not the main checkout's lagging HEAD. The CSS correction is limited to short desktop windows.
+The approved correction landed in PR #990 as `0a04f770` and the [fresh independent check #991](independent/README.md) passes on landed and served source. Native 1366x768 / actual 125% gives a 196px canvas, 180px timeline and 280px Properties. Owner acceptance remains separate. [Spec](spec.md). Implementation source starts at fetched main `8ae5bbae5bbdedd39b67c95efa76bb24bea87c92`, not the main checkout's lagging HEAD. The CSS correction is limited to short desktop windows. Historical pictures below are locally archived by #992; the fresh receipt retains descriptions, dimensions, hashes and reproduction inputs.
 
 ## Fresh baseline
 
