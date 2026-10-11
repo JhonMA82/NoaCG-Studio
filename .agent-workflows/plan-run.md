@@ -8,6 +8,7 @@ passed. Output: the plan's phases landed on `main`, checked, and a short report.
 **Runnable plans** (a name here and nothing else):
 
 - `editor`: `docs/EDITOR_REBUILD_PLAN.md`; its order and acceptance are in `docs/EDITOR_PLAN.md`.
+- `guided-mod`: `docs/work-specs/guided-mod/spec.md`; phases, acceptance and phase notes are in it.
 
 ## Boundaries
 
