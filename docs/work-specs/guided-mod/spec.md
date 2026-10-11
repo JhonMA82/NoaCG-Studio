@@ -542,3 +542,126 @@ array of blocks, or as a string when `isError`.
 **Not seen.** A model's own tool call; the band drawn on a surface (its text comes from
 `band.ts`); a save into a real library (the stand-in took it). There was no reference comparison:
 the plan names `code-modernization` for commands and the pane, and phase 2 has no counterpart.
+
+### After phase 3 (one next step)
+
+**Layout.** `hooks/steps.ts` holds the next step (`stepOf`), the attention order (`firstStep`)
+and the link "Open in NoaCG" opens (`linkOf`). A scan stores each package's step in
+`NoacgPackage.next` (`NextStep`: `rank`, `label` for the band, `request` for the prompt box,
+`warning`), so phase 4's pane reads the same steps. `types/index.d.ts` adds `hidden` and `offer`
+to the mod's `$.state`. `watch.ts` gains `runsNoacg` (a command line runs the CLI, any verb). The
+band's third line is the step's label, then **Fill prompt**, **Open in NoaCG** (a `Link`) and
+**Hide**. `tests/world.tsx` records `commands`, `fills` and `toasts`, answers `prompt.fill` as
+`world.box` says (`takes`, `no_composer`, `dialog`), and runs `/noacg-guide` (`world.command`).
+`tests/steps.test.tsx` covers AC-10 to AC-13.
+
+**Decisions.**
+- `/noacg-guide` is registered in every session, at the first dispatch of a load (the session's
+  start), with `immediate: true`. AC-13 needs it in a folder with no package, so it cannot wait
+  for one. It costs one registration: `session.start` settled in 16.5 ms in an empty folder (about
+  14 ms in phase 1), and none of the attachments a prompt carries names it (`skill_listing`
+  among them, seen through a driver's `session.append` hook on 2.1.287). A plugin's
+  `$.command.register` command reaches the person's typeahead, not the model. The quiet tests
+  were changed on purpose to expect exactly `['noacg-guide']` and no fill or toast.
+- The command answers no text (`{}`): it shows the band again and, when it finds no package,
+  sets `offer`, which draws **Start a package** until a package appears (run where packages
+  exist, it clears `offer`, so the offer never outlives them). It fills "Make broadcast graphics with NoaCG."
+  Phase 4 decides the pane and the text answer where nothing draws.
+- Steps, lowest rank first: 0 the last check failed, 1 edited since check, 2 not checked, 3 no
+  frames of the files as they are, 4 ready ("Save X, or send all graphics to a production"), 5
+  saved and edited since ("Save X again", the request saying "as a second copy"). A package
+  whose files are those it saved or packed (sent, or written to a file: the no-account way to a
+  production) has no step, frames or not, and so does one edited back to them: once saved, the
+  band stops asking. The warning "saving again adds a second library copy" rides on
+  any step of a package saved and edited since. The check is read before the save, as the second
+  phase-2 check asked. Equal ranks go by the band's order, by name. `stepOf` derives the status
+  from the record itself, so a step cannot disagree with it.
+- Requests name the package and its folder ("Check Evening news in evening/."); the band shows
+  the shorter label. No "Next:" prefix: the label stands beside a Fill button.
+- **Fill prompt** reads the box first (`$.prompt.read`): an empty box takes the request
+  (`replace`), a draft keeps it on a line after (`append`), and a box already holding it is
+  left alone. On any `isFilled: false` the request shows as a 12-second toast.
+- **Open in NoaCG** is a `Link`: the surface opens it, and the mod makes no call. It is the
+  newer of the step's package's saved link and sent pack; with no step, the first package with a
+  link. Only an `http(s)` address is drawn: the links come from command output.
+- **Hide** is session state. It comes back with `/noacg-guide`, or with any `noacg` run: a
+  terminal command naming the CLI with any verb, in the background too, or the MCP tool.
+- AC-12 is checked in CI: the guided-mod job's validate step fails when the validator lists a
+  `$.prompt.submit`, `$.mcp.call`, `$.process`, `$.http`, `$.model` or `$.agent` call, or a
+  `$.tool.call`, `$.command.run` or `$.session.append`/`send` (the "Buttons never act" boundary). The reach
+  test moves the shell's folder outside the project root, runs commands and an MCP call naming
+  folders outside it, presses every button and runs the command; the harness throws on any path
+  outside `ROOT`. That is the firmer anchor phase 1 asked for.
+- Fixed in phase 2's reading: `scaffold && validate` in one command lost the check, since the
+  scaffold's reset was folded in after it. Seen in a real run on 2.1.295; the scaffold's reset now comes first,
+  since a scaffold writes only into an empty folder and so precedes any other run on it in the
+  same command, with tests.
+
+**Compared with the reference.** `code-modernization`'s Next calls `$.prompt.fill` with the
+default `replace` and toasts `Next: <text>` when `isFilled` is false; its commands are registered
+at `session.start` in every session, the panel command `immediate`, each answered by its own hook.
+Taken: the fill and its toast fallback (without the prefix, so the toast reads as the request),
+registration at start, `immediate`, a hook that answers its own command. Left: its three
+commands, shell hooks and two timers at start, a pane that opens unasked, steps marked to do by
+hand, and the text answers ("Modernization pane shown"). Its hidden pane leaves a one-line bar;
+here **Hide** hides the whole band.
+
+**Traps.**
+- A plugin cannot hook the same event twice without a matcher ("on("session.start") is
+  registered twice"), and `$` cannot be passed on, so the registration lives in `scanThenPass`
+  behind a module flag that a reload resets; a registration that failed is tried again at the
+  next prompt.
+- 2.1.295's validator reads a `command.run` hook as gating unless both the matcher and the
+  `$.command.register` call spell the name as a literal; through a constant it was "gating hook
+  without .catch".
+- In Git Bash, `claude -p "/noacg-guide"` reaches Claude Code as `C:/Program Files/Git/noacg-guide`
+  unless `MSYS_NO_PATHCONV=1` is set. With it, on both builds, the hook ran, made no model call,
+  and the run printed an empty result and exited 0. The engine appended two `command` rows, which
+  a later turn's model reads, so any text answer in phase 4 becomes context when the person runs
+  the command.
+- Another plugin's `$.command.list()` under `claude -p` does not list `/noacg-guide`, though the
+  debug log says "$.command.register (noacg-guide): /noacg-guide listed".
+- Under `claude -p`, `$.prompt.fill` answers `{ isFilled: false, refusal: 'no_composer' }`, so
+  Fill there is the toast.
+- `--allowedTools Bash` and `Bash(npx:*)` are dropped as dangerous under `-p`; a plugin's
+  `$.tool.call` still runs ("Skipping auto mode classifier for Bash: called by plugin").
+- A found `Link`'s `text` in the test kit is its address and its label run together; read
+  `children`.
+- `tsc -p` trap from phase 2 still holds: a plain `claude -p` relays the types without
+  PowerShell.
+
+**Check findings (build).** `claude plugin validate --strict` passes on 2.1.287 and 2.1.295
+and lists `$.clock.now`, `$.command.register`, `$.fs.list`, `$.fs.read`, `$.prompt.fill`,
+`$.prompt.read`, `$.session.cwd`, `$.session.root`, `$.state.*`, `$.store.*`, `$.ui.resolve`
+and `$.ui.toast`; 2.1.295 lists the command hook as "answers its own command". `claude plugin test`: 69 tests
+pass on both builds; `tsc -p cli/plugin-guide` passes. Seven mutations each failed a test: no
+toast fallback, no return on a `noacg` run, the attention order reversed, `offer` on by default
+(the quiet tests), no root filter on a run's target (the reach test), the scaffold folded after
+the check, and frames asked of a saved package. Real run, as "How a phase is checked" says: a
+scratch driver plugin calling `$.tool.call`, a new `claude -p --plugin-dir cli/plugin-guide`
+process per step, a scratch profile, and published `@noacg/cli` 0.10.1 through `npx -y`. On
+2.1.287: two scaffolds gave "Check Evening news" and "Check Scores"; `validate evening` and
+`validate scores --screenshots ./shots` gave "Show the frames of Evening news" and "Save Scores,
+or send all graphics to a production"; `pack scores --out` left Scores with no step; an edit to
+`evening/css/template.css` gave "Check Evening news again"; a broken `js/template.js` and a
+failing validate gave "Fix Evening news and check it again". On 2.1.295: `scaffold fourth &&
+validate fourth --screenshots ./shots` gave "Save Fourth, ..." once the fix above was in, and
+`/noacg-guide` there set `hidden` and `offer` false; in an empty folder (2.1.287) it set `offer`
+true. Its first try set `offer` true beside packages: under `claude -p` the command ran before the
+session's first scan ended, so it now waits for a scan under way. No skipped hook, fault or
+refused tree named the mod.
+
+**Review.** The pre-merge review's ten findings, all checked against the code: fixed were the
+narrow CI pattern, a failed registration never retried, Fill over a typed draft, an offer
+outliving the packages, a link of any scheme, a package edited back to its saved files still
+asked to be checked, and the `status` argument that could disagree with the record. Kept, as
+decided above: a pack written to a file ends the steps, the link is the named package's only,
+and a scaffold's reset is read first (a scaffold needs an empty folder, so `validate x;
+scaffold x` cannot happen). The simplify pass then shared the shell test in the tool hook, read
+the band's three values at once, started the scan before the registration, and drew one band
+frame for both the offer and the packages. It left the CI pattern a list of what is ruled out
+rather than of what is allowed, as AC-12 words it.
+
+**Not seen.** The band drawn on a surface, a Fill landing in a real prompt box, and a click on
+the link: no sign-in and no pseudo-terminal here, so they are the phase-4 try-out's. A save went
+through only in the tests, so the second-copy warning comes from them.

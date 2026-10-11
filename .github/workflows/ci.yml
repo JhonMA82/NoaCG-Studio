@@ -805,10 +805,19 @@ jobs:
         run: npm install -g "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION" && claude --version
 
       # A throwaway profile: validating and testing read no account and need no sign-in.
+      # The spec's AC-12 and its "Buttons never act": the calls the validator lists include none
+      # that sends a prompt, calls a tool, an MCP server or a command, appends to the conversation,
+      # runs a process, fetches, calls a model or starts an agent.
       - name: claude plugin validate --strict
         env:
           CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-profile
-        run: claude plugin validate --strict cli/plugin-guide
+        run: |
+          set -euo pipefail
+          claude plugin validate --strict cli/plugin-guide | tee "$RUNNER_TEMP/validate.txt"
+          if grep -E '\$\.(prompt\.submit|tool\.call|mcp\.call|command\.run|session\.(append|send)|process\.|http\.|model\.|agent\.)' "$RUNNER_TEMP/validate.txt"; then
+            echo "::error::cli/plugin-guide makes a call the spec rules out (above)"
+            exit 1
+          fi
 
       - name: claude plugin test
         env:

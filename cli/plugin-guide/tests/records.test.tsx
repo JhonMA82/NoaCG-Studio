@@ -32,7 +32,7 @@ describe('recorded results', () => {
       const world = session($, on, twoPackages())
       await world.start()
       const ui = await world.mount(surface, 120)
-      expect(await texts(ui)).toEqual(['NoaCG', 'Evening news · Scores', '2 not checked'])
+      expect(await texts(ui)).toEqual(['NoaCG', 'Evening news · Scores', '2 not checked', 'Check Evening news'])
 
       await world.run('noacg validate evening', { output: cli.validate(`${ROOT}/evening`, true) })
       expect(await summaryOf(ui)).toBe('1 checked · 1 not checked')
@@ -125,7 +125,7 @@ describe('recorded results', () => {
     const world = session($, on, { '.': { evening: null }, ...scaffoldedAt('evening', 'Evening news') })
     await world.start()
     const ui = await world.mount('terminal', 100)
-    expect(await texts(ui)).toEqual(['NoaCG', 'Evening news', 'not checked'])
+    expect(await texts(ui)).toEqual(['NoaCG', 'Evening news', 'not checked', 'Check Evening news'])
     await world.run('noacg save evening', { output: cli.saved('Evening news', 'https://noacg.studio/#/graphic/1') })
     expect(await summaryOf(ui)).toBe('checked · saved')
 

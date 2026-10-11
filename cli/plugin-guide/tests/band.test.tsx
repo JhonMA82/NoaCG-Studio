@@ -21,18 +21,18 @@ describe('the band', () => {
 
       // The names, then where they stand (tests/records.test.tsx has the states).
       const wide = await world.mount(surface, 100)
-      expect(await texts(wide)).toEqual(['NoaCG', 'Lower third · Scoreboard · Ticker', '3 not checked'])
+      expect(await texts(wide)).toEqual(['NoaCG', 'Lower third · Scoreboard · Ticker', '3 not checked', 'Check Lower third'])
       await wide.unmount()
 
       // 30 cells: the title and its gap take 7, leaving 23 for names; 16 leave 9.
       const narrow = await world.mount(surface, 30)
-      expect(await texts(narrow)).toEqual(['NoaCG', 'Lower third · +2 more', '3 not checked'])
+      expect(await texts(narrow)).toEqual(['NoaCG', 'Lower third · +2 more', '3 not checked', 'Check Lower third'])
       await narrow.redraw(band(100))
-      expect(await texts(narrow)).toEqual(['NoaCG', 'Lower third · Scoreboard · Ticker', '3 not checked'])
+      expect(await texts(narrow)).toEqual(['NoaCG', 'Lower third · Scoreboard · Ticker', '3 not checked', 'Check Lower third'])
       await narrow.unmount()
 
       const tiny = await world.mount(surface, 16)
-      expect(await texts(tiny)).toEqual(['NoaCG', '3 packages', '3 not checked'])
+      expect(await texts(tiny)).toEqual(['NoaCG', '3 packages', '3 not checked', 'Check Lower third'])
       for (const line of (await tiny.findAll({ type: 'Text' })).slice(1)) expect(line.props.wrap).toBe('truncate-end')
       await tiny.unmount()
     })

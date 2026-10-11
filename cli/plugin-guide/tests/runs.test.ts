@@ -109,6 +109,20 @@ describe('terminal runs', () => {
       { kind: 'new', target: at('evening') },
     ])
     expect(bash('noacg scaffold --type lower-third --out evening', exited(2, 'noacg: evening is not empty - scaffold into a new directory.'))).toEqual([])
+    // Scaffolded and checked in one command: afresh first, then the check (a real 0.10.1 run).
+    expect(bash('noacg scaffold --type lower-third --out evening && noacg validate evening', ok(`${made}\n${cli.validate(EVENING, true)}`))).toEqual([
+      { kind: 'new', target: at('evening') },
+      { kind: 'check', target: at('evening'), ok: true },
+    ])
+    // Another package's check first: the new one still ends checked (a scaffold needs an empty folder).
+    const scores = 'C:\\Users\\me\\shows\\scores'
+    expect(
+      bash('noacg validate scores && noacg scaffold --out evening && noacg validate evening', ok(`${cli.validate(scores, true)}\n${made}\n${cli.validate(EVENING, true)}`)),
+    ).toEqual([
+      { kind: 'new', target: at('evening') },
+      { kind: 'check', target: at('scores'), ok: true },
+      { kind: 'check', target: at('evening'), ok: true },
+    ])
   })
 
   test('PowerShell keeps its backslashes', () => {

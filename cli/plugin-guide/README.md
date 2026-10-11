@@ -1,12 +1,13 @@
 # noacg-guide (trial)
 
 A Claude Code mod for people making broadcast graphics with the `noacg` plugin. It shows the NoaCG
-packages in the folder Claude Code was started in, and where each stands, in a band above the
-prompt:
+packages in the folder Claude Code was started in, where each stands and what to ask for next, in
+a band above the prompt:
 
 ```
 NoaCG  Lower third · Scoreboard · Ticker
        1 checked · 1 edited since check · 1 not checked · saved: Lower third
+       Check Scoreboard again  [ Fill prompt ]  Hide
 ```
 
 This is a trial for the owner to try. It is not published, not in the marketplace, the npm package
@@ -29,6 +30,19 @@ or the toolkit distribution, and its name may change. The plan is
 - Ties each record to a SHA-256 of the package's source and asset files, leaving out the files
   `noacg validate` regenerates and frames folders. When those files change after a check, the
   package shows "edited since check"; changing them back shows it checked again.
+- Gives each package one next step from what it recorded: check it, fix what a failed check
+  found, check it again after an edit, show its frames, then save it or send all the graphics to
+  a production. Once its files are saved, sent or written to a pack file as they are, it has
+  none. After a save, an edit adds "saving again adds a second library copy". The band shows the
+  step of the package that needs attention first: a failed check, then edited since check, not
+  checked, no frames, ready to save; equal ones by name.
+- Buttons never act on their own. **Fill prompt** puts the step's request in the prompt box, in
+  plain words, for you to edit or send, on a line after anything you had typed; where the box
+  cannot take it, a toast shows the text. **Open in NoaCG** appears when the package the band
+  names was saved or sent, and opens that link. **Hide** hides
+  the band until you type `/noacg-guide` or a `noacg` command runs.
+- `/noacg-guide` brings a hidden band back. In a folder with no package it offers **Start a
+  package**, which fills the prompt with "Make broadcast graphics with NoaCG."
 
 The records are kept per folder on this machine, in the mod's own store: a JSON file under your
 Claude Code configuration folder (`~/.claude`), never in a package, a pack or the repository. A
@@ -36,9 +50,10 @@ new session in the same folder shows the same states. A run the mod cannot read 
 background, or one whose output was cut before its verdict) records nothing.
 
 Where there is no package it draws nothing and adds nothing to the conversation. It never adds to
-the model's context, registers no tool or command, and makes no network request, process run or
-model call. It lists folders and reads package files inside the folder Claude Code was started in,
-and reads and writes only its own store.
+the model's context, registers no tool, and makes no network request, process run or model call;
+it never sends a prompt or calls a tool itself. Its one registration is the `/noacg-guide`
+command, which the model is not told about. It lists folders and reads package files inside the
+folder Claude Code was started in, and reads and writes only its own store.
 
 ## Try it
 
@@ -69,4 +84,6 @@ claude plugin test cli/plugin-guide
 
 The tests mount the band on the `terminal` and `desktop` surfaces. CI runs both whenever a change
 touches this folder or `.github/workflows/ci.yml` (its `guided-mod` job), in the pull request and
-in the merge queue, and a red run keeps the change from landing.
+in the merge queue, and a red run keeps the change from landing. It also fails when the validator
+lists a call that sends a prompt, calls a tool, an MCP server or a command, appends to the
+conversation, runs a process, fetches, calls a model or starts an agent.

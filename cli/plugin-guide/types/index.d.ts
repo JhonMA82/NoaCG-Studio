@@ -33,10 +33,30 @@ export type NoacgPackage = {
   status: PackageStatus
   /** What the runs reported; empty when no run touched it. */
   record: PackageRecord
+  /** What to ask for next (hooks/steps.ts), or null once its files as they are now are saved, sent or packed. */
+  next: NextStep | null
+}
+
+/** One next step for a package, in plain words. */
+export type NextStep = {
+  /** How soon it needs attention, lowest first: a failed check, edited since check, not checked, no frames, ready, saved and edited since. */
+  rank: number
+  /** What the band shows. */
+  label: string
+  /** What "Fill prompt" puts in the prompt box for the person to send. */
+  request: string
+  /** Set when the package was saved and its files changed since: saving again adds a second library copy. */
+  warning?: string
 }
 
 declare module 'claude-code' {
   interface PluginState {
-    'noacg-guide': { packages: NoacgPackage[] }
+    'noacg-guide': {
+      packages: NoacgPackage[]
+      /** The band is hidden until `/noacg-guide` or the next `noacg` run. */
+      hidden: boolean
+      /** `/noacg-guide` ran: with no package here, the band offers to start one. */
+      offer: boolean
+    }
   }
 }
