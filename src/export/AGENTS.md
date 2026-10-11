@@ -213,6 +213,15 @@ export-time reflow, stretching, or cropping.
   `e2e/ograf-conformance.spec.ts` (host page untouched, frame pixel-identical to the studio
   document, every catalog sheet scoped and lifted) and `e2e/catalog/ograf-parity.spec.ts`, which
   compares every catalog design's package with the studio's own document on a virtual clock.
+  **The template's lifecycle is a page's.** The scoped `document` answers `readyState` as
+  `'loading'` and holds the `DOMContentLoaded` listeners while `initTemplate` runs, and `_load`
+  fires them once it has, before `update(data)`: through to the renderer's loaded page, the
+  DOM-ready pattern every runtime uses ran mid-script, before the code below it, and sb21 and
+  sb22 answered `load()` with 500 (#964). The template's `setTimeout`, `setInterval`,
+  `requestAnimationFrame` and their clears are `initTemplate` parameters and scoped-window members
+  (`scopedTimers`), which record what they start, and `dispose()` clears it: a countdown's
+  interval went on ticking after the renderer cleared the layer (#989). Both pinned by
+  `e2e/ograf-lifecycle.spec.ts`.
   The MARKUP's own carriers are re-addressed at export too (`graphicSources`, issue #789): it is
   parsed as a renderer parses it, its `<style>` blocks go through the same rewrite and gate, and
   the ids it references (Illustrator's `SVGID_1_`) are renamed to the design's own, references in

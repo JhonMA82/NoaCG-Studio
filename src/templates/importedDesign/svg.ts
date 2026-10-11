@@ -1880,11 +1880,11 @@ function refitSvgText() {
  * THE FIT'S BOOT - the two load-time passes and the arrives-later observer - emitted LAST in the
  * design-owned JS, after the layout table and the growth runtime. In a page that is still
  * parsing the passes wait for DOMContentLoaded and the order never showed; in a document that
- * runs the template's JS after the markup is already in the DOM (the OGraf wrapper's
- * initTemplate, an inline preview build) the first pass runs the moment this statement is
- * reached, and reached before `var NOACG_LAYOUT` it read a hoisted undefined - a growth rule
- * threw, and a declared alignment was silently the derived one, cached for the life of the
- * document.
+ * runs the template's JS after the markup is already in the DOM (an inline preview build, and the
+ * OGraf wrapper until it held DOM-ready code for the end of the script, issue #964) the first
+ * pass runs the moment this statement is reached, and reached before `var NOACG_LAYOUT` it read
+ * a hoisted undefined - a growth rule threw, and a declared alignment was silently the derived
+ * one, cached for the life of the document.
  */
 const SVG_FIT_BOOT = `
 if (document.readyState === 'loading') {

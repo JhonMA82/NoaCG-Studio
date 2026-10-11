@@ -35,10 +35,7 @@ import { graphicTemplate, ografFiles, type GraphicSource, type OgrafFiles } from
  * compared, each with its own issue (decision 5). One that shows again fails the sweep until it
  * leaves this list, so the list cannot go stale.
  */
-const KNOWN_OGRAF_FAILURES: Record<string, string> = {
-  sb21: 'https://github.com/NoaCG/NoaCG-Studio/issues/964',
-  sb22: 'https://github.com/NoaCG/NoaCG-Studio/issues/964',
-};
+const KNOWN_OGRAF_FAILURES: Record<string, string> = {};
 
 /** Fewer differing pixels than this, a frame matches (the conformance spec's bound). */
 export const PARITY_BOUND = 1_000;
