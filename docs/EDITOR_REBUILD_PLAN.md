@@ -699,6 +699,12 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-11: independent landed short-height comparison (#991)
+
+- [Fresh checker receipt](work-specs/editor-canvas-short-height/independent/README.md): PR #990 landed as 0a04f770; fetched main 5896c25a and served 8cee8ffc have identical product trees. Twenty-two maintained regressions, five fresh cumulative/reference tasks and the served task with three executable outputs passed in the recorded CI steps; six layout/entry cases separately retained captures. Failed checker assertions and the old production revision guard remain explicit. No product code changed.
+- Actual native 1366x768 outer window at zoom 1.25 gives 1093x545 CSS content, 196px canvas, 180px timeline and 280px Properties. Handles are contained and reachable; deliberate 200% Fit and pan (31,-13) survive native window resizing without source/history changes. The Fit drawing remains small and the timeline shows one track at a time; broader comfort and owner acceptance stay open.
+- Fresh Studio pin/release comparison hashes 31 relevant files. Ordinary editing/source reopen and native workspace resizing passed: timeline 220 -> 180px grows canvas 171.4 -> 211.4px, with 300px Properties and 405.2px canvas width. Preserve deliberate interaction/camera differences and #950/#960. Save/leave/cloud status, loops, R1.5/default switch, receiving hosts and paired MCP stay separate. Pictures remain local/ignored under #992; receipts retain dimensions, hashes and CI artifact paths.
+
 ### 2026-10-11: independent landed layer/property comparison (#967)
 
 - [Fresh checker receipt](work-specs/editor-layer-property-qualification/independent/README.md): fetched main a1949517 contains e51f0ca3; production served 80780c23 with e51f0ca3 as its last deployment-affecting change. Six unchanged layer/property, four transform and six CLI cases passed; three separately authored cumulative viewport/physical-zoom tasks, a fresh Studio interaction/cumulative task and a served-production task passed in CI, one worker, zero retries. No product code changed.
