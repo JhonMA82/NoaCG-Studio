@@ -103,7 +103,7 @@ In order of how much it would change what NoaCG can honestly claim:
   https://tech.ebu.ch/publications/presentations/2026/nts2026/open-graphics-for-live-media-ograf-proven-in-a-national-election).
 - Teikna and Mapcreator ship OGraf maps and charts; Teikna sells election data connectors.
 - Zero Density's OGraf Studio (AGPL, browser editor with AI chat and MCP agents) is the closest
-  analogue to NoaCG Studio's creation side (`docs/COMPETITORS.md`).
+  analogue to NoaCG Studio's creation side (`docs/private/competitors/COMPETITORS.md`).
 - OGraf has no certification or conformance levels. "OGraf compatible" in a buyer's requirements
   therefore means whatever the buyer's own proof of concept tests: packages that load and play in its
   renderers, a renderer that plays its packages, or a Server API its controller can drive.

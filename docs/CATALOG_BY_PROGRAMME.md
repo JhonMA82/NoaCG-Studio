@@ -669,7 +669,7 @@ newscaststudio.com on CBS Mornings (2024); the gameshows and millionaire fandom 
 
 Repo: `docs/CATALOG_VARIETY.md`, `docs/CATALOG_WORK_QUEUE.md`, `docs/LOWER_THIRD_SHAPES_BRIEF.md`,
 `docs/PACK_TAXONOMY.md`, `docs/KIT_MATRIX_GAPS.md`, `docs/TEMPLATE_TAXONOMY_PROPOSAL.md`,
-`docs/DESIGN_LANGUAGE.md`, `docs/COMPETITORS.md`, `docs/COMPETITOR_MXMZ.md`,
+`docs/DESIGN_LANGUAGE.md`, `docs/private/competitors/COMPETITORS.md`, `docs/private/competitors/COMPETITOR_MXMZ.md`,
 [issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776), [issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776),
 [`docs/backlog/more-behaviours-than-poll-and-quiz.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/more-behaviours-than-poll-and-quiz.md).
 

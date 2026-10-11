@@ -237,7 +237,7 @@ hidden layer nobody named is offered in the mapping step with the same two choic
 
 No further prefixes. A recipe's roles use plain words because a recipe is TAUGHT; the explicit form
 covers the two behaviours that need no teaching. Growing the prefix family into a per-recipe
-grammar would be the renaming ritual the MXMZ lesson forbids (`docs/COMPETITOR_MXMZ.md` §3).
+grammar would be the renaming ritual the MXMZ lesson forbids (`docs/private/competitors/COMPETITOR_MXMZ.md` §3).
 
 ---
 
