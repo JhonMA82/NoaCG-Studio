@@ -92,10 +92,10 @@ export function behaviourRuntimeJs(withClock: boolean): string {
 
 ${motionSpeedJs}
 
-// What the runtime remembers between repaints: measured gauge lengths (at rest, once), each
-// number field's last value and which one rose most recently, where each row's slot was drawn
+// What the runtime remembers between repaints: measured gauge lengths and a path gauge's drawn
+// points (at rest, once), each number field's last value and which one rose most recently, where each row's slot was drawn
 // (at rest, once) and every layer a place rule has moved.
-var noacgBehaviourMemory = { gauges: {}, numbers: {}, rose: {}, defaults: {}, slots: {}, places: [] };
+var noacgBehaviourMemory = { gauges: {}, shapes: {}, numbers: {}, rose: {}, defaults: {}, slots: {}, places: [] };
 
 // noacgRoleEls(role, key): every layer stamped with this role token.
 function noacgRoleToken(role, key) {
@@ -728,14 +728,58 @@ function noacgGaugeFull(el, token) {
   return w > 0 ? w : 0;
 }
 
+// noacgGaugeShape(el, token): what a gauge drawn as a PATH or a POLYGON needs to be filled
+// without squashing its ends, read once at rest: its drawn points and its box. Null for any
+// other drawing, which is scaled instead.
+function noacgGaugeShape(el, token) {
+  var tag = (el.tagName || '').toLowerCase();
+  var attr = tag === 'path' ? 'd' : tag === 'polygon' ? 'points' : null;
+  if (!attr || typeof svgShiftPoints !== 'function') return null;
+  var memory = noacgBehaviourMemory.shapes;
+  if (memory[token]) return memory[token];
+  var box;
+  try { box = el.getBBox(); } catch (e) { return null; }
+  if (!(box.width > 0)) return null;
+  memory[token] = { attr: attr, drawn: el.getAttribute(attr), box: box, state: { share: 1 }, squeezed: false };
+  return memory[token];
+}
+
+// noacgGaugeFill(el, shape, share): a path gauge at a share. Its far half moves in, the way a
+// path panel grows (SHAPE_SHIFT_JS), so the drawn rounded ends keep their shape. It stops where
+// the two ends would meet, a length of its own height, and only below that is the little that
+// is left scaled down to the share.
+function noacgGaugeFill(el, shape, share) {
+  var box = shape.box;
+  var want = box.width * share;
+  var length = Math.max(want, Math.min(box.width, box.height));
+  var shift = shape.attr === 'd' ? svgShiftPathD : svgShiftPoints;
+  el.setAttribute(shape.attr, shift(shape.drawn, 'x', box.x + box.width / 2, 1, length - box.width));
+  var squeeze = length > 0 ? want / length : 0;
+  // Scaled only while it is shorter than its own ends, and put back once, so a bar that never
+  // gets that short is never given a transform at all.
+  if (squeeze < 1) gsap.set(el, { scaleX: squeeze, svgOrigin: box.x + ' ' + (box.y + box.height / 2) });
+  else if (shape.squeezed) gsap.set(el, { scaleX: 1 });
+  shape.squeezed = squeeze < 1;
+}
+
 // noacgGauge(el, token, share, motion): one gauge at one share. A RECTANGLE'S WIDTH IS SET,
-// NEVER ITS SCALE - scaling squashes a rounded cap; anything else the designer drew is scaled
-// about its own left edge, so it grows or drains from where it starts.
+// NEVER ITS SCALE - scaling squashes a rounded cap - and a rounded bar drawn as a path (which is
+// how Illustrator writes one) has its far half moved instead (noacgGaugeFill). Anything else the
+// designer drew is scaled about its own left edge, so it grows or drains from where it starts.
 function noacgGauge(el, token, share, motion) {
   var full = noacgGaugeFull(el, token);
   if (!(full > 0) || typeof gsap === 'undefined') return;
   if (share < 0) share = 0;
   if (share > 1) share = 1;
+  var shape = el.hasAttribute('width') ? null : noacgGaugeShape(el, token);
+  if (shape) {
+    // The share itself is tweened, and every frame redraws the points from the drawn ones.
+    gsap.killTweensOf(shape.state);
+    var paint = function () { noacgGaugeFill(el, shape, shape.state.share); };
+    if (!motion) { shape.state.share = share; return paint(); }
+    gsap.to(shape.state, { share: share, duration: motion.duration, ease: motion.ease, delay: motion.delay || 0, onUpdate: paint, onComplete: paint });
+    return;
+  }
   var to;
   if (el.hasAttribute('width')) to = { attr: { width: full * share } };
   else {
