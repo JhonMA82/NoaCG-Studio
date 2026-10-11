@@ -625,7 +625,9 @@ jobs:
   # red on each (scripts/e2e-retry.mjs `retryPlan`): more than one shard without a report, nothing
   # to re-run (no failing spec and no dead shard - the failure was not a test), and a failing spec
   # this change itself edits (a flake in a spec the change wrote is the change's, bounced to its
-  # author, never quarantined on a second run).
+  # author, never quarantined on a second run). Nothing to re-run is GREEN, not refused, when the
+  # matrix was cancelled and every report is in without a failure or run error: a shard ran out
+  # of clock after reporting (run 38153870752), and every spec already has its verdict.
   #
   # A SHARD THAT DIED gets its files run here too. Killed at the cap, or failed before Playwright
   # reported, it uploads no blob, and its files never ran on this commit; the plan's `shardSpecs`
@@ -680,18 +682,21 @@ jobs:
 
       # `--shards` is how many reports there must be; `--shard-specs` is the plan's assignment, which
       # names the files of a shard that left none; `--changed` is what this change edits - the
-      # merge group's base, or the push's `before`. The script writes `specs`, `filters`,
-      # `unreported` and `unreported_filters` to GITHUB_OUTPUT itself.
+      # merge group's base, or the push's `before`; `--e2e-result` is the matrix's own word, which
+      # tells a shard cancelled after it reported (every report in, none failing: green, nothing
+      # to run) from one that failed outside its specs (refused). The script writes `specs`,
+      # `filters`, `unreported` and `unreported_filters` to GITHUB_OUTPUT itself.
       - name: Name the failed spec files
         id: failed
         env:
           MATRIX: ${{ needs.plan.outputs.matrix }}
           SHARD_SPECS: ${{ needs.plan.outputs.shardSpecs }}
           CHANGED_SINCE: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.before }}
+          E2E_RESULT: ${{ needs.e2e.result }}
         run: |
           set -euo pipefail
           SHARDS="$(node -e 'console.log(JSON.parse(process.env.MATRIX).shardTotal[0])')"
-          node scripts/e2e-retry.mjs --blobs all-blob-reports --shards "$SHARDS" --shard-specs "$SHARD_SPECS" --changed "$CHANGED_SINCE" --github-output
+          node scripts/e2e-retry.mjs --blobs all-blob-reports --shards "$SHARDS" --shard-specs "$SHARD_SPECS" --changed "$CHANGED_SINCE" --e2e-result "$E2E_RESULT" --github-output
 
       # The same anchored filters the shards use (`specFilterArg`), deliberately unquoted so word
       # splitting hands Playwright one argument per file - see the shard step for why that is safe.
@@ -718,10 +723,12 @@ jobs:
 
       # Named OUTSIDE the `blob-report-*` glob the combined report downloads: this job runs beside
       # the report job, and a retry's blob merged into the report would show the same spec once red
-      # and once green with nothing saying which was which.
+      # and once green with nothing saying which was which. Only when a run happened: with nothing
+      # to re-run there is no report, and `if-no-files-found: error` turned run 38153870752's
+      # all-green verdict into a failed retry.
       - name: Upload the retry report
         uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && (steps.second.outcome != 'skipped' || steps.unreported.outcome != 'skipped') }}
         with:
           name: retry-blob-report
           path: |
@@ -1184,7 +1191,7 @@ jobs:
       # that fails (GitHub refusing the push, the organisation not yet letting Actions open pull
       # requests) is a warning, never a red job over a green gate.
       - name: Quarantine the specs that failed and then passed
-        if: ${{ needs.gate.result == 'success' && needs.e2e-retry.result == 'success' }}
+        if: ${{ needs.gate.result == 'success' && needs.e2e-retry.result == 'success' && needs.e2e-retry.outputs.specs != '[]' }}
         continue-on-error: true
         env:
           GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}

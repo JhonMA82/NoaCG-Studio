@@ -77,10 +77,41 @@ test('no failing spec and no dead shard refuses: there is nothing to re-run and 
   assert.match(plan.reason, /nothing to re-run/);
 });
 
+// Run 38153870752 (#1020, #1025): ten shards, ten complete green reports, and shard 5 concluded
+// `cancelled` at its 20-minute cap in its post steps, after its report was uploaded.
+const tenBins = all(10).map((n) => [`s${n}.spec.ts`]);
+
+test('every report in, none failing, the matrix cancelled: green with nothing to re-run, and it says why', () => {
+  const plan = retryPlan({ failed: [], reported: all(10), shards: 10, shardSpecs: tenBins, matrix: 'cancelled', errors: 0 });
+  assert.equal(plan.ok, true, plan.reason);
+  assert.deepEqual({ ...plan, reason: undefined }, { ok: true, specs: [], unreported: [], dead: [], reason: undefined });
+  assert.match(plan.reason, /all 10 shard reports are in and none names a failing spec.*nothing to re-run/);
+});
+
+test('every report in and none failing still refuses when a shard failed outside its specs, the report holds a run error, or the shard count is unknown', () => {
+  for (const [input, why] of [
+    [{ matrix: 'failure' }, 'a shard failed after its specs passed, such as the clean-tree check'],
+    [{ matrix: 'cancelled', errors: 1 }, 'a run-level error (a spec file that did not load) names no spec'],
+    [{ matrix: '' }, 'no matrix result given'],
+    [{ matrix: 'cancelled', shards: 0, reported: [] }, 'no shard count, so "every report in" is unknown'],
+  ]) {
+    const plan = retryPlan({ failed: [], reported: all(10), shards: 10, shardSpecs: tenBins, ...input });
+    assert.equal(plan.ok, false, why);
+    assert.match(plan.reason, /the failure was not a test/, why);
+  }
+});
+
 test('a failing spec the change itself edits refuses: that flake is the change\'s, not the suite\'s', () => {
   const plan = retryPlan({ failed: ['e2e/a.spec.ts', 'e2e/b.spec.ts'], reported: all(9), shards: 9, changed: ['e2e/b.spec.ts', 'src/y.ts'] });
   assert.equal(plan.ok, false);
   assert.match(plan.reason, /e2e\/b\.spec\.ts failed and this change edits it/);
+});
+
+test('a cancelled matrix lifts none of the three refusals', () => {
+  const matrix = 'cancelled';
+  assert.match(retryPlan({ failed: [], reported: [2], shards: 3, shardSpecs: bins, matrix }).reason, /2 of 3 shards uploaded no report/);
+  assert.match(retryPlan({ failed: [], reported: [1, 2], shards: 3, shardSpecs: null, matrix }).reason, /shard 3 uploaded no report and the plan does not name its files/);
+  assert.match(retryPlan({ failed: ['e2e/b.spec.ts'], reported: all(9), shards: 9, changed: ['e2e/b.spec.ts'], matrix }).reason, /e2e\/b\.spec\.ts failed and this change edits it/);
 });
 
 test('a dead shard does not lift the edited-spec refusal for a spec that failed beside it', () => {
@@ -110,6 +141,39 @@ test('main and merge groups can retry a failed or cancelled matrix, never a manu
     assert.equal(canRetry(result, 'push', 'refs/heads/topic'), false, 'feature branch pushes have no retry');
   }
   for (const result of ['success', 'skipped']) assert.equal(canRetry(result), false, result);
+});
+
+const retryJob = workflow.match(/^ {2}e2e-retry:\n([\s\S]*?)\n {2}# The catalog calibration/m)?.[1];
+assert.ok(retryJob, 'the retry job must be present in the workflow');
+const stepIf = (body, name) => body.match(new RegExp(`- name: ${name}\\n(?: {8}[^\\n]*\\n)*? {8}if: \\$\\{\\{ (.*) \\}\\}$`, 'm'))?.[1];
+
+test('the retry job hands the script the matrix result it reads', () => {
+  assert.match(retryJob, /E2E_RESULT: \$\{\{ needs\.e2e\.result \}\}/);
+  assert.match(retryJob, /node scripts\/e2e-retry\.mjs [^\n]*--e2e-result "\$E2E_RESULT"/);
+});
+
+test('with nothing re-run the retry job uploads no report, so its empty verdict exits green', () => {
+  const uploadIf = stepIf(retryJob, 'Upload the retry report');
+  assert.ok(uploadIf, 'the upload step has a condition');
+  const uploads = (second, unreported, cancelled = false) => runInNewContext(uploadIf, {
+    cancelled: () => cancelled, steps: { second: { outcome: second }, unreported: { outcome: unreported } },
+  }, { timeout: 100 });
+  assert.equal(uploads('skipped', 'skipped'), false, 'run 38153870752: nothing ran, nothing to upload');
+  for (const [second, unreported] of [['success', 'skipped'], ['failure', 'skipped'], ['skipped', 'success'], ['success', 'failure']]) {
+    assert.equal(uploads(second, unreported), true, `${second}/${unreported}`);
+  }
+  assert.equal(uploads('success', 'skipped', true), false, 'never after a manual cancellation');
+});
+
+test('an empty set of re-run specs quarantines nothing', () => {
+  const quarantineIf = stepIf(workflow, 'Quarantine the specs that failed and then passed');
+  assert.ok(quarantineIf, 'the quarantine step has a condition');
+  // A job id with a hyphen is a property access in a workflow expression and a subtraction in JS.
+  const quarantines = (specs) => runInNewContext(quarantineIf.replaceAll('needs.e2e-retry', "needs['e2e-retry']"), {
+    needs: { gate: { result: 'success' }, 'e2e-retry': { result: 'success', outputs: { specs } } },
+  }, { timeout: 100 });
+  assert.equal(quarantines('[]'), false);
+  assert.equal(quarantines('["e2e/a.spec.ts"]'), true);
 });
 
 const gateBody = workflow.match(/ {6}- name: Require every gate\n[\s\S]*? {8}run: \|\n((?: {10}[^\n]*\n|\n)*)/)?.[1];

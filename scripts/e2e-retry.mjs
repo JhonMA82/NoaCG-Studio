@@ -2,7 +2,7 @@
 // WHICH SPEC FILES A RED RUN'S SHARDS FAILED ON - read from their own blob reports, so the retry
 // job re-runs exactly those files on the same commit and nothing else.
 //
-//   node scripts/e2e-retry.mjs --blobs <dir> --shards <n> [--shard-specs <json>] [--changed <base>] [--github-output]
+//   node scripts/e2e-retry.mjs --blobs <dir> --shards <n> [--shard-specs <json>] [--changed <base>] [--e2e-result <result>] [--github-output]
 //
 // The shards upload `blob-report-<n>` artifacts (playwright.config.ts); ci.yml's `e2e-retry` job
 // downloads them into one directory and asks Playwright to merge them into a JSON report, which
@@ -28,7 +28,13 @@
 //     one second run cannot cover several runners' worth of files inside its own time limit, and
 //     a file list that cannot be named cannot be re-run;
 //   - nothing to re-run: no failing spec in the reports and no dead shard - the failure was not a
-//     test;
+//     test. ONE SHAPE OF IT IS GREEN, not refused: the matrix concluded `cancelled` (not
+//     `failure`, which is a shard that failed outside the specs, such as the clean-tree check)
+//     and the merged report carries no run-level error. A shard uploads its report only when its
+//     job was not cancelled (`!cancelled()` on the upload step), so a report present is a run
+//     that finished; a shard concluded `cancelled` beside it ran out of clock after reporting.
+//     Run 38153870752 was that: ten complete green reports, shard 5 ending at the 20-minute cap
+//     in its post steps, and main red (#1020, #1025) for a commit whose every spec passed;
 //   - a failing spec that this change itself touched (`--changed <base>`): a flake in a spec the
 //     change wrote or edited is the change's, not the suite's; it is bounced to its author, never
 //     quarantined on the strength of a second run.
@@ -69,10 +75,13 @@ export const MAX_DEAD_SHARDS = 1;
  * `specs` failed in a shard and get their SECOND run; `unreported` are the files of a shard that
  * uploaded no report, which get their FIRST. `reported` is the 1-based indices of the shards that
  * uploaded one, and `shardSpecs` the plan's assignment, one file list per shard in shard order.
- * @param {{ failed: string[], reported: number[], shards: number, shardSpecs?: string[][] | null, changed?: string[] }} input
- * @returns {{ ok: true, specs: string[], unreported: string[], dead: number[] } | { ok: false, reason: string }}
+ * `matrix` is the shards' aggregate result (`needs.e2e.result`) and `errors` the number of
+ * run-level errors in the merged report; together they tell a shard that ran out of clock after
+ * reporting from one that failed outside its specs. An `ok` with nothing to run carries `reason`.
+ * @param {{ failed: string[], reported: number[], shards: number, shardSpecs?: string[][] | null, changed?: string[], matrix?: string, errors?: number }} input
+ * @returns {{ ok: true, specs: string[], unreported: string[], dead: number[], reason?: string } | { ok: false, reason: string }}
  */
-export function retryPlan({ failed, reported, shards, shardSpecs = null, changed = [] }) {
+export function retryPlan({ failed, reported, shards, shardSpecs = null, changed = [], matrix = '', errors = 0 }) {
   const have = new Set(reported);
   const dead = Array.from({ length: Math.max(0, shards) }, (_, i) => i + 1).filter((n) => !have.has(n));
   if (dead.length > MAX_DEAD_SHARDS) {
@@ -85,6 +94,9 @@ export function retryPlan({ failed, reported, shards, shardSpecs = null, changed
   const failing = new Set(failed);
   const unreported = [...new Set(dead.flatMap((n) => shardSpecs[n - 1].map(specPath)))].filter((s) => !failing.has(s)).sort();
   if (failed.length === 0 && unreported.length === 0) {
+    if (matrix === 'cancelled' && errors === 0 && shards > 0) {
+      return { ok: true, specs: [], unreported: [], dead: [], reason: `all ${reported.length} shard reports are in and none names a failing spec or a run error - a shard was cancelled after it reported, so every spec has its verdict and there is nothing to re-run` };
+    }
     return { ok: false, reason: 'the shard reports name no failing spec - the failure was not a test, so there is nothing to re-run' };
   }
   const edited = editedSpecs(changed);
@@ -154,23 +166,27 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const { flags } = parseArgs(process.argv.slice(2));
   const dir = flags.get('--blobs');
   if (typeof dir !== 'string') {
-    console.error('usage: e2e-retry.mjs --blobs <directory of blob reports> --shards <n> [--shard-specs <json>] [--changed <base>] [--github-output]');
+    console.error('usage: e2e-retry.mjs --blobs <directory of blob reports> --shards <n> [--shard-specs <json>] [--changed <base>] [--e2e-result <result>] [--github-output]');
     process.exit(2);
   }
   // No directory is no shard reporting at all, which the plan refuses or re-runs like any other.
   const zips = existsSync(dir) ? readdirSync(dir).filter((f) => /^report-\d+\.zip$/.test(f)) : [];
   const shards = Number(flags.get('--shards') ?? 0);
+  const report = zips.length > 0 ? mergeBlobReports(dir) : null;
   const plan = retryPlan({
-    failed: zips.length > 0 ? failedSpecFiles(mergeBlobReports(dir)) : [],
+    failed: failedSpecFiles(report),
     reported: zips.map((f) => Number(/\d+/.exec(f)[0])),
     shards,
     shardSpecs: parseShardSpecs(flags.get('--shard-specs')),
     changed: changedSince(flags.get('--changed')),
+    matrix: String(flags.get('--e2e-result') ?? ''),
+    errors: Array.isArray(report?.errors) ? report.errors.length : 0,
   });
   if (!plan.ok) {
     console.error(`e2e-retry: not re-running - ${plan.reason}.`);
     process.exit(1);
   }
+  if (plan.reason) console.error(`e2e-retry: ${plan.reason}.`);
   for (const n of plan.dead) {
     console.error(`e2e-retry: shard ${n} uploaded no report, so its files never ran on this commit - they run once now, as their first verdict.`);
   }

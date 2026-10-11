@@ -70,3 +70,26 @@ so the checker says in plain words what a landing with this shape would now show
 
 Each phase's pull request adds what the next phase must allow for: decisions, traps, and the
 check's findings.
+
+### Phase 1: green stays green
+
+- **Findings of the last check:** none (first phase).
+- **Decision: "every shard reported, none failing" is green only when the matrix concluded
+  `cancelled` and the merged report has no run-level error.** `retryPlan` takes `matrix`
+  (`needs.e2e.result`, passed as `--e2e-result`) and `errors` (the merged report's `errors`
+  count). A `failure` matrix with every spec green is a shard that failed outside its specs (the
+  clean-tree check, #801), and a run-level error is a spec file that never loaded; both still
+  refuse with "the failure was not a test". No matrix result, or no shard count, also refuses.
+  Why `cancelled` is safe: the shard upload step runs only under `!cancelled()`, so a report that
+  exists came from a Playwright run that finished; run 38153870752's shard 5 shows every step green
+  and the job cancelled at exactly 20:00.
+- **ci.yml, three lines that read the retry result:** the script gets `--e2e-result`; "Upload the
+  retry report" runs only when a re-run step ran (with nothing run, `if-no-files-found: error` is
+  what failed run 38153870752's retry job, beside the refusal); the quarantine step skips an empty
+  `specs` (`[]`), which it used to answer with an exit 2 under `continue-on-error`.
+- **Trap left open:** a shard whose clean-tree check fails AND whose job then hits the cap in
+  "Upload failure evidence" would conclude `cancelled` with a green report. The script cannot see
+  per-job conclusions; `scripts/red-main-issue.mjs` can, but it runs only on a red gate. Narrow
+  enough to leave; say so if it is ever seen.
+- **For phase 2:** nothing here touches `scripts/e2e-affected.mjs`; `retryPlan`'s signature
+  gained two optional inputs, so a caller that omits them keeps the old refusals.
