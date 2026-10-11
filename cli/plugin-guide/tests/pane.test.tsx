@@ -158,7 +158,7 @@ describe('the package pane', () => {
       await world.command()
       expect(await engineDraws(band)).toBe(true)
 
-      // Only the close happens: no command, no state write of the person's, no redraw asked.
+      // Only the close happens: no `/noacg-guide`, no state write of the person's, no redraw asked.
       await world.escape()
       expect(world.panes).toEqual([])
       expect(await texts(band)).toContain('Check Evening news')

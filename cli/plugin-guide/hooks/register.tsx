@@ -50,6 +50,12 @@ const GAP = 2
 /** The package pane's id. */
 const PANE = 'noacg-guide'
 
+/**
+ * The pane's main button. The pane opens with the keys (`focus`), and its ring starts here, so
+ * Enter acts at once; without `autoFocus` it starts on nothing and Enter does nothing.
+ */
+const MAIN = { variant: 'primary', autoFocus: true } as const
+
 /** Whether a pane `$.ui.panes()` lists is this mod's, drawn and in front. */
 const onScreen = (open: { id: string; isShown: boolean; isPlaced: boolean }) => open.id === PANE && open.isShown && open.isPlaced
 
@@ -346,12 +352,10 @@ export const register: Register = on => {
       fill: async (text, mode) => (await $.prompt.fill({ text, mode })).isFilled,
       toast: text => $.ui.toast(text, { timeoutMs: TOAST_MS }),
     })
-    // The pane opens with the keys (`focus`), and its ring starts on the main button, so Enter
-    // fills that request at once; without `autoFocus` the ring starts on nothing.
     if (list.length === 0) {
       return (
         <Box flexDirection="column">
-          <Button key="start" label="Start a package" variant="primary" autoFocus onPress={fill(START)} />
+          <Button key="start" label="Start a package" {...MAIN} onPress={fill(START)} />
         </Box>
       )
     }
@@ -376,12 +380,7 @@ export const register: Register = on => {
                   <Box flexShrink={1}>
                     <Text>{p.next.label}</Text>
                   </Box>
-                  <Button
-                    key={`fill:${p.dir}`}
-                    label="Fill"
-                    {...(p === first ? { variant: 'primary' as const, autoFocus: true as const } : {})}
-                    onPress={fill(p.next.request)}
-                  />
+                  <Button key={`fill:${p.dir}`} label="Fill" {...(p === first ? MAIN : {})} onPress={fill(p.next.request)} />
                 </Box>
               )}
               {p.next?.warning && <Text color="warning">{p.next.warning}</Text>}

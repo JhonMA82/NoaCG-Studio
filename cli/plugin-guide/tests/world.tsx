@@ -304,6 +304,13 @@ export function session($: Engine, on: On, tree: Tree): Session {
   on('ui.status', () => refuse('ui.status'))
   on('ui.log', () => refuse('ui.log'))
 
+  /** A slash command the person typed, settled. */
+  const typed = async (command: string) => {
+    const answered = await $.command.run({ command, args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 140 } })
+    await clock.settle()
+    return answered
+  }
+
   const world: Session = {
     tree,
     store,
@@ -349,19 +356,14 @@ export function session($: Engine, on: On, tree: Tree): Session {
       await $.tool.call({ tool, ...args })
       await clock.settle()
     },
-    command: async () => {
-      const answered = await $.command.run({ command: 'noacg-guide', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 140 } })
-      await clock.settle()
-      return answered
-    },
+    command: () => typed('noacg-guide'),
     closePane: async () => {
       if (!panes.includes('noacg-guide')) throw new Error('the pane is not open')
       await world.command()
     },
     escape: async () => {
       if (!panes.includes('noacg-guide')) throw new Error('the pane is not open')
-      await $.command.run({ command: 'escape', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 140 } })
-      await clock.settle()
+      await typed('escape')
     },
     mount: (surface, columns, hasSurvey = false) =>
       $.ui.mount({ plugin: 'noacg-guide', surface, component: 'AbovePrompt', props: band(columns, hasSurvey) }),

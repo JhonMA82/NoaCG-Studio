@@ -1007,7 +1007,8 @@ draws a button `autoFocus`.
   hold the prop.
 - The kit's `$` has no `ui.close` and a test's own hooks may make no call, but an inline plugin
   loaded with `test(name, { plugins }, ...)` can: `ESCAPE` in `tests/world.tsx` closes the pane
-  as Esc does, writing nothing else, and the band test fails without the `ui.close` hook.
+  as Esc does, writing nothing else, and the band test fails without the `ui.close` hook. This
+  replaces the phase 4 trap that a test cannot raise the person's Esc.
 - `tryout.md` no longer promises 15 minutes in all: about 15 of the owner's own, plus setup
   (now including the CLI's NoaCG sign-in, so step 4 does not stop for it) and the model's pace
   in step 1.

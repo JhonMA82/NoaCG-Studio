@@ -3,7 +3,8 @@
 A walk through `noacg-guide` (`cli/plugin-guide/`) to judge how it feels before it is published or
 joins the toolkit. It takes about 15 minutes of your own time, plus a few minutes of setup and
 however long Claude takes to make and check the package in step 1. Nothing waits on it: what you
-notice becomes the next plan, or the mod is dropped. The README says what the mod does; this says what to try and what to look at.
+notice becomes the next plan, or the mod is dropped. The README says what the mod does; this says
+what to try and what to look at.
 
 ## Before you start (about 5 minutes)
 
@@ -65,7 +66,7 @@ record times in the pane. Nothing was written into the package folder.
 ## 4. The hand-off to NoaCG (3 minutes)
 
 Press **Fill prompt** on the save step and send it. The CLI is signed in from before you started;
-if the save says it is not, run the `login` line from there and send the prompt again.
+if the save says it is not, run the `login` line from "Before you start" and send the prompt again.
 
 **Look for:**
 - The package has no step once it is saved, and **Open in NoaCG** opens it in your library.

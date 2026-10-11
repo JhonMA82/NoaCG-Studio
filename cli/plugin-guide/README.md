@@ -35,7 +35,8 @@ frames folder and pack file as links, the saved or sent link, and its next step 
 button. It follows each new record. Esc or `/noacg-guide` again closes it. In a folder with no
 package it offers **Start a package**, which fills the prompt with "Make broadcast graphics with
 NoaCG." It opens with that button selected, or with the **Fill** of the package that needs
-attention first, so Enter fills the request at once.
+attention first, so Enter fills the request at once. When no package has a step left, nothing
+is selected.
 
 Where nothing draws (the VS Code panel, `claude -p`), `/noacg-guide` answers with the same list
 and next steps as text. That text stays in the conversation, so the model reads it later.
