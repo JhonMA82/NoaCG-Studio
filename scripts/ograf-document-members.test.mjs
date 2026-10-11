@@ -37,7 +37,6 @@ const RUNTIME_SOURCES = ['src/templates/**/*.ts', 'src/blocks/**/*.ts'];
 
 /** Members of the real document a graphic may share with the renderer's page, and why. */
 const PASS_THROUGH = {
-  fonts: "the page's font set, which is where a graphic's @font-face rules register: lifted out of its shadow tree into the renderer's <head>, because a shadow tree registers none; `fonts.ready` waits for the graphic's faces as well",
   createElement: 'makes a detached node; the template appends it inside its own canvas',
   createElementNS: 'makes a detached SVG node; the template appends it inside its own canvas',
   createRange: 'makes a detached range the text fit measures one of its own elements with',
@@ -70,7 +69,7 @@ const DECIDED_EVENTS = ['DOMContentLoaded'];
  *  each `name:`, getter and method of its `scoped` object. */
 function scopedMembers() {
   const source = readFileSync(path.join(ROOT, 'src/export/targets/ograf.ts'), 'utf8');
-  const fn = /function scopedDocument\(root, head\) \{\r?\n(?: {2}.*\r?\n)*? {2}const scoped = \{\r?\n([\s\S]*?)\r?\n {2}\};/.exec(source);
+  const fn = /function scopedDocument\(root, head, listeners\) \{\r?\n(?: {2}.*\r?\n)*? {2}const scoped = \{\r?\n([\s\S]*?)\r?\n {2}\};/.exec(source);
   assert.ok(fn, 'scopedDocument() no longer has the shape this test reads - update the reader, not the list');
   return new Set([...fn[1].matchAll(/^ {4}(?:get )?([A-Za-z_$][\w$]*)(?::|\()/gm)].map((m) => m[1]));
 }
@@ -97,12 +96,14 @@ const scoped = scopedMembers();
 const { members, escapes, events } = readMembers();
 measured(members.size, 'document members the template runtimes read');
 
-test('scopedDocument scopes the lookups, the canvas, the head and the loading state', () => {
+test('scopedDocument scopes the lookups, the canvas, the head, the loading state and the listeners', () => {
   // `head` is where a template's own document-level additions go: the graphic's shadow root, so a
   // <style> it appends styles its own tree and not the renderer's page. `readyState` and
   // `addEventListener` are its loading: 'loading' while its code runs, its DOMContentLoaded once it
-  // has, where the renderer's page loaded long before (issue #964).
-  for (const member of ['getElementById', 'querySelector', 'querySelectorAll', 'body', 'documentElement', 'head', 'readyState', 'addEventListener']) {
+  // has, where the renderer's page loaded long before (issue #964). `fonts` is the page's font set
+  // (where the graphic's @font-face rules register, lifted into the renderer's <head>), with the
+  // listeners a template adds on it removed at dispose() like the document's (issue #998).
+  for (const member of ['getElementById', 'querySelector', 'querySelectorAll', 'body', 'documentElement', 'head', 'readyState', 'addEventListener', 'fonts']) {
     assert.ok(scoped.has(member), `scopedDocument no longer scopes document.${member}`);
   }
 });

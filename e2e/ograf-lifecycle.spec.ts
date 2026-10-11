@@ -5,7 +5,7 @@
 // script has run, and its timers end with the page. Inside an OGraf renderer the same code runs
 // as a component of a page that loaded long ago and outlives it, so graphic.mjs gives the
 // template both halves back: its DOM-ready code runs after its whole script (#964), and dispose()
-// stops the timers its code started (#989).
+// stops the timers its code started (#989) and removes the listeners and observers it added (#998).
 //
 // Every package is built by the real OGraf target from a template the real generators made, and
 // mounted the way a renderer mounts it: import graphic.mjs, define the element, append it, load().
@@ -147,4 +147,68 @@ test('dispose() stops the timers the template started, so a countdown stops coun
   const disposed = await counts();
   await page.clock.runFor(1_500);
   expect(await counts(), "a timer the template started still runs after dispose()").toEqual(disposed);
+});
+
+/**
+ * One listener on each object the renderer owns, added the ways the runtimes add them (the
+ * document, the page's font set, the window) and the way hand-written code may (a bare call), and
+ * a ResizeObserver on the probe itself, each counting into the probe for as long as it is attached.
+ * The probe is held from the start, so it can still count once dispose() has taken it off the page.
+ */
+const LISTENER_PROBE_JS = `
+var listenerProbeEl = document.getElementById('listener-probe');
+function listenerProbe(kind) {
+  listenerProbeEl.setAttribute('data-' + kind, String(Number(listenerProbeEl.getAttribute('data-' + kind) || 0) + 1));
+}
+document.addEventListener('probe', function () { listenerProbe('document'); });
+document.fonts.addEventListener('loadingdone', function () { listenerProbe('fonts'); });
+window.addEventListener('probe', function () { listenerProbe('window'); });
+addEventListener('bare-probe', function () { listenerProbe('bare'); });
+new ResizeObserver(function () { listenerProbe('resize'); }).observe(listenerProbeEl);`;
+
+test('dispose() removes the listeners and observers the template added (#998)', async ({ page }) => {
+  await openRenderer(page, {
+    svg01: { kind: 'design', id: 'svg01' },
+    probe: { kind: 'probe', name: 'Listener Probe', html: '<div id="listener-probe"></div>', css: '#listener-probe { width: 10px; height: 10px; }', js: LISTENER_PROBE_JS },
+  });
+  // The page's own font set, counting what is listening on it: svg01 refits its text on `loadingdone`.
+  await page.evaluate(() => {
+    const fonts = document.fonts as FontFaceSet & { listening?: Set<unknown> };
+    const listening = (fonts.listening = new Set());
+    const add = fonts.addEventListener.bind(fonts);
+    const remove = fonts.removeEventListener.bind(fonts);
+    fonts.addEventListener = (type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions) => { listening.add(listener); add(type, listener, options); };
+    fonts.removeEventListener = (type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions) => { listening.delete(listener); remove(type, listener, options); };
+  });
+  const fontListeners = () => page.evaluate(() => (document.fonts as FontFaceSet & { listening: Set<unknown> }).listening.size);
+  for (const key of ['svg01', 'probe']) {
+    expect(await act(page, key, 'load'), `${key} did not load`).toEqual({ statusCode: 200 });
+    expect(await act(page, key, 'playAction'), `${key} did not play`).toMatchObject({ statusCode: 200 });
+  }
+  expect(await fontListeners(), 'neither graphic listened on the font set - nothing was proven').toBe(2);
+  const probe = await page.evaluateHandle(() => graphicBody(document.querySelector('[data-key="probe"]')!).querySelector('#listener-probe')!);
+  const counts = () => probe.evaluate((el) => Object.fromEntries(['document', 'fonts', 'window', 'bare', 'resize'].map((kind) => [kind, el.getAttribute(`data-${kind}`)])));
+  // Each event once, and a resize of the probe, put back on the page if dispose() took it off. A
+  // fresh observer's first answer marks the rendering step every observer still attached answers in.
+  const fire = () => probe.evaluate(async (el) => {
+    document.dispatchEvent(new Event('probe'));
+    document.fonts.dispatchEvent(new Event('loadingdone'));
+    window.dispatchEvent(new Event('probe'));
+    window.dispatchEvent(new Event('bare-probe'));
+    if (!el.isConnected) document.body.appendChild(el);
+    el.style.width = `${el.offsetWidth + 7}px`;
+    el.style.height = '10px';
+    await new Promise<void>((resolve) => new ResizeObserver((_, observer) => { observer.disconnect(); resolve(); }).observe(el));
+  });
+  const started = await counts();
+  await fire();
+  const attached = await counts();
+  for (const kind of Object.keys(attached)) {
+    expect(attached[kind], `the ${kind} listener was not attached before dispose() - nothing was proven`).not.toBe(started[kind]);
+  }
+  for (const key of ['svg01', 'probe']) expect(await act(page, key, 'dispose')).toEqual({ statusCode: 200 });
+  expect.soft(await fontListeners(), 'a graphic still listens on the font set after dispose()').toBe(0);
+  const disposed = await counts();
+  await fire();
+  expect(await counts(), 'a listener or observer the template added still answers after dispose()').toEqual(disposed);
 });

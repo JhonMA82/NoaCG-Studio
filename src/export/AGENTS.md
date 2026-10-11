@@ -220,7 +220,13 @@ export-time reflow, stretching, or cropping.
   sb22 answered `load()` with 500 (#964). The template's `setTimeout`, `setInterval`,
   `requestAnimationFrame` and their clears are `initTemplate` parameters and scoped-window members
   (`scopedTimers`), which record what they start, and `dispose()` clears it: a countdown's
-  interval went on ticking after the renderer cleared the layer (#989). Both pinned by
+  interval went on ticking after the renderer cleared the layer (#989). Likewise the listeners it
+  adds on the scoped document, the page's font set (`fonts`, a scoped member) and the scoped
+  window or by a bare `addEventListener`, and the `ResizeObserver`, `MutationObserver` and
+  `IntersectionObserver`s it makes (`scopedListeners`, also `initTemplate` parameters): recorded,
+  removed or disconnected at `dispose()`, by hand rather than with an `AbortSignal`, which
+  Chromium 71 does not take. An imported SVG design's `loadingdone` refit ran on its detached
+  canvas whenever a later graphic loaded a face (#998). All three pinned by
   `e2e/ograf-lifecycle.spec.ts`.
   The MARKUP's own carriers are re-addressed at export too (`graphicSources`, issue #789): it is
   parsed as a renderer parses it, its `<style>` blocks go through the same rewrite and gate, and
