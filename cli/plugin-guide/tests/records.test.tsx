@@ -189,14 +189,16 @@ describe('recorded results', () => {
     expect(recordOf(world.store, 'evening')?.check?.ok).toBe(true)
   })
 
-  test('a run in the background is not read', async ($, on) => {
-    const world = session($, on, twoPackages())
-    await world.start()
-    await world.run('noacg validate evening', { output: cli.validate(`${ROOT}/evening`, true) }, { background: true })
-    await world.submit()
-    expect(world.store.get(KEY)).toBeUndefined()
-    expect(world.storeCalls.every(call => call.startsWith('get '))).toBe(true)
-  })
+  for (const background of ['asked', 'moved'] as const) {
+    test(`a run in the background is not read (${background})`, async ($, on) => {
+      const world = session($, on, twoPackages())
+      await world.start()
+      await world.run('noacg validate evening', { output: cli.validate(`${ROOT}/evening`, true) }, { background })
+      await world.submit()
+      expect(world.store.get(KEY)).toBeUndefined()
+      expect(world.storeCalls.every(call => call.startsWith('get '))).toBe(true)
+    })
+  }
 
   test('the MCP tool under the name a user-added server gets', async ($, on) => {
     const world = session($, on, twoPackages())

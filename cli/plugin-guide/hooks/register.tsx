@@ -155,7 +155,10 @@ export const register: Register = on => {
       try {
         const outcome = outcomeOf(ran)
         const root = normalize(await scan.root())
-        const backgrounded = isObject(ran.result) && 'backgroundTaskId' in ran.result
+        // The engine's Bash and PowerShell results carry every optional key, `backgroundTaskId`
+        // undefined on a run that finished; only a run moved to the background (a timeout,
+        // Ctrl+B) names its task.
+        const backgrounded = isObject(ran.result) && typeof ran.result.backgroundTaskId === 'string'
         if (command !== null && !backgrounded) reports = terminalReports(command, cwd ?? root, e.tool === 'Bash', outcome)
         else if (mcp) reports = mcpReports(e as Record<string, unknown>, root, outcome)
         // Only a package can be the root or a folder directly below it; nothing else is read.
