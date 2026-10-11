@@ -9,7 +9,8 @@
 //    `requestAnimationFrame` move only when the harness runs it forward;
 //  - GSAP's ticker is detached (`GSAP_DETACH_JS`, as the non-real-time document detaches it) and
 //    `gsap.updateRoot` is driven from the renderer page's own animation frames and clock, for a
-//    studio document in an iframe too;
+//    studio document in an iframe too, whose timers, `Date` and `performance` are the renderer
+//    page's as well (`HOST_CLOCK_JS`): one clock for every variant;
 //  - every CSS animation in the graphic is paused at the sample's time before the frame is taken;
 //  - every face and picture is loaded before Play, and every frame is painted afresh (see `sample`).
 //
@@ -103,6 +104,54 @@ ${rules}
 </script>
 </head><body><div id="stage"></div></body></html>`;
 
+/**
+ * Put a studio document on the renderer page's clock, its first script before anything else in
+ * it runs: its timers, animation frames, `Date` and `performance` become the host page's. The
+ * page clock installs a separate fake clock in an iframe, whose timers fall at a phase against the
+ * host's that differs from run to run, so a countdown's `setInterval` ticked a digit early in one
+ * page and late in another. The package runs on the host's clock, so the studio does too.
+ * `__parityStopClock` clears what the document left running when it is taken off the page.
+ */
+const HOST_CLOCK_JS = `(function () {
+  var host = parent, running = new Map();
+  function borrow(set, clear) {
+    window[set] = function (fn, ms) {
+      var extra = Array.prototype.slice.call(arguments, 2);
+      var run = typeof fn === 'function' ? fn : new Function(String(fn));
+      var key;
+      var id = host[set](function () {
+        if (set !== 'setInterval') running.delete(key);
+        return run.apply(window, extra.length ? extra : arguments);
+      }, ms);
+      key = set + ':' + id;
+      running.set(key, function () { host[clear](id); });
+      return id;
+    };
+    window[clear] = function (id) {
+      running.delete(set + ':' + id);
+      host[clear](id);
+    };
+  }
+  borrow('setTimeout', 'clearTimeout');
+  borrow('setInterval', 'clearInterval');
+  borrow('requestAnimationFrame', 'cancelAnimationFrame');
+  window.Date = host.Date;
+  Object.defineProperty(window, 'performance', { value: host.performance, configurable: true });
+  window.__parityStopClock = function () {
+    running.forEach(function (stop) { stop(); });
+    running.clear();
+  };
+})();`;
+
+/** `html` with `HOST_CLOCK_JS` as its first script: right after `<head>`, or after the doctype. */
+function onHostClock(html: string): string {
+  const tag = `<script>${HOST_CLOCK_JS}</script>`;
+  const at = /<head\b[^>]*>/i.exec(html) ?? /^\s*<!doctype[^>]*>/i.exec(html);
+  if (!at) return tag + html;
+  const end = at.index + at[0].length;
+  return html.slice(0, end) + tag + html.slice(end);
+}
+
 /** What a design is built from: `e2e/_ografBuild.ts`'s sources, the stretch probe among them. */
 export type ParitySource = GraphicSource;
 
@@ -184,6 +233,7 @@ async function build(app: Page, sources: ParitySource[], mounts: Set<ParityVaria
           return `build: ${String((err as Error)?.message ?? err).slice(0, 300)}`;
         }
       }, template);
+      if (typeof built.studio === 'object') built.studio = { html: onHostClock(built.studio.html) };
     }
     out.push(built);
   }
@@ -351,6 +401,7 @@ async function unmountAll(page: Page): Promise<void> {
     for (const el of Array.from(stage.children)) {
       const graphic = el as Element & { dispose?: (p: unknown) => Promise<unknown> };
       if (typeof graphic.dispose === 'function') await graphic.dispose({});
+      if (el instanceof HTMLIFrameElement) (el.contentWindow as unknown as { __parityStopClock?: () => void })?.__parityStopClock?.();
       el.remove();
     }
   });
