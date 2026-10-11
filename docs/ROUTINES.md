@@ -186,7 +186,7 @@ MXMZ, Loopic, Singular.Live, Flowics, and the SPX / CasparCG / OGraf ecosystem: 
 since the last run, what it means for us, and **what we would need in place before their users could
 switch**. That third section is the point; the first two exist to earn it. It is measured against
 `docs/GOALS.md` NOW so it proposes against the real road, a quiet month is reported as one, and
-`docs/COMPETITORS.md` + `docs/COMPETITOR_MXMZ.md` are the background it starts from.
+`docs/private/competitors/COMPETITORS.md` + `docs/private/competitors/COMPETITOR_MXMZ.md` are the background it starts from.
 
 **Its OGraf findings reach a wave, and the routine still does not write.** The OGraf-leads bet is
 decided by OTHER PEOPLE's adoption over months, so each run re-reads the dated releases from the

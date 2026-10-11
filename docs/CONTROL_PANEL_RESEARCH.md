@@ -14,7 +14,7 @@ nothing else:
 > Between **"here is my drawing"** and **"here is my control panel"**, what does the user do, what
 > does the system do, and what does the operator end up holding?
 
-**What this file is not.** It is not a second competitor dossier. `docs/COMPETITOR_MXMZ.md` owns
+**What this file is not.** It is not a second competitor dossier. `docs/private/competitors/COMPETITOR_MXMZ.md` owns
 the MXMZ read whole (including the HighField/ToolsOnAir assembly-layer finding, which this axis
 does not touch). `docs/EDITOR_RESEARCH.md` owns the AUTHORING axis across ten systems.
 `docs/CONTROL_PANEL_ROAD.md` owns OUR road and the decisions on it. `docs/OGRAF_FIRST_REVIEW.md`
@@ -56,7 +56,7 @@ and none solves declaratively. Links 5-6 are where NoaCG's lead actually lives.
 ## 2. MXMZ
 
 Public material only: the two product pages, re-read 2026-08-30, plus the evidence base already
-recorded in `docs/COMPETITOR_MXMZ.md` and `docs/EDITOR_RESEARCH.md` §MXMZ. **There is no public
+recorded in `docs/private/competitors/COMPETITOR_MXMZ.md` and `docs/EDITOR_RESEARCH.md` §MXMZ. **There is no public
 documentation site, no API reference and no trial**; every claim below is marketing copy or a
 marketing video frame. Treat accordingly.
 
@@ -76,7 +76,7 @@ marketing video frame. Treat accordingly.
    re-confirmed 2026-08-30] What exists instead is **Match Control**: *"Dedicated match control
    interface for live sports production. Clock management, score tracking, team rosters, and event
    logging with one-click graphic triggers."* [quoted, operator] **Who builds that per sport is
-   unpublished.** [blank] The reading `docs/COMPETITOR_MXMZ.md` §3 reached - that behaviour lives
+   unpublished.** [blank] The reading `docs/private/competitors/COMPETITOR_MXMZ.md` §3 reached - that behaviour lives
    in a panel MXMZ built for that vertical, not in something a customer authored - is unchanged by
    this round and remains an inference from absence.
 5. **Assemble the surface.** *"Custom control panels with large touch targets designed for
@@ -350,11 +350,11 @@ something real is behind them; nothing was invented to fill the table.
 | 5 | **A graphic can report its own state to a host that is not ours** | Not applicable (same reason as row 2). | Nothing. Not even the one legal field. | Real, and half of it is not ours to fix. | Our half is small: return `result` from `customAction`/`updateAction`. Their half is a spec proposal to EBU. New: [`docs/backlog/ograf-graphic-state-return.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-graphic-state-return.md). |
 | 6 | **Touch-first operator layout** | *"Custom control panels with large touch targets designed for fast-paced live production"* [quoted, MXMZ] | Unmeasured. Our panels are mouse-shaped by default. | Probably real; nobody has looked. | A measurement first, then CSS. The 2026-09-12 production is a real customer for it. Not filed - it belongs in an owner-queue walk, not the backlog. |
 | 7 | **An operator-set duration** (a vote window, a hold) | Singular: a `timecontrol` node (play/pause/reset/start). MXMZ: clock management in Match Control. | Match-clock verbs shipped, including the origin-stamped log value. A poll's window is AUTHORED data on the arrow, not an operator field - stated as a known limit in the code. [code] | Small, and honestly documented. | A field-driven timer that could disagree with the arrow's `after` is worse than the current honesty; the real fix is a timer arrow whose `after` reads a field. Not filed - it needs the third behaviour (row 1) to say what shape it should take. |
-| 8 | **Auto-advance on the rundown** | *"Pre-load templates, set auto-advance timers"* [quoted, MXMZ] | Timer transitions exist inside the machine; the cue rundown has none. | Real, small. | Already taken: `docs/COMPETITOR_MXMZ.md` §7 lists it under "Take". Not re-filed. |
+| 8 | **Auto-advance on the rundown** | *"Pre-load templates, set auto-advance timers"* [quoted, MXMZ] | Timer transitions exist inside the machine; the cue rundown has none. | Real, small. | Already taken: `docs/private/competitors/COMPETITOR_MXMZ.md` §7 lists it under "Take". Not re-filed. |
 | 9 | **A production arranges the controls it was given** | MXMZ by building the panel; Singular by authoring the app instance; Vizrt by pages. Everyone has it. | Reserved and not built - the production control profile. | Real, deliberately deferred. | Decided already: `docs/CONTROL_PANEL_ROAD.md` §3. Not re-filed. |
 | 10 | **The panel is GENERATED at all** | Singular generates from control nodes. MXMZ does not. Nobody else in the field does. | Five renderers off one generator, no per-graphic code, a stranger's OGraf manifest treated identically. | **No gap. This is the lead**, and it is worth writing down that we checked. | Nothing. Protect it: row 9's profile must stay presentation over declared capability. |
 | 11 | **A ± stepper an operator holds** | Singular: `counter` node. MXMZ: score steppers in Match Control. | `number` → ± stepper on every surface with no per-template code, plus `adjust` riding an event. | **No gap.** Verified end to end on imported artwork. [repo] | Nothing. Recorded so the bar is honest in both directions. |
-| 12 | **Version history with rollback; locked masters with local variations; team font libraries** | MXMZ has all three [repo / quoted]. | Undo and saved documents; org boilerplate open in `docs/SVG_IMPORT_PLAN.md` P2; per-project fonts. | Real, and not this push. | Already named in `docs/COMPETITOR_MXMZ.md` §4. Not re-filed. |
+| 12 | **Version history with rollback; locked masters with local variations; team font libraries** | MXMZ has all three [repo / quoted]. | Undo and saved documents; org boilerplate open in `docs/SVG_IMPORT_PLAN.md` P2; per-project fonts. | Real, and not this push. | Already named in `docs/private/competitors/COMPETITOR_MXMZ.md` §4. Not re-filed. |
 
 **The two sentences the table is for.**
 
@@ -393,7 +393,7 @@ version history / locked masters / team fonts (row 12, `COMPETITOR_MXMZ.md` §4)
 Read 2026-08-30 unless stated. Public material only.
 
 **MXMZ** - <https://www.mxmz.com/products/cloud-editor>, <https://www.mxmz.com/products/operator>.
-Everything else about MXMZ in this file is cited to `docs/COMPETITOR_MXMZ.md` (2026-08-22,
+Everything else about MXMZ in this file is cited to `docs/private/competitors/COMPETITOR_MXMZ.md` (2026-08-22,
 re-read 2026-08-28) and `docs/EDITOR_RESEARCH.md` §MXMZ (2026-08-28, from their editor screenshot
 and marketing video), and was not re-derived. **No documentation site, no API reference, no trial.**
 

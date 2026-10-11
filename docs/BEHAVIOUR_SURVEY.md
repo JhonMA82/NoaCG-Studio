@@ -31,10 +31,10 @@ That paragraph exists because `docs/SCORE_CONTROL_SURVEY.md` had to be rewritten
 delegated run wrote up areas it had never actually read, with constructed quotations. The rule
 that came out of it holds here: a product whose controls are not published gets a row saying so.
 
-**What the repo already held, cited rather than re-derived:** `docs/COMPETITOR_MXMZ.md` and
+**What the repo already held, cited rather than re-derived:** `docs/private/competitors/COMPETITOR_MXMZ.md` and
 `docs/CONTROL_PANEL_RESEARCH.md` §2 (MXMZ end to end), §3 (Singular's control-node model and its
 thirteen node types), §4 (the OGraf v1 manifest and what it cannot express);
-`docs/COMPETITORS.md` (Zero Density, Loopic, Rive); and
+`docs/private/competitors/COMPETITORS.md` (Zero Density, Loopic, Rive); and
 [`docs/backlog/playout-logic-for-all-common-graphics.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-logic-for-all-common-graphics.md), which already names six uncovered
 behaviours from the owner's own ruling. The frequency table below is the market evidence that
 list was missing.

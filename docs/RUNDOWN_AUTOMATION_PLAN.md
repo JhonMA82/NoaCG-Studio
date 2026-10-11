@@ -618,7 +618,7 @@ item 10 (linked cues) partly by an All-together folder.
 
 **5. Back-timing to a hard out.** *What:* with durations on cues, the rundown shows the time
 remaining to the end against a target end time, over or under. *Who:* Rundown Studio, Ontime, Cuez
-(`docs/LANDSCAPE.md:211`). *Size:* small once build 1 exists: a target end time on the show and one
+(`docs/private/competitors/LANDSCAPE.md:211`). *Size:* small once build 1 exists: a target end time on the show and one
 line under the rundown. *For:* a TV station. A NoaCG rundown lists graphics, and eight seconds of
 lower third says nothing about whether a 30-minute show ends on time; back-timing means something
 only once the rundown holds the show's segments, which it does not. **Recommendation: not now.**
@@ -627,7 +627,7 @@ Revisit if the rundown ever carries segment rows.
 **6. A running order from a spreadsheet into cues.** *What:* pick a graphic, import a sheet, get one
 cue per row, with columns matched to fields by title (the rule the Data workspace already uses) and
 an optional `Duration` column filling build 1's `auto`. *Who:* Ontime, Rundown Studio, Stagetimer,
-Sofie (`docs/LANDSCAPE.md:212`). *Today:* `parseTableFile` reads CSV, TSV and JSON
+Sofie (`docs/private/competitors/LANDSCAPE.md:212`). *Today:* `parseTableFile` reads CSV, TSV and JSON
 (`src/model/csv.ts:199`) and lands the rows in a dataset, from which a cue loads one row at a time.
 *Size:* small, a day or two: the parser and the field match exist. *For:* your productions, where
 twenty guests means twenty lower-third cues typed by hand. **Recommendation: build next, after
@@ -635,7 +635,7 @@ build 2.**
 
 **7. A Bitfocus Companion module.** *What:* a Companion module so a Stream Deck shows what is on air
 and the countdown on its keys, and takes, outs and holds from a second machine. *Who:* Companion
-itself (814 connections, free), H2R, uno (`docs/LANDSCAPE.md:218`). *Today:* keyboard emulation only,
+itself (814 connections, free), H2R, uno (`docs/private/competitors/LANDSCAPE.md:218`). *Today:* keyboard emulation only,
 which needs the window focused and the playout column on screen
 (`src/components/playoutKeys.ts:73-89`), and gives the deck no feedback. *Size:* weeks: a module in
 Bitfocus's own repository and review process, and before it a documented, versioned control API,
@@ -643,14 +643,14 @@ because the hosted RPCs are internal today. *For:* both. **Recommendation: later
 and item 6, starting with the API document.
 
 **8. Audio cues.** *What:* a stinger or a music bed fired from the rundown. *Who:* CasparCG, OBS,
-vMix, H2R, Ontime (`docs/LANDSCAPE.md:214`). *Today:* a CasparCG server's audio files are listed and
+vMix, H2R, Ontime (`docs/private/competitors/LANDSCAPE.md:214`). *Today:* a CasparCG server's audio files are listed and
 can be cued, but land on the clip layer. *Size and recommendation:* the CasparCG half is in build 2
 (§3.1). A sound played by the browser output itself, for a production with no CasparCG, is a
 separate and larger item (the output page would carry audio into OBS or vMix): **later**, and only
 if a production of yours runs without CasparCG and needs sound.
 
 **9. An as-run log.** *What:* what aired, when and for how long, as a file. *Who:* every cloud
-platform, sold to sponsors and rights holders (`docs/LANDSCAPE.md:225`). *Today:* the command log
+platform, sold to sponsors and rights holders (`docs/private/competitors/LANDSCAPE.md:225`). *Today:* the command log
 has every fact, and publishing prunes rows older than seven days
 (`supabase/migrations/0029_cloud_playout.sql:181`). After build 1 and its server cue markers, the
 cue rows alone give on and off times for graphics and clips. *Size:* small: fold the cue rows into
@@ -668,7 +668,7 @@ your productions. **Recommendation: later**, when a show of yours needs it, and 
 folders, never a second "link" concept beside them.
 
 **11. Switcher automation (ATEM).** *What:* the rundown also cuts the vision mixer or fires its DSK.
-*Who:* Pixla, Cuez, Sofie, Rundown Creator Pro (`docs/LANDSCAPE.md:219`, verdict "gap-wrong").
+*Who:* Pixla, Cuez, Sofie, Rundown Creator Pro (`docs/private/competitors/LANDSCAPE.md:219`, verdict "gap-wrong").
 *Does OGraf change it?* No. The OGraf Server API drives graphics renderers
 ([issue #790](https://github.com/NoaCG/NoaCG-Studio/issues/790)); it has no switcher in it, and being an OGraf client makes
 NoaCG a better graphics source, not a switcher controller. *Size:* weeks per switcher family.
@@ -677,4 +677,4 @@ Stream Deck key can fire a NoaCG Take and the switcher's DSK in one press withou
 switcher.
 
 **Left out, named.** MOS or newsroom ingest, and Sofie-style timelines across several devices, are
-TV-station systems (`docs/LANDSCAPE.md:222`). Nothing here builds toward them or against them.
+TV-station systems (`docs/private/competitors/LANDSCAPE.md:222`). Nothing here builds toward them or against them.

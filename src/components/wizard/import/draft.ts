@@ -1226,7 +1226,7 @@ export function scoreDrawnPool(svg: Pick<SvgImportResult, 'groups' | 'shapes'>):
  * designer who names layers the obvious way ("Question", "Answer A", "A selected", "Team 1",
  * "Bar 1") opens the step with every picker already filled and nothing to do. Naming NOTHING
  * costs a few clicks per row and no correctness, which is the line the MXMZ lesson draws - a
- * convention may pay you, it may never gate you (docs/COMPETITOR_MXMZ.md §3).
+ * convention may pay you, it may never gate you (docs/private/competitors/COMPETITOR_MXMZ.md §3).
  *
  * Returns null when the names carry no distinctive evidence of any behaviour, so an ordinary
  * import is never nudged toward one it does not want. The four DRAFT shapes below are the mapping

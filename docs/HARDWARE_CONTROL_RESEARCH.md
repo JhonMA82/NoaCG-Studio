@@ -532,7 +532,7 @@ Read on 2026-09-30 and 2026-10-01.
 `src/control/hostedControl.ts` (`sendSeqBatch`); `src/output/main.ts`;
 `supabase/migrations/0070_seq_topic.sql` and `0071_command_sequence.sql`; `docs/CLOUD_PLAYOUT.md` §2;
 `docs/BRIDGE.md` §1-3; `docs/CONTROL_PANEL_ROAD.md` §4; [issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809);
-`docs/RUNDOWN_AUTOMATION_PLAN.md` item 7; `docs/LANDSCAPE.md` NEXT item 10;
+`docs/RUNDOWN_AUTOMATION_PLAN.md` item 7; `docs/private/competitors/LANDSCAPE.md` NEXT item 10;
 `docs/work-specs/playout-runtime-reliability/step-2-design.md` §1.5 and `evidence/publish-held.md`;
 `docs/OBS_ON_A_REAL_HOST.md`; `docs/PLAYOUT_TARGETS_RESEARCH.md`; `docs/PLAYOUT_COMPATIBILITY.md`.
 

@@ -17,7 +17,7 @@ the first edition of this file (2026-08-28, five products from their product pag
 brief ordered: a hands-on audit of our own editor under the brief's three-level test, competitive
 research grounded in actual workflows across ten systems, the major authoring problems named with
 their boundaries, credible directions compared rather than chosen, and a short list of decisions
-for the owner. `docs/COMPETITORS.md` remains the capability matrix; this file is the research on
+for the owner. `docs/private/competitors/COMPETITORS.md` remains the capability matrix; this file is the research on
 one axis - **authoring**: how a person draws a graphic, animates it, exposes it to an operator,
 binds it to data, gives it behaviour, and keeps a package of many graphics maintainable.
 

@@ -1770,7 +1770,7 @@ operator playout with newsroom/sports-data integrations; 200+ channels, from ~$3
 the "your own SVG, playable" workflow at broadcast scale, so our SVG import has to match it
 (layers auto-exposed, no renaming ritual) - and beat it on what they lock away: free-forever,
 self-host, export the files anywhere, a catalog and AI they don't have. **Researched properly
-2026-08-22: `docs/COMPETITOR_MXMZ.md`.** The headline: nothing public shows them authoring LOGIC
+2026-08-22: `docs/private/competitors/COMPETITOR_MXMZ.md`.** The headline: nothing public shows them authoring LOGIC
 at all - they train the designer for a day on a keyframe timeline, keep the OPERATOR as the
 non-technical one, and hand-build a control panel per sport. Attachable behaviours are the gap
 their architecture has no place to put.
@@ -2126,7 +2126,7 @@ OGraf sequencing argument and the dashed-card device, and the parking lot's prov
 >
 > ### Who we are replacing
 > Six products; their proven capabilities are our requirements list. The full read, per capability
-> and per gap, is [`COMPETITORS.md`](COMPETITORS.md):
+> and per gap, is [`COMPETITORS.md`](private/competitors/COMPETITORS.md):
 > - **Zero Density** - first on the list (owner, 2026-09-15). OGraf Studio is an open-source visual
 >   OGraf editor, and the interaction reference for the editor rebuild. Its custom actions run no
 >   behaviour, so operator logic stays ours to take.
@@ -2137,7 +2137,7 @@ OGraf sequencing argument and the dashed-card device, and the parking lot's prov
 >   public shows them authoring LOGIC at all - that gap is ours to take.
 > - **Pixla** - a control room in a box (rundown, prompter, timer, switcher control) around a
 >   designer. One row there forces OUR user into another tool: they cannot draw a rectangle. The
->   rest is deliberately not ours ([`COMPETITOR_PIXLA.md`](COMPETITOR_PIXLA.md) argues each refusal).
+>   rest is deliberately not ours ([`COMPETITOR_PIXLA.md`](private/competitors/COMPETITOR_PIXLA.md) argues each refusal).
 >
 > ---
 >

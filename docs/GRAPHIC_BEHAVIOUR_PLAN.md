@@ -90,7 +90,7 @@ Three ways out, and they are not exclusive:
   and the smallest thing that stops L1 looking foreign.
 
 **L2 is the one that makes "category agnostic" real**, because it puts the look where the artwork
-is. It is also the closest thing to how MXMZ works (`docs/COMPETITOR_MXMZ.md`): layers and
+is. It is also the closest thing to how MXMZ works (`docs/private/competitors/COMPETITOR_MXMZ.md`): layers and
 timelines, with the designer trained for a day.
 
 ## 5. Three shapes for the authoring step - to choose between, later
@@ -227,7 +227,7 @@ Everything except the paint, which is more than expected going in:
   layer is the question, which are the answers, which drawings are the picked/right/wrong/locked
   moments. `proposeQuizBinding` fills every one of them from the layer names when a designer used
   the obvious ones, so the accelerator is door B behind door A — never a renaming ritual
-  (`docs/COMPETITOR_MXMZ.md` §3).
+  (`docs/private/competitors/COMPETITOR_MXMZ.md` §3).
 - **The type shim** `importedQuizType`, whose only real job is mirroring the field ORDER so a
   control's payload resolves to the right `fN`.
 
@@ -563,5 +563,5 @@ operator holds, resumes and resets it"); the artwork is
 `docs/SCORE_CONTROL_SURVEY.md` (how one behaviour's controls are shaped),
 `docs/SVG_IMPORT_PLAN.md` (how the artwork gets in), `docs/STATE_MACHINE_SCHEMA.md`
 (what a graphic is), `docs/CONTROL_LAYER.md` (where the buttons come from),
-`docs/GRAPHIC_TYPES.md` (how a type declares a machine), `docs/COMPETITOR_MXMZ.md` (what the
+`docs/GRAPHIC_TYPES.md` (how a type declares a machine), `docs/private/competitors/COMPETITOR_MXMZ.md` (what the
 competitor does instead).
