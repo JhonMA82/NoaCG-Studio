@@ -965,7 +965,7 @@ data). Followed literally:
   today, so `/login` comes first. `npx -y @noacg/cli@0.10.1` works. The main checkout holds the
   folder.
 - Step 1: blocked as written by the Enter finding above. Making and checking a lower third in 5
-  minutes depends on the model's pace; `validate --screenshots` alone took about 15 s here.
+  minutes depends on the model's pace, which was not measured here.
 - Steps 2 and 3: doable, and what to look for is clear.
 - Step 4: the save needs the CLI signed in to NoaCG. A first sign-in can push the walk past 15
   minutes.
