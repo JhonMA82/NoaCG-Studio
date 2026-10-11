@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "9c3130b8391da06ba27fd746877bae6edee0a7e4a87c46c4bc6212fc59681c80",
+  "specSha256": "bdb9d1d9678f280dcd34742c55bcfa3f5c1faa6a46be09fd54adb836d38c51ea",
   "authority": {
     "status": "agreed",
     "source": "owner conversation 2026-10-11: after the agent toolkit mod research, \"I think we could try building the mod, and then I can try out how it feels before we publish it or make it a part of the CLI tool\"; run it with /plan-run so each phase runs in a fresh session; agreed to the four phases (loadable and quiet, recorded results, one next step, package pane and try-out) and to the mod recording state by watching noacg runs so the CLI stays unchanged; \"yes, write and land the plan so I can start a new session with one prompt\""
