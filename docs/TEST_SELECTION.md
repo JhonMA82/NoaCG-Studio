@@ -89,8 +89,14 @@ fixture), what the dev server's own handlers run, and pages a spec opens in a co
 
 ## What runs, per kind of change
 
-Measured against today's table (147 specs, 99.7 minutes) with sprint focus on, which is how CI runs
-it. "Focus set" is the specs whose header says `// focus` (55 specs and 36.9 minutes when measured; 66 specs today).
+Measured against the table of 2026-09-04 (147 specs, 99.7 minutes) with the shared-change set
+standing in for a full escalation, which is how CI runs it. "Focus set" below is that set: the
+specs whose header says `// focus`, the journeys a change to shared or uncertain code must run
+before merging (55 specs and 36.9 minutes when measured; 76 specs and 68.6 minutes on 2026-10-11).
+Since 2026-10-12 it is the planner's default on every pull request and merge group, with no
+environment variable to set; `--full-escalation` asks for the whole suite instead, and main's full
+run is unaffected. Its membership review, with a reason per entry, is owed
+(`docs/work-specs/e2e-suite-budget/evidence/selection-audit.md`).
 
 | A change to | plans | why that is enough |
 |---|---|---|

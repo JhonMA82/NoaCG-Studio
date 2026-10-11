@@ -304,11 +304,9 @@ jobs:
           DISPATCH_BASE: ${{ inputs.diff_base }}
           MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
           GH_TOKEN: ${{ github.token }}
-          # Student-release sprint (docs/GOALS_ARCHIVE.md "Student release"): a would-be FULL
-          # escalation runs the focus set instead; the nightly still runs everything.
-          # Delete this line when the sprint ends (scripts/e2e-lists.mjs says what else goes).
-          # It deliberately does not apply to main - see the main branch below.
-          E2E_SPRINT_FOCUS: '1'
+          # A change to shared or uncertain code runs the shared-change set (the `// focus`
+          # headers) rather than the whole suite; that is the planner's default now, with no env
+          # to set, and main's full run below is unaffected (scripts/e2e-affected.mjs).
         run: |
           set -euo pipefail
           # SUPERSEDED MAIN RUNS STOP HERE. main runs the full suite (below), and with landings
