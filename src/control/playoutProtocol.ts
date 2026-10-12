@@ -10,7 +10,7 @@
 export const PLAYOUT_V = 2;
 
 /** The adapters a Bridge may carry. `/health` says which ones this build has. */
-export type AdapterId = 'casparcg' | 'ograf';
+export type AdapterId = 'casparcg' | 'ograf' | 'vmix';
 
 /** Which CasparCG server: its AMCP host and port. */
 export interface CasparTarget {
@@ -26,8 +26,15 @@ export interface OgrafTarget {
   baseUrl: string;
 }
 
+/** vMix on the Bridge's own computer, always at 127.0.0.1: its TCP API port, absent for the one
+ *  the Bridge was started with (8099, vMix's own, unless `--vmix-port` named another). */
+export interface VmixTarget {
+  adapter: 'vmix';
+  port?: number;
+}
+
 /** Which playout system, and where. Named in every request: the Bridge stores no configuration. */
-export type Target = CasparTarget | OgrafTarget;
+export type Target = CasparTarget | OgrafTarget | VmixTarget;
 
 /** Where on a CasparCG server: a channel and a layer. */
 export interface CasparSlot {
@@ -48,7 +55,13 @@ export interface OgrafSlot {
   renderTarget: RenderTargetId;
 }
 
-export type Slot = CasparSlot | OgrafSlot;
+/** Where in vMix: one of its overlay channels, from 1 to the `overlays` it reports. */
+export interface VmixSlot {
+  adapter: 'vmix';
+  overlay: number;
+}
+
+export type Slot = CasparSlot | OgrafSlot | VmixSlot;
 
 /** What a library holds. `url` is a web page the target's browser engine loads - the NoaCG
  *  output URL is one - and is never listed, only taken. */
@@ -57,6 +70,9 @@ export type ItemKind = 'template' | 'media' | 'url';
 export interface ItemRef {
   kind: ItemKind;
   name: string;
+  /** The name a person sees for it, where the target shows one: a `url` taken on vMix is the input
+   *  `NoaCG <label>`, the production's title. */
+  label?: string;
 }
 
 /**
@@ -126,8 +142,9 @@ export type PlayoutAction =
   | { verb: 'next' | 'pause' | 'resume'; slot: Slot; item?: ItemRef }
   /** `fadeOut` fades a clip to nothing rather than cutting it. */
   | { verb: 'out'; slot: Slot; item?: ItemRef; fadeOut?: number }
-  /** Remove whatever is in the slot at once, with no exit: the All out an OGraf server offers. */
-  | { verb: 'clear'; slot: Slot }
+  /** Remove whatever is in the slot at once, with no exit: the All out an OGraf server offers. On
+   *  vMix it names the output (`item`) and removes only that from its channel. */
+  | { verb: 'clear'; slot: Slot; item?: ItemRef }
   /** Play the first entry now and each of the rest when the one before it ends, run by the Bridge
    *  (Play next and a Play-through folder, docs/CLIP_PLAYBACK_PLAN.md §6.10). Needs the `sequence`
    *  feature and capability. `loop` plays the first entry again after the last, until Out (Loop the
@@ -180,6 +197,10 @@ export interface AgentError {
   detail: string;
   /** The target's own status line, when there was one. */
   raw?: string;
+  /** Why a target on this computer could not be reached, for the one sentence the page shows:
+   *  `not-running` is nothing listening on the port, `not-vmix` a port that does not greet the way
+   *  vMix's TCP API does. */
+  setup?: 'not-running' | 'not-vmix';
 }
 
 /** What a Bridge understands beyond the routes every v2 Bridge answers. `/health` lists them; a
@@ -214,6 +235,36 @@ export interface StatusReply {
   version: string;
   raw: string;
   capabilities?: TargetCapability[];
+  /** What a vMix target is, from its state XML. */
+  vmix?: VmixInfo;
+}
+
+/** A vMix as `/status` and `/connect` read it. `overlays` is the number of overlay channels its UI
+ *  offers (8 from vMix 29, 4 before, 1 on a Basic edition), never the XML's own `<overlay>` count;
+ *  `inputs` the number of inputs it holds now. */
+export interface VmixInfo {
+  version: string;
+  edition: string;
+  overlays: number;
+  inputs: number;
+}
+
+/** One vMix input, by the key that names it for good and the number that is only its position. */
+export interface VmixInput {
+  key: string;
+  number: number;
+  title: string;
+  type: string;
+}
+
+/** `POST /state` with a vMix `{ target }`: what each overlay channel holds, and for each production
+ *  linked to this Bridge whether its output is on a channel and which of its cues are up. */
+export interface VmixStateReply {
+  ok: true;
+  session: string;
+  observedAt: number;
+  overlays: { overlay: number; input?: VmixInput }[];
+  linked: { id: string; output: { onOverlay?: number }; live: string[] }[];
 }
 
 /**

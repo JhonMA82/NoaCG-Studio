@@ -118,8 +118,10 @@ Bridge gave the input, and the new key is written back.
 
 - target `{ adapter: 'vmix', port? }`; `port` overrides the default. Always `127.0.0.1`.
 - slot `{ adapter: 'vmix', overlay }`: an overlay channel, 1 to 8.
-- items: `url` (the production output, or any page). `template` and `media` are refused.
-- `/health` adds `vmix` to `adapters` and `vmix-link` to `features`. `/status` and `/connect` add
+- items: `url` (the production output, or any page), with the production's title as the item's
+  `label`, which names the output input. `template` and `media` are refused. Take off and clear
+  name the same item, since vMix's own Out and Off take whatever the channel holds.
+- `/health` adds `vmix` to `adapters`, and `vmix-link` to `features` once the link routes exist. `/status` and `/connect` add
   `vmix: { version, edition, overlays, inputs }`. `capabilities` for vMix is `['state']`; lists
   nothing; thumbnails none; verbs `take`, `out`, `clear` for a url. Errors may carry `setup`.
 - `/state` with `{ target }` answers `VmixStateReply`: `{ ok, session, observedAt, overlays:
@@ -139,7 +141,8 @@ dependency-free module mirrored into the CLI with a drift test, the way `protoco
 ### The verbs, as vMix TCP API commands
 
 Every command goes over the one TCP connection (`FUNCTION <name> <params>`, `XML`,
-`SUBSCRIBE ACTS`), the way vMix documents it. The HTTP API on 8088 is not used, so the Web
+`SUBSCRIBE ACTS`), the way vMix documents it, with the parameters URL-encoded, which vMix decodes
+(measured). The HTTP API on 8088 is not used, so the Web
 Controller's port and password do not matter. Where a function takes `Input=`, it is always a
 key; `Out` and `Off` act on whatever the channel holds, so the Bridge reads the channel first and
 never sends them over somebody else's input.
@@ -148,7 +151,7 @@ never sends them over somebody else's input.
 |---|---|
 | connect | TCP `127.0.0.1:8099`; wait for `VERSION OK <version>`; `SUBSCRIBE ACTS` when a link exists |
 | status | `XML` → `version`, `edition`, the `overlays` and the inputs by key, number, title, type |
-| take url (Put on air) | `XML`; find the output input by key, else by name; none: `AddInput Value=Browser\|<url>` → `XML` → `SetInputName`; another kind of input holds the name: refused, nothing more sent. Then `OverlayInput<N>In Input=<key>` |
+| take url (Put on air) | `XML`; find the output input by key, else by name; none: `AddInput Value=Browser\|<url>` → `XML` → `SetInputName`; another kind of input holds the name: refused, nothing more sent. Then `OverlayInput<N>In Input=<key>`, and `XML` to see the channel hold it: vMix answers `FUNCTION OK Completed` to any function, even one it does not have or a key it does not know (measured) |
 | out url (Take off) | `XML`; only when channel N holds the output's key: `OverlayInput<N>Out` (the channel's transition). Anything else on the channel, or nothing, is left alone: already off |
 | clear url | the same read, then `OverlayInput<N>Off` (at once) |
 | state | `XML` |
@@ -175,7 +178,10 @@ line, keeps a preset's forty lines from forty reads) and handled in this order:
   the output is up.
 - **Opening a preset** sends a burst (`InputPlaying <n> 0` for every input, `Fullscreen 0`,
   `MasterVolume 1`, `MasterHeadphones 1`, measured). Overlay lines inside that burst are state,
-  not presses, and air nothing. Whether a preset with inputs on overlays sends any is a check.
+  not presses, and air nothing. A preset saved with inputs on overlays does send them: `ACTS OK
+  Overlay3 1 1` and `Overlay4 2 1` came about a second after the burst's first line, after
+  `MasterHeadphones` and after the open's own `FUNCTION OK` (measured), so a 50 ms window does
+  not hold them. The XML's `<preset>` names the file opened, which tells a new preset from a press.
 - The take is **the hosted page's**: the same items, through the send RPC the resolve names
   (`control_send_seq` with a sender body when the production answers `seq`, else
   `control_send_many`), so the production page, a phone and the output's recovery see it as a
@@ -191,7 +197,8 @@ line, keeps a preset's forty lines from forty reads) and handled in this order:
 ### Session, failure and reconnect
 
 - **One connection, kept open** (derived; the subscription needs it). It is opened by the first
-  request that needs it or, while a link exists, by the Bridge itself at start and after a loss,
+  request that needs it (a read that finds it closed opens a new one and reads again, since a read
+  is safe to repeat) or, while a link exists, by the Bridge itself at start and after a loss,
   with a backoff of 1 s doubling to 10 s. This is the Bridge's first timer that contacts a server
   without the page asking; it exists only while a production is linked and sends `SUBSCRIBE ACTS`
   and nothing else.
@@ -256,7 +263,7 @@ Against a fake vMix TCP server in `cli/test` (greeting, `XML` with version, edit
 inputs, `FUNCTION` answers, `ACTS` lines): `/status` for `{ adapter: 'vmix' }` reports the version
 and edition; nothing listening is `not-running`, a port that greets wrongly is `not-vmix` within
 3 s; `overlays` is 8 for a vMix 29, 4 for a 28 and 1 for Basic HD; `--vmix-port` is honoured;
-`/health` lists `vmix` and `vmix-link`.
+`/health` lists `vmix`.
 
 ### AC-2: Pairing connects to vMix by itself
 
@@ -279,7 +286,7 @@ every function that takes an input names it by key.
 adds or reuses the output input, writes the link beside the token and answers title, id and cue
 count; linking again adds, renames and removes only the Bridge's own inputs; `/vmix/links` and the
 log never carry the slug; `/vmix/unlink` forgets it and removes nothing; a link on standard input
-works with no page.
+works with no page; `/health` lists `vmix-link`.
 
 ### AC-5: An overlay press takes its cue and the next press plays it out
 
@@ -317,7 +324,8 @@ the Cut transition for cue channels and the channel plan; the release workflow p
 
 ## Measured so far, and what still needs a real vMix
 
-**Measured on vMix 29.0.0.49 on 2026-10-12** (`docs/VMIX_ON_A_REAL_HOST.md` §3): `SUBSCRIBE ACTS`
+**Measured on vMix 29.0.0.49 on 2026-10-12** (`docs/VMIX_ON_A_REAL_HOST.md` §3, and the first
+slice's own runs, `evidence/slice-1.md`): `SUBSCRIBE ACTS`
 reports `ACTS OK Overlay2 <input number> 1` about 2 ms after the press; a replace on the same
 channel sends the old input's `0` and the new input's `1` in the same millisecond; a toggle off or
 `OverlayInput<N>Out` reports `0` about 510 ms later, when the 500 ms transition ends, `Off` and
@@ -326,19 +334,25 @@ channel sends the old input's `0` and the new input's `1` in the same millisecon
 byte-identical; higher overlay channels draw on top (8 over 2 over 1); `AddInput Value=Browser|<url>`
 makes a Web Browser input; the state XML on vMix 29 lists 16 `<overlay>` elements; opening a preset
 sends the `InputPlaying`, `Fullscreen`, `MasterVolume` and `MasterHeadphones` burst; the engine is
-Chrome 115; the hosted control page renders in a Web Browser input.
+Chrome 115; the hosted control page renders in a Web Browser input. Over the TCP API: the greeting
+`VERSION OK 29.0.0.49` about 20 ms after connecting; `XML <n>` where `n` counts the body's UTF-8
+bytes, the body ending in `\r\n`; `ACTS` lines arrive between replies, before or after the
+`FUNCTION OK` of the call that caused them, never inside an XML body; `FUNCTION OK Completed` for an
+unknown function and for a key no input has; an unknown command is `<COMMAND> ER Unknown Command`;
+`OverlayInput<N>Out` and `Off` ignore an `Input=` and take what the channel holds; keys survive a
+preset saved in one vMix session and opened in the next; a Web Browser input is type `Browser` and
+loads the whole URL, `&name=` included, when the value is URL-encoded; a blank session's two `Blank`
+inputs are replaced by the first inputs added.
 
 **Still needs a real vMix**, each kept behind a small function so the answer changes one place:
 
-1. The TCP greeting (`VERSION OK <version>`) on connect, which `not-vmix` relies on.
-2. `FUNCTION` and `XML` over the connection that holds the subscription: their answers, the
-   `XML <length>` prefix, and that `ACTS` lines do not interleave with an `XML` body.
-3. Input keys across a vMix restart, and in a preset saved in one session and opened in another.
+1. Answered (above): the greeting.
+2. Answered (above): the answers, the length prefix, and `ACTS` lines between replies.
+3. Answered for a preset saved in one session and opened in the next: the keys stayed. A vMix
+   restart opens a blank session, so the keys after it are those of the preset the operator opens.
 4. A Cut (0 ms) overlay transition reports its `0` at the press.
-5. Whether a preset opened with cue inputs already on overlays sends `Overlay<N> … 1` lines.
-6. `AddInput Value=Image|<path>` with the Bridge's PNG, `SetInputName`, `RemoveInput` and
-   `OverlayInput<N>In` with `Input=<key>`; whether `OverlayInput<N>Out` and `Off` take an
-   `Input=` at all; the cue input's thumbnail in the input bar.
+5. Answered (above): it does, about a second after the burst.
+6. Answered (above), but for the cue input's thumbnail in the input bar.
 7. Enhanced security on with a Web Controller password: the TCP API still answers a local client.
 8. The `edition` string in the XML for Basic HD, and that vMix 28 offers four channels and 29
    eight, which the `overlays` function encodes.

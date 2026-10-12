@@ -55,7 +55,7 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
   whoami                         Which key this machine holds, and whether it is still valid.
   save <dir|zip> [--name N] [--folder F] [--no-bench]
                                  Validate, then put the graphic in your NoaCG library.
-  bridge [--port 8899] [--origin URL]... [--no-open] [--quiet]
+  bridge [--port 8899] [--origin URL]... [--vmix-port 8099] [--no-open] [--quiet]
                                  Run NoaCG Bridge: the local process that lets the NoaCG page
                                  drive a playout server (docs/BRIDGE.md). 127.0.0.1 only.
   caspar status|send|play|stop   Talk AMCP to a CasparCG server from the terminal, no browser.

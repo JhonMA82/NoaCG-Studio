@@ -17,7 +17,7 @@ async function main(): Promise<number> {
   const out = new Out(args.flags.json === true);
   if (args.flags.help === true) {
     out.say('NoaCG Bridge - lets the NoaCG page in your browser drive a playout server on your studio network.');
-    out.say('Options: --port 8899  --origin <NoaCG URL>  --no-open  --quiet  --new-token');
+    out.say('Options: --port 8899  --origin <NoaCG URL>  --vmix-port 8099  --no-open  --quiet  --new-token');
     return 0;
   }
   return runBridge({ ...args, _: ['bridge', ...args._] }, out);
