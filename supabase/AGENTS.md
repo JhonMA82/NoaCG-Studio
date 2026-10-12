@@ -17,6 +17,16 @@ vendor's default privileges is a product defect, not a test-environment quirk.
 Verify with `information_schema.role_table_grants` on a LOCAL stack, never on production - the
 hosted project's answer is the one that hides the omission.
 
+**Only a CLI before 2.119.0 still gives you that local stack.** From 2.119.0 the CLI's Postgres 15
+image carries the hosted default privileges too, on Docker and on the experimental native runtime
+alike, so a migration that grants nothing passes locally there. `configured-suite.yml` fails on
+such a stack rather than going quietly blind. Before raising that workflow's CLI pin past 2.118,
+revoke those default privileges before the migrations apply: start with the migrations and
+`seed.sql` held back, run `alter default privileges for role postgres in schema public revoke all
+on tables from anon, authenticated, service_role`, put the files back, then run
+`supabase migration up` and apply `seed.sql`. `supabase db reset` brings the default privileges
+back.
+
 **The revoke is the migration's job too.** A migration that grants only what it wants still leaves
 whatever the host handed out, and the two statements do not cancel: `0052` had to take back DELETE,
 INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE and UPDATE from `anon` and `authenticated` on eighteen

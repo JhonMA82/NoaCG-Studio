@@ -282,6 +282,19 @@ jobs:
           done
           echo "authenticated holds the table grants 0051 declares."
 
+          # AND THE STACK MUST NOT HAND THEM OUT ITSELF. The checks above only mean something on a
+          # database without hosted Supabase's default privileges. The CLI's Postgres 15 image
+          # gained them in 2.119.0, on Docker and on the native runtime alike (measured 2026-10-12,
+          # docs/research/2026-10-12-supabase-native-stack.md): there, a table no migration grants
+          # is readable and writable by anon anyway, and a missing grant passes here. So a CLI
+          # bump that brings them back fails here instead of quietly retiring this guard.
+          bootstrap="$(psql "select count(*) from pg_default_acl d, aclexplode(d.defaclacl) a where d.defaclrole = 'postgres'::regrole and d.defaclnamespace = 'public'::regnamespace and d.defaclobjtype = 'r' and a.grantee in ('anon'::regrole, 'authenticated'::regrole) and a.privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')")"
+          if [ "$bootstrap" != "0" ]; then
+            echo "::error title=The local stack grants new tables to the client roles::pg_default_acl gives anon or authenticated read or write on every new table in public, as hosted Supabase does, so a migration that forgets its grants would pass this job. Revoke those default privileges before the migrations apply (supabase/AGENTS.md, 'Grants are the migration's job') rather than deleting this check."
+            exit 1
+          fi
+          echo "No default privileges hand public tables to anon or authenticated."
+
       # The one thing a fresh database genuinely lacks: the account. 21 of the 33 tests sign in,
       # and without this every one of them fails at the sign-in assertion — twenty ambiguous UI
       # timeouts for a single missing row.
