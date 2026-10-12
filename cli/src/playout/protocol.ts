@@ -257,13 +257,22 @@ export interface VmixInput {
   type: string;
 }
 
+/** One vMix overlay channel and the input on it, if any. */
+export interface VmixOverlayState {
+  overlay: number;
+  input?: VmixInput;
+}
+
+/** The most overlay channels a vMix offers (vMix 29): a vmix slot's highest channel. */
+export const MAX_VMIX_OVERLAYS = 8;
+
 /** `POST /state` with a vMix `{ target }`: what each overlay channel holds, and for each production
  *  linked to this Bridge whether its output is on a channel and which of its cues are up. */
 export interface VmixStateReply {
   ok: true;
   session: string;
   observedAt: number;
-  overlays: { overlay: number; input?: VmixInput }[];
+  overlays: VmixOverlayState[];
   linked: { id: string; output: { onOverlay?: number }; live: string[] }[];
 }
 

@@ -29,6 +29,7 @@ import { ografApiBase } from './adapters/ograf.js';
 import type { VmixAdapter } from './adapters/vmix.js';
 import {
   MAX_SEQUENCE_ENTRIES,
+  MAX_VMIX_OVERLAYS,
   MIN_SEQUENCE_MEMBER_S,
   PLAYOUT_V,
   playedSeconds,
@@ -158,8 +159,9 @@ export function readTarget(body: Record<string, unknown>, adapters: PlayoutAdapt
   const adapter = typeof t.adapter === 'string' ? t.adapter : '';
   if (!adapters.some((a) => a.id === adapter)) throw new UsageError(`This Bridge has no adapter "${adapter}".`);
   if (adapter === 'vmix') {
-    // Always this computer: only the port can be named, and none means the Bridge's own.
-    if (t.port === undefined) return { adapter: 'vmix' };
+    // Always this computer: only the port can be named, and none means the Bridge's own, filled in
+    // here so the slots of one vMix are one target however a page names it.
+    if (t.port === undefined) return { adapter: 'vmix', port: adapters.find((a): a is VmixAdapter => a.id === 'vmix')!.port };
     if (typeof t.port !== 'number' || !Number.isInteger(t.port) || t.port < 1 || t.port > 65535) throw new UsageError("A vmix target's port is a whole number from 1 to 65535.");
     return { adapter: 'vmix', port: t.port };
   }
@@ -177,7 +179,7 @@ export function readTarget(body: Record<string, unknown>, adapters: PlayoutAdapt
 
 /** How a target is named in the Bridge's own log. */
 function targetLabel(target: Target): string {
-  if (target.adapter === 'vmix') return `vMix${target.port ? ` :${target.port}` : ''}`;
+  if (target.adapter === 'vmix') return `vMix :${target.port}`;
   return target.adapter === 'ograf' ? target.baseUrl : `${target.host}:${target.port}`;
 }
 
@@ -200,7 +202,7 @@ function readSlot(v: unknown): Slot {
   }
   if (isRecord(v) && v.adapter === 'vmix') {
     const overlay = v.overlay;
-    if (typeof overlay !== 'number' || !Number.isInteger(overlay) || overlay < 1 || overlay > MAX_VMIX_OVERLAY) throw new UsageError(`A vmix slot names an overlay channel from 1 to ${MAX_VMIX_OVERLAY}.`);
+    if (typeof overlay !== 'number' || !Number.isInteger(overlay) || overlay < 1 || overlay > MAX_VMIX_OVERLAYS) throw new UsageError(`A vmix slot names an overlay channel from 1 to ${MAX_VMIX_OVERLAYS}.`);
     return { adapter: 'vmix', overlay };
   }
   if (!isRecord(v) || v.adapter !== 'casparcg') throw new UsageError('The action has no casparcg, ograf or vmix slot.');
@@ -209,9 +211,6 @@ function readSlot(v: unknown): Slot {
   if (!Number.isInteger(channel) || !Number.isInteger(layer)) throw new UsageError('A slot needs a whole channel and layer.');
   return { adapter: 'casparcg', channel, layer };
 }
-
-/** The most overlay channels a vMix offers (vMix 29). */
-const MAX_VMIX_OVERLAY = 8;
 
 function readItem(v: unknown): ItemRef {
   if (!isRecord(v)) throw new UsageError('The action has no item.');
@@ -592,10 +591,10 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           send(200, r.ok ? { ok: true, v: PLAYOUT_V, channels: r.value } : { ok: false, v: PLAYOUT_V, error: r.error }, true);
           return;
         }
-        if (url === '/state' && target.adapter === 'vmix') {
+        if (url === '/state' && adapter.overlays) {
           // What each overlay channel holds, read off vMix's XML over the one connection. Productions
           // linked to this Bridge come with the overlay presses (docs/work-specs/bridge-vmix-adapter).
-          const r = await (adapter as VmixAdapter).overlays(target);
+          const r = await adapter.overlays(target);
           send(
             200,
             r.ok ? { ok: true, v: PLAYOUT_V, session: memory.session, observedAt: Math.round(performance.now()), overlays: r.value, linked: [] } : { ok: false, v: PLAYOUT_V, error: r.error },

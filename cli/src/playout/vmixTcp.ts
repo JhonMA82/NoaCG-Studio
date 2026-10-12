@@ -19,24 +19,25 @@
 // request opens a new one. Nothing is ever sent twice.
 
 import { connect, type Socket } from 'node:net';
-import type { VmixInput } from './protocol.js';
+import { decode } from './info.js';
+import { MAX_VMIX_OVERLAYS, type VmixInput } from './protocol.js';
 
 /** vMix's TCP API port, documented and fixed unless somebody changed vMix's own setting. */
 export const DEFAULT_VMIX_PORT = 8099;
 /** The wait for `VERSION OK` after the socket opens: vMix greets in tens of milliseconds. */
-export const VMIX_GREETING_MS = 3000;
+const VMIX_GREETING_MS = 3000;
 /** The wait for one command's answer. */
-export const VMIX_REPLY_MS = 3000;
+const VMIX_REPLY_MS = 3000;
 /** The longest line and the largest XML body taken in before the connection is dropped. */
 const MAX_LINE_BYTES = 64 * 1024;
 const MAX_XML_BYTES = 16 * 1024 * 1024;
 
-export type VmixOpen = { ok: true; version: string } | { ok: false; setup: 'not-running' | 'not-vmix'; why: string };
+export type VmixOpen = { ok: true } | { ok: false; setup: 'not-running' | 'not-vmix'; why: string };
 
-/** One command's answer: its status line (and an XML body), or why there is none. `not-sent` is a
- *  command that never left, so nothing can have happened; `timeout` and `closed` are one that left
- *  and was not answered, so it may have. */
-export type VmixReply = { ok: true; status: string; line: string; body?: string } | { ok: false; lost: 'not-sent' | 'timeout' | 'closed' };
+/** One command's answer: its status line (and an XML body), or why there is none. `not-sent` (no
+ *  connection) and `late` (its turn came with the verb's time spent) never left, so nothing can have
+ *  happened; `timeout` and `closed` left and were not answered, so they may have. */
+export type VmixReply = { ok: true; status: string; line: string; body?: string } | { ok: false; lost: 'not-sent' | 'late' | 'timeout' | 'closed' };
 
 interface Pending {
   word: string;
@@ -45,14 +46,14 @@ interface Pending {
 }
 
 export class VmixConnection {
-  readonly port: number;
+  private readonly port: number;
   private readonly greetingMs: number;
   private readonly replyMs: number;
   private socket?: Socket;
   private version?: string;
   private opening?: Promise<VmixOpen>;
   private buf: Buffer = Buffer.alloc(0);
-  private body?: { length: number; line: string };
+  private body?: { line: string; status: string; data: Buffer; got: number };
   private pending?: Pending;
   private tail: Promise<unknown> = Promise.resolve();
 
@@ -64,7 +65,7 @@ export class VmixConnection {
 
   /** The connection, greeted: the open one, or a new one. */
   open(): Promise<VmixOpen> {
-    if (this.socket && this.version && !this.socket.destroyed) return Promise.resolve({ ok: true, version: this.version });
+    if (this.socket && this.version && !this.socket.destroyed) return Promise.resolve({ ok: true });
     this.opening ??= this.start().finally(() => {
       this.opening = undefined;
     });
@@ -83,11 +84,8 @@ export class VmixConnection {
       // The Bridge's HTTP server keeps the process alive; a connection to vMix never does on its own.
       s.unref();
       // A command still waiting on a socket already destroyed has lost its answer.
-      this.finish({ ok: false, lost: 'closed' });
+      this.reset();
       this.socket = s;
-      this.version = undefined;
-      this.buf = Buffer.alloc(0);
-      this.body = undefined;
       let connected = false;
       let settled = false;
       const settle = (r: VmixOpen) => {
@@ -119,6 +117,11 @@ export class VmixConnection {
   private closed(s: Socket): void {
     if (this.socket !== s) return;
     this.socket = undefined;
+    this.reset();
+  }
+
+  /** Nothing of a connection left: no greeting, nothing half read, nothing waiting for an answer. */
+  private reset(): void {
     this.version = undefined;
     this.body = undefined;
     this.buf = Buffer.alloc(0);
@@ -129,13 +132,15 @@ export class VmixConnection {
     if (this.socket !== s) return;
     this.buf = this.buf.length ? Buffer.concat([this.buf, d]) : d;
     for (;;) {
-      if (this.body) {
-        if (this.buf.length < this.body.length) return;
-        const text = this.buf.subarray(0, this.body.length).toString('utf8');
-        this.buf = this.buf.subarray(this.body.length);
-        const { line } = this.body;
+      const body = this.body;
+      if (body) {
+        // Copied once into a buffer of the announced size, so a long XML is never re-joined per chunk.
+        const n = this.buf.copy(body.data, body.got);
+        body.got += n;
+        this.buf = this.buf.subarray(n);
+        if (body.got < body.data.length) return;
         this.body = undefined;
-        this.finish({ ok: true, status: line.split(' ')[1] ?? '', line, body: text });
+        this.finish({ ok: true, status: body.status, line: body.line, body: body.data.toString('utf8') });
         continue;
       }
       const nl = this.buf.indexOf(0x0a);
@@ -152,12 +157,12 @@ export class VmixConnection {
           return;
         }
         this.version = m[1].trim();
-        greeted({ ok: true, version: this.version });
+        greeted({ ok: true });
         continue;
       }
       const [word, status = ''] = line.split(' ');
-      // A subscription's lines are not a reply to anything (the overlay-press reader takes them).
-      if (word === 'ACTS' && this.pending?.word !== 'ACTS') continue;
+      // Only the waiting command's own word answers it: a subscription's `ACTS OK …` lines are no
+      // reply to anything (the overlay-press reader takes them).
       if (!this.pending || word !== this.pending.word) continue;
       if (word === 'XML' && /^\d+$/.test(status)) {
         const length = Number(status);
@@ -165,7 +170,7 @@ export class VmixConnection {
           s.destroy();
           return;
         }
-        this.body = { length, line };
+        this.body = { line, status, data: Buffer.allocUnsafe(length), got: 0 };
         continue;
       }
       this.finish({ ok: true, status, line });
@@ -188,14 +193,19 @@ export class VmixConnection {
   command(line: string, until: number): Promise<VmixReply> {
     if (/[\r\n]/.test(line)) throw new Error('A vMix command is one line.');
     const run = this.tail.then(() => this.exchange(line, until));
-    this.tail = run.catch(() => undefined);
+    // The tail holds no reply, so the last XML body is not kept alive between commands.
+    this.tail = run.then(
+      () => undefined,
+      () => undefined,
+    );
     return run;
   }
 
   private exchange(line: string, until: number): Promise<VmixReply> {
     const s = this.socket;
     const wait = Math.min(this.replyMs, until - Date.now());
-    if (!s || s.destroyed || !this.version || wait <= 0) return Promise.resolve({ ok: false, lost: 'not-sent' });
+    if (!s || s.destroyed || !this.version) return Promise.resolve({ ok: false, lost: 'not-sent' });
+    if (wait <= 0) return Promise.resolve({ ok: false, lost: 'late' });
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.finish({ ok: false, lost: 'timeout' });
@@ -219,18 +229,6 @@ export interface VmixXml {
   overlays: Map<number, number>;
 }
 
-const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
-
-export function xmlDecode(s: string): string {
-  return s.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (whole, e: string) => {
-    if (e[0] === '#') {
-      const code = e[1] === 'x' || e[1] === 'X' ? Number.parseInt(e.slice(2), 16) : Number.parseInt(e.slice(1), 10);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : whole;
-    }
-    return ENTITIES[e.toLowerCase()] ?? whole;
-  });
-}
-
 /** The part of the XML between `<tag>` and `</tag>`, or nothing. */
 function section(xml: string, tag: string): string {
   const start = xml.indexOf(`<${tag}>`);
@@ -240,7 +238,7 @@ function section(xml: string, tag: string): string {
 
 function attributes(tag: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const m of tag.matchAll(/([\w:-]+)="([^"]*)"/g)) out[m[1]] = xmlDecode(m[2]);
+  for (const m of tag.matchAll(/([\w:-]+)="([^"]*)"/g)) out[m[1]] = decode(m[2]);
   return out;
 }
 
@@ -250,7 +248,7 @@ function attributes(tag: string): Record<string, string> {
 export function parseVmixXml(xml: string): VmixXml | undefined {
   const version = /<version>([^<]*)<\/version>/.exec(xml)?.[1];
   if (!/^\s*<vmix>/.test(xml) || version === undefined) return undefined;
-  const edition = xmlDecode(/<edition>([^<]*)<\/edition>/.exec(xml)?.[1] ?? '');
+  const edition = decode(/<edition>([^<]*)<\/edition>/.exec(xml)?.[1] ?? '');
   const inputs: VmixInput[] = [];
   for (const m of section(xml, 'inputs').matchAll(/<input\s([^>]*)>/g)) {
     const a = attributes(m[1]);
@@ -264,7 +262,7 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
     // `<overlay number="1" />` is an empty channel: no text follows it.
     if (Number.isInteger(channel) && m[2].trim() && Number.isInteger(input)) overlays.set(channel, input);
   }
-  return { version: xmlDecode(version).trim(), edition: edition.trim(), inputs, overlays };
+  return { version: decode(version).trim(), edition: edition.trim(), inputs, overlays };
 }
 
 /** How many overlay channels this vMix's UI offers, the one place the rule lives: 8 from vMix 29,
@@ -272,5 +270,5 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
  *  vMix 29 Trial has been measured; the rest is vMix's published edition table. */
 export function vmixOverlayCount(version: string, edition: string): number {
   if (/^basic/i.test(edition.trim())) return 1;
-  return Number.parseInt(version, 10) >= 29 ? 8 : 4;
+  return Number.parseInt(version, 10) >= 29 ? MAX_VMIX_OVERLAYS : 4;
 }

@@ -153,6 +153,6 @@ said on 127.0.0.1:8099, read byte for byte by a probe and then driven by the bui
 - Not tried: a Cut overlay transition, enhanced security, a Basic HD or vMix 28 edition, the
   Browser input's size against a production of another resolution, and the cue input's thumbnail.
 
-As in §6, `last.vmix` and its `user.config` were backed up before each of the five starts and put
+As in §6, `last.vmix` and its `user.config` were backed up before each of the six starts and put
 back after each close (SHA-256 as before, `last.vmix` keeping its 2026-10-01 time); vMix was
 force-closed without saving each time; its background service was untouched.

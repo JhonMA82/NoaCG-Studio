@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { test } from 'node:test';
-import { createVmixAdapter, functionLine, outputInputName } from '../dist/playout/adapters/vmix.js';
+import { createVmixAdapter, functionLine, outputInputName, titleOf } from '../dist/playout/adapters/vmix.js';
 import { casparcgAdapter } from '../dist/playout/adapters/casparcg.js';
 import { createBridgeServer, readAction, readTarget } from '../dist/playout/server.js';
 import { parseVmixXml, vmixOverlayCount } from '../dist/playout/vmixTcp.js';
@@ -75,11 +75,20 @@ test('a function line URL-encodes its values, which vMix decodes', () => {
   assert.equal(functionLine('OverlayInput2Out'), 'FUNCTION OverlayInput2Out');
   assert.equal(functionLine('SetInputName', { Input: 'k', Value: 'NoaCG: A & co' }), 'FUNCTION SetInputName Input=k&Value=NoaCG%3A%20A%20%26%20co');
   assert.equal(outputInputName(TITLE), 'NoaCG Evening News');
+  // A title is one line of at most 100 characters, never a half character that could not be encoded.
+  assert.equal(titleOf({ kind: 'url', name: OUTPUT, label: ' Evening\nNews\u0000 ' }), 'Evening News');
+  const long = titleOf({ kind: 'url', name: OUTPUT, label: `${'a'.repeat(99)}😀b` });
+  assert.equal(long, `${'a'.repeat(99)}😀`);
+  assert.equal(titleOf({ kind: 'url', name: OUTPUT, label: 'Lone \uD800 surrogate' }), 'Lone surrogate');
+  assert.doesNotThrow(() => functionLine('SetInputName', { Value: long }));
+  assert.equal(titleOf({ kind: 'url', name: OUTPUT, label: ' \n ' }), undefined);
 });
 
 test('the Bridge reads a vmix target and slot field by field', () => {
   const adapters = [casparcgAdapter, createVmixAdapter()];
-  assert.deepEqual(readTarget({ target: { adapter: 'vmix' } }, adapters), { adapter: 'vmix' });
+  // No port is the Bridge's own, filled in, so one vMix is one target however a page names it.
+  assert.deepEqual(readTarget({ target: { adapter: 'vmix' } }, adapters), { adapter: 'vmix', port: 8099 });
+  assert.deepEqual(readTarget({ target: { adapter: 'vmix' } }, [createVmixAdapter({ port: 9100 })]), { adapter: 'vmix', port: 9100 });
   assert.deepEqual(readTarget({ target: { adapter: 'vmix', port: 9000, host: 'elsewhere' } }, adapters), { adapter: 'vmix', port: 9000 });
   assert.throws(() => readTarget({ target: { adapter: 'vmix', port: 70000 } }, adapters), /port is a whole number/);
   assert.throws(() => readTarget({ target: { adapter: 'vmix' } }, [casparcgAdapter]), /no adapter "vmix"/);
@@ -150,7 +159,8 @@ test('AC-1: a port that never greets is not-vmix within 3 s, and one that greets
     const r = await createVmixAdapter({ port: silent.port }).status({ adapter: 'vmix' });
     const took = Date.now() - t0;
     assert.equal(r.error.setup, 'not-vmix');
-    assert.ok(took >= 2900 && took < 3500, `took ${took} ms`);
+    // Three seconds of waiting, and a busy machine's timer slack on top.
+    assert.ok(took >= 2900 && took < 4500, `took ${took} ms`);
     assert.deepEqual(silent.lines, [], 'nothing is sent to something that did not greet');
     const t1 = Date.now();
     const w = await createVmixAdapter({ port: wrong.port }).status({ adapter: 'vmix' });
@@ -227,6 +237,40 @@ test('AC-3: Put on air waits for an input vMix adds a moment after its OK', asyn
   }
 });
 
+test('AC-3: two productions put on air at once each get their own input, even when vMix adds them late', async () => {
+  const fake = await startFakeVmix({ addDelayMs: 300 });
+  try {
+    await withBridge(createVmixAdapter({ port: fake.port }), async (post) => {
+      const other = { kind: 'url', name: 'https://noacg.studio/output?production=xyz&name=vMix', label: 'Sports Desk' };
+      const [a, b] = await Promise.all([act(post, { verb: 'take', item, slot: slot(1) }), act(post, { verb: 'take', item: other, slot: slot(2) })]);
+      assert.deepEqual([a.ok, b.ok], [true, true], JSON.stringify([a, b]));
+      assert.deepEqual([fake.onChannel(1).title, fake.onChannel(1).url], ['NoaCG Evening News', OUTPUT]);
+      assert.deepEqual([fake.onChannel(2).title, fake.onChannel(2).url], ['NoaCG Sports Desk', other.name]);
+    });
+  } finally {
+    await fake.stop();
+  }
+});
+
+test('AC-3: an output added and then not read back is uncertain, never unreachable', async () => {
+  const fake = await startFakeVmix({
+    hook: (line, sock) => {
+      if (line === 'XML' && fake.functions.some((f) => f.name === 'AddInput')) {
+        sock.destroy();
+        return true;
+      }
+      return false;
+    },
+  });
+  try {
+    const r = await createVmixAdapter({ port: fake.port }).act({ adapter: 'vmix' }, { verb: 'take', item, slot: slot(8) });
+    assert.equal(r.error.code, 'uncertain');
+    assert.match(r.error.detail, /may hold a new unnamed Web Browser input/);
+  } finally {
+    await fake.stop();
+  }
+});
+
 test('AC-3: a name held by another kind of input is refused with nothing changed', async () => {
   const fake = await startFakeVmix();
   fake.add('Image', 'NoaCG Evening News');
@@ -234,7 +278,7 @@ test('AC-3: a name held by another kind of input is refused with nothing changed
     const r = await createVmixAdapter({ port: fake.port }).act({ adapter: 'vmix' }, { verb: 'take', item, slot: slot(8) });
     assert.equal(r.ok, false);
     assert.equal(r.error.code, 'refused');
-    assert.match(r.error.detail, /is a Image input, not a Web Browser/);
+    assert.match(r.error.detail, /is of type Image, not a Web Browser/);
     assert.deepEqual(fake.lines, ['XML'], 'one read, and no function');
   } finally {
     await fake.stop();

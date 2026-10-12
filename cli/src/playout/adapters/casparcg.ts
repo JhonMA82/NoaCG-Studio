@@ -39,6 +39,7 @@ import type {
   Target,
   TargetCapability,
   VmixInfo,
+  VmixOverlayState,
 } from '../protocol.js';
 import { UsageError } from '../../output.js';
 
@@ -86,6 +87,8 @@ export interface PlayoutAdapter<T extends Target = Target> {
   channels?(target: T): Promise<AdapterResult<ServerChannel[]>>;
   /** What each layer of one channel holds, for a target that can say (`/state`). */
   state?(target: T, channel: number): Promise<AdapterResult<SlotReading[]>>;
+  /** What each overlay channel holds, for a target that has them (vMix's `/state`). */
+  overlays?(target: T): Promise<AdapterResult<VmixOverlayState[]>>;
   /** Queue what plays when the clip on the slot ends, for a target that runs sequences. */
   follow?(target: T, slot: Slot, next: FollowWith): Promise<ActResult>;
 }
