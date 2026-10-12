@@ -330,6 +330,10 @@ export interface Show {
    *  so updatedAt > publishedAt means the renderer and operators run an older snapshot — the
    *  production page's "changes not yet published" hint reads exactly this. */
   publishedAt?: string;
+  /** The digest of this record as it was last published (model/publishedRecord.ts), which is
+   *  what "Unpublished changes" compares, so a change undone reads clean again. Absent on a
+   *  record published before it existed: that one is read by its timestamps. */
+  publishedRecord?: string;
   /** When the show last changed (ISO). Bumped on every mutation; drives cloud sync (LWW). */
   updatedAt: string;
   /** Soft-delete tombstone (hidden from the UI, kept so the delete syncs). See Packet.deleted. */
@@ -519,6 +523,7 @@ export function duplicateShowChecked(sourceId: string): { show: Show | null; err
   delete copy.joinSlug;
   delete copy.presenterSlug;
   delete copy.publishedAt;
+  delete copy.publishedRecord;
   delete copy.outputOpenedAt;
   delete copy.deleted;
   const all = loadAllShows();
@@ -1710,16 +1715,20 @@ export function setShowBrand(showId: string, brandId: string | undefined): Show[
 }
 
 /** Record (or clear, with undefined) a show's browser-output slug after (un)publishing.
- *  Publishing also stamps publishedAt; clearing removes it (nothing is live any more). */
-export function setShowOutputSlug(showId: string, slug: string | undefined): Show[] {
+ *  Publishing also stamps publishedAt and `record`, the digest of the record the publish was
+ *  built from (`publishControlShow` answers it); clearing removes both (nothing is live any more). */
+export function setShowOutputSlug(showId: string, slug: string | undefined, record?: string): Show[] {
   return patchShow(showId, (show, at) => {
     if (slug) {
       show.outputSlug = slug;
       // The SAME instant the write is stamped with, so a freshly published record reads clean.
       show.publishedAt = at;
+      if (record) show.publishedRecord = record;
+      else delete show.publishedRecord;
     } else {
       delete show.outputSlug;
       delete show.publishedAt;
+      delete show.publishedRecord;
       // The URL somebody set their browser source to is gone with the slug, so the record that
       // one was ever set up goes with it - a re-publish mints a NEW slug, and the old source
       // will never report in again.

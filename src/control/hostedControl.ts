@@ -16,6 +16,8 @@ import { graphicLayer, type CueAuto, type CueEnd, type Show } from '../model/sho
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
 import { designEditedAt, loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
+import { publishedRecordDigest } from '../model/publishedRecord';
+import { monitorReplay, planOutputRecovery, type ReplayItem } from './outputRecovery';
 import type { Resolution, SpxField, SpxTemplate, SoundAssetRef } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
@@ -465,6 +467,8 @@ export interface PublishedCapabilities {
   presenterSlug: string | null;
   /** The version stamp this publish wrote into the payload (payloadVersion.ts). */
   version?: PayloadVersion;
+  /** The digest of the production record this publish was built from (model/publishedRecord.ts). */
+  record?: string;
 }
 
 /** Digests already computed, by library record, its save time and the graphic's layer: a record
@@ -478,9 +482,10 @@ const libraryDigestMemo = new Map<string, string>();
  * the library, never touching the production record, still counts as an unpublished change.
  *
  * A graphic that falls back to the snapshot embedded in the production record is left out: that
- * copy changes only with the record, whose own timestamp already says so. In a team production a
- * member without the publisher's library record therefore never reads the publisher's newer design
- * as a change of their own to publish over it (https://github.com/NoaCG/NoaCG-Studio/issues/779).
+ * copy changes only with the record, whose own digest says so (model/publishedRecord.ts). In a
+ * team production a member without the publisher's library record therefore never reads the
+ * publisher's newer design as a change of their own to publish over it
+ * (https://github.com/NoaCG/NoaCG-Studio/issues/779).
  */
 export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<Record<string, string>> {
   const digests: Record<string, string> = {};
@@ -608,7 +613,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     const legacy = await sb.from('control_shows').select('slug, outputSlug:output_slug').eq('id', show.id).single();
     if (legacy.error) throw new Error(legacy.error.message);
     const row = legacy.data as { slug: string; outputSlug: string | null };
-    return { ...row, joinSlug: null, presenterSlug: null, version };
+    return { ...row, joinSlug: null, presenterSlug: null, version, record: publishedRecordDigest(show) };
   }
   const row = readBack.data as {
     slug: string;
@@ -640,6 +645,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     joinSlug,
     presenterSlug: row.presenterSlug,
     version,
+    record: publishedRecordDigest(show),
   };
 }
 
@@ -1989,6 +1995,19 @@ export async function hostedControlTail(slug: string, afterId: number, graphic?:
   const { data, error } = await sb.rpc('control_tail', { p_slug: slug, p_graphic: graphic ?? null, p_after: afterId });
   if (error) return [];
   return (data ?? []) as ControlEventRow[];
+}
+
+/**
+ * The rows a PROGRAM monitor replays over the reports when its page opens (control/outputRecovery.ts
+ * `monitorReplay`): the log after the oldest on-air report baseline, read once. A read that does
+ * not reach the head replays nothing, and the reports stand. The hosted control page and the
+ * in-app production page both boot through this.
+ */
+export async function bootMonitorReplay(slug: string, resolved: Pick<ResolvedControlShow, 'liveCue' | 'live' | 'lastEventId'>): Promise<ReplayItem[]> {
+  const onAir = Object.keys(resolved.liveCue).filter((graphic) => resolved.liveCue[graphic]);
+  const { followFrom, snapshotAt } = planOutputRecovery(onAir, resolved.live);
+  if (onAir.length === 0 || followFrom >= resolved.lastEventId) return [];
+  return monitorReplay(onAir, snapshotAt, (await hostedControlRange(slug, followFrom, resolved.lastEventId)) ?? []);
 }
 
 /**

@@ -181,6 +181,7 @@ import {
   controlPageUrl,
   controlShowBySlug,
   followControlLog,
+  bootMonitorReplay,
   hostedControlTail,
   joinPageUrl,
   presenterPageUrl,
@@ -207,6 +208,7 @@ import {
   type VerbSent,
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
+import { airedAfter, type AiredMap, type ReplayItem } from '../../control/outputRecovery';
 import { createSendDebts } from '../../control/failedSends';
 import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import {
@@ -276,6 +278,7 @@ import {
   PICTURE_GRAPHIC_NAME,
   pictureLabel,
 } from '../../templates/picture';
+import { pictureUploadTarget } from '../../templates/pictureTarget';
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import { copyLink } from './copyLink';
@@ -800,31 +803,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * values in front of the operator have actually been SENT. An on-air cue whose draft has
    * moved past what air is showing has to say so rather than wait to be noticed.
    */
-  const [airedData, setAiredData] = useState<Record<string, Record<string, string>>>({});
+  const [airedData, setAiredData] = useState<AiredMap>({});
   const airedRef = useRef(airedData);
   airedRef.current = airedData;
   const rememberAired = useCallback((items: ControlSendItem[]) => {
-    setAiredData((prev) => {
-      let next = prev;
-      for (const item of items) {
-        // MERGED, not replaced: an update may be PARTIAL (a ± live-number bump carries one
-        // field on purpose), and replacing the baseline with it marked every other field as
-        // unsent — an amber "3 changes not on air yet" about values that were on air.
-        if (item.msg.t === 'update') next = { ...next, [item.graphic]: { ...next[item.graphic], ...item.msg.data } };
-        // An accepted event's payload lands through the same field path (the hosted log merges
-        // it the same way), so a goal's +1 is part of what air shows - and what the next press
-        // counts from. (If the guard dropped the event this runs slightly ahead of the graphic;
-        // the greyed buttons make that the rare case, and the log stays self-consistent.)
-        else if (item.msg.t === 'event' && item.msg.payload) next = { ...next, [item.graphic]: { ...next[item.graphic], ...item.msg.payload } };
-        else if (item.msg.t === 'stop' && next[item.graphic]) {
-          // Taken off air: forget it, or the next rebuild would restore a graphic nobody is
-          // running any more.
-          next = { ...next };
-          delete next[item.graphic];
-        }
-      }
-      return next;
-    });
+    // MERGED, not replaced (control/outputRecovery.ts `airedAfter`): an update may be PARTIAL (a
+    // ± live-number bump carries one field on purpose), and replacing the baseline with it marked
+    // every other field as unsent. An accepted event's payload counts too; a stop forgets the
+    // graphic. (If the guard dropped an event this runs slightly ahead of the graphic; the greyed
+    // buttons make that the rare case, and the log stays self-consistent.)
+    setAiredData((prev) => items.reduce((next, item) => airedAfter(next, item.graphic, item.msg), prev));
   }, []);
   const [wireLog, setWireLog] = useState<LogEntry[]>([]);
   const localLogId = useRef(0);
@@ -905,7 +893,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * two share nothing but the stamp: one clock verb settles one field, a `switch` settles both.
    */
   const applySpeakingClocks = useCallback(
-    (out: ControlSendItem[], item: ControlSendItem, pair: SpeakingClockPair) => {
+    (out: ControlSendItem[], item: ReplayItem, pair: SpeakingClockPair) => {
       const msg = item.msg;
       const held = speakingValues.current[item.graphic] ?? {};
       // A plain resend of the cue's own allowance must not erase a stamp, exactly as for the
@@ -932,7 +920,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         }
         staged = { graphic: item.graphic, msg: { ...msg, data: forwarded } };
       }
-      const effect = speakingClockRowEffect({ msg }, pair, held, Date.now());
+      const effect = speakingClockRowEffect({ msg, created_at: item.created_at }, pair, held, Date.now());
       if (!effect) {
         out.push(staged);
         return;
@@ -952,7 +940,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * origin BEFORE a start, so the runtime adopts it instead of minting one; the banked time
    * AFTER a hold or a reset, because what is banked is what the graphic has just settled on.
    */
-  const applyProgram = useCallback((items: ControlSendItem[]) => {
+  const applyProgram = useCallback((items: ReplayItem[]) => {
     const out: ControlSendItem[] = [];
     for (const item of items) {
       const pair = speakingClocksRef.current.get(item.graphic);
@@ -976,7 +964,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         clockValues.current[item.graphic] = clockValueAfterUpdate(clockValues.current[item.graphic], carried);
       }
       if (msg.t === 'stop') delete clockValues.current[item.graphic];
-      const effect = clockRowEffect({ msg }, clock, clockValues.current[item.graphic], Date.now());
+      const effect = clockRowEffect({ msg, created_at: item.created_at }, clock, clockValues.current[item.graphic], Date.now());
       if (!effect) {
         out.push(item);
         continue;
@@ -1025,6 +1013,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') {
           rememberAired([{ graphic: item.graphic, msg }]);
           applyProgram([{ graphic: item.graphic, msg }]);
+          // The monitor has moved past the boot snapshot, so a later rebuild recovers from what
+          // this page has seen since, not from the boot's replay.
+          bootReplayRef.current = null;
+          commandsApplied.current += 1;
         }
       }
     },
@@ -1691,15 +1683,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // Read at the start of the round trip that ANSWERS: if a verb moves the live map while it
       // is in flight, the answer below is older than the screen and must not overwrite it.
       let movesAtRequest = 0;
+      let commandsAtRequest = 0;
       // BEFORE the await, because this page is reused when the route moves to another
       // production: the previous show's answer must not decide this one's road while the round
       // trip is in flight. Graphic keys are per-production layer names and collide freely.
       fastEventGraphicsRef.current = new Set();
+      bootReplayRef.current = null;
       // A failed resolve is asked again on the renderer's backoff, and the header says so; only
       // an ANSWER decides.
       const answer = await untilAnswered(
         () => {
           movesAtRequest = liveCueMoves.current;
+          commandsAtRequest = commandsApplied.current;
           return controlShowBySlug(hostedSlug);
         },
         { stop: () => !alive, onRetry: () => setResolveWaiting(true) },
@@ -1715,6 +1710,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // The boot-recovery effect below replays each live layer's last REPORT into the local
       // monitor, so the reports must be in hand before the wire's picture commits and fires it.
       liveReportsRef.current = resolved.live;
+      // …and the rows AFTER each report (control/outputRecovery.ts `monitorReplay`). A report
+      // trails its graphic's last change by 800 ms, so a page reloaded straight after a press
+      // rebuilt PROGRAM, and the not-on-air-yet baseline, from the picture before it (issue #762).
+      const sinceReports = await bootMonitorReplay(hostedSlug, resolved);
+      if (!alive) return;
+      // A command this page applied meanwhile is newer than those rows, so they are not replayed.
+      const replay = commandsApplied.current === commandsAtRequest ? sinceReports : [];
       // THE SEED IS A WHOLESALE REPLACE, so it is skipped outright when this operator has
       // already acted. Merging the two was the other option and it is worse: the wire's map
       // is a snapshot, not a diff, so a layer this operator took OFF while the read was in
@@ -1739,25 +1741,32 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         for (const [graphic, cueId] of Object.entries(resolved.liveCue)) {
           if (!cueId) continue;
           const reported = resolved.live[graphic]?.data;
+          const base = reported && Object.keys(reported).length > 0 ? reported : cuesRef.current.find((c) => c.id === cueId)?.values;
+          // …then what air did after that report.
           const values = {
-            ...(reported && Object.keys(reported).length > 0
-              ? reported
-              : cuesRef.current.find((c) => c.id === cueId)?.values),
+            ...replay.reduce<AiredMap>(
+              (aired, item) => (item.graphic === graphic ? airedAfter(aired, graphic, item.msg) : aired),
+              base ? { [graphic]: base } : {},
+            )[graphic],
           };
           const clock = clockSpecsRef.current.get(graphic);
           const pair = speakingClocksRef.current.get(graphic);
+          // The wire values come from the report (stamped), not from a replayed plain resend;
+          // the rebuild below replays the rows onto them.
+          const wire = (field: string) => base?.[field] ?? values[field];
           if (clock && values[clock.field] !== undefined) {
-            clockValues.current[graphic] = values[clock.field];
+            clockValues.current[graphic] = wire(clock.field);
             values[clock.field] = plainClockValue(values[clock.field]);
           }
           if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
-            speakingValues.current[graphic] = { [pair.fieldA]: values[pair.fieldA], [pair.fieldB]: values[pair.fieldB] };
+            speakingValues.current[graphic] = { [pair.fieldA]: wire(pair.fieldA), [pair.fieldB]: wire(pair.fieldB) };
             values[pair.fieldA] = plainClockValue(values[pair.fieldA]);
             values[pair.fieldB] = plainClockValue(values[pair.fieldB]);
           }
           if (Object.keys(values).length > 0) seed[graphic] = values;
         }
         setAiredData((prev) => ({ ...prev, ...seed }));
+        bootReplayRef.current = replay;
         // …and the recovery is triggered by THE WIRE'S OWN ANSWER, never by `liveCue` moving —
         // see the effect below for what that distinction cost.
         setBootLive(resolved.liveCue);
@@ -1832,7 +1841,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           // A 'live' row is the renderer REPORTING what it applied — machine state included,
           // which is what keeps the action buttons' greying honest about air. Durable only: a
           // report is a row, not a verb, and it never travels the fast road.
-          if (msg.t === 'live') noteMachineState(row.graphic, msg.state ?? null);
+          if (msg.t === 'live') {
+            noteMachineState(row.graphic, msg.state ?? null);
+            // A newer report than the boot's: a rebuild reads what this page has seen since.
+            bootReplayRef.current = null;
+          }
           // THE TREE MOVED SERVER-SIDE. Every row the patch RPC appends carries a `src` saying
           // who moved it - `api` for a feed, `operator` for a press on another dashboard (a
           // hosted control page's bound stepper, migration 0060) - and no other road writes one.
@@ -1887,6 +1900,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // outside the remounted thing and nothing re-established it. So the replay is keyed on the
   // STAGE being fresh, not on the page being new.
   const liveReportsRef = useRef<ResolvedControlShow['live'] | null>(null);
+  /** The log rows after each live layer's report, read when the page opened (`monitorReplay`),
+   *  until this page applies a command; null after that. */
+  const bootReplayRef = useRef<ReplayItem[] | null>(null);
+  /** Commands this page has applied to its monitor, so a boot read can tell it is older. */
+  const commandsApplied = useRef(0);
   // Read through refs: the replay must use the FRESHEST answer at the moment a stage comes up,
   // and it must not re-run every time a take changes either of them.
   const liveCueRef = useRef(liveCue);
@@ -1896,8 +1914,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const restoreProgram = useCallback(() => {
     for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
       if (!cueId) continue;
-      const report = (liveReportsRef.current?.[graphic] ?? null) as { data?: Record<string, string> } | null;
-      const base = airedRef.current[graphic] ?? report?.data;
+      const report = liveReportsRef.current?.[graphic] ?? null;
+      // AT BOOT, AIR IS THE REPORT PLUS THE ROWS AFTER IT (`monitorReplay`), rebuilt the way the
+      // renderer rebuilds itself: the reported data and state, then those rows through
+      // `applyProgram`, which moves the clocks on from the reported (stamped) values at each row's
+      // own time. A layer nothing has reported is rebuilt from what was aired, as below.
+      const rows = report ? (bootReplayRef.current ?? []).filter((item) => item.graphic === graphic) : [];
+      const replaying = rows.length > 0;
+      if (replaying) {
+        delete clockValues.current[graphic];
+        delete speakingValues.current[graphic];
+      }
+      const base = replaying ? report?.data : (airedRef.current[graphic] ?? report?.data);
       // THE CLOCK'S WIRE VALUE OVERRIDES THE AIRED ONE. What this replays is what was SENT, and
       // a clock's sent value is a plain time — so without this a rebuilt monitor came back at
       // whatever the last Take carried and re-ran from there. The stamped value is kept apart
@@ -1910,13 +1938,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const pair = speakingClocksRef.current.get(graphic);
       const speaking = pair ? speakingValues.current[graphic] : undefined;
       if (base && pair && speaking) data = { ...base, ...speaking };
-      const groups = machineStatesRef.current[graphic]?.groups;
-      const items: ControlSendItem[] = [];
+      const groups = replaying ? report?.state?.groups : machineStatesRef.current[graphic]?.groups;
+      const items: ReplayItem[] = [];
       if (data) items.push({ graphic, msg: { t: 'update', data } });
       if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });
-      else items.push({ graphic, msg: { t: 'play' } });
+      // Without a state the graphic plays in, unless the replayed rows carry its entrance.
+      else if (!rows.some((item) => item.msg.t === 'play')) items.push({ graphic, msg: { t: 'play' } });
       if (data) items.push({ graphic, msg: { t: 'update', data } });
-      applyProgram(items);
+      applyProgram([...items, ...rows]);
     }
   }, [applyProgram]);
   // The boot half: the wire resolve lands after the stage is already up, so the first time the
@@ -2465,26 +2494,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * It is deliberately NOT a library graphic. The production page may not write into a document
    * it only references (the rule the cue editor's image picker states), so the picture graphic
    * belongs to the pool instead — which also means `templateForSavedGraphic` resolves the POOL
-   * copy, the one this handler updates. The name is made unique against the library because that
-   * fallback resolves by NAME when there is no `graphicId`, and an unrelated library graphic
-   * called "Pictures" would otherwise capture the production's own.
+   * copy, the one this handler updates. A picture graphic pooled FROM the library is left alone,
+   * and a new one is named so no lookup by name can capture it (templates/pictureTarget.ts).
    */
   const uploadPictures = async (files: File[]) => {
     if (files.length === 0) return;
-    const existing = show.graphics.find((g) => g.type === 'picture') ?? null;
+    // The production's OWN picture graphic, never one pooled from the library (pictureTarget.ts).
+    const { existing, name } = pictureUploadTarget(show.graphics, library.map((d) => d.name), PICTURE_GRAPHIC_NAME);
     // The stage the pictures are drawn on, derived the way the output payload derives it, so an
     // upload into a 4K production keeps 4K pixels instead of being capped at 1080.
     const stage = show.graphics.reduce<Resolution>((r, g) => {
       const res = templateForSavedGraphic(g, library).resolution;
       return { width: Math.max(r.width, res.width), height: Math.max(r.height, res.height), label: r.label };
     }, DEFAULT_GRAPHICS_RESOLUTION);
-    let template = existing ? existing.template : createPictureTemplate('', stage);
-    if (!existing) {
-      const taken = new Set(library.map((d) => d.name));
-      let name = PICTURE_GRAPHIC_NAME;
-      for (let n = 2; taken.has(name); n += 1) name = `${PICTURE_GRAPHIC_NAME} ${n}`;
-      template = { ...template, name };
-    }
+    let template = existing ? existing.template : { ...createPictureTemplate('', stage), name };
     const room = MAX_PICTURES - template.assets.length;
     if (room <= 0) {
       setNote(`This production already holds ${MAX_PICTURES} pictures. Remove one before adding another.`);
@@ -2709,7 +2732,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           joinSlug: published.joinSlug,
           presenterSlug: published.presenterSlug,
         });
-        setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
+        setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined, published.record));
         if (published.version) setPublishedStamp(published.version);
         // A REPUBLISH PINS A NEW PAYLOAD, and the follow effect does not run again for it (the
         // slug is deliberately the same one). A graphic that has just gained a clock would

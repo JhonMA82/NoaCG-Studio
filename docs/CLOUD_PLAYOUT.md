@@ -273,10 +273,11 @@ The page:
   its version becomes the published one once every graphic holds it. Each output does this on its
   own, with no command of its own on the log. The page reloads, through the boot recovery above
   and once its own URL answers, only for another stage resolution or a new renderer build at its
-  URL, and only when nothing is on air here. Each answer names the request it answers, a request
-  is accepted once (session storage keeps the ids across a reload), and preparation starts at most
-  every 15 s. "On air" is what this renderer last applied to the graphic, else the log's own head
-  summary on the numbered log.
+  URL, and only when nothing is on air here, read again once the URL has answered, so a Take that
+  lands during that check keeps the page up (`src/output/reload.ts`). Each answer names the
+  request it answers, a request is accepted once (session storage keeps the ids across a reload),
+  and preparation starts at most every 15 s. "On air" is what this renderer last applied to the
+  graphic, else the log's own head summary on the numbered log.
 - **The command path ping** (migration 0072, Phase 6 Step 3 landing c). `control_ping_seq` writes
   one row `{t: 'ping', id, at}` with an empty graphic under the next number, with the same locks
   and burst cap as a Take, so it takes a Take's road on both protocols (the per-row `log-`

@@ -41,6 +41,7 @@ import {
 import type { PresetConfig } from '../lowerThirds/animPresets';
 import type { AnimData } from '../../blocks/animData';
 import { convertToDataRegion } from '../shared/standard';
+import { STOP_AGAIN_GUARD_JS } from '../shared/animRuntime';
 import { stageExtraJs } from '../shared/stageFit';
 import { igPresetById } from './igPresets';
 import { IG_MOTION_JS } from './igMotion';
@@ -123,7 +124,8 @@ function update(data) {
   if (typeof fitStagedText === 'function') fitStagedText();
 }
 
-// The timeline currently on air. play()/stop() kill it before starting a new one —
+// The timeline currently on air. play()/stop() kill it before starting a new one (a stop()
+// while the exit already runs leaves it alone) —
 // gsap.killTweensOf('*') only matches DOM elements, so it would MISS tweens that
 // target plain objects (like count-up's counter) and an interrupted replay would
 // leave the old tween running against the new one. Killing the whole timeline
@@ -137,8 +139,10 @@ function play() {
   activeTl = buildInTimeline();
 }
 
-// stop(): take the infographic off air — run the exit timeline.
+// stop(): take the infographic off air — run the exit timeline. Pressed again while the
+// graphic leaves, it lets that exit finish: killing it would freeze the graphic on air.
 function stop() {
+  ${STOP_AGAIN_GUARD_JS}
   if (activeTl) activeTl.kill();
   activeTl = buildOutTimeline();
 }

@@ -371,6 +371,7 @@ function makeConflictCopy(r: StoredRecord): StoredRecord {
   delete body.joinSlug;
   delete body.presenterSlug;
   delete body.publishedAt;
+  delete body.publishedRecord;
   return { kind: r.kind, id, updatedAt: now, deleted: false, body };
 }
 
