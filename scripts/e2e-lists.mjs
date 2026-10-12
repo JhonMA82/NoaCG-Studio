@@ -14,9 +14,13 @@
 //   another line of the same spec covers.
 // - `covers: none - <why>` is the honest answer for a spec no source change should select (it
 //   still runs when it is edited itself, on a full escalation and at night). The reason is required.
-// - `focus` puts the spec in the sprint FOCUS set: while E2E_SPRINT_FOCUS=1, a change that would
-//   escalate to the FULL suite runs that set instead (scripts/e2e-affected.mjs), and the nightly
-//   verdict classifies failures as focus vs paused (scripts/nightly-triage.mjs).
+// - `focus` puts the spec in the SHARED-CHANGE SET: a change to shared or uncertain code (CORE, an
+//   unmapped path, an e2e helper, a traced map the plan cannot trust) that would otherwise run the
+//   FULL suite runs that set instead on every pull request and merge group
+//   (scripts/e2e-affected.mjs), and the nightly verdict classifies failures as shared-set vs the
+//   rest (scripts/nightly-triage.mjs). The token keeps its sprint-era spelling for now; a member
+//   is a journey a shared change must not break, and the list is reviewed as one
+//   (docs/work-specs/e2e-suite-budget/evidence/selection-audit.md).
 //
 // Configured specs (`e2e/configured/*.spec.ts`) may carry `covers:` too: those globs are the
 // CONFIGURED TRIGGERS - files whose behaviour the offline suite structurally cannot cover, so the
@@ -28,9 +32,10 @@
 // and the configured suite's own files (below). `auditSpecHeaders` is the build's refusal
 // (scripts/e2e-affected.test.mjs runs it on the repo).
 //
-// WHEN THE STUDENT-RELEASE SPRINT ENDS: drop the `// focus` lines from the spec headers, the FOCUS
-// export here, the E2E_SPRINT_FOCUS env in ci.yml, the focus branch in e2e-affected.mjs and the
-// focus/paused split in scripts/nightly-triage.mjs.
+// THE SPRINT THAT NAMED THIS SET CLOSED ON 2026-08-22 and the set stayed, because it answers a
+// standing question: which journeys does a change to shared code have to run before merging. The
+// `E2E_SPRINT_FOCUS` env is gone (2026-10-12); what is still owed is a membership review with a
+// reason per entry and a rename of the token, both in the suite budget plan.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';

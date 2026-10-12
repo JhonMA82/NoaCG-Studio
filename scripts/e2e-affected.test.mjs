@@ -1213,7 +1213,7 @@ test('every spec header in the repository passes the refusals', () => {
 });
 
 // THE SAFE DIRECTION, pinned: a source file no spec covers still escalates to the full suite
-// (the sprint focus set under E2E_SPRINT_FOCUS), and says which file did it.
+// (the shared-change set, the planner's default escalation), and says which file did it.
 test('a source file no spec covers escalates to the full suite, exactly as before headers', () => {
   for (const file of ['src/components/spaceKey.ts', 'src/brand-new-area/thing.ts']) {
     const plan = planFor([file]);
@@ -1304,15 +1304,22 @@ test('--files reports an unmapped path exactly like the ref mode does', () => {
   const unknown = 'totally-unmapped-fixture-path.xyz';
   const direct = planFor([unknown]);
   assert.equal(direct.mode, 'full', 'the fixture path must actually be unmapped, or this test proves nothing');
-  const out = JSON.parse(
-    execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', unknown], {
+  const run = (...extra) => JSON.parse(
+    execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', unknown, ...extra], {
       encoding: 'utf8',
       cwd: REPO_ROOT,
       env: CLI_ENV,
       windowsHide: true,
     }),
   );
-  assert.equal(out.mode, 'full');
+  // The CLI's default escalation is the shared-change set (since 2026-10-12), named as such;
+  // the whole suite is what --full-escalation asks for.
+  const shared = run();
+  assert.equal(shared.mode, 'subset');
+  assert.ok(shared.specs.length > 0, 'the shared set is not empty');
+  assert.deepEqual(shared.specs, planFor([unknown], { sprintFocus: true }).specs, 'the CLI and the module agree');
+  assert.equal(run('--full-escalation').mode, 'full');
+  assert.equal(run('--no-focus').mode, 'full', 'the older spelling still works');
 });
 
 // A first draft of `--files` destructured only `{ mode, specs, catalog, unmapped }` from
@@ -1642,6 +1649,52 @@ test('off CI a whole-suite plan is refused, and a one- or two-spec plan runs', (
   // The catalog gate is a whole-catalog run: left to CI here, kept on CI.
   assert.equal(localRunPolicy({ ...two, catalog: true }).catalog, false);
   assert.deepEqual(localRunPolicy({ mode: 'full', specs: [], catalog: true }, { ci: true }), { refusal: null, catalog: true });
+});
+
+// THE FIVE SHAPES (docs/work-specs/e2e-suite-budget/evidence/selection-audit.md): what a pull
+// request plans for a playout-only, a catalog-template, an editor-only, a shared and an uncertain
+// change. Pinned on shape, not on counts, so a header edit does not break this and a change to the
+// rules or the lists does.
+test('a playout-only change plans the playout journeys and no editor spec, as a subset', () => {
+  const plan = planFor(['src/components/home/CueRundown.tsx'], { sprintFocus: true });
+  assert.equal(plan.mode, 'subset');
+  assert.equal(plan.focusApplied, false);
+  assert.ok(plan.specs.includes('playout-folders.spec.ts'));
+  assert.ok(!plan.specs.some((s) => s.startsWith('editor-')), 'no editor spec for a rundown change');
+});
+
+test('one catalog template added plans the catalog enumerators and raises the catalog gate', () => {
+  const plan = planFor(['src/templates/lowerThirds/lt99.ts'], { sprintFocus: true });
+  assert.equal(plan.mode, 'subset');
+  assert.equal(plan.catalog, true);
+  assert.ok(plan.specs.includes('catalog-baseline.spec.ts'));
+  assert.ok(!plan.specs.includes('playout-folders.spec.ts'), 'a design file is not a rundown change');
+});
+
+test('an editor-only change plans the editor specs and no playout journey', () => {
+  const plan = planFor(['src/components/editorFoundation/commandAdapter.ts'], { sprintFocus: true });
+  assert.equal(plan.mode, 'subset');
+  assert.ok(plan.specs.includes('editor-groups.spec.ts'));
+  assert.ok(!plan.specs.includes('playout-folders.spec.ts'));
+});
+
+test('a shared model, rendering or storage change runs the shared-change set, and only --full-escalation runs everything', () => {
+  for (const file of ['src/model/structure.ts', 'src/preview/settleGraphic.ts', 'src/store/templateStore.ts']) {
+    const shared = planFor([file], { sprintFocus: true });
+    assert.equal(shared.mode, 'subset', file);
+    assert.equal(shared.focusApplied, true, file);
+    assert.ok(shared.specs.includes('playout-folders.spec.ts') && shared.specs.includes('wizard-kit.spec.ts'), `${file} runs the journeys`);
+    assert.equal(planFor([file], { sprintFocus: false }).mode, 'full', `${file} runs everything only when asked`);
+  }
+});
+
+test('an uncertain change (a new file no header names) escalates to the shared-change set and is named as unmapped', () => {
+  const plan = planFor(['src/sync/replication.ts'], { sprintFocus: true });
+  assert.equal(plan.focusApplied, true);
+  assert.deepEqual(plan.unmapped, ['src/sync/replication.ts']);
+  const helper = planFor(['e2e/_newhelper.ts'], { sprintFocus: true });
+  assert.equal(helper.focusApplied, true, 'a new e2e helper is shared code');
+  assert.equal(planFor(['docs/GOALS.md'], { sprintFocus: true }).mode, 'none', 'a doc plans nothing');
 });
 
 test('a full run still knows whether the change it carries needs the catalog gate', () => {

@@ -507,10 +507,11 @@ export function planFor(
   const traceOnly = [...fromTrace].filter((s) => !specs.has(s)).sort();
   for (const s of traceOnly) specs.add(s);
 
-  // Under sprint focus, the escalation that would have run everything runs the focus set
-  // (union with whatever the mapped rules already named). The full->catalog coupling below is
-  // deliberately skipped for an intercepted run: a styles.css tweak stops paying the 25-minute
-  // catalog gate, while a direct CATALOG_TRIGGERS match above still raises the flag.
+  // The escalation that would have run everything runs the SHARED-CHANGE SET instead (the specs
+  // whose header says `// focus`, union with whatever the mapped rules already named), unless the
+  // caller asked for the whole suite by name. The full->catalog coupling below is deliberately
+  // skipped for an intercepted run: a styles.css tweak stops paying the 25-minute catalog gate,
+  // while a direct CATALOG_TRIGGERS match above still raises the flag.
   let focusApplied = false;
   if (full && sprintFocus) {
     full = false;
@@ -1184,8 +1185,9 @@ function emitJson({ mode, specs, catalog, base, changedFiles, traced = null }) {
 const KNOWN_FLAGS = new Map([
   ['--all', 'the whole suite and the catalog gate, with no diff at all'],
   ['--catalog-since=<ref>', 'with --all: raise the catalog gate only if the change since <ref> can move the catalog (an unusable ref raises it)'],
-  ['--focus', 'collapse a core/unmapped escalation to the sprint focus set'],
-  ['--no-focus', 'force the honest full escalation even with E2E_SPRINT_FOCUS=1'],
+  ['--focus', 'accepted for older callers: a core/unmapped escalation already runs the shared-change set'],
+  ['--full-escalation', 'run the whole suite on a core/unmapped escalation instead of the shared-change set'],
+  ['--no-focus', 'the older name of --full-escalation'],
   ['--integration', 'move the base to the FORK POINT, covering both sides of a merge of main'],
   ['--no-integration', 'force the plain branch-only diff, never the fork point'],
   ['--json', 'print the plan as one JSON object and run nothing (implies --list)'],
@@ -1387,8 +1389,15 @@ function main() {
   // so the env-only form could never be baked into `npm run` and every local run had to remember
   // it by hand. It could not, which is why a core change on this laptop kept escalating to the
   // full 103-file suite while CI - where ci.yml does set the env - ran the 34-file focus set.
-  const sprintFocus =
-    (process.env.E2E_SPRINT_FOCUS === '1' || has('--focus')) && !has('--no-focus');
+  // THE SHARED-CHANGE SET IS THE STANDARD ESCALATION (since 2026-10-12). Until then it was the
+  // "sprint focus", switched on by `E2E_SPRINT_FOCUS=1` in ci.yml for a sprint that had closed on
+  // 2026-08-22, and off everywhere else: a core change planned 76 specs on CI and the whole suite
+  // on a laptop, from the same planner. A change to shared or uncertain code now runs the specs
+  // whose header says `// focus` (the journeys a shared change must not break) plus whatever the
+  // headers mapped, on every pull request and merge group; the whole suite is main's full run,
+  // `--all`, or `--full-escalation` asked for by name. `--no-focus` is the older name of that
+  // flag and `--focus` is accepted and means nothing new.
+  const sprintFocus = !has('--no-focus') && !has('--full-escalation');
   // --json prints the plan as one machine-readable object and runs nothing, which is how CI
   // decides between "skip the suite", "run these specs" and "run everything". It implies
   // --list, and it silences the human commentary: in this mode stdout is a data channel and a
