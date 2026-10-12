@@ -199,6 +199,11 @@ one.
   change, MFA factors, `/logout` and `/user/oauth/grants`. So "a leaked token can do no more than
   the tools allow" holds for the database only. An owner judgement before switch-on:
   [issue #1083](https://github.com/NoaCG/NoaCG-Studio/issues/1083).
+- **NoaCG's own API accepts a connector token today.** `api/_lib/auth.ts` `verifyUser` asks
+  `auth.getUser`, which answers for a connector token, so `api/ai/generate.ts`, `api/render/start.ts`
+  and every other signed-in route would serve it as the user. Phase 2 must make every route except
+  the connector's refuse a token that carries `client_id` (the `resolvePrincipal` branch, plus
+  `verifyUser`), with a test. No exposure yet: no hosted project issues such tokens.
 - **The consent page is `/?authorization_id=<id>` on the site URL** (`authorization_url_path = "/"`).
   Phase 2 adds it as a query route in `App.tsx` beside `?agent=`, calling
   `GET /auth/v1/oauth/authorizations/{id}` and `POST …/consent {action}` with the user's session.

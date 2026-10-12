@@ -114,9 +114,10 @@ const brief = (r) => {
  */
 export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () => {} }) {
   if (!isLocalUrl(apiUrl)) throw new Error(`refusing ${apiUrl}: the spike runs against a local stack only`);
-  const auth = `${apiUrl.replace(/\/$/, '')}/auth/v1`;
-  const rest = `${apiUrl.replace(/\/$/, '')}/rest/v1`;
-  const storage = `${apiUrl.replace(/\/$/, '')}/storage/v1`;
+  const base = apiUrl.replace(/\/$/, '');
+  const auth = `${base}/auth/v1`;
+  const rest = `${base}/rest/v1`;
+  const storage = `${base}/storage/v1`;
   const admin = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` };
   const checks = {};
   const findings = {};
@@ -234,17 +235,26 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
     check('connector_role', claims.payload.role === CONNECTOR_ROLE, `role claim "${claims.payload.role}" (hook ${claims.payload.role === CONNECTOR_ROLE ? 'applied' : 'not applied'})`);
     const asConnector = { apikey: anonKey, Authorization: `Bearer ${accessToken}` };
     const asUser = { apikey: anonKey, Authorization: `Bearer ${userToken}` };
-    const userRead = await call(`${rest}/documents?select=id&limit=1`, { headers: asUser });
-    const read = await call(`${rest}/documents?select=id&limit=1`, { headers: asConnector });
-    const write = await call(`${rest}/documents`, { method: 'POST', headers: { ...asConnector, Prefer: 'return=minimal' }, json: {} });
-    const rpc = await call(`${rest}/rpc/control_show_by_slug`, { method: 'POST', headers: asConnector, json: { p_slug: 'connector-spike' } });
-    const rpcAnon = await call(`${rest}/rpc/control_show_by_slug`, { method: 'POST', headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` }, json: { p_slug: 'connector-spike' } });
-    const objects = await call(`${storage}/object/list/user-assets`, { method: 'POST', headers: asConnector, json: { prefix: '', limit: 1 } });
-    const refused = (r) => r.status === 401 || r.status === 403;
-    check('first_party_rest_allowed', userRead.status === 200, `GET documents with a first-party token: ${brief(userRead)}`);
+    const list = { prefix: '', limit: 1 };
+    const [userRead, userObjects, read, write, rpc, rpcAnon, objects] = await Promise.all([
+      call(`${rest}/documents?select=id&limit=1`, { headers: asUser }),
+      call(`${storage}/object/list/user-assets`, { method: 'POST', headers: asUser, json: list }),
+      call(`${rest}/documents?select=id&limit=1`, { headers: asConnector }),
+      call(`${rest}/documents`, { method: 'POST', headers: { ...asConnector, Prefer: 'return=minimal' }, json: {} }),
+      call(`${rest}/rpc/control_show_by_slug`, { method: 'POST', headers: asConnector, json: { p_slug: 'connector-spike' } }),
+      call(`${rest}/rpc/control_show_by_slug`, { method: 'POST', headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` }, json: { p_slug: 'connector-spike' } }),
+      call(`${storage}/object/list/user-assets`, { method: 'POST', headers: asConnector, json: list }),
+    ]);
+    // Refused for the role, not for another reason: a bad audience or an unknown key is a 401 too.
+    const roleRefused = (r) => r.status >= 400 && brief(r).includes(`permission denied to set role "${CONNECTOR_ROLE}"`);
+    check(
+      'first_party_rest_allowed',
+      userRead.status === 200 && userObjects.status === 200,
+      `GET documents with a first-party token: ${brief(userRead)} | storage list user-assets: ${brief(userObjects)}`,
+    );
     check(
       'connector_rest_refused',
-      refused(read) && refused(write) && refused(rpc) && objects.status >= 400,
+      [read, write, rpc, objects].every(roleRefused),
       `GET documents ${brief(read)} | POST documents ${brief(write)} | rpc control_show_by_slug ${brief(rpc)} (anon key alone: ${rpcAnon.status}) | storage list user-assets ${brief(objects)}`,
     );
 
@@ -261,8 +271,8 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
     const rClaims = refreshed.body?.access_token ? decodeJwt(refreshed.body.access_token).payload : null;
     check(
       'refresh_keeps_boundary',
-      rClaims && rClaims.client_id === clientId && rClaims.role === CONNECTOR_ROLE && refreshed.body.refresh_token !== token.body.refresh_token,
-      rClaims ? `client_id ${rClaims.client_id === clientId ? 'kept' : 'lost'}; role "${rClaims.role}"; refresh token ${refreshed.body.refresh_token !== token.body.refresh_token ? 'rotated' : 'reused'}` : brief(refreshed),
+      rClaims && rClaims.client_id === clientId && rClaims.role === CONNECTOR_ROLE && Boolean(refreshed.body.refresh_token) && refreshed.body.refresh_token !== token.body.refresh_token,
+      rClaims ? `client_id ${rClaims.client_id === clientId ? 'kept' : 'lost'}; role "${rClaims.role}"; refresh token ${!refreshed.body.refresh_token ? 'missing' : refreshed.body.refresh_token !== token.body.refresh_token ? 'rotated' : 'reused'}` : brief(refreshed),
     );
 
     // 7. Port-agnostic loopback: Claude Code's callback is http://localhost:<any port>/callback.
