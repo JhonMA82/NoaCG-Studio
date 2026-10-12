@@ -1,8 +1,7 @@
 # plan-run - run a long plan phase by phase
 
-Shared procedure: `/plan-run <plan> until <time>` in Claude Code, `$plan-run` in Codex. The owner
-names the plan and the window; each phase is built by one fresh session and checked by another, and
-the next starts only after the check passed. Output: the phases landed on `main`, checked, a report.
+`/plan-run <plan> until <time>` (Codex: `$plan-run`). Each phase is built by one fresh session and
+checked by another, the next only after the check passed. Output: phases on `main`, a report.
 
 **Runnable plans** (a name here and nothing else):
 
@@ -10,6 +9,7 @@ the next starts only after the check passed. Output: the phases landed on `main`
 - `guided-mod`: `docs/work-specs/guided-mod/spec.md`; phases, acceptance and phase notes are in it.
 - `production-page`: `docs/work-specs/production-page-refactor/spec.md`; the same.
 - `ci-plan`: `docs/work-specs/ci-plan-reliability/spec.md`; the same.
+- `remote-mcp`: `docs/REMOTE_MCP_PLAN.md`; the same.
 
 ## Boundaries
 
