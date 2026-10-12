@@ -190,6 +190,7 @@ export const ig04: TemplateVariant = defineInfographicVariant(
         { field: 'f2', ftype: 'textfield', title: 'Question', value: QUESTION_SAMPLE },
       ],
 
+      numberStyle: true,
       runtimeExtraJs: '', // stat shape: update() writes fields straight in — no rebuild needed
       tokens: {
         labelTracking: '0.18em',

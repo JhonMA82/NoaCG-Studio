@@ -45,6 +45,8 @@ import { STOP_AGAIN_GUARD_JS } from '../shared/animRuntime';
 import { stageExtraJs } from '../shared/stageFit';
 import { igPresetById } from './igPresets';
 import { IG_MOTION_JS } from './igMotion';
+import { IG_NUMBERS_JS, NUMBER_STYLE_FIELD } from './igNumbers';
+import { appendedFieldId } from '../tickers/shared';
 import { resolveTokens, type ThemeTokens, type TokenOverrides } from '../../model/themeTokens';
 
 export interface IgDesign {
@@ -67,6 +69,12 @@ export interface IgDesign {
   fields: SpxField[];
   /** Extra runtime JS (bar designs define rebuildInfographic() here; stat designs pass ''). */
   runtimeExtraJs: string;
+  /**
+   * The board reads or prints figures, so it carries a Number style field: English
+   * ("1,234.5", the default) or Finnish/Swedish ("1 234,5"). The scaffold adds the field and its
+   * hidden holder after the design's own; igNumbers.ts is what reads it.
+   */
+  numberStyle?: boolean;
   /**
    * Where this design disagrees with its style family's shape tokens
    * (model/themeTokens.ts). Every entry is conformance debt - DESIGN_LANGUAGE §8's rule is
@@ -119,6 +127,8 @@ function update(data) {
       el.setAttribute('data-target', fields[key]);
     }
   }
+  // A Finnish or Swedish board shows a number field's decimal ("71.4") in its own style.
+  igStyleFields();
   if (typeof rebuildInfographic === 'function') rebuildInfographic();
   // Designs on a stage hold their lines to the rows they were drawn for (no-op otherwise).
   if (typeof fitStagedText === 'function') fitStagedText();
@@ -158,8 +168,35 @@ ${animationBlock}
 `;
 }
 
+/**
+ * The design with its Number style field and hidden holder added, when it asks for one. The
+ * holder also lists the design's number fields, the ones whose bare decimals the runtime prints
+ * in the board's style (igStyleFields in igNumbers.ts).
+ */
+function withNumberStyle(design: IgDesign): IgDesign {
+  if (!design.numberStyle) return design;
+  const numberFields = design.fields.filter((f) => f.ftype === 'number').map((f) => f.field).join(' ');
+  const field = appendedFieldId(design.html, design.fields.length);
+  return {
+    ...design,
+    html: `${design.html}
+    <!-- Hidden Number style holder - SPX writes field ${field} here; igNumbers.ts reads it. -->
+    <div id="${field}" class="${DATA_SOURCE_CLASS}" data-number-style data-number-fields="${numberFields}">en</div>`,
+    fields: [
+      ...design.fields,
+      {
+        field,
+        ftype: 'dropdown',
+        title: NUMBER_STYLE_FIELD.label,
+        value: NUMBER_STYLE_FIELD.value,
+        items: NUMBER_STYLE_FIELD.options.map((o) => ({ text: o.label, value: o.value })),
+      },
+    ],
+  };
+}
+
 /** Build the complete infographic SpxTemplate. */
-export function assembleInfographic(meta: IgMeta, design: IgDesign, o: ResolvedOptions,
+export function assembleInfographic(meta: IgMeta, ownDesign: IgDesign, o: ResolvedOptions,
   /** Refine the converted animation data — the seam a graphic TYPE injects its machine
    *  through (see shared/standard.ts composeRefine for the ordering rule). */
   refine?: (data: AnimData) => AnimData,
@@ -169,6 +206,7 @@ export function assembleInfographic(meta: IgMeta, design: IgDesign, o: ResolvedO
    *  existed. */
   tokens?: ThemeTokens,
 ): SpxTemplate {
+  const design = withNumberStyle(ownDesign);
   const font = resolveHeadingFont(o); // imported font wins over the bundled set
   const scale = computeScale(o);
   // Infographics carry a value + label block (or a bar chart) — cap a bit wider than a strap.
@@ -228,7 +266,7 @@ ${design.html.includes(DATA_SOURCE_CLASS) ? `\n${dataSourceCss}\n` : ''}`;
   const ease = resolveEasing(o.animation.easing, preset.autoEase);
   const cfg: PresetConfig = {
     prefix: 'infographic',
-    lineCount: design.fields.length,
+    lineCount: ownDesign.fields.length,  // the hidden Number style is no line of the graphic
     hasAccent: false,
     // A stat design may pair a progress bar with its figure (ig05) or not (ig01) — the
     // count-up preset only animates the bar when one actually exists.
@@ -247,7 +285,7 @@ ${design.html.includes(DATA_SOURCE_CLASS) ? `\n${dataSourceCss}\n` : ''}`;
   const extra = stageExtraJs(design.stageWidth, 'infographic', design.runtimeExtraJs).trim();
   const js = igRuntimeJs(
     meta.name,
-    [extra, IG_MOTION_JS, preset.emit(cfg)].filter((part) => part !== '').join('\n\n'),
+    [IG_NUMBERS_JS, extra, IG_MOTION_JS, preset.emit(cfg)].filter((part) => part !== '').join('\n\n'),
   );
 
   const template: SpxTemplate = {

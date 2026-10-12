@@ -249,6 +249,7 @@ export const ig25: TemplateVariant = defineInfographicVariant(
         { field: 'f2', ftype: 'textfield', title: 'Label', value: 'CHANNEL TIERS' },
       ],
 
+      numberStyle: true,
       runtimeExtraJs: milestoneRuntimeJs(),
     };
   },

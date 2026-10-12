@@ -311,21 +311,21 @@ export const TYPE_META: Record<string, DeclaredTemplateMeta> = {
 
 export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   // infographic split (§4): the fallback for the category is 'stats'.
-  ig01: { category: 'stats', subtype: 'stat-panel', structures: ['single-line', 'bars'], positionalSemantics: ['headline', 'percentage'] },
+  ig01: { category: 'stats', subtype: 'stat-panel', structures: ['single-line', 'bars'], positionalSemantics: ['headline', 'percentage', 'number-style'] },
   ig03: { category: 'results', subtype: 'leaderboard', structures: ['rows'], positionalSemantics: ['headline', 'items'], extraCapabilities: ['repeating'] },
-  ig04: { category: 'poll-quiz', subtype: 'poll-result', structures: ['bars'], positionalSemantics: ['percentage', 'answer', 'question'], extraCapabilities: ['poll-states'] },
-  ig05: { category: 'progress', subtype: 'donation-goal', structures: ['bars'], positionalSemantics: ['amount', 'amount', 'topic'], extraCapabilities: ['progress'] },
+  ig04: { category: 'poll-quiz', subtype: 'poll-result', structures: ['bars'], positionalSemantics: ['percentage', 'answer', 'question', 'number-style'], extraCapabilities: ['poll-states'] },
+  ig05: { category: 'progress', subtype: 'donation-goal', structures: ['bars'], positionalSemantics: ['amount', 'amount', 'topic', 'number-style'], extraCapabilities: ['progress'] },
   // The nine candidate fields, then the board's own two headings (its title and the status
   // flag beside it) — both operator fields, so the same board serves any count night.
-  ig07: { category: 'poll-quiz', subtype: 'vote', structures: ['bars', 'rows'], positionalSemantics: ['name', 'organization', 'percentage', 'name', 'organization', 'percentage', 'name', 'organization', 'percentage', 'headline', 'topic'], extraCapabilities: ['poll-states'] },
+  ig07: { category: 'poll-quiz', subtype: 'vote', structures: ['bars', 'rows'], positionalSemantics: ['name', 'organization', 'percentage', 'name', 'organization', 'percentage', 'name', 'organization', 'percentage', 'headline', 'topic', 'number-style'], extraCapabilities: ['poll-states'] },
   // The ELECTION NIGHT mini-pack (ig34-ig36). They file under three different categories on
   // purpose: a seat board IS a results board, a majority meter is a progress graphic that
   // happens to be about seats, and a turnout dial is a statistic. An operator on a count night
   // reaches for each of them by that word, not by "election" - and the programme format
   // ('election-night') is what actually gathers them, which is ranking, not filing.
-  ig34: { category: 'results', subtype: 'seat-count', structures: ['bars', 'rows'], positionalSemantics: ['items', 'organization', 'topic', 'topic'], extraCapabilities: ['repeating'] },
-  ig35: { category: 'progress', subtype: 'progress-bar', structures: ['bars', 'single-line'], positionalSemantics: ['score', 'score', 'score', 'organization'], extraCapabilities: ['progress'] },
-  ig36: { category: 'stats', subtype: 'stat-panel', structures: ['single-line'], positionalSemantics: ['percentage', 'headline', 'percentage', 'topic'] },
+  ig34: { category: 'results', subtype: 'seat-count', structures: ['bars', 'rows'], positionalSemantics: ['items', 'organization', 'topic', 'topic', 'number-style'], extraCapabilities: ['repeating'] },
+  ig35: { category: 'progress', subtype: 'progress-bar', structures: ['bars', 'single-line'], positionalSemantics: ['score', 'score', 'score', 'organization', 'number-style'], extraCapabilities: ['progress'] },
+  ig36: { category: 'stats', subtype: 'stat-panel', structures: ['single-line'], positionalSemantics: ['percentage', 'headline', 'percentage', 'topic', 'number-style'] },
   // The WEATHER mini-pack (lt62 / ig37 / bug37). Its field TITLES are the Production Data API
   // contract (scripts/weather-feed.mjs addresses them by label - see each design's header), and
   // it files by what each graphic IS: a current-conditions strap is a locator lower third, a
@@ -336,7 +336,7 @@ export const VARIANT_META: Record<string, DeclaredTemplateMeta> = {
   // The count-night SIDE RAIL. It files under results beside ig34 for the same reason - an
   // operator reaches for it as a results board - but its structure is declared as a side panel,
   // which is the placement that makes it a different graphic from the centre-frame boards.
-  ig38: { category: 'results', subtype: 'vote-result', structures: ['side-panel', 'rows'], coverage: 'panel', positionalSemantics: ['items', 'topic', 'headline', 'description', 'topic'], extraCapabilities: ['repeating'] },
+  ig38: { category: 'results', subtype: 'vote-result', structures: ['side-panel', 'rows'], coverage: 'panel', positionalSemantics: ['items', 'topic', 'headline', 'description', 'topic', 'number-style'], extraCapabilities: ['repeating'] },
   // The two-column stat list. It files as a statistics panel rather than under results: the
   // rows are figures being stated, not a contest being reported, and an operator reaches for it
   // by "the key figures board". TABLE is the structure that separates it from the facts boards

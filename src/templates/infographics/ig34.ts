@@ -246,6 +246,8 @@ export const ig34: TemplateVariant = defineInfographicVariant(
         { field: 'f3', ftype: 'textfield', title: 'Figures label', value: 'SEATS' },
       ],
 
+      numberStyle: true,
+
       // Shared seat-count rebuild - one "Party | seats" per line (dataRuntimes.ts).
       runtimeExtraJs: seatBarsRuntimeJs(),
     };

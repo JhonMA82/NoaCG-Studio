@@ -204,6 +204,7 @@ export const ig23: TemplateVariant = defineInfographicVariant(
         { field: 'f3', ftype: 'textfield', title: 'Unit', value: '£' },
       ],
 
+      numberStyle: true,
       runtimeExtraJs: goalRuntimeJs('ring'),
     };
   },

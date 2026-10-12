@@ -341,7 +341,10 @@ export type FieldSemantic =
   // graphic rather than something the graphic says. It is named here so a design can declare
   // it, so field counts can leave it out of "how many things do I type", and so nothing has to
   // call an operator control a "description".
-  | 'speed';
+  | 'speed'
+  // The other one: a data board's Number style (infographics/igNumbers.ts) says how the board
+  // reads and prints its figures, never what it says.
+  | 'number-style';
 
 export const SEMANTIC_LABELS: Record<FieldSemantic, string> = {
   name: 'Name', role: 'Role', organization: 'Organization', headline: 'Headline',
@@ -355,7 +358,7 @@ export const SEMANTIC_LABELS: Record<FieldSemantic, string> = {
   // Browse card's field summary reads "name + description + source / platform", and the plural
   // form of "Amount / total" came out as "2 amount / totals". A label that cannot be said out
   // loud is not a label.
-  source: 'Source', amount: 'Amount', speed: 'Speed',
+  source: 'Source', amount: 'Amount', speed: 'Speed', 'number-style': 'Number style',
 };
 
 // ── Facet E: capabilities ───────────────────────────────────────────────────

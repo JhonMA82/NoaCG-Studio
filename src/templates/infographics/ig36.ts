@@ -244,6 +244,8 @@ export const ig36: TemplateVariant = defineInfographicVariant(
         { field: 'f3', ftype: 'textfield', title: o.lines[3]?.title || 'Comparison', value: compareText },
       ],
 
+      numberStyle: true,
+
       // Shared turnout rebuild - the swing against the hidden previous figure (dataRuntimes.ts).
       runtimeExtraJs: turnoutRuntimeJs(),
     };

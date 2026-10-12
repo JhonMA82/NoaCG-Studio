@@ -309,6 +309,8 @@ ${row(2)}
         { field: 'f10', ftype: 'textfield', title: o.lines[4]?.title || 'Status flag', value: headFlag },
       ],
 
+      numberStyle: true,
+
       // rebuildInfographic(): refresh each bar from its hidden percent source (f2/f5/f8).
       // The names and parties are ordinary fields update() writes straight in — only the
       // bars need this hook, because a percentage repaints a width, not a text.
@@ -327,7 +329,7 @@ function rebuildInfographic() {
     // rewrites the readout's live text mid-count ("0%", "23%"…).
     var text = src.getAttribute('data-target');
     if (text === null) text = src.textContent;
-    var value = parseFloat(text);
+    var value = parseFloat(igNumberSource(text));  // "48,6" reads as 48.6 on a Finnish board
     if (isNaN(value)) value = 0;                 // not a number — draw an empty bar
     var drawnValue = Math.max(0, Math.min(100, value));  // clamp only the DRAWN fill to the track
     fill.setAttribute('data-value', drawnValue);
@@ -335,8 +337,9 @@ function rebuildInfographic() {
     // The readout at the bar's tip shows the parsed figure ("48", "48.6" — no stray text);
     // data-target holds the same string, so the count-up lands exactly on it.
     var num = fill.querySelector('.infographic-bar-num');
-    num.textContent = String(value);
-    num.setAttribute('data-target', String(value));
+    var shown = igNumberText(value);               // "48,6" on a Finnish board
+    num.textContent = shown;
+    num.setAttribute('data-target', shown);
   }
 }
 

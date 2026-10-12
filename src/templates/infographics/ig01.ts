@@ -102,6 +102,7 @@ export const ig01: TemplateVariant = defineInfographicVariant(
         { field: 'f0', ftype: 'textfield', title: o.lines[0]?.title || 'Value', value: valueText },
         { field: 'f1', ftype: 'textfield', title: o.lines[1]?.title || 'Label', value: labelText },
       ],
+      numberStyle: true,
       runtimeExtraJs: '', // stat shape: update() writes fields straight in — no rebuild needed
     };
   },
