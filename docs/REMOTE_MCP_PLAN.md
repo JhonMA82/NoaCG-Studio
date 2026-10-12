@@ -160,7 +160,7 @@ check's findings.
 
 **Evidence.** `scripts/connector-oauth-spike.mjs` ran on the configured suite's local stack
 (CLI 2.111.0, GoTrue v2.194.0) through `e2e/configured/connector-oauth.spec.ts`, which now keeps
-it passing on every landing: [run 38277020052](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38277020052),
+it passing on every landing: [run 38281590911](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38281590911),
 97 passed, 0 failed. Discovery answers with a registration endpoint and S256. A client registers
 with no apikey (201). `/oauth/authorize` sends the browser to `http://localhost:5174/?authorization_id=…`.
 Approving with the account's own session returns the code and the same state, and the code and
@@ -174,7 +174,7 @@ rest of the suite passed with the hook on, so first-party sign-in is unchanged.
 API role is a member of. PostgREST and Storage switch roles with SET ROLE, so they refuse the
 connector token before reading anything: documents GET and POST and `rpc/control_show_by_slug`
 answer `403 42501 permission denied to set role "noacg_connector"`, and Storage answers
-`400 AccessDenied` with the same message. A first-party token reads documents (200). A refresh
+`400 AccessDenied` with the same message. A first-party token reads documents and lists its Storage bucket (200). A refresh
 keeps `client_id` and the role, and rotates the refresh token. The restrictive-policy fallback is
 not needed. Leaving the role ungranted to `authenticator` is deliberate: Postgres gives EXECUTE on
 new functions to PUBLIC, and a role the API cannot assume makes that irrelevant.
