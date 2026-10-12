@@ -10,7 +10,7 @@
 // It skips on hosted staging (hosted-latency.yml), whose Auth configuration nothing here touches.
 
 import { test, expect } from '@playwright/test';
-import { isLocalUrl, REQUIRED_CHECKS, runConnectorSpike } from '../../scripts/connector-oauth-spike.mjs';
+import { failedChecks, isLocalUrl, runConnectorSpike } from '../../scripts/connector-oauth-spike.mjs';
 import { SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
@@ -32,6 +32,6 @@ test('a chat client signs in with PKCE and its token reaches no table, function 
     console.log(`connector OAuth spike:\n${lines.join('\n')}`);
   }
   await test.info().attach('connector-oauth-spike.json', { body: JSON.stringify(report, null, 2), contentType: 'application/json' });
-  const failed = REQUIRED_CHECKS.filter((name) => !report.checks[name]?.ok);
+  const failed = failedChecks(report);
   expect(failed, lines.join('\n')).toEqual([]);
 });

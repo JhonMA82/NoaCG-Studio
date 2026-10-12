@@ -50,23 +50,24 @@ do $$
 declare
   first_party jsonb := '{"claims": {"sub": "00000000-0000-0000-0000-000000000001", "role": "authenticated", "aud": "authenticated"}}';
   connector jsonb := '{"claims": {"sub": "00000000-0000-0000-0000-000000000001", "role": "authenticated", "aud": "authenticated", "client_id": "00000000-0000-0000-0000-0000000000c1"}}';
-  r record;
+  issued jsonb := public.connector_access_token(connector) -> 'claims';
+  members text;
 begin
   -- IS DISTINCT FROM, never <>: a key the hook dropped compares as NULL and would pass.
   if public.connector_access_token(first_party) -> 'claims' is distinct from first_party -> 'claims' then
     raise exception '0089: a first-party token''s claims must pass through unchanged';
   end if;
-  if public.connector_access_token(connector) #>> '{claims,role}' is distinct from 'noacg_connector'
-     or public.connector_access_token(connector) #>> '{claims,client_id}' is distinct from '00000000-0000-0000-0000-0000000000c1'
-     or public.connector_access_token(connector) #>> '{claims,sub}' is distinct from '00000000-0000-0000-0000-000000000001' then
+  if issued ->> 'role' is distinct from 'noacg_connector'
+     or issued ->> 'client_id' is distinct from '00000000-0000-0000-0000-0000000000c1'
+     or issued ->> 'sub' is distinct from '00000000-0000-0000-0000-000000000001' then
     raise exception '0089: a connector token must get role noacg_connector and keep client_id and sub';
   end if;
-  for r in select rolname from pg_roles
-           where rolname in ('authenticator', 'anon', 'authenticated', 'service_role', 'supabase_storage_admin') loop
-    if pg_has_role(r.rolname, 'noacg_connector', 'member') then
-      raise exception '0089: % must not be able to assume noacg_connector', r.rolname;
-    end if;
-  end loop;
+  select string_agg(rolname, ', ') into members from pg_roles
+   where rolname in ('authenticator', 'anon', 'authenticated', 'service_role', 'supabase_storage_admin')
+     and pg_has_role(rolname, 'noacg_connector', 'member');
+  if members is not null then
+    raise exception '0089: % must not be able to assume noacg_connector', members;
+  end if;
   -- Read the ACLs themselves: information_schema hides grants the migrating role cannot see.
   if exists (select 1 from pg_class c, aclexplode(c.relacl) a where a.grantee = 'noacg_connector'::regrole)
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where a.grantee = 'noacg_connector'::regrole)

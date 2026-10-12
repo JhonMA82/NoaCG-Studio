@@ -141,9 +141,12 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
       `${disco.status}; issuer ${meta.issuer}; registration ${meta.registration_endpoint ?? 'none'}; PKCE ${JSON.stringify(meta.code_challenge_methods_supported)}`,
     );
     if (disco.status !== 200) return { checks, findings };
-    const rfc8414 = await call(`${new URL(apiUrl).origin}/.well-known/oauth-authorization-server/auth/v1`);
-    note('discovery_path_inserted', `${new URL(apiUrl).origin}/.well-known/oauth-authorization-server/auth/v1 answers ${rfc8414.status} (RFC 8414 form a client derives from the issuer)`);
-    const jwks = (await call(meta.jwks_uri ?? `${auth}/.well-known/jwks.json`)).body ?? { keys: [] };
+    const rfc8414Url = `${new URL(apiUrl).origin}/.well-known/oauth-authorization-server/auth/v1`;
+    const [rfc8414, keys] = await Promise.all([call(rfc8414Url), call(meta.jwks_uri ?? `${auth}/.well-known/jwks.json`)]);
+    note('discovery_path_inserted', `${rfc8414Url} answers ${rfc8414.status} (RFC 8414 form a client derives from the issuer)`);
+    const jwks = keys.body ?? { keys: [] };
+    /** The authorize URL a browser opens for these parameters. */
+    const authorizeHref = (params) => `${meta.authorization_endpoint}?${new URLSearchParams(params)}`;
     note('jwks', (jwks.keys ?? []).map((k) => `${k.kid} ${k.alg ?? k.kty}`).join(', ') || 'no keys');
 
     // 2. A throwaway account, and its first-party session (what the consent page holds).
@@ -182,12 +185,10 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
     const verifier = b64url(randomBytes(32));
     const challenge = b64url(createHash('sha256').update(verifier).digest());
     const state = b64url(randomBytes(12));
-    const authorizeUrl = new URL(meta.authorization_endpoint);
-    for (const [k, v] of Object.entries({
+    const authorize = await call(authorizeHref({
       response_type: 'code', client_id: clientId, redirect_uri: redirectUri,
       code_challenge: challenge, code_challenge_method: 'S256', state, scope: 'openid email',
-    })) authorizeUrl.searchParams.set(k, v);
-    const authorize = await call(authorizeUrl.href, { redirect: 'manual' });
+    }), { redirect: 'manual' });
     const consentUrl = authorize.location ? new URL(authorize.location) : null;
     const authorizationId = consentUrl?.searchParams.get('authorization_id');
     check(
@@ -198,7 +199,8 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
     if (!authorizationId) return { checks, findings };
 
     // What the consent page does, with the signed-in account's own session.
-    const asPage = { apikey: anonKey, Authorization: `Bearer ${userToken}`, Origin: consentUrl.origin };
+    const asUser = { apikey: anonKey, Authorization: `Bearer ${userToken}` };
+    const asPage = { ...asUser, Origin: consentUrl.origin };
     const details = await call(`${auth}/oauth/authorizations/${authorizationId}`, { headers: asPage });
     note('consent_details', details.status === 200
       ? `client "${details.body?.client?.name}", scope "${details.body?.scope}", redirect ${details.body?.redirect_uri}`
@@ -234,7 +236,6 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
     // 6. Decision 4: the token boundary.
     check('connector_role', claims.payload.role === CONNECTOR_ROLE, `role claim "${claims.payload.role}" (hook ${claims.payload.role === CONNECTOR_ROLE ? 'applied' : 'not applied'})`);
     const asConnector = { apikey: anonKey, Authorization: `Bearer ${accessToken}` };
-    const asUser = { apikey: anonKey, Authorization: `Bearer ${userToken}` };
     const list = { prefix: '', limit: 1 };
     const [userRead, userObjects, read, write, rpc, rpcAnon, objects] = await Promise.all([
       call(`${rest}/documents?select=id&limit=1`, { headers: asUser }),
@@ -282,23 +283,28 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
     });
     if (loopReg.body?.client_id) cleanup.clients.push(loopReg.body.client_id);
     const tryRedirect = async (uri) => {
-      const u = new URL(meta.authorization_endpoint);
-      for (const [k, v] of Object.entries({ response_type: 'code', client_id: loopReg.body?.client_id ?? '', redirect_uri: uri, code_challenge: challenge, code_challenge_method: 'S256' })) u.searchParams.set(k, v);
-      const r = await call(u.href, { redirect: 'manual' });
+      const r = await call(authorizeHref({ response_type: 'code', client_id: loopReg.body?.client_id ?? '', redirect_uri: uri, code_challenge: challenge, code_challenge_method: 'S256' }), { redirect: 'manual' });
       return r.status === 302 && r.location?.includes('authorization_id=') ? 'accepted' : `refused (${brief(r)})`;
     };
-    note(
-      'loopback_port_agnostic',
-      loopReg.body?.client_id
-        ? `registered without a port: localhost:49152 ${await tryRedirect('http://localhost:49152/callback')}, 127.0.0.1:49152 ${await tryRedirect('http://127.0.0.1:49152/callback')}, exact http://localhost/callback ${await tryRedirect('http://localhost/callback')}; registered with its port (step 3, as a client that registers per connection does): accepted`
-        : `registration without a port: ${brief(loopReg)}`,
-    );
+    if (loopReg.body?.client_id) {
+      const [anyLocalhost, anyLoopback, exact] = await Promise.all(
+        ['http://localhost:49152/callback', 'http://127.0.0.1:49152/callback', 'http://localhost/callback'].map(tryRedirect),
+      );
+      note('loopback_port_agnostic', `registered without a port: localhost:49152 ${anyLocalhost}, 127.0.0.1:49152 ${anyLoopback}, exact http://localhost/callback ${exact}; registered with its port (step 3, as a client that registers per connection does): accepted`);
+    } else {
+      note('loopback_port_agnostic', `registration without a port: ${brief(loopReg)}`);
+    }
   } finally {
-    for (const id of cleanup.clients) await call(`${auth}/admin/oauth/clients/${id}`, { method: 'DELETE', headers: admin }).catch(() => {});
-    if (cleanup.userId) await call(`${auth}/admin/users/${cleanup.userId}`, { method: 'DELETE', headers: admin }).catch(() => {});
+    await Promise.all([
+      ...cleanup.clients.map((id) => call(`${auth}/admin/oauth/clients/${id}`, { method: 'DELETE', headers: admin })),
+      cleanup.userId && call(`${auth}/admin/users/${cleanup.userId}`, { method: 'DELETE', headers: admin }),
+    ].map((p) => Promise.resolve(p).catch(() => {})));
   }
   return { checks, findings };
 }
+
+/** The required checks a report did not pass. */
+export const failedChecks = (report) => REQUIRED_CHECKS.filter((name) => !report.checks[name]?.ok);
 
 /** The steps every run must pass. */
 export const REQUIRED_CHECKS = [
@@ -317,7 +323,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.exit(1);
   }
   const report = await runConnectorSpike({ ...stack, log: json ? () => {} : (line) => console.log(line) });
-  const missing = REQUIRED_CHECKS.filter((name) => !report.checks[name]?.ok);
+  const missing = failedChecks(report);
   if (json) console.log(JSON.stringify(report, null, 2));
   console.log(missing.length ? `\nFAILED: ${missing.join(', ')}` : `\nAll ${REQUIRED_CHECKS.length} required checks pass.`);
   process.exit(missing.length ? 1 : 0);
