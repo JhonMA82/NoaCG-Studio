@@ -57,7 +57,7 @@ import { supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
 import { pingDelay, type PingAck } from '../control/prepareLive';
 import { createPreparer } from './prepare';
-import { reloadWhenClear } from './reload';
+import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { createSwapper } from './swap';
 import { createSoundBudget } from '../assets/soundBudget';
@@ -144,8 +144,8 @@ function unavailable(why: Unavailable): void {
 const RELOAD_AFTER_THROWS = 3;
 
 /** Whether this page's own URL answers right now: a reload during an outage would paint the
- *  browser's error page, on air. */
-const pageServed = async () => (await fetch(window.location.href, { cache: 'no-store' })).ok;
+ *  browser's error page, on air. `reloadWhenClear` bounds it in time (./reload.ts). */
+const pageServed = async (signal: AbortSignal) => (await fetch(window.location.href, { cache: 'no-store', signal })).ok;
 const reloadPage = () => window.location.reload();
 
 async function boot(): Promise<void> {
@@ -449,13 +449,19 @@ async function boot(): Promise<void> {
       return answer.ok && answer.value ? answer.value.output : null;
     },
     onAir: airCount,
-    newBuild: async () => {
-      if (SERVED_SCRIPTS.length === 0) return false;
-      const page = await fetch(window.location.href, { cache: 'no-store' });
-      if (!page.ok) return false;
-      const html = await page.text();
-      return SERVED_SCRIPTS.some((src) => html.indexOf(`src="${src}"`) < 0);
-    },
+    // Bounded like the reload's probe: Prepare for Live waits on it (./reload.ts).
+    newBuild: async () =>
+      SERVED_SCRIPTS.length > 0 &&
+      within(
+        PROBE_MS,
+        async (signal) => {
+          const page = await fetch(window.location.href, { cache: 'no-store', signal });
+          if (!page.ok) return false;
+          const html = await page.text();
+          return SERVED_SCRIPTS.some((src) => html.indexOf(`src="${src}"`) < 0);
+        },
+        false,
+      ),
     recheck: async () => {
       for (const graphic of stage.graphics) {
         const held = checks.get(graphic);
