@@ -70,3 +70,9 @@ security), 8 (other editions), 9 (Browser input size), 10 (press to animation, A
 Six starts, each with `%APPDATA%\last.vmix` and its `user.config` backed up first and restored
 after a forced close (SHA-256 as before). The background service was untouched. Nothing of the
 runs is left running.
+
+## AC-2, AC-4, AC-5, AC-7, AC-8: unverified
+
+Not built in this slice: the pairing page and Settings (AC-2), the production link and cue inputs
+(AC-4), overlay presses as takes (AC-5), the press-to-animation round (AC-7) and the release (AC-8).
+They stay listed on issue #760.

@@ -11,7 +11,7 @@
     "evidence": [
       {
         "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
-        "sha256": "3e0cbeaec565ff19b33293342dc723bf8513805a50483322c72b5c7f65db2ffe"
+        "sha256": "389edf6e644c2fb8c54c0e314624a9e66ddf0471b015b6bf8c9d6af81832d776"
       }
     ],
     "criteria": [
@@ -21,14 +21,19 @@
         "evidence": [
           {
             "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
-            "sha256": "3e0cbeaec565ff19b33293342dc723bf8513805a50483322c72b5c7f65db2ffe"
+            "sha256": "389edf6e644c2fb8c54c0e314624a9e66ddf0471b015b6bf8c9d6af81832d776"
           }
         ]
       },
       {
         "id": "AC-2",
         "status": "unverified",
-        "evidence": []
+        "evidence": [
+          {
+            "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
+            "sha256": "389edf6e644c2fb8c54c0e314624a9e66ddf0471b015b6bf8c9d6af81832d776"
+          }
+        ]
       },
       {
         "id": "AC-3",
@@ -36,19 +41,29 @@
         "evidence": [
           {
             "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
-            "sha256": "3e0cbeaec565ff19b33293342dc723bf8513805a50483322c72b5c7f65db2ffe"
+            "sha256": "389edf6e644c2fb8c54c0e314624a9e66ddf0471b015b6bf8c9d6af81832d776"
           }
         ]
       },
       {
         "id": "AC-4",
         "status": "unverified",
-        "evidence": []
+        "evidence": [
+          {
+            "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
+            "sha256": "389edf6e644c2fb8c54c0e314624a9e66ddf0471b015b6bf8c9d6af81832d776"
+          }
+        ]
       },
       {
         "id": "AC-5",
         "status": "unverified",
-        "evidence": []
+        "evidence": [
+          {
+            "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
+            "sha256": "389edf6e644c2fb8c54c0e314624a9e66ddf0471b015b6bf8c9d6af81832d776"
+          }
+        ]
       },
       {
         "id": "AC-6",
@@ -56,19 +71,29 @@
         "evidence": [
           {
             "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
-            "sha256": "3e0cbeaec565ff19b33293342dc723bf8513805a50483322c72b5c7f65db2ffe"
+            "sha256": "389edf6e644c2fb8c54c0e314624a9e66ddf0471b015b6bf8c9d6af81832d776"
           }
         ]
       },
       {
         "id": "AC-7",
         "status": "unverified",
-        "evidence": []
+        "evidence": [
+          {
+            "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
+            "sha256": "389edf6e644c2fb8c54c0e314624a9e66ddf0471b015b6bf8c9d6af81832d776"
+          }
+        ]
       },
       {
         "id": "AC-8",
         "status": "unverified",
-        "evidence": []
+        "evidence": [
+          {
+            "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
+            "sha256": "389edf6e644c2fb8c54c0e314624a9e66ddf0471b015b6bf8c9d6af81832d776"
+          }
+        ]
       }
     ]
   }
