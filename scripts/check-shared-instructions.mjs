@@ -91,7 +91,7 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
     // live in the ledger script; these lines are the boundaries the script cannot hold.
     'plan-run',
     [
-      'One plan run or one wave, never both.',
+      'A wave runs alone; plan runs of different plans may run side by side',
       '24 hours is the ceiling',
       'Only phases written in the plan.',
       'Only the merge queue writes `main`.',

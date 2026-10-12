@@ -110,8 +110,9 @@ agent to remember anything.
     that document's phases, acceptance and notes. It refuses a plan whose phases lack acceptance
     criteria, runs only phases written in the plan, never invents one, and stops when the plan ends
     or the time limit comes, whichever is first. The limit is at most 24 hours.
-13. **One plan run or one wave, never both.** A plan run opens through the same wave store, so
-    each refuses while the other is open.
+13. **A wave runs alone; plan runs of different plans may run side by side** (owner, 2026-10-12).
+    A plan run opens through the same wave store, which refuses a wave beside any run and a second
+    run of the same plan.
 14. **Each phase is two fresh sessions.**
     - A **builder** does the next phase against its acceptance criteria, writes the phase notes
       (point 11), passes `/check`, and lands through the merge queue like any wave row.

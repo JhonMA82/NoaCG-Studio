@@ -223,9 +223,18 @@ test('a plan run and a wave refuse each other, and a plan run gets the same 24-h
 
   const other = store();
   openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir: other, now: NOW });
-  assert.match(openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-09T06:00:00+03:00', dir: other, now: NOW }).refusal, /another wave or plan run is open/);
+  assert.match(openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-09T06:00:00+03:00', dir: other, now: NOW }).refusal, /another wave is open/);
 
   assert.match(openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-10T00:00:00+03:00', dir: store(), now: NOW }).refusal, /24 hours/);
+});
+
+test('plan runs of different plans open side by side, and a wave is still refused beside them', () => {
+  const dir = store();
+  assert.ok(openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).file);
+  const second = openWave({ date: '2026-10-08', kind: 'plan-remote-mcp', until: '2026-10-09T06:00:00+03:00', dir, now: NOW });
+  assert.ok(second.file, second.refusal);
+  assert.equal(openWaves(dir, NOW).length, 2);
+  assert.match(openWave({ date: '2026-10-08', kind: 'day', until: '2026-10-09T12:00:00+03:00', dir, now: NOW }).refusal, /wave or plan run is open/);
 });
 
 // A plan run's WINDOW: the owner names a new `--until` to authorise more time, and a restart repeats
