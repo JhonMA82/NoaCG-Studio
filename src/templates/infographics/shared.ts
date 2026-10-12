@@ -45,7 +45,7 @@ import { STOP_AGAIN_GUARD_JS } from '../shared/animRuntime';
 import { stageExtraJs } from '../shared/stageFit';
 import { igPresetById } from './igPresets';
 import { IG_MOTION_JS } from './igMotion';
-import { IG_NUMBERS_JS, NUMBER_STYLE_TITLE } from './igNumbers';
+import { IG_NUMBERS_JS, NUMBER_STYLE_FIELD } from './igNumbers';
 import { appendedFieldId } from '../tickers/shared';
 import { resolveTokens, type ThemeTokens, type TokenOverrides } from '../../model/themeTokens';
 
@@ -169,16 +169,6 @@ ${animationBlock}
 }
 
 /**
- * The Number style field (issue #971): its items name each style by how a figure looks in it,
- * which needs no further words. The value is what a production-data binding writes, so it is a
- * language code - igNumbers.ts reads anything starting "fi" or "sv" as Finnish/Swedish.
- */
-const NUMBER_STYLE_ITEMS = [
-  { text: '1,234.5', value: 'en' },
-  { text: '1 234,5', value: 'fi' },
-];
-
-/**
  * The design with its Number style field and hidden holder added, when it asks for one. The
  * holder also lists the design's number fields, the ones whose bare decimals the runtime prints
  * in the board's style (igStyleFields in igNumbers.ts).
@@ -194,7 +184,13 @@ function withNumberStyle(design: IgDesign): IgDesign {
     <div id="${field}" class="${DATA_SOURCE_CLASS}" data-number-style data-number-fields="${numberFields}">en</div>`,
     fields: [
       ...design.fields,
-      { field, ftype: 'dropdown', title: NUMBER_STYLE_TITLE, value: 'en', items: NUMBER_STYLE_ITEMS },
+      {
+        field,
+        ftype: 'dropdown',
+        title: NUMBER_STYLE_FIELD.label,
+        value: NUMBER_STYLE_FIELD.value,
+        items: NUMBER_STYLE_FIELD.options.map((o) => ({ text: o.label, value: o.value })),
+      },
     ],
   };
 }

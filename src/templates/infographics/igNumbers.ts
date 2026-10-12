@@ -27,6 +27,27 @@
 /** The Number style field's title - also how Browse knows it is a setting, not content. */
 export const NUMBER_STYLE_TITLE = 'Number style';
 
+/**
+ * The Number style field as a graphic TYPE declares it (types/graphicType.ts TypeField): a board
+ * claimed by a type emits exactly the fields its type declares, so the poll, goal-meter and
+ * milestone types list this one last. Its options name each style by how a figure looks in it,
+ * which needs no further words; the value is what a production-data binding writes, so it is a
+ * language code - igNordic() reads anything starting "fi" or "sv" as Finnish/Swedish. Written
+ * out here rather than typed against TypeField so this file stays free of imports (the test
+ * transpiles it on its own).
+ */
+export const NUMBER_STYLE_FIELD = {
+  key: 'numberStyle',
+  label: NUMBER_STYLE_TITLE,
+  kind: 'select' as const,
+  value: 'en',
+  role: 'data' as const,
+  options: [
+    { label: '1,234.5', value: 'en' },
+    { label: '1 234,5', value: 'fi' },
+  ],
+};
+
 /** The number-style helpers, emitted in every infographic before the motion builders. */
 export const IG_NUMBERS_JS = `// ---- Number style: how this board reads and prints figures ----
 

@@ -14,6 +14,7 @@ import { ig10 } from '../infographics/ig10';
 import { ig11 } from '../infographics/ig11';
 import { ig12 } from '../infographics/ig12';
 import { ig13 } from '../infographics/ig13';
+import { NUMBER_STYLE_FIELD } from '../infographics/igNumbers';
 import type { GraphicType } from './graphicType';
 
 // The promoted variants' own sample content, unchanged. A type describes the SHAPE of a
@@ -139,6 +140,7 @@ export const pollType: GraphicType = {
   fields: [
     { key: 'options', label: 'Options', kind: 'lines', value: POLL_SAMPLE, role: 'line' },
     { key: 'question', label: 'Question', kind: 'text', value: 'How do you watch live news?', role: 'line' },
+    NUMBER_STYLE_FIELD,
   ],
   machine: {},
   controls: [],

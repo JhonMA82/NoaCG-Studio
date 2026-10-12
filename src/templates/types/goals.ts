@@ -24,6 +24,7 @@ import { lt55 } from '../lowerThirds/lt55';
 import { lt56 } from '../lowerThirds/lt56';
 import { lt57 } from '../lowerThirds/lt57';
 import { lt58 } from '../lowerThirds/lt58';
+import { NUMBER_STYLE_FIELD } from '../infographics/igNumbers';
 import type { GraphicType } from './graphicType';
 
 /**
@@ -160,6 +161,7 @@ export const goalMeterType: GraphicType = {
     { key: 'label', label: 'Label', kind: 'text', value: 'TOTAL RAISED', role: 'data' },
     // Blank for a subscriber or sign-up goal; a currency mark for an appeal.
     { key: 'unit', label: 'Unit', kind: 'text', value: '€', role: 'data' },
+    NUMBER_STYLE_FIELD,
   ],
   machine: {},
   controls: [],
@@ -254,6 +256,7 @@ export const milestoneTrackType: GraphicType = {
     // A NUMBER, like the goal meter's figures: the runtime parses it against the tier targets.
     { key: 'current', label: 'Current', kind: 'number', value: '18400', role: 'line' },
     { key: 'label', label: 'Label', kind: 'text', value: 'MILESTONES', role: 'data' },
+    NUMBER_STYLE_FIELD,
   ],
   machine: {},
   controls: [],
