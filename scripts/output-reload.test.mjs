@@ -1,14 +1,34 @@
-// guards: src/output/reload.ts, src/control/outputRecovery.ts
+// guards: src/output/reload.ts, src/output/prepare.ts, src/control/outputRecovery.ts
 //
 // A TAKE AT THE MOMENT AN OUTPUT RELOADS IS NEVER LOST (issue #757). Prepare for Live and a new
 // renderer build reload the output page once nothing is on air, after probing its own URL. A Take
 // that lands while that probe is out stays on air and the reload waits; a Take that reaches the log
-// after the reload has started is replayed by the reloaded page. Pure, run here in Node.
+// after the reload has started is replayed by the reloaded page. A URL that never answers holds
+// nothing up: the probe gives up in bounded time and the output says why it waits (issue #1051).
+// Pure, run here in Node.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { registerHooks } from 'node:module';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+// prepare.ts imports without extensions, as Vite does, and its whole-page path builds frames in a
+// stage this test never reaches: resolve the one, stand in for the other.
+const STAGE = new URL('../src/output/stage.ts', import.meta.url).href;
+registerHooks({
+  resolve(spec, ctx, next) {
+    if (ctx.parentURL && /^\.\.?\//.test(spec) && !/\.[a-z]+$/.test(spec)) {
+      const url = new URL(`${spec}.ts`, ctx.parentURL);
+      if (url.href === STAGE) return { url: 'data:text/javascript,export const FRAME_LOAD_MS = 0; export function createOutputStage() { throw new Error("no stage in Node"); }', shortCircuit: true };
+      if (existsSync(fileURLToPath(url))) return next(url.href, ctx);
+    }
+    return next(spec, ctx);
+  },
+});
 
 const { reloadWhenClear } = await import('../src/output/reload.ts');
+const { createPreparer } = await import('../src/output/prepare.ts');
 const { planOutputRecovery, seqBaselines, alreadyInSnapshot } = await import('../src/control/outputRecovery.ts');
 
 /** An output page whose URL probe is held open until `answer` is called. */
@@ -29,7 +49,7 @@ test('a Take that lands while the URL probe is out keeps the page up', async () 
   const reloading = reloadWhenClear(p.doors);
   p.take();
   p.answer(true);
-  assert.equal(await reloading, false, 'the caller is told it did not reload, and waits for air to clear');
+  assert.equal(await reloading, 'on-air', 'the caller is told it did not reload, and waits for air to clear');
   assert.equal(p.reloads, 0);
 });
 
@@ -38,7 +58,7 @@ test('with nothing on air, the page reloads once its URL answers', async () => {
   const reloading = reloadWhenClear(p.doors);
   assert.equal(p.reloads, 0, 'not before the probe answers');
   p.answer(true);
-  assert.equal(await reloading, true);
+  assert.equal(await reloading, 'reloaded');
   assert.equal(p.reloads, 1);
 });
 
@@ -46,14 +66,78 @@ test('a URL that does not answer, or throws, never reloads', async () => {
   const p = page();
   const reloading = reloadWhenClear(p.doors);
   p.answer(false);
-  assert.equal(await reloading, false);
+  assert.equal(await reloading, 'unreachable');
   assert.equal(p.reloads, 0);
 
   let reloads = 0;
   const thrown = await reloadWhenClear({ probe: () => Promise.reject(new TypeError('Failed to fetch')), onAir: () => 0, reload: () => (reloads += 1) });
-  assert.equal(thrown, false);
+  assert.equal(thrown, 'unreachable');
   assert.equal(reloads, 0);
 });
+
+test('a URL that connects but never answers gives up within the probe time, and the request is aborted', async () => {
+  let signal;
+  let reloads = 0;
+  const started = Date.now();
+  const outcome = await reloadWhenClear({
+    // A fetch on a network that connects and then says nothing: it never settles on its own.
+    probe: (s) => {
+      signal = s;
+      return new Promise(() => {});
+    },
+    onAir: () => 0,
+    reload: () => (reloads += 1),
+    probeMs: 40,
+  });
+  assert.equal(outcome, 'unreachable');
+  assert.ok(Date.now() - started < 1000, 'not held until the browser gives up');
+  assert.equal(signal.aborted, true, 'the request itself is let go');
+  assert.equal(reloads, 0);
+});
+
+test('Prepare for Live: a reload refused for a silent URL says so, and the next request runs', async () => {
+  const V1 = { n: 1, at: '', h: 'aaaa', g: { Strap: 's1' } };
+  const V2 = { n: 2, at: '', h: 'bbbb', g: { Strap: 's1' } };
+  // Published at another stage resolution, so it takes a whole-page reload; no graphic changed.
+  const payload = { ver: V2, resolution: { width: 3840, height: 2160 }, graphics: [{ key: 'Strap' }], cues: [] };
+  let clock = 0;
+  let resolves = 0;
+  const reports = [];
+  const preparer = createPreparer({
+    held: V1,
+    resolution: { width: 1920, height: 1080 },
+    resolve: async () => {
+      resolves += 1;
+      return payload;
+    },
+    onAir: () => 0,
+    swapper: { tick() {}, holds: () => false, waiting: () => [], failed: () => [], apply: async () => 0 },
+    newBuild: async () => false,
+    recheck: async () => {},
+    report: (chg) => reports.push(chg),
+    reload: () => reloadWhenClear({ probe: () => new Promise(() => {}), onAir: () => 0, reload: () => assert.fail('no reload'), probeMs: 40 }),
+    adopt: () => true,
+    now: () => clock,
+  });
+
+  preparer.request({ id: 'p1' });
+  await until(() => reports.some((r) => r?.s === 'waiting'));
+  assert.deepEqual(reports.at(-1), { s: 'waiting', v: { n: 2, h: 'bbbb' }, of: 0, n: 0, air: 0, why: 'unreachable', id: 'p1' });
+
+  clock += 15_000;
+  preparer.request({ id: 'p2' });
+  await until(() => resolves === 2);
+  await until(() => reports.at(-1)?.id === 'p2' && reports.at(-1).s === 'waiting');
+});
+
+/** Resolves once `ready()` holds; fails the test after a second. */
+async function until(ready) {
+  const end = Date.now() + 1000;
+  while (!ready()) {
+    if (Date.now() > end) assert.fail('timed out');
+    await new Promise((r) => setTimeout(r, 5));
+  }
+}
 
 test('a Take that reaches the log after the reload started is replayed by the reloaded page', () => {
   // Both graphics last reported at seq 40. The Take of Strap is row 41: the old page never reported

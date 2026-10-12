@@ -64,6 +64,9 @@ export interface ChangePrep {
   is?: ReadyIssue[];
   /** For `waiting`, how many graphics are on air. */
   air?: number;
+  /** For `waiting`, when it is not air that holds the reload back: its own URL did not answer in
+   *  time (output/reload.ts), so it keeps its version and asks again. */
+  why?: 'unreachable';
   /** The graphics whose change waits because they are on air here (per-graphic replacement,
    *  docs/work-specs/per-graphic-replacement/spec.md D3). Present, maybe empty, from every output
    *  that swaps one graphic at a time; absent from one that reloads whole. */
@@ -237,6 +240,7 @@ function readChange(value: unknown): ChangePrep | undefined {
     n: c.n,
     ...(c.s === 'failed' ? { is: readIssues(c.is) } : {}),
     ...(typeof c.air === 'number' ? { air: c.air } : {}),
+    ...(c.why === 'unreachable' ? { why: c.why } : {}),
     ...(Array.isArray(c.w) ? { w: c.w.filter((g): g is string => typeof g === 'string').slice(0, MAX_ISSUES).map((g) => g.slice(0, 80)) } : {}),
     ...(typeof c.id === 'string' ? { id: c.id.slice(0, 40) } : {}),
   };
@@ -578,11 +582,13 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   const behind =
     !preparingPublished && !failedPublished && !waitingFor && published && published.h !== (ready.v?.h ?? '') && (!ready.v || ready.v.n < published.n);
   if (behind) {
+    const unreachable = chg?.s === 'waiting' && chg.why === 'unreachable';
     degraded.push({
       line: ready.v ? `Behind: showing v${ready.v.n}` : 'Behind: showing an older version',
-      short: 'Waiting for clear',
-      advice:
-        chg && chg.s === 'waiting'
+      short: unreachable ? 'Page not reachable' : 'Waiting for clear',
+      advice: unreachable
+        ? `v${published.n} is prepared, but this output could not reach its own page to reload onto it. It retries automatically. Check this playout computer's network.`
+        : chg && chg.s === 'waiting'
           ? `v${published.n} is prepared, but ${plural(chg.air ?? 1, 'graphic')} ${chg.air === 1 ? 'is' : 'are'} on air here. Preparation resumes automatically after all graphics are off air. Keep running the current prepared cues while output and connection checks stay green.`
           : `v${published.n} is published. A deferred preparation retries automatically. Check now asks again.`,
     });

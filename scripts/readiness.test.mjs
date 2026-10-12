@@ -199,6 +199,16 @@ test('a newer version being prepared reads as the plan words it', () => {
   assert.equal(waiting.summary.label, '▲ Behind: showing v12');
   assert.equal(waiting.summary.leadShort, 'Waiting for clear');
   assert.match(waiting.outputs[0].detail[0], /2 graphics are on air here/);
+  // Nothing on air, but its own URL did not answer, so it could not reload (issue #1051): READY says
+  // that, never "0 graphics are on air here".
+  const unreachable = read({ published: V13, peers: chg({ s: 'waiting', n: 1, air: 0, why: 'unreachable' }) });
+  assert.equal(unreachable.summary.label, '▲ Behind: showing v12');
+  assert.equal(unreachable.summary.leadShort, 'Page not reachable');
+  assert.match(unreachable.outputs[0].detail[0], /v13 is prepared, but this output could not reach its own page/);
+  assert.doesNotMatch(unreachable.outputs[0].detail.join(' '), /on air here/);
+  // The cause survives the wire; anything else in its place is dropped.
+  assert.equal(readOutputReady({ n: 1, of: 1, v: V12, is: [], chg: { s: 'waiting', v: V13, of: 1, n: 1, air: 0, why: 'unreachable' } }).chg.why, 'unreachable');
+  assert.equal(readOutputReady({ n: 1, of: 1, v: V12, is: [], chg: { s: 'waiting', v: V13, of: 1, n: 1, air: 0, why: 'x' } }).chg.why, undefined);
 });
 
 test('per-graphic replacement: a change waiting for clear names its graphic, and only while it waits', () => {

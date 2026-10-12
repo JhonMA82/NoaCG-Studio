@@ -27,6 +27,7 @@ import type { PrepRequest } from '../control/prepareLive';
 import { MAX_ISSUES, warmVerdict, type ChangePrep, type ReadyIssue } from '../control/readiness';
 import type { Resolution } from '../model/types';
 import { wait } from './catchUp';
+import type { ReloadOutcome } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, type OutputStageOptions } from './stage';
 import type { Swapper } from './swap';
 import { swapStatus } from './swapPlan';
@@ -103,8 +104,9 @@ export function createPreparer(opts: {
   recheck: () => Promise<void>;
   /** What the preparation stands at, for the Presence entry (undefined: nothing to say). */
   report: (chg: ChangePrep | undefined) => void;
-  /** Reload onto the published version if this page's own URL answers; false when it did not. */
-  reload: () => Promise<boolean>;
+  /** Reload onto the published version if this page's own URL answers in time and nothing is on
+   *  air (./reload.ts). */
+  reload: () => Promise<ReloadOutcome>;
   /** Take `payload` as the version this page holds: cue metadata, its label and sounds. Its
    *  graphics may be left out: what a frame needs, the swapper already has. */
   adopt: (payload: OutputPayload) => boolean;
@@ -172,9 +174,10 @@ export function createPreparer(opts: {
       return;
     }
     // No reload: its URL did not answer, or a Take landed while it was asked (./reload.ts).
-    if (!(await opts.reload())) {
+    const outcome = await opts.reload();
+    if (outcome !== 'reloaded') {
       waiting = prep;
-      opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air: opts.onAir(), id: prep.id });
+      opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air: opts.onAir(), ...(outcome === 'unreachable' ? { why: 'unreachable' as const } : {}), id: prep.id });
     }
   };
 
@@ -190,7 +193,7 @@ export function createPreparer(opts: {
       if (newBuild) reloadForBuild = true;
       const next = payload ? payload.ver : undefined;
       if (!payload || !next) return;
-      if (reloadForBuild && opts.onAir() === 0 && (await opts.reload())) return;
+      if (reloadForBuild && opts.onAir() === 0 && (await opts.reload()) === 'reloaded') return;
       if (!sameResolution(payload)) {
         taking = null;
         await reloadOnto(payload, next, prep);
