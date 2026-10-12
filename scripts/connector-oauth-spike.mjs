@@ -109,6 +109,8 @@ const brief = (r) => {
 /**
  * Run the whole flow and return the evidence. `checks` holds what AC-1 and decision 4 require
  * (each { ok, detail }); `findings` holds answers recorded for the next phases, not judged here.
+ * @param {{ apiUrl: string, anonKey: string, serviceKey: string, log?: (line: string) => unknown }} stack
+ * @returns {Promise<{ checks: Record<string, { ok: boolean, detail: string }>, findings: Record<string, string> }>}
  */
 export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () => {} }) {
   if (!isLocalUrl(apiUrl)) throw new Error(`refusing ${apiUrl}: the spike runs against a local stack only`);
