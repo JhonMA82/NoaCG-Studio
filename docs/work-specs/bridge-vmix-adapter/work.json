@@ -5,5 +5,71 @@
     "status": "agreed",
     "source": "docs/GOALS.md outcome 5 (one production workflow to every playout environment) and issue #760 part 1 (P1, owner ask: 2026-09-29, be compatible with vMix in every way we can, before the vMix trial ends about 2026-11-28); the route from docs/research/vmix-inside-vmix.md section 3, confirmed by the walk in docs/VMIX_ON_A_REAL_HOST.md; the decisions the spec marks derived are open to the owner's overrule"
   },
-  "review": null
+  "review": {
+    "revision": "670866b28e447006b31510a6af6928676db7f69e",
+    "specSha256": "95eeddc3b90944a5c096f22a1d13fa05da112e3e308a45e64cea2fe2bf11dabc",
+    "evidence": [
+      {
+        "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
+        "sha256": "3e0cbeaec565ff19b33293342dc723bf8513805a50483322c72b5c7f65db2ffe"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
+            "sha256": "3e0cbeaec565ff19b33293342dc723bf8513805a50483322c72b5c7f65db2ffe"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "unverified",
+        "evidence": []
+      },
+      {
+        "id": "AC-3",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
+            "sha256": "3e0cbeaec565ff19b33293342dc723bf8513805a50483322c72b5c7f65db2ffe"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "unverified",
+        "evidence": []
+      },
+      {
+        "id": "AC-5",
+        "status": "unverified",
+        "evidence": []
+      },
+      {
+        "id": "AC-6",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md",
+            "sha256": "3e0cbeaec565ff19b33293342dc723bf8513805a50483322c72b5c7f65db2ffe"
+          }
+        ]
+      },
+      {
+        "id": "AC-7",
+        "status": "unverified",
+        "evidence": []
+      },
+      {
+        "id": "AC-8",
+        "status": "unverified",
+        "evidence": []
+      }
+    ]
+  }
 }
