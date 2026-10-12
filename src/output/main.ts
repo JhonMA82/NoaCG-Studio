@@ -450,11 +450,11 @@ async function boot(): Promise<void> {
     },
     onAir: airCount,
     // Bounded like the reload's probe: Prepare for Live waits on it (./reload.ts).
-    newBuild: () =>
+    newBuild: async () =>
+      SERVED_SCRIPTS.length > 0 &&
       within(
         PROBE_MS,
         async (signal) => {
-          if (SERVED_SCRIPTS.length === 0) return false;
           const page = await fetch(window.location.href, { cache: 'no-store', signal });
           if (!page.ok) return false;
           const html = await page.text();

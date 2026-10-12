@@ -95,29 +95,47 @@ test('a URL that connects but never answers gives up within the probe time, and 
   assert.equal(reloads, 0);
 });
 
+/** A preparer whose next version needs a whole-page reload (another stage resolution, no graphic
+ *  changed) and whose own URL never answers: `probe` runs when it is asked, and never settles. */
+function wholePage({ resolve = async () => PAYLOAD, onAir = () => 0, probe = () => {}, newBuild = async () => false, now } = {}) {
+  const reports = [];
+  let probes = 0;
+  const preparer = createPreparer({
+    held: { n: 1, at: '', h: 'aaaa', g: { Strap: 's1' } },
+    resolution: { width: 1920, height: 1080 },
+    resolve,
+    onAir,
+    swapper: { tick() {}, holds: () => false, waiting: () => [], failed: () => [], apply: async () => 0 },
+    newBuild,
+    recheck: async () => {},
+    report: (chg) => reports.push(chg),
+    reload: () =>
+      reloadWhenClear({
+        probe: () => {
+          probes += 1;
+          probe();
+          return new Promise(() => {});
+        },
+        onAir,
+        reload: () => assert.fail('no reload'),
+        probeMs: 20,
+      }),
+    adopt: () => true,
+    ...(now ? { now } : {}),
+  });
+  return { preparer, reports, get probes() { return probes; } };
+}
+const PAYLOAD = { ver: { n: 2, at: '', h: 'bbbb', g: { Strap: 's1' } }, resolution: { width: 3840, height: 2160 }, graphics: [{ key: 'Strap' }], cues: [] };
+
 test('Prepare for Live: a reload refused for a silent URL says so, and the next request runs', async () => {
-  const V1 = { n: 1, at: '', h: 'aaaa', g: { Strap: 's1' } };
-  const V2 = { n: 2, at: '', h: 'bbbb', g: { Strap: 's1' } };
-  // Published at another stage resolution, so it takes a whole-page reload; no graphic changed.
-  const payload = { ver: V2, resolution: { width: 3840, height: 2160 }, graphics: [{ key: 'Strap' }], cues: [] };
   let clock = 0;
   let resolves = 0;
   let serverAnswers = true;
-  const reports = [];
-  const preparer = createPreparer({
-    held: V1,
-    resolution: { width: 1920, height: 1080 },
+  const { preparer, reports } = wholePage({
     resolve: async () => {
       resolves += 1;
-      return serverAnswers ? payload : null;
+      return serverAnswers ? PAYLOAD : null;
     },
-    onAir: () => 0,
-    swapper: { tick() {}, holds: () => false, waiting: () => [], failed: () => [], apply: async () => 0 },
-    newBuild: async () => false,
-    recheck: async () => {},
-    report: (chg) => reports.push(chg),
-    reload: () => reloadWhenClear({ probe: () => new Promise(() => {}), onAir: () => 0, reload: () => assert.fail('no reload'), probeMs: 40 }),
-    adopt: () => true,
     now: () => clock,
   });
 
@@ -145,25 +163,19 @@ test('Prepare for Live: a reload refused for a silent URL says so, and the next 
 
 test('a Take during a probe that never answers: the output says it waits for air, not for its page', async () => {
   let air = 0;
-  const V1 = { n: 1, at: '', h: 'aaaa', g: { Strap: 's1' } };
-  const payload = { ver: { n: 2, at: '', h: 'bbbb', g: { Strap: 's1' } }, resolution: { width: 3840, height: 2160 }, graphics: [{ key: 'Strap' }], cues: [] };
-  const reports = [];
-  const preparer = createPreparer({
-    held: V1,
-    resolution: { width: 1920, height: 1080 },
-    resolve: async () => payload,
-    onAir: () => air,
-    swapper: { tick() {}, holds: () => false, waiting: () => [], failed: () => [], apply: async () => 0 },
-    newBuild: async () => false,
-    recheck: async () => {},
-    report: (chg) => reports.push(chg),
-    // The Take lands while the probe is out, and the probe never answers.
-    reload: () => reloadWhenClear({ probe: () => ((air = 1), new Promise(() => {})), onAir: () => air, reload: () => assert.fail('no reload'), probeMs: 20 }),
-    adopt: () => true,
-  });
+  // The Take lands while the probe is out.
+  const { preparer, reports } = wholePage({ onAir: () => air, probe: () => (air = 1) });
   preparer.request({ id: 'p1' });
   await until(() => reports.some((r) => r?.s === 'waiting'));
   assert.deepEqual(reports.at(-1), { s: 'waiting', v: { n: 2, h: 'bbbb' }, of: 0, n: 0, air: 1, id: 'p1' });
+});
+
+test('a new build and another resolution at once: one silent probe per run, not two', async () => {
+  const page = wholePage({ newBuild: async () => true });
+  page.preparer.request({ id: 'p1' });
+  await until(() => page.reports.some((r) => r?.s === 'waiting'));
+  assert.equal(page.reports.at(-1).why, 'unreachable');
+  assert.equal(page.probes, 1);
 });
 
 /** Resolves once `ready()` holds; fails the test after a second. */

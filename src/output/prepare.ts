@@ -148,7 +148,7 @@ export function createPreparer(opts: {
 
   /** The whole page, as before per-graphic replacement: every change prepared in a stage of its
    *  own, then a reload once nothing is on air here. */
-  const reloadOnto = async (payload: OutputPayload, next: PayloadVersion, prep: PrepRequest) => {
+  const reloadOnto = async (payload: OutputPayload, next: PayloadVersion, prep: PrepRequest, unreachable: boolean) => {
     const version = { n: next.n, h: next.h };
     const changed = changedGraphics(held, next, payload.graphics.map((g) => g.key));
     const chg: ChangePrep = { s: 'preparing', v: version, of: changed.length, n: 0, id: prep.id };
@@ -174,23 +174,22 @@ export function createPreparer(opts: {
       opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air, id: prep.id });
       return;
     }
-    // No reload: its URL did not answer, or a Take landed while it was asked (./reload.ts).
-    // Air, when there is any, is what it waits for first: the retry waits for it to clear.
-    const outcome = await opts.reload();
+    // No reload: its URL did not answer (in this run already, or now), or a Take landed while it
+    // was asked (./reload.ts). Air, when there is any, is what it waits for first: the retry waits
+    // for it to clear.
+    const outcome = unreachable ? 'unreachable' : await opts.reload();
     if (outcome !== 'reloaded') {
       waiting = prep;
-      const air = opts.onAir();
-      opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air, ...(outcome === 'unreachable' && air === 0 ? { why: 'unreachable' as const } : {}), id: prep.id });
+      const airNow = opts.onAir();
+      opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air: airNow, ...(outcome === 'unreachable' && airNow === 0 ? { why: 'unreachable' as const } : {}), id: prep.id });
     }
   };
 
   const run = async (prep: PrepRequest) => {
     running = true;
-    // A retry of a reload that waits stays a retry until the server answers: on the network that
+    // A retry of a reload that waits stays waiting until the server answers: on the network that
     // kept it from reloading, that answer may not come either.
-    const retry = waiting === prep;
-    let answered = false;
-    waiting = null;
+    if (waiting !== prep) waiting = null;
     lastStart = now();
     markHandled(prep.id);
     try {
@@ -200,11 +199,12 @@ export function createPreparer(opts: {
       if (newBuild) reloadForBuild = true;
       const next = payload ? payload.ver : undefined;
       if (!payload || !next) return;
-      answered = true;
-      if (reloadForBuild && opts.onAir() === 0 && (await opts.reload()) === 'reloaded') return;
+      waiting = null;
+      const forBuild = reloadForBuild && opts.onAir() === 0 ? await opts.reload() : null;
+      if (forBuild === 'reloaded') return;
       if (!sameResolution(payload)) {
         taking = null;
-        await reloadOnto(payload, next, prep);
+        await reloadOnto(payload, next, prep, forBuild === 'unreachable');
         return;
       }
       // The version it holds: cue metadata may have moved, and a change an earlier publish left
@@ -220,7 +220,6 @@ export function createPreparer(opts: {
       // The server did not answer as expected: this page keeps its version and says nothing new.
       if (!taking) opts.report(undefined);
     } finally {
-      if (retry && !answered && !waiting) waiting = prep;
       running = false;
       refresh();
       pump();

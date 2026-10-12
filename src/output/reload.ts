@@ -37,11 +37,10 @@ export function within<T>(ms: number, work: (signal: AbortSignal) => Promise<T>,
       clearTimeout(timer);
       resolve(value);
     };
-    try {
-      work(controller.signal).then(settle, () => settle(fallback));
-    } catch {
-      settle(fallback);
-    }
+    // Called inside a promise, so a synchronous throw falls back too.
+    Promise.resolve()
+      .then(() => work(controller.signal))
+      .then(settle, () => settle(fallback));
   });
 }
 
