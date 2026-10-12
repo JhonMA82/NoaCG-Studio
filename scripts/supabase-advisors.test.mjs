@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { WARN_ONLY_CLASSES, canonicalKey, judge } from './supabase-advisors.mjs';
+import { WARN_ONLY_CLASSES, apiFailureExit, canonicalKey, judge } from './supabase-advisors.mjs';
 
 const finding = (name, level = 'WARN') => ({ name, level, detail: `${name} detail` });
 const report = (entries) => new Map(Object.entries(entries));
@@ -102,4 +102,13 @@ test("a hand-written key with a type alias matches the advisors' own spelling", 
   const verdict = judge(seen, new Set([live.replace('timestamp with time zone', 'timestamptz')]));
   assert.equal(verdict.exitCode, 0);
   assert.deepEqual(verdict.cleared, []);
+});
+
+test('a refused token is ours to fix and reds; an outage only warns', () => {
+  // An expired or revoked token would otherwise read as an upstream outage on every landing.
+  assert.equal(apiFailureExit(401), 2);
+  assert.equal(apiFailureExit(403), 2);
+  assert.equal(apiFailureExit(429), 3);
+  assert.equal(apiFailureExit(500), 3);
+  assert.equal(apiFailureExit(undefined), 3, 'a timeout or network error has no status');
 });

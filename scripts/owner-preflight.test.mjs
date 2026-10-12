@@ -8,7 +8,7 @@ import test from 'node:test';
 
 import { desiredRuleset } from './landing-ruleset.mjs';
 import { rulesetVerdict } from './landing-ruleset-reader.mjs';
-import { CHECK_IDS, gather, preflightReport } from './owner-preflight.mjs';
+import { CHECK_IDS, branchRuleVerdict, gather, preflightReport } from './owner-preflight.mjs';
 
 const all = (value) => Object.fromEntries(CHECK_IDS.map((id) => [id, value]));
 
@@ -100,4 +100,19 @@ test('shared verdict preserves missing, unreadable, inactive and queue-less resp
   held.enforcement = 'active';
   held.rules = held.rules.filter((r) => r.type !== 'merge_queue');
   assert.deepEqual(rulesetVerdict([held], held), { ruleset: false, 'required-checks': true });
+});
+
+test('the production environment counts as closed only for main alone, with no admin bypass', () => {
+  const env = (bypass = false, custom = true) => ({
+    can_admins_bypass: bypass,
+    deployment_branch_policy: custom ? { custom_branch_policies: true, protected_branches: false } : null,
+  });
+  const only = (...rules) => ({ branch_policies: rules.map((name) => ({ name, type: 'branch' })) });
+  assert.equal(branchRuleVerdict(env(), only('main')), true);
+  assert.equal(branchRuleVerdict(env(true), only('main')), false, 'agents push as the owner, an administrator');
+  assert.equal(branchRuleVerdict(env(false, false), null), false, 'no rule: every branch gets the secret');
+  assert.equal(branchRuleVerdict(env(), only('main', 'claude/*')), false);
+  assert.equal(branchRuleVerdict(env(), { branch_policies: [{ name: 'main', type: 'tag' }] }), false);
+  assert.equal(branchRuleVerdict(null, null), null);
+  assert.equal(branchRuleVerdict(env(), null), null);
 });
