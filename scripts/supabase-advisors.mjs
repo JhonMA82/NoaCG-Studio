@@ -50,8 +50,9 @@
 // only question that changes what a reader should do about it:
 //   0  no finding that is new against the baseline
 //   1  a NEW finding - the alarm this exists to raise. post-land reds.
-//   2  could not check, and the fault is on THIS side: no token, no project ref, no baseline to
-//      compare against, a baseline whose shape changed, or a bug in this file. post-land reds,
+//   2  could not check, and the fault is on THIS side: no token, a token the API refuses (401 or
+//      403: expired, revoked or missing a permission), no project ref, no baseline to compare
+//      against, a baseline whose shape changed, or a bug in this file. post-land reds,
 //      because every one of those is actionable and none may switch the alarm off quietly.
 //   3  could not check, and the outside world is why: the Management API would not answer, or
 //      answered something that could not be compared against the baseline. post-land warns.
@@ -227,6 +228,13 @@ const readProjectRef = () => {
   throw new Error('no project ref: set SUPABASE_PROJECT_REF, or put VITE_SUPABASE_URL in .env');
 };
 
+/**
+ * Whose fault a failed Management API call is. 401 and 403 mean the token is expired, revoked or
+ * missing a permission: ours to fix, so exit 2 and post-land reds. Anything else, including no
+ * answer at all, is upstream and exit 3.
+ */
+export const apiFailureExit = (status) => (status === 401 || status === 403 ? 2 : 3);
+
 /** The live fetch. Both advisor types; the endpoint is one per type. */
 const fetchAdvisors = async () => {
   const token = env.SUPABASE_ACCESS_TOKEN;
@@ -244,7 +252,7 @@ const fetchAdvisors = async () => {
   }
   const ref = readProjectRef();
   const out = [];
-  // A REFUSED OR UNREACHABLE API IS EXIT 3, NOT A THROW - an uncaught throw exits 1, the code
+  // AN UNREACHABLE API IS EXIT 3, NOT A THROW - an uncaught throw exits 1, the code
   // that means "a new finding", and a five-minute outage would then red every landing until it
   // recovered. It still never reads as clean: the caller gets null, not an empty finding list.
   try {
@@ -269,7 +277,9 @@ const fetchAdvisors = async () => {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
         });
-        if (!res.ok) throw new Error(`advisors/${type} answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
+        if (!res.ok) {
+          throw Object.assign(new Error(`advisors/${type} answered ${res.status}: ${(await res.text()).slice(0, 200)}`), { status: res.status });
+        }
         body = await res.json();
       } finally {
         clearTimeout(timer);
@@ -285,8 +295,9 @@ const fetchAdvisors = async () => {
       for (const lint of body.lints) out.push({ ...lint, advisorType: type });
     }
   } catch (err) {
-    console.error(`supabase-advisors: could not reach the Management API, so nothing was checked.\n  ${err.message}`);
-    process.exitCode = 3;
+    process.exitCode = apiFailureExit(err.status);
+    const what = process.exitCode === 2 ? 'the Management API refused the token' : 'could not reach the Management API';
+    console.error(`supabase-advisors: ${what}, so nothing was checked.\n  ${err.message}`);
     return null;
   }
   return out;

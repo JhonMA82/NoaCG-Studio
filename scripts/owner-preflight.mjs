@@ -10,7 +10,7 @@
 // WHY. The landing machinery rests on a handful of settings that live in GitHub rather than in
 // this repository: the organisation must let Actions open a pull request, the ruleset on `main`
 // must require the queue and the two checks, the `production` environment must hold the Supabase
-// token, the `land` label must exist. Each one is invisible until the moment it blocks something,
+// token and hand it only to `main`, the `land` label must exist. Each one is invisible until the moment it blocks something,
 // and on 2026-09-06 they arrived one at a time over an evening - each as a separate ask to the
 // owner, each discovered by a mechanism failing rather than by anyone looking. The answer to "we
 // keep finding these one at a time" is one command that asks all of them.
@@ -28,7 +28,7 @@ import { measured } from './measured.mjs';
 import { RULESET_NAME, REQUIRED_CHECKS, findExisting, rulesetVerdict } from './landing-ruleset-reader.mjs';
 
 /** The checks whose answer is a fact about GitHub, not about this tree. */
-export const CHECK_IDS = ['org-actions-pr', 'repo-actions-pr', 'ruleset', 'required-checks', 'migration-token', 'bot-app', 'land-label'];
+export const CHECK_IDS = ['org-actions-pr', 'repo-actions-pr', 'ruleset', 'required-checks', 'migration-token', 'production-branch-rule', 'bot-app', 'land-label'];
 
 /**
  * The report, as a pure function of what was observed. `facts` carries one entry per check:
@@ -78,6 +78,12 @@ export function preflightReport(facts = {}) {
       fix: 'add it in the repository settings, Environments, production (the owner holds the value; nothing here can)',
     },
     {
+      id: 'production-branch-rule',
+      says: 'the `production` environment serves only `main`, and administrators cannot bypass that',
+      why: 'without it a workflow on any pushed branch can declare the environment and read the Supabase token; `main` is written only by the merge queue',
+      fix: 'repository settings, Environments, production: Deployment branches "Selected branches and tags" with the one rule `main`, and untick "Allow administrators to bypass configured protection rules"',
+    },
+    {
       id: 'bot-app',
       says: 'the bot GitHub App is set up (variable NOACG_BOT_CLIENT_ID, secret NOACG_BOT_PRIVATE_KEY)',
       why: 'a bot pull request opened with the workflow token gets its CI held for approval; the App token starts it by itself',
@@ -111,6 +117,21 @@ export function preflightReport(facts = {}) {
   return { lines, missing, unknown, rows: rows.length };
 }
 
+/**
+ * Whether the `production` environment hands its secrets only to `main`. `environment` is the
+ * environment as `gh api` returns it, `policies` its deployment branch policies; either null
+ * means it could not be read. Admin bypass counts as open: agent sessions push as the owner, who
+ * is an administrator.
+ */
+export function branchRuleVerdict(environment, policies) {
+  if (environment === null) return null;
+  if (environment?.deployment_branch_policy?.custom_branch_policies !== true) return false;
+  if (environment.can_admins_bypass !== false) return false;
+  if (policies === null) return null;
+  const rules = policies?.branch_policies ?? [];
+  return rules.length === 1 && rules[0]?.name === 'main' && rules[0]?.type === 'branch';
+}
+
 /** `gh api` as JSON, or null when the call fails - a refusal is "could not read", never a crash. */
 function ghJson(args) {
   const res = spawnSync('gh', ['api', ...args], { encoding: 'utf8', windowsHide: true });
@@ -140,6 +161,12 @@ export function gather({ repo = 'NoaCG/NoaCG-Studio', rulesetName = RULESET_NAME
 
   const secrets = ghJson([`repos/${repo}/environments/production/secrets`]);
   facts['migration-token'] = secrets === null ? null : (secrets.secrets ?? []).some((s) => s?.name === 'SUPABASE_ACCESS_TOKEN');
+
+  const environment = ghJson([`repos/${repo}/environments/production`]);
+  const policies = environment?.deployment_branch_policy?.custom_branch_policies
+    ? ghJson([`repos/${repo}/environments/production/deployment-branch-policies`])
+    : null;
+  facts['production-branch-rule'] = branchRuleVerdict(environment, policies);
 
   // Either level counts: a workflow reads `vars.X` and `secrets.X` from the repository or from the
   // organisation, whichever holds it, and the organisation's are listed per repository by GitHub.

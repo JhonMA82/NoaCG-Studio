@@ -1,5 +1,12 @@
 # Supabase scoped token for CI, 2026-10-12
 
+## Status, 2026-10-12
+
+The owner restricted the `production` environment to `main` and chose to keep the account-wide
+token for now; the token swap waits for a quiet moment. Landed meanwhile: the advisors exit 2 on a
+401 or 403, and `npm run check:owner-setup` reports the branch rule and the admin bypass. The rest of
+"Follow-up changes" (`tokenFor`, the staging secret, the docs) belongs with the swap.
+
 ## Recommendation
 
 Do it, and treat it as a security fix rather than a new capability. The premise that migrations
