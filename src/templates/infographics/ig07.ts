@@ -337,8 +337,9 @@ function rebuildInfographic() {
     // The readout at the bar's tip shows the parsed figure ("48", "48.6" — no stray text);
     // data-target holds the same string, so the count-up lands exactly on it.
     var num = fill.querySelector('.infographic-bar-num');
-    num.textContent = igNumberText(value);
-    num.setAttribute('data-target', igNumberText(value));
+    var shown = igNumberText(value);               // "48,6" on a Finnish board
+    num.textContent = shown;
+    num.setAttribute('data-target', shown);
   }
 }
 

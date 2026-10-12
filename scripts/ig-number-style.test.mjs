@@ -31,17 +31,20 @@ const { IG_MOTION_JS } = await load('igMotion.ts', (s) => {
 
 const NBSP = ' ';
 
-/** A board whose Number style field holds `style` ('' = an older graphic with no field). */
-function board(style, elements = {}) {
-  const holder = style === '' ? null : { textContent: style };
+/** A board whose Number style field holds `style` ('' = an older graphic with no field), with
+ *  `numberFields` listed on the holder the way infographics/shared.ts writes it. */
+function board(style, elements = {}, numberFields = '') {
+  const holder = style === ''
+    ? null
+    : { textContent: style, getAttribute: (name) => (name === 'data-number-fields' ? numberFields : null) };
   const document = {
     querySelector: (selector) => (selector === '[data-number-style]' ? holder : null),
     getElementById: (id) => elements[id] ?? null,
   };
-  return new Function(
+  return Object.assign(new Function(
     'document',
     `${IG_NUMBERS_JS}\n${IG_MOTION_JS}\nreturn { parseIgNumber, formatThousands, igNumberText, igPercent, igNumberSource, igStyleFields, infographicStat, infographicCountText };`,
-  )(document);
+  )(document), { holder });
 }
 
 /** A readout element as the count builders see it. */
@@ -90,6 +93,17 @@ for (const style of ['fi', 'sv', 'FI-fi']) {
   });
 }
 
+test('Finnish style: a comma that groups thousands the English way still reads as the whole number', () => {
+  const b = board('fi');
+  assert.equal(b.parseIgNumber('1,234'), 1234);
+  assert.equal(b.parseIgNumber('€124,213'), 124213);
+  assert.equal(b.parseIgNumber('1,234,567'), 1234567);
+  assert.equal(b.parseIgNumber('1,234.5'), 1234.5);
+  assert.equal(b.parseIgNumber('0,125'), 0.125, 'a leading zero makes it a decimal');
+  assert.equal(b.parseIgNumber('1234,567'), 1234.567, 'four leading digits are no English group');
+  assert.equal(b.infographicStat(readout('124,213')).value, 124213);
+});
+
 test('Finnish style: a space or a no-break space groups thousands', () => {
   const b = board('fi');
   assert.equal(b.parseIgNumber('1 234 567'), 1234567);
@@ -126,23 +140,51 @@ test('Finnish style: a counted readout counts to the decimal figure and lands on
 
   const plain = b.infographicStat(readout('52 %'));
   assert.deepEqual({ ...plain }, { text: '52 %', value: 52, suffix: ' %', grouped: false });
+
+  const ungrouped = b.infographicStat(readout('1 2345'));
+  assert.deepEqual({ ...ungrouped }, { text: '1 2345', value: 1, suffix: ' 2345', grouped: false },
+    'a space before four digits is no thousands group');
 });
 
-test('Finnish style: update() prints a bare decimal it was sent with a comma', () => {
+test('Finnish style: update() prints a number field\'s decimal with a comma, and nothing else', () => {
   const turnout = readout('71.4');
-  const heading = readout('VAALIT 2026');
+  const previous = readout('68.3');
+  const time = readout('12.30');
   const parties = readout('SDP | 52.3');
-  const b = board('fi', { f0: turnout, f1: heading, f2: parties });
-  b.igStyleFields({ f0: '71.4', f1: 'VAALIT 2026', f2: 'SDP | 52.3' });
+  const precise = readout('1.234');
+  const b = board('fi', { f0: turnout, f1: time, f2: previous, f3: parties, f5: precise }, 'f0 f2 f5');
+  b.igStyleFields();
   assert.equal(turnout.textContent, '71,4');
   assert.equal(turnout.getAttribute('data-target'), '71,4');
-  assert.equal(heading.textContent, 'VAALIT 2026', 'only a bare decimal is restyled');
+  assert.equal(previous.textContent, '68,3');
+  assert.equal(time.textContent, '12.30', 'a text field is never restyled');
   assert.equal(parties.textContent, 'SDP | 52.3', 'a line the operator composed stays as typed');
+  assert.equal(precise.textContent, '1.234', 'a comma here would read as 1234');
+  assert.equal(b.parseIgNumber(turnout.textContent), 71.4);
 });
 
-test('English style: update() leaves every value exactly as it was sent', () => {
+test('switching a board back to English restores the point a number field sent', () => {
   const turnout = readout('71.4');
-  const b = board('en', { f0: turnout });
-  b.igStyleFields({ f0: '71.4' });
+  const b = board('fi', { f0: turnout }, 'f0');
+  b.igStyleFields();
+  assert.equal(turnout.textContent, '71,4');
+  b.holder.textContent = 'en';
+  b.igStyleFields();
+  assert.equal(turnout.textContent, '71.4');
+  assert.equal(b.parseIgNumber(turnout.textContent), 71.4);
+});
+
+test('English style: update() leaves English figures exactly as they were sent', () => {
+  const turnout = readout('71.4');
+  const total = readout('1,234');
+  const b = board('en', { f0: turnout, f1: total }, 'f0 f1');
+  b.igStyleFields();
+  assert.equal(turnout.textContent, '71.4');
+  assert.equal(total.textContent, '1,234');
+});
+
+test('a graphic without the field restyles nothing', () => {
+  const turnout = readout('71.4');
+  board('', { f0: turnout }).igStyleFields();
   assert.equal(turnout.textContent, '71.4');
 });

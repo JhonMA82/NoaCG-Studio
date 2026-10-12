@@ -132,8 +132,8 @@ if (document.readyState === 'loading') {
 }`;
 }
 
-// The number helpers every figure below reads and prints through - parseIgNumber(),
-// formatThousands(), igNumberText(), igPercent() - are not emitted here: they ship in every
+// The number helpers every figure below reads and prints through - igReadNumber(),
+// parseIgNumber(), formatThousands(), igNumberText(), igPercent() - are not emitted here: they ship in every
 // infographic from igNumbers.ts, because the count builders read figures too and all of them
 // must agree on the board's number style.
 
@@ -254,7 +254,7 @@ function rebuildInfographic() {
     if (split === -1) return;                      // no pipe: not a "Label | target" line
     var label = line.slice(0, split).trim();
     var targetText = line.slice(split + 1).trim();
-    var target = parseFloat(igNumberSource(targetText).replace(/[^0-9.+-]/g, ''));
+    var target = igReadNumber(targetText);
     if (label === '' || isNaN(target)) return;     // skip lines without a label or a number
     stops.push({ label: label, targetText: targetText, target: target });
   });
@@ -412,7 +412,7 @@ function rebuildInfographic() {
     if (split === -1) return;                      // no pipe: not a "Party | seats" line
     var name = line.slice(0, split).trim();
     var seatsText = line.slice(split + 1).trim();
-    var seats = parseFloat(igNumberSource(seatsText).replace(/[^0-9.+-]/g, ''));
+    var seats = igReadNumber(seatsText);
     if (name === '' || isNaN(seats) || seats < 0) return;  // skip lines without a name or a count
     parties.push({ name: name, seats: seats });
   });
@@ -427,6 +427,7 @@ function rebuildInfographic() {
   var html = '';
   for (var j = 0; j < parties.length; j++) {
     var width = largest > 0 ? (parties[j].seats / largest) * 100 : 0;
+    var shown = igNumberText(parties[j].seats);    // the seat figure in the board's number style
     // The leading party is DERIVED, never typed - it changes several times on a count night,
     // and the accent following it by itself is the whole point of drawing the board live.
     var leading = largest > 0 && parties[j].seats === largest;
@@ -438,8 +439,8 @@ function rebuildInfographic() {
                    // The readout cap - anchored to the fill's tip in CSS, so it rides the growth,
                    // and carrying its own data-target so the count lands on the real seat figure.
           +       '<span class="infographic-bar-cap">'
-          +         '<span class="infographic-bar-num" data-target="' + igNumberText(parties[j].seats) + '">'
-          +           igNumberText(parties[j].seats)
+          +         '<span class="infographic-bar-num" data-target="' + shown + '">'
+          +           shown
           +         '</span>'
           +       '</span>'
           +     '</div>'

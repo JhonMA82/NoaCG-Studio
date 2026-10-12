@@ -45,6 +45,7 @@ import {
 import { PACKS } from './packs';
 import { formatsBySheetName } from '../model/taxonomy';
 import { variantsFor } from './catalog';
+import { NUMBER_STYLE_TITLE } from './infographics/igNumbers';
 
 export interface FieldCounts {
   /** Operator-facing content fields — what the Browse buckets count (proposal §6.1). */
@@ -157,6 +158,11 @@ function isSpeedField(field: SpxField): boolean {
   return field.ftype === 'number' && SPEED_FIELD_TITLE_SET.has(field.title);
 }
 
+/** A data board's Number style (infographics/igNumbers.ts) - a setting, like speed, not content. */
+function isNumberStyleField(field: SpxField): boolean {
+  return field.ftype === 'dropdown' && field.title === NUMBER_STYLE_TITLE;
+}
+
 function deriveFieldCounts(
   variant: TemplateVariant,
   fields: SpxField[],
@@ -165,7 +171,7 @@ function deriveFieldCounts(
   const hiddenIds = new Set(HIDDEN_CONFIG_FIELDS[variant.category] ?? []);
   const content = fields.filter(
     (f) => DATA_FTYPES.includes(f.ftype) && !hiddenIds.has(f.field) && !isLogoField(f)
-      && !isSpeedField(f),
+      && !isSpeedField(f) && !isNumberStyleField(f),
   );
   const visible = content.length;
   // The reachable range: in the line-based categories the wizard lets lines shrink to 1
@@ -261,7 +267,8 @@ export function templateMeta(variant: TemplateVariant): TemplateMeta | null {
   // the same order typeFieldsToSpx enforces), so its values line up positionally too.
   const byKey = declared.semantics ? Object.values(declared.semantics) : [];
   const semantics: FieldSemantic[] = fields.map(
-    (_field: SpxField, i: number) => declared.positionalSemantics?.[i] ?? byKey[i] ?? 'description',
+    (field: SpxField, i: number) =>
+      declared.positionalSemantics?.[i] ?? byKey[i] ?? (isNumberStyleField(field) ? 'number-style' : 'description'),
   );
 
   const defaultMotion = PRESET_MOTION[variant.animationPresets[0]];

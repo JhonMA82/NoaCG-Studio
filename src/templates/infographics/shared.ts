@@ -45,7 +45,8 @@ import { STOP_AGAIN_GUARD_JS } from '../shared/animRuntime';
 import { stageExtraJs } from '../shared/stageFit';
 import { igPresetById } from './igPresets';
 import { IG_MOTION_JS } from './igMotion';
-import { IG_NUMBERS_JS } from './igNumbers';
+import { IG_NUMBERS_JS, NUMBER_STYLE_TITLE } from './igNumbers';
+import { appendedFieldId } from '../tickers/shared';
 import { resolveTokens, type ThemeTokens, type TokenOverrides } from '../../model/themeTokens';
 
 export interface IgDesign {
@@ -126,8 +127,8 @@ function update(data) {
       el.setAttribute('data-target', fields[key]);
     }
   }
-  // A Finnish or Swedish board shows a bare decimal it was sent ("71.4") in its own style.
-  igStyleFields(fields);
+  // A Finnish or Swedish board shows a number field's decimal ("71.4") in its own style.
+  igStyleFields();
   if (typeof rebuildInfographic === 'function') rebuildInfographic();
   // Designs on a stage hold their lines to the rows they were drawn for (no-op otherwise).
   if (typeof fitStagedText === 'function') fitStagedText();
@@ -167,7 +168,6 @@ ${animationBlock}
 `;
 }
 
-/** Build the complete infographic SpxTemplate. */
 /**
  * The Number style field (issue #971): its items name each style by how a figure looks in it,
  * which needs no further words. The value is what a production-data binding writes, so it is a
@@ -178,23 +178,28 @@ const NUMBER_STYLE_ITEMS = [
   { text: '1 234,5', value: 'fi' },
 ];
 
-/** The design with its Number style field and hidden holder added, when it asks for one. */
+/**
+ * The design with its Number style field and hidden holder added, when it asks for one. The
+ * holder also lists the design's number fields, the ones whose bare decimals the runtime prints
+ * in the board's style (igStyleFields in igNumbers.ts).
+ */
 function withNumberStyle(design: IgDesign): IgDesign {
   if (!design.numberStyle) return design;
-  const next = 1 + Math.max(-1, ...design.fields.map((f) => Number(/^f(\d+)$/.exec(f.field)?.[1] ?? -1)));
-  const field = `f${next}`;
+  const numberFields = design.fields.filter((f) => f.ftype === 'number').map((f) => f.field).join(' ');
+  const field = appendedFieldId(design.html, design.fields.length);
   return {
     ...design,
     html: `${design.html}
     <!-- Hidden Number style holder - SPX writes field ${field} here; igNumbers.ts reads it. -->
-    <div id="${field}" class="${DATA_SOURCE_CLASS}" data-number-style>en</div>`,
+    <div id="${field}" class="${DATA_SOURCE_CLASS}" data-number-style data-number-fields="${numberFields}">en</div>`,
     fields: [
       ...design.fields,
-      { field, ftype: 'dropdown', title: 'Number style', value: 'en', items: NUMBER_STYLE_ITEMS },
+      { field, ftype: 'dropdown', title: NUMBER_STYLE_TITLE, value: 'en', items: NUMBER_STYLE_ITEMS },
     ],
   };
 }
 
+/** Build the complete infographic SpxTemplate. */
 export function assembleInfographic(meta: IgMeta, ownDesign: IgDesign, o: ResolvedOptions,
   /** Refine the converted animation data — the seam a graphic TYPE injects its machine
    *  through (see shared/standard.ts composeRefine for the ordering rule). */

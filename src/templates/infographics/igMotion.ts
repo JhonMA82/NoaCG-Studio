@@ -31,24 +31,20 @@ function infographicStat(el) {
     el.setAttribute('data-target', text);
   }
   // The leading number, in the board's number style (igNumbers.ts): "1,234%" -> 1234, and in
-  // Finnish style "1 234,5 %" -> 1234.5. A Finnish figure groups its thousands with spaces, so
-  // only a space with three digits after it belongs to the number - "52 %" keeps its " %".
-  var nordic = igNordic();
-  var number = nordic
-    ? /^\\s*[-+]?\\d+(?:[ \\u00a0\\u202f]\\d{3})*(?:[.,]\\d+)?/.exec(text)
-    : /^\\s*[-+]?[0-9.,]+/.exec(text);
-  var value = parseFloat(nordic ? igNumberSource(text) : text.replace(/,/g, ''));
+  // Finnish style "1 234,5 %" -> 1234.5.
+  var number = igLeadingNumber(text);
+  var value = parseFloat(igNumberSource(text).replace(/,/g, ''));
   if (!number || isNaN(value)) return null;      // not a stat — leave the text alone
   return {
     text: text,                                  // the exact text, restored when the count lands
     value: value,
-    suffix: text.slice(number[0].length),        // what follows the number: '%', ' pts'…
+    suffix: text.slice(number.run.length),       // what follows the number: '%', ' pts'…
     // Does the operator's own figure carry thousand separators? Every count below renders in
     // the notation its figure LANDS in, so the number never changes shape as it arrives: a
     // grouped figure counts grouped, a plain one counts plain. Reading it off their text is
     // what keeps that true both ways - grouping "1200" would be as wrong as counting "124213"
     // up to "124,213".
-    grouped: nordic ? /\\d[ \\u00a0\\u202f]\\d/.test(number[0]) : text.indexOf(',') >= 0
+    grouped: number.grouped
   };
 }
 

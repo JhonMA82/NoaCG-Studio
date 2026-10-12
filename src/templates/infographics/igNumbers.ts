@@ -24,6 +24,9 @@
 // The block is plain text - no interpolation - because scripts/ig-number-style.test.mjs cuts it
 // out of this file and runs it exactly as a template ships it.
 
+/** The Number style field's title - also how Browse knows it is a setting, not content. */
+export const NUMBER_STYLE_TITLE = 'Number style';
+
 /** The number-style helpers, emitted in every infographic before the motion builders. */
 export const IG_NUMBERS_JS = `// ---- Number style: how this board reads and prints figures ----
 
@@ -34,21 +37,52 @@ function igNordic() {
   return !!holder && /^\\s*(fi|sv)/i.test(holder.textContent);
 }
 
+// igEnglishGroups(): does this run of digits and commas group thousands the English way -
+// "124,213", "1,234,567"? A leading zero ("0,125") or a group that is not three digits ("52,3")
+// makes the comma a decimal mark instead.
+function igEnglishGroups(run) {
+  return /^[1-9]\\d{0,2}(?:,\\d{3})+$/.test(run);
+}
+
 // igNumberSource(): operator text with its figures rewritten in the notation parseFloat reads.
 // English text is returned untouched. Finnish/Swedish text loses the spaces that group digits in
-// threes and has its decimal comma turned into a point: "1 234 567" -> "1234567", "52,3 %" ->
-// "52.3 %".
+// threes, and a comma between digits becomes the decimal point it is: "1 234 567" -> "1234567",
+// "52,3 %" -> "52.3 %". A figure grouped the English way ("124,213", which feeds and pasted text
+// carry) still reads as the whole number, so only a comma that cannot be a thousands group is
+// taken as a decimal: a Finnish "12,345" with three decimals is the one reading given up for it.
 function igNumberSource(text) {
   var s = String(text);
   if (!igNordic()) return s;
-  return s.replace(/(\\d)[ \\u00a0\\u202f](?=\\d{3}(?!\\d))/g, '$1').replace(/(\\d),(?=\\d)/g, '$1.');
+  return s.replace(/(\\d)[ \\u00a0\\u202f](?=\\d{3}(?!\\d))/g, '$1')
+    .replace(/\\d+(?:,\\d+)+/g, function (run) {
+      return igEnglishGroups(run) ? run.replace(/,/g, '') : run.replace(',', '.');
+    });
 }
 
-// parseIgNumber(): read the number out of operator text - tolerant of the currency marks and
+// igReadNumber(): read the number out of operator text - tolerant of the currency marks and
 // thousand separators people paste in ("€124,213" -> 124213; in Finnish style "52,3" -> 52.3).
+// NaN when the text holds no number, so a list rebuild can skip the line.
+function igReadNumber(text) {
+  return parseFloat(igNumberSource(text).replace(/[^0-9.+-]/g, ''));
+}
+
+// parseIgNumber(): igReadNumber(), with 0 for text that holds no number.
 function parseIgNumber(text) {
-  var n = parseFloat(igNumberSource(text).replace(/[^0-9.+-]/g, ''));
+  var n = igReadNumber(text);
   return isNaN(n) ? 0 : n;
+}
+
+// igLeadingNumber(): the figure a readout's text starts with, in the board's style - the run of
+// characters it takes and whether its thousands are grouped - or null when it starts with none.
+// A Finnish figure groups with spaces, so only a space with exactly three digits after it belongs
+// to the number: "52 %" keeps its " %". English keeps the reading the count builders always had.
+function igLeadingNumber(text) {
+  if (!igNordic()) {
+    var english = /^\\s*[-+]?[0-9.,]+/.exec(text);
+    return english && { run: english[0], grouped: text.indexOf(',') >= 0 };
+  }
+  var nordic = /^\\s*[-+]?\\d+(?:[ \\u00a0\\u202f]\\d{3}(?!\\d))*(?:[.,]\\d+)*/.exec(text);
+  return nordic && { run: nordic[0], grouped: /\\d[ \\u00a0\\u202f]\\d/.test(nordic[0]) };
 }
 
 // formatThousands(): a whole figure grouped in threes - "124,213", or "124 213" in Finnish style.
@@ -69,17 +103,27 @@ function igPercent(text) {
   return text + (igNordic() ? '\\u00a0%' : '%');
 }
 
-// igStyleFields(): after update() has written its values, print every bare decimal in the board's
-// style. A number field and a data feed send "71.4" whatever language the operator works in, and
-// a Finnish board has to show it as "71,4". English boards, and anything that is not exactly a
-// decimal number, are left as they arrived.
-function igStyleFields(fields) {
-  if (!igNordic()) return;
-  for (var key in fields) {
-    var el = document.getElementById(key);
-    var value = String(fields[key]);
-    if (!el || !/^\\s*[-+]?\\d+\\.\\d+\\s*$/.test(value)) continue;
-    var styled = value.replace('.', ',');
+// igStyleFields(): after update() has written its values, print the bare decimal in each NUMBER
+// field in the board's style. A number input sends "71.4" whatever language the operator works
+// in, and a Finnish board has to show it as "71,4"; switch the board back to English and it reads
+// "71.4" again rather than "71,4", which English would read as 714. Only the fields the holder
+// lists as number fields are touched, so a time typed "12.30" into a text field stays as typed.
+function igStyleFields() {
+  var holder = document.querySelector('[data-number-style]');
+  if (!holder) return;
+  var mark = igNordic() ? ',' : '.';
+  var ids = (holder.getAttribute('data-number-fields') || '').split(' ');
+  for (var i = 0; i < ids.length; i++) {
+    var el = ids[i] ? document.getElementById(ids[i]) : null;
+    if (!el) continue;
+    var value = el.getAttribute('data-target');
+    if (value === null) value = el.textContent;
+    var bare = /^\\s*[-+]?(\\d+[.,]\\d+)\\s*$/.exec(value);
+    // Read as a comma, a thousands group is left alone either way: "1,234" stays a whole number
+    // in English, and a Finnish "1.234" is not turned into a "1,234" that reads as 1234.
+    if (!bare || igEnglishGroups(bare[1].replace('.', ','))) continue;
+    var styled = value.replace(/[.,]/, mark);
+    if (styled === value) continue;
     el.textContent = styled;
     el.setAttribute('data-target', styled);
   }
