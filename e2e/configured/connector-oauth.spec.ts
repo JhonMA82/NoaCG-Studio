@@ -14,7 +14,7 @@ import { SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 
-test('a chat client signs in with PKCE and its token reaches no table, function or object directly', async ({}, testInfo) => {
+test('a chat client signs in with PKCE and its token reaches no table, function or object directly', async () => {
   test.skip(!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY, 'needs VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY');
   test.skip(!/^https?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(SUPABASE_URL), 'local stack only: the spike creates OAuth clients');
   const lines: string[] = [];
@@ -25,7 +25,7 @@ test('a chat client signs in with PKCE and its token reaches no table, function 
     log: (line: string) => lines.push(line),
   });
   console.log(`connector OAuth spike:\n${lines.join('\n')}`);
-  await testInfo.attach('connector-oauth-spike.json', { body: JSON.stringify(report, null, 2), contentType: 'application/json' });
+  await test.info().attach('connector-oauth-spike.json', { body: JSON.stringify(report, null, 2), contentType: 'application/json' });
   const failed = REQUIRED_CHECKS.filter((name) => !report.checks[name]?.ok);
   expect(failed, lines.join('\n')).toEqual([]);
 });

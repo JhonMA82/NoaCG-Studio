@@ -49,7 +49,8 @@ export async function verifyJwt(token, jwks) {
     : alg === 'RS256' ? [{ name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, { name: 'RSASSA-PKCS1-v1_5' }]
     : null;
   if (!params) return false;
-  const { d: _private, ...pub } = jwk;
+  const pub = { ...jwk };
+  delete pub.d;
   const key = await webcrypto.subtle.importKey('jwk', pub, params[0], false, ['verify']);
   return webcrypto.subtle.verify(params[1], key, Buffer.from(s, 'base64url'), Buffer.from(`${h}.${p}`));
 }
@@ -71,6 +72,7 @@ export function localStack(env = process.env) {
     encoding: 'utf8',
     shell: process.platform === 'win32',
     stdio: ['ignore', 'pipe', 'inherit'],
+    windowsHide: true,
   });
   const status = JSON.parse(out.slice(out.indexOf('{')));
   return { apiUrl: status.API_URL, anonKey: status.ANON_KEY, serviceKey: status.SERVICE_ROLE_KEY };
