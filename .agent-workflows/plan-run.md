@@ -13,7 +13,7 @@ the next starts only after the check passed. Output: the phases landed on `main`
 
 ## Boundaries
 
-- **One plan run or one wave, never both.** Each refuses to open while the other is open.
+- **A wave runs alone; plan runs of different plans may run side by side** (never two on one file).
 - **24 hours is the ceiling** of one authorised window; opening refuses a longer one.
 - **Only phases written in the plan.** Refuse a plan whose phases lack acceptance; never invent one.
 - **Only the merge queue writes `main`.** Sessions land themselves with `/queue-merge`.

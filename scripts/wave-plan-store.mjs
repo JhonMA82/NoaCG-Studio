@@ -76,9 +76,14 @@ export function ensureWavePlansDir(dir = jobsDir()) {
 
 /**
  * A plan run (`/plan-run <plan>`) is the third kind: `plan-<plan>`. It lives in this store as a wave
- * does, so "one wave or one plan run, never both" is the same open-wave check, not a second one.
+ * does, so "a wave runs alone" is the same open-wave check, not a second one.
  */
 const PLAN_RUN_KIND = /^plan-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** Is this store file a plan run's? Its kind follows the `YYYY-MM-DD-` date. */
+function isPlanRunFile(file) {
+  return PLAN_RUN_KIND.test(path.basename(file).slice(11, -PLAN_SUFFIX.length));
+}
 
 /** The one filename a plan may have: `<date>-<day|night|plan-<plan>>-wave-plan.local.md`. */
 export function wavePlanName(date, kind) {
@@ -196,11 +201,15 @@ export function openWave({ date, kind, until, session, dir = jobsDir(), now = Da
         `--open ${path.basename(unfinished).slice(0, 10)} ${kind} --until ${until}`,
     };
   }
-  const others = openWaves(dir, now, name);
+  // Plan runs of different plans may run side by side: each builds only its own plan's phases and
+  // names its own file at every step. A wave runs alone, because it picks from the whole backlog and
+  // could take up the work a plan run is doing, and its watch loop reads the newest plan file.
+  const planRun = PLAN_RUN_KIND.test(kind);
+  const others = openWaves(dir, now, name).filter((file) => !(planRun && isPlanRunFile(file)));
   if (others.length > 0) {
     return {
-      refusal: `another wave or plan run is open (no report yet): ${others.join(', ')}. One at a time: finish or ` +
-        'report it first. To resume it after a restart, open it again with its own date and kind.',
+      refusal: `another ${planRun ? 'wave' : 'wave or plan run'} is open (no report yet): ${others.join(', ')}. ` +
+        'A wave runs alone: finish or report it first. To resume it after a restart, open it again with its own date and kind.',
     };
   }
   if (window === 'opened') {
