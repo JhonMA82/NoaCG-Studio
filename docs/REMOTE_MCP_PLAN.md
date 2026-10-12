@@ -1,6 +1,8 @@
 # Remote MCP connector: adapt and assemble from a chat client
 
-**Status: draft spec, not scheduled.** Evidence and the alternatives weighed:
+**Status: draft spec.** Owner, 2026-10-12: phase 1 (the staging spike) may run now; phases 2 to 4
+are the agent door's next phase, after its current done-criteria, and production and playout work
+still comes first. Evidence and the alternatives weighed:
 [research/2026-10-12-remote-app-mcp.md](research/2026-10-12-remote-app-mcp.md). Narrows the first
 slice of [issue #843](https://github.com/NoaCG/NoaCG-Studio/issues/843).
 
