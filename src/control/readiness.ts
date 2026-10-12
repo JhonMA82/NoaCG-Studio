@@ -582,14 +582,16 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   const behind =
     !preparingPublished && !failedPublished && !waitingFor && published && published.h !== (ready.v?.h ?? '') && (!ready.v || ready.v.n < published.n);
   if (behind) {
-    const unreachable = chg?.s === 'waiting' && chg.why === 'unreachable';
+    // What the output reports about the published version only: a report about an older one says
+    // nothing true about this one.
+    const unreachable = pubChg?.s === 'waiting' && pubChg.why === 'unreachable';
     degraded.push({
       line: ready.v ? `Behind: showing v${ready.v.n}` : 'Behind: showing an older version',
       short: unreachable ? 'Page not reachable' : 'Waiting for clear',
       advice: unreachable
         ? `v${published.n} is prepared, but this output could not reach its own page to reload onto it. It retries automatically. Check this playout computer's network.`
-        : chg && chg.s === 'waiting'
-          ? `v${published.n} is prepared, but ${plural(chg.air ?? 1, 'graphic')} ${chg.air === 1 ? 'is' : 'are'} on air here. Preparation resumes automatically after all graphics are off air. Keep running the current prepared cues while output and connection checks stay green.`
+        : pubChg && pubChg.s === 'waiting'
+          ? `v${published.n} is prepared, but ${plural(pubChg.air ?? 1, 'graphic')} ${pubChg.air === 1 ? 'is' : 'are'} on air here. Preparation resumes automatically after all graphics are off air. Keep running the current prepared cues while output and connection checks stay green.`
           : `v${published.n} is published. A deferred preparation retries automatically. Check now asks again.`,
     });
   }

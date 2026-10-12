@@ -102,13 +102,14 @@ test('Prepare for Live: a reload refused for a silent URL says so, and the next 
   const payload = { ver: V2, resolution: { width: 3840, height: 2160 }, graphics: [{ key: 'Strap' }], cues: [] };
   let clock = 0;
   let resolves = 0;
+  let serverAnswers = true;
   const reports = [];
   const preparer = createPreparer({
     held: V1,
     resolution: { width: 1920, height: 1080 },
     resolve: async () => {
       resolves += 1;
-      return payload;
+      return serverAnswers ? payload : null;
     },
     onAir: () => 0,
     swapper: { tick() {}, holds: () => false, waiting: () => [], failed: () => [], apply: async () => 0 },
@@ -124,10 +125,45 @@ test('Prepare for Live: a reload refused for a silent URL says so, and the next 
   await until(() => reports.some((r) => r?.s === 'waiting'));
   assert.deepEqual(reports.at(-1), { s: 'waiting', v: { n: 2, h: 'bbbb' }, of: 0, n: 0, air: 0, why: 'unreachable', id: 'p1' });
 
+  // On the same dead network the server may not answer the retry either: it stays a retry, as
+  // READY says, and is asked again on a later tick.
+  serverAnswers = false;
+  for (const asked of [2, 3]) {
+    clock += 15_000;
+    preparer.tick();
+    await until(() => resolves === asked);
+    await new Promise((r) => setTimeout(r, 10));
+  }
+
+  // The preparer is free: the next request runs.
+  serverAnswers = true;
   clock += 15_000;
   preparer.request({ id: 'p2' });
-  await until(() => resolves === 2);
+  await until(() => resolves === 4);
   await until(() => reports.at(-1)?.id === 'p2' && reports.at(-1).s === 'waiting');
+});
+
+test('a Take during a probe that never answers: the output says it waits for air, not for its page', async () => {
+  let air = 0;
+  const V1 = { n: 1, at: '', h: 'aaaa', g: { Strap: 's1' } };
+  const payload = { ver: { n: 2, at: '', h: 'bbbb', g: { Strap: 's1' } }, resolution: { width: 3840, height: 2160 }, graphics: [{ key: 'Strap' }], cues: [] };
+  const reports = [];
+  const preparer = createPreparer({
+    held: V1,
+    resolution: { width: 1920, height: 1080 },
+    resolve: async () => payload,
+    onAir: () => air,
+    swapper: { tick() {}, holds: () => false, waiting: () => [], failed: () => [], apply: async () => 0 },
+    newBuild: async () => false,
+    recheck: async () => {},
+    report: (chg) => reports.push(chg),
+    // The Take lands while the probe is out, and the probe never answers.
+    reload: () => reloadWhenClear({ probe: () => ((air = 1), new Promise(() => {})), onAir: () => air, reload: () => assert.fail('no reload'), probeMs: 20 }),
+    adopt: () => true,
+  });
+  preparer.request({ id: 'p1' });
+  await until(() => reports.some((r) => r?.s === 'waiting'));
+  assert.deepEqual(reports.at(-1), { s: 'waiting', v: { n: 2, h: 'bbbb' }, of: 0, n: 0, air: 1, id: 'p1' });
 });
 
 /** Resolves once `ready()` holds; fails the test after a second. */

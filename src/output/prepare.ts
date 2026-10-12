@@ -49,7 +49,8 @@ function handledIds(): string[] {
 
 function markHandled(id: string): void {
   try {
-    window.sessionStorage.setItem(HANDLED_KEY, JSON.stringify(handledIds().concat(id).slice(-20)));
+    // A retry marks its id again: once, so retries never push the other ids out.
+    window.sessionStorage.setItem(HANDLED_KEY, JSON.stringify(handledIds().filter((h) => h !== id).concat(id).slice(-20)));
   } catch {
     // no storage: a reload may act on the same request once more, and finds nothing to do
   }
@@ -174,15 +175,21 @@ export function createPreparer(opts: {
       return;
     }
     // No reload: its URL did not answer, or a Take landed while it was asked (./reload.ts).
+    // Air, when there is any, is what it waits for first: the retry waits for it to clear.
     const outcome = await opts.reload();
     if (outcome !== 'reloaded') {
       waiting = prep;
-      opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air: opts.onAir(), ...(outcome === 'unreachable' ? { why: 'unreachable' as const } : {}), id: prep.id });
+      const air = opts.onAir();
+      opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air, ...(outcome === 'unreachable' && air === 0 ? { why: 'unreachable' as const } : {}), id: prep.id });
     }
   };
 
   const run = async (prep: PrepRequest) => {
     running = true;
+    // A retry of a reload that waits stays a retry until the server answers: on the network that
+    // kept it from reloading, that answer may not come either.
+    const retry = waiting === prep;
+    let answered = false;
     waiting = null;
     lastStart = now();
     markHandled(prep.id);
@@ -193,6 +200,7 @@ export function createPreparer(opts: {
       if (newBuild) reloadForBuild = true;
       const next = payload ? payload.ver : undefined;
       if (!payload || !next) return;
+      answered = true;
       if (reloadForBuild && opts.onAir() === 0 && (await opts.reload()) === 'reloaded') return;
       if (!sameResolution(payload)) {
         taking = null;
@@ -212,6 +220,7 @@ export function createPreparer(opts: {
       // The server did not answer as expected: this page keeps its version and says nothing new.
       if (!taking) opts.report(undefined);
     } finally {
+      if (retry && !answered && !waiting) waiting = prep;
       running = false;
       refresh();
       pump();
@@ -237,8 +246,8 @@ export function createPreparer(opts: {
     tick() {
       opts.swapper.tick();
       if (waiting && !running && !queued && opts.onAir() === 0) {
+        // Still `waiting` until it runs: that is how the run knows it is a retry.
         queued = waiting;
-        waiting = null;
         pump();
       }
       // Whatever waits or failed: a reload boots onto the published version and checks it afresh.

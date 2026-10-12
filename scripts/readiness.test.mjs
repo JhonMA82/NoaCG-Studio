@@ -206,6 +206,12 @@ test('a newer version being prepared reads as the plan words it', () => {
   assert.equal(unreachable.summary.leadShort, 'Page not reachable');
   assert.match(unreachable.outputs[0].detail[0], /v13 is prepared, but this output could not reach its own page/);
   assert.doesNotMatch(unreachable.outputs[0].detail.join(' '), /on air here/);
+  // A wait reported for an older publish says nothing about the published version.
+  for (const c of [{ air: 0, why: 'unreachable' }, { air: 2 }]) {
+    const older = read({ published: { n: 14, h: 'cccc' }, peers: chg({ s: 'waiting', n: 1, ...c }) });
+    assert.equal(older.summary.leadShort, 'Waiting for clear');
+    assert.match(older.outputs[0].detail[0], /^v14 is published\. A deferred preparation retries automatically/);
+  }
   // The cause survives the wire; anything else in its place is dropped.
   assert.equal(readOutputReady({ n: 1, of: 1, v: V12, is: [], chg: { s: 'waiting', v: V13, of: 1, n: 1, air: 0, why: 'unreachable' } }).chg.why, 'unreachable');
   assert.equal(readOutputReady({ n: 1, of: 1, v: V12, is: [], chg: { s: 'waiting', v: V13, of: 1, n: 1, air: 0, why: 'x' } }).chg.why, undefined);
