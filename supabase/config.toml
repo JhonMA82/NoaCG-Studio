@@ -63,3 +63,27 @@ secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
 [auth.hook.before_user_created]
 enabled = true
 uri = "pg-functions://postgres/public/enforce_allowlist"
+
+# The OAuth 2.1 server a chat client signs in through to reach the remote MCP connector
+# (docs/REMOTE_MCP_PLAN.md, key decision 2). Dynamic client registration on: Claude.ai and ChatGPT
+# register a fresh client per connection. Supabase sends the user to site_url + this path with
+# `?authorization_id=`, so the consent page is a query route on the studio's root, beside `?agent=`.
+#
+# SIGNING KEYS. The OAuth server needs asymmetric keys. A local stack already signs ES256 with the
+# CLI's built-in development key (2.111.0 sets it whenever `signing_keys_path` is unset), so nothing
+# is set here and no private key is committed. A self-hoster must give GoTrue an asymmetric key
+# (`supabase gen signing-key`, then `signing_keys_path`); the hosted projects already sign ES256.
+# scripts/connector-oauth-spike.mjs checks the alg and the JWKS on every run.
+[auth.oauth_server]
+enabled = true
+allow_dynamic_registration = true
+authorization_url_path = "/"
+
+# Custom Access Token hook: a token issued to an OAuth client (it carries `client_id`) gets the
+# `noacg_connector` database role, which holds no grants and which the API roles cannot assume, so
+# a connector token reaches no table, function or storage object through PostgREST or Storage.
+# First-party sessions pass through unchanged. Migration 0089 creates the role and the function.
+# Enabling this on a hosted project is the owner's step (docs/REMOTE_MCP_PLAN.md, "Owner's steps").
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/connector_access_token"
