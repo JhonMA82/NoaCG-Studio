@@ -270,12 +270,57 @@ ${CREDITS_PARSER_JS}
 
 // rebuildCredits(): re-render the track from the hidden #f0 / #f1 / #f2 sources.
 //
-// update() passes keepIfSame, and then an update that changes nothing the rows draw (a speed
-// press, or a cue resent as it stands) leaves the rows alone. It has to: a page swap tweens the
-// .credits-page elements themselves and a reel moves its clones, so replacing them on air leaves
-// the running motion animating nodes that are gone - measured on cr03 as every page drawn at
-// once, stacked. play() always rebuilds, because a take must start from clean rows.
+// update() passes keepIfSame, and then the blocks on air are never thrown away lightly: a page
+// swap tweens the .credits-page elements themselves and a reel moves its clones, so replacing
+// them on air left the running motion animating nodes that were gone - measured on cr03 as every
+// page drawn at once, stacked. An update that changes nothing the rows draw (a speed press, or a
+// cue resent as it stands) leaves them alone; a correction is written INTO them
+// (creditsPatchRows); and only one that changes the list's shape replaces them. After a
+// replacement, or a correction that changes a block's size, a page swap or a reel is built again
+// at the same point (creditsRestartLive). play() always rebuilds, because a
+// take must start from clean rows.
 var creditsBuiltHtml = null;
+
+// creditsBlockSizes(track): every block's height and row count, as one comparable string.
+function creditsBlockSizes(track) {
+  return [].map.call(track.querySelectorAll('.credits-page, .credits-end'), function (block) {
+    return block.offsetHeight + ':' + block.children.length;
+  }).join(',');
+}
+
+// creditsPatchRows(track, html): write new rows into the blocks already on the track - the
+// pages and the end block, in the reel's run and in every clone of it - keeping each block, and
+// so the pose the motion gave it. Returns false, touching nothing, when the new list does not
+// have the same blocks (a section added or taken away), because there is then nothing to write
+// into.
+function creditsPatchRows(track, html) {
+  var fresh = document.createElement('div');
+  fresh.innerHTML = html;
+  var shell = function (el) {     // the block itself, without its children or the motion's pose
+    var copy = el.cloneNode(false);
+    copy.removeAttribute('style');
+    return copy.outerHTML;
+  };
+  var shells = [].map.call(fresh.children, shell);
+  var rows = [].map.call(fresh.children, function (block) { return block.innerHTML; });
+  var run = track.querySelector('.credits-loop-run');
+  var holders = run ? [run].concat([].slice.call(track.querySelectorAll('.credits-loop-clone'))) : [track];
+  for (var h = 0; h < holders.length; h++) {
+    var live = holders[h].children;
+    if (live.length !== shells.length) return false;
+    for (var i = 0; i < shells.length; i++) {
+      if (shell(live[i]) !== shells[i]) return false;
+    }
+  }
+  for (var k = 0; k < holders.length; k++) {
+    for (var j = 0; j < rows.length; j++) {
+      var block = holders[k].children[j];
+      if (block.innerHTML !== rows[j]) block.innerHTML = rows[j];
+    }
+  }
+  return true;
+}
+
 function rebuildCredits(keepIfSame) {
   var track = document.getElementById('credits-track');
   var text = document.getElementById('f0').textContent;
@@ -304,9 +349,18 @@ ${hasLogo
   // Both escaped: the year is written as markup and the logo path is written INTO an
   // src="..." attribute, so an unescaped quote in either would break out of it.
   html += renderEndBlock(escapeHtml(year), logo ? escapeHtml(logo) : null);
-  if (!(keepIfSame === true && html === creditsBuiltHtml)) {
+  if (keepIfSame !== true) {
     creditsBuiltHtml = html;
     track.innerHTML = html;
+  } else if (html !== creditsBuiltHtml) {
+    creditsBuiltHtml = html;
+    var sizes = creditsBlockSizes(track);
+    if (!creditsPatchRows(track, html)) {
+      track.innerHTML = html;
+      creditsRestartLive();
+    } else if (creditsBlockSizes(track) !== sizes) {
+      creditsRestartLive();      // a name added to a page: the reel's travel and the holds change
+    }
   }
   fitBoardToFrame();               // a board re-fits itself to the frame after every rebuild
 }
@@ -369,6 +423,7 @@ function play() {
 // stop(): take the credits off air.
 function stop() {
   gsap.killTweensOf('*');
+  creditsMotionLive = null;       // off air, a correction must not start the motion again
   buildOutTimeline();
 }
 

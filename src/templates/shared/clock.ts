@@ -77,6 +77,7 @@ var clockTimer = null;        // the polling interval while the clock runs
 var clockSecondsLeft = 0;     // what renderClock() paints
 var clockDeadline = 0;        // ms timestamp the count is anchored to (see the header note)
 var clockPaused = false;      // held by pauseClock(): a PAUSED clock is not a stopped one
+var clockFinished = false;    // ran out, and holds 0:00 until it is taken out (stopClock)
 var clockArmedFrom = null;    // the field text the count was last derived from (see below)
 
 // The raw text of one of the clock's own fields. Reading the TEXT rather than the derived
@@ -129,6 +130,7 @@ function tickClock() {
   clockSecondsLeft = Math.max(0, Math.ceil((clockDeadline - Date.now()) / 1000));
   if (clockSecondsLeft <= 0) {
     stopClock();
+    clockFinished = true;
     var root = document.querySelector('.${prefix}');
     if (root) root.classList.add('${prefix}-done');
   }
@@ -152,6 +154,7 @@ function startClock() {
 function stopClock() {
   if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
   clockPaused = false;
+  clockFinished = false;
 }
 
 // update() calls this after writing the fields (the design's own update() hook). THE LENGTH IS
@@ -167,15 +170,16 @@ function clockDataUpdated() {
   clockArmedFrom = signature;
 
   if (!clockTimer) {
-    // Not counting. A PAUSED clock is holding a remaining time the operator chose to freeze,
-    // so it only re-derives when they change the length; an idle one previews it either way.
-    if (!clockPaused || changed) {
+    // Not counting. A PAUSED clock is holding a remaining time the operator chose to freeze, and
+    // a FINISHED one holds 0:00 until it is taken out, so both re-derive only when the operator
+    // changes the length; an idle one previews it either way. (A finished clock is neither
+    // counting nor paused, so without its own flag a caption fix put the full count back.)
+    if (!(clockPaused || clockFinished) || changed) {
+      clockFinished = false;
       clockSecondsLeft = clockSeconds();
       renderClock();
-    }
-    // A finished countdown given a new length is no longer finished: drop the time-up styling
-    // rather than painting a fresh number under it. It still waits for the next startClock().
-    if (changed && clockSecondsLeft > 0) {
+      // A count put back to a length is not finished: drop the time-up styling rather than
+      // painting a fresh number under it. It still waits for the next startClock().
       var idleRoot = document.querySelector('.${prefix}');
       if (idleRoot) idleRoot.classList.remove('${prefix}-done');
     }

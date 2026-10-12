@@ -55,6 +55,24 @@ test('the next kicker closes the one above it', () => {
   ]);
 });
 
+// Issue #784: an inline tag used to stay open, so the untagged lines after it aired filed under
+// a desk that never filed them. It tags its own story and ends any run above it.
+test('an inline tag tags only its own story and closes the run above it', () => {
+  assert.deepEqual(parseTickerItems('SPORT:\nUnited win 3-0\nMARKET: DAX -0.31%\nDOW JONES 39112'), [
+    item('SPORT', 'United win 3-0'),
+    item('MARKET', 'DAX -0.31%'),
+    item('', 'DOW JONES 39112'),
+  ]);
+});
+
+test('a tabbed line is one story too, and leaves no kicker open', () => {
+  assert.deepEqual(parseTickerItems('SPORT:\nUnited win 3-0\nMARKET\tDAX -0.31%\nDOW JONES 39112'), [
+    item('SPORT', 'United win 3-0'),
+    item('MARKET', 'DAX -0.31%'),
+    item('', 'DOW JONES 39112'),
+  ]);
+});
+
 test('a blank line closes the open kicker', () => {
   assert.deepEqual(parseTickerItems('SPORT:\nUnited win 3-0\n\nStorm warning'), [
     item('SPORT', 'United win 3-0'),
