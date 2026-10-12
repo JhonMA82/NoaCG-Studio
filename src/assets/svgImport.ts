@@ -1420,7 +1420,8 @@ const GLYPH_TAGS = new Set(['path', 'polygon']);
 const MAX_OUTLINE_CANDIDATES = 24;
 
 /** Cap on the panel rectangles offered. A design with more rectangles than this is a chart or
- *  a table, and its panel is not among the twentieth-widest of them. */
+ *  a table, and its panel is not among the twentieth-widest of them. Named shapes past it are
+ *  kept as well, because a behaviour binds those (see the inventory). */
 const MAX_SHAPE_CANDIDATES = 12;
 
 /**
@@ -1785,10 +1786,20 @@ export function importSvgMarkup(source: string): SvgImportResult {
   // `proposeBannerGrowth` reads this list in.
   const alreadyPictures = panels.filter((r) => r.el.hasAttribute(SVG_CANDIDATE_ATTR));
   const plainShapes = panels.filter((r) => !r.el.hasAttribute(SVG_CANDIDATE_ATTR));
+  // THE INVENTORY ANSWERS A SECOND QUESTION TOO: which drawn part a behaviour binds. A vote's bar
+  // drawn at full length is exactly as wide as its track, and the tracks come first, so on a
+  // board of more than five options the widest twelve stopped before the last bars and the vote
+  // could neither propose nor pick them (#784). So the cap is the PANEL question's only: every
+  // NAMED shape past the widest twelve is kept too, with no limit, because a designer who named a
+  // layer "Bar 7" has said it is a part. A design app's own names ("Rectangle 118") do not count
+  // (`isGeneratedId`), so a chart exported from Figma still stops at twelve.
+  const widest = plainShapes.slice(0, MAX_SHAPE_CANDIDATES);
+  const named = plainShapes.slice(MAX_SHAPE_CANDIDATES).filter((r) => layerName(r.el));
   let minted = 0;
   const shapes: SvgShapeCandidate[] = [
     ...alreadyPictures.slice(0, MAX_SHAPE_CANDIDATES),
-    ...plainShapes.slice(0, MAX_SHAPE_CANDIDATES),
+    ...widest,
+    ...named,
   ]
     .sort((a, b) => b.w - a.w)
     .map(({ el, x, y, w, h }, i) => {

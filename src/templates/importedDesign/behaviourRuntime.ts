@@ -93,9 +93,10 @@ export function behaviourRuntimeJs(withClock: boolean): string {
 ${motionSpeedJs}
 
 // What the runtime remembers between repaints: measured gauge lengths (at rest, once), each
-// number field's last value and which one rose most recently, a finished clock's length, where
-// each row's slot was drawn (at rest, once) and every layer a place rule has moved.
-var noacgBehaviourMemory = { gauges: {}, numbers: {}, rose: {}, clockRanOut: 0, defaults: {}, slots: {}, places: [] };
+// number field's last value and which one rose most recently, where each row's slot was drawn
+// (at rest, once) and every layer a place rule has moved. A path gauge keeps its drawn points
+// on the element itself (noacgGaugeShape).
+var noacgBehaviourMemory = { gauges: {}, numbers: {}, rose: {}, defaults: {}, slots: {}, places: [] };
 
 // noacgRoleEls(role, key): every layer stamped with this role token.
 function noacgRoleToken(role, key) {
@@ -494,24 +495,14 @@ noacgKinds['vote-status'] = {
 
 // clock: the shared countdown engine's own numbers (templates/shared/clock.ts). Facts: "warning"
 // inside the threshold the warnAt field holds, "expired" at zero; derives "fraction", the share
-// of the count still to run. ONCE IT HAS RUN OUT IT STAYS RUN OUT (owner ruling: at zero it
-// holds at 0:00 until taken out) - an unrelated update re-derives the full length in the shared
-// runtime, and this refuses to repaint that; a NEW length is the one thing that un-finishes it.
+// of the count still to run. Once it has run out it stays run out (owner ruling: at zero it holds
+// at 0:00 until taken out): the shared runtime keeps 0:00 across an unrelated update, and only a
+// NEW length un-finishes it.
 noacgKinds.clock = {
   left: function () { return typeof clockSecondsLeft === 'number' ? clockSecondsLeft : 0; },
   total: function () { return typeof clockSeconds === 'function' ? clockSeconds() : 0; },
-  ranOut: function () {
-    var total = this.total();
-    var memory = noacgBehaviourMemory;
-    if (memory.clockRanOut > 0) {
-      if (total === memory.clockRanOut) return true;
-      memory.clockRanOut = 0;
-    }
-    if (this.left() <= 0) memory.clockRanOut = total;
-    return this.left() <= 0;
-  },
   fact: function (id, spec, name) {
-    var up = this.ranOut();
+    var up = this.left() <= 0;
     if (name === 'expired') return up;
     if (name === 'warning') {
       var warn = spec.warnAt ? parseFloat(noacgFieldText(spec.warnAt)) : NaN;
@@ -522,17 +513,13 @@ noacgKinds.clock = {
   },
   derive: function (id, spec, name) {
     if (name !== 'fraction') return null;
-    // A finished count's bar stays empty: the shared engine re-derives the full length on an
-    // unrelated update, and refilling the bar would repaint the lie the fact above refuses.
-    if (this.ranOut()) return 0;
     var total = this.total();
     var share = total > 0 ? this.left() / total : 0;
     return share < 0 ? 0 : share > 1 ? 1 : share;
   },
-  // noacgClockReset(): Reset. Stop the count, put it back to the length the operator asked for,
-  // and forget that it ran out - so the plate and the bar the last run left can be repainted.
+  // noacgClockReset(): Reset. Stop the count and put it back to the length the operator asked
+  // for, so the plate and the bar the last run left are repainted.
   reset: function () {
-    noacgBehaviourMemory.clockRanOut = 0;
     if (typeof stopClock === 'function') stopClock();
     var root = document.querySelector('.${PREFIX}');
     if (root) root.classList.remove('${PREFIX}-done');
@@ -740,14 +727,58 @@ function noacgGaugeFull(el, token) {
   return w > 0 ? w : 0;
 }
 
+// noacgGaugeShape(el): what a gauge drawn as a PATH or a POLYGON needs to be filled without
+// squashing its ends, read once at rest and kept on the element itself, since one role may
+// stamp several drawings: its drawn points and its box. Null for any other drawing, which is
+// scaled instead.
+function noacgGaugeShape(el) {
+  var tag = (el.tagName || '').toLowerCase();
+  var attr = tag === 'path' ? 'd' : tag === 'polygon' ? 'points' : null;
+  if (!attr || typeof svgShiftPoints !== 'function') return null;
+  if (el.noacgGaugeShape) return el.noacgGaugeShape;
+  var box;
+  try { box = el.getBBox(); } catch (e) { return null; }
+  if (!(box.width > 0)) return null;
+  el.noacgGaugeShape = { attr: attr, drawn: el.getAttribute(attr), box: box, state: { share: 1 }, squeezed: false };
+  return el.noacgGaugeShape;
+}
+
+// noacgGaugeFill(el, shape, share): a path gauge at a share. Its far half moves in, the way a
+// path panel grows (SHAPE_SHIFT_JS), so the drawn rounded ends keep their shape. It stops where
+// the two ends would meet, a length of its own height, and only below that is the little that
+// is left scaled down to the share.
+function noacgGaugeFill(el, shape, share) {
+  var box = shape.box;
+  var want = box.width * share;
+  var length = Math.max(want, Math.min(box.width, box.height));
+  var shift = shape.attr === 'd' ? svgShiftPathD : svgShiftPoints;
+  el.setAttribute(shape.attr, shift(shape.drawn, 'x', box.x + box.width / 2, 1, length - box.width));
+  var squeeze = length > 0 ? want / length : 0;
+  // Scaled only while it is shorter than its own ends, and put back once, so a bar that never
+  // gets that short is never given a transform at all.
+  if (squeeze < 1) gsap.set(el, { scaleX: squeeze, svgOrigin: box.x + ' ' + (box.y + box.height / 2) });
+  else if (shape.squeezed) gsap.set(el, { scaleX: 1 });
+  shape.squeezed = squeeze < 1;
+}
+
 // noacgGauge(el, token, share, motion): one gauge at one share. A RECTANGLE'S WIDTH IS SET,
-// NEVER ITS SCALE - scaling squashes a rounded cap; anything else the designer drew is scaled
-// about its own left edge, so it grows or drains from where it starts.
+// NEVER ITS SCALE - scaling squashes a rounded cap - and a rounded bar drawn as a path (which is
+// how Illustrator writes one) has its far half moved instead (noacgGaugeFill). Anything else the
+// designer drew is scaled about its own left edge, so it grows or drains from where it starts.
 function noacgGauge(el, token, share, motion) {
   var full = noacgGaugeFull(el, token);
   if (!(full > 0) || typeof gsap === 'undefined') return;
   if (share < 0) share = 0;
   if (share > 1) share = 1;
+  var shape = noacgGaugeShape(el);
+  if (shape) {
+    // The share itself is tweened, and every frame redraws the points from the drawn ones.
+    gsap.killTweensOf(shape.state);
+    var paint = function () { noacgGaugeFill(el, shape, shape.state.share); };
+    if (!motion) { shape.state.share = share; return paint(); }
+    gsap.to(shape.state, { share: share, duration: motion.duration, ease: motion.ease, delay: motion.delay || 0, onUpdate: paint });
+    return;
+  }
   var to;
   if (el.hasAttribute('width')) to = { attr: { width: full * share } };
   else {
@@ -925,6 +956,7 @@ function noacgRepaintWith(reason) {
   var rules = NOACG_BEHAVIOUR.paint || [];
   // Looks first: any rule naming a token turns it on; a token no rule holds for goes off.
   var lit = {}, pops = {}, seen = {}, defaults = {};
+  var plates = {};                // row key ('' for none) -> its lit looks, for the readout inks
   var r, rule, keys, k;
   for (r = 0; r < rules.length; r++) {
     rule = rules[r];
@@ -949,9 +981,11 @@ function noacgRepaintWith(reason) {
       var made = noacgDefaultEl(defaults[t].rule, defaults[t].key);
       els = made ? [made] : els;
     }
+    var plateRow = slash === -1 ? '' : t.slice(slash + 1);
     for (var e = 0; e < els.length; e++) {
       noacgLookShow(els[e], !!lit[t]);
       if (lit[t] && pops[t]) noacgPop(els[e]);
+      if (lit[t]) (plates[plateRow] = plates[plateRow] || []).push(els[e]);
     }
   }
   // Gauges and readouts: from the data, every time.
@@ -965,14 +999,93 @@ function noacgRepaintWith(reason) {
       var value = noacgDerive(rule.from, keys[k]);
       for (var g = 0; g < targets.length; g++) {
         if (rule.gauge) noacgGauge(targets[g], noacgRoleToken(rule.gauge, keys[k]), typeof value === 'number' ? value : 0, noacgGaugeMotion(rule.from, reason, k));
-        // A readout with nothing to say is left as drawn - an empty round must not blank a
-        // board the designer filled in.
-        else if (value !== null && value !== undefined && value !== '') targets[g].textContent = String(value);
+        else {
+          // A readout with nothing to say is left as drawn - an empty round must not blank a
+          // board the designer filled in.
+          if (value !== null && value !== undefined && value !== '') targets[g].textContent = String(value);
+          noacgReadoutInk(targets[g], plates[keys[k] === null ? '' : String(keys[k])] || []);
+        }
       }
     }
   }
   // Places last: the readouts above are already written, and a row moves as a whole.
   noacgPlaceAll(rules, reason);
+}
+
+// ── A readout stays legible on a look lit under it ──────────────────────────────────
+// A bingo tile lights an amber plate under a numeral drawn white for the dark board, and white on
+// amber is the one pairing there a room cannot read (#784). So a readout the board writes takes a
+// dark or a light ink wherever a lit look of its own row sits under it and its drawn ink falls
+// below 3:1 against that plate, and gets its drawn ink back the moment the plate goes. Only a
+// solid fill is read; a gradient or a picture is left as the designer drew it.
+
+// noacgLuminance(color): the relative luminance of "#rrggbb" or a computed "rgb(...)", or null
+// for anything that is not a mostly opaque solid colour.
+function noacgLuminance(color) {
+  var hex = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color || '');
+  var m = /rgba?\\(([^)]+)\\)/.exec(color || '');
+  var p = hex ? [parseInt(hex[1], 16), parseInt(hex[2], 16), parseInt(hex[3], 16)] : m ? m[1].split(',') : null;
+  if (!p || (p.length > 3 && parseFloat(p[3]) < 0.5)) return null;
+  var lin = function (v) {
+    v = parseFloat(v) / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * lin(p[0]) + 0.7152 * lin(p[1]) + 0.0722 * lin(p[2]);
+}
+
+function noacgContrast(a, b) {
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+// The two inks a readout may take: the dark NoaCG's own looks are drawn on, and its default ink.
+var NOACG_INK_DARK = '#0d1017';
+var NOACG_INK_DARK_L = noacgLuminance(NOACG_INK_DARK);
+var NOACG_INK_LIGHT_L = noacgLuminance(NOACG_DEFAULT_INK);
+
+// noacgPlateUnder(look, x, y): the luminance of the solid fill a look paints at a screen point -
+// the topmost of its shapes there, itself included. A group's own fill is only what its children
+// inherit, never paint, so a group is not read; a shadow drawn under the plate is not the plate.
+var NOACG_SHAPES = 'rect, path, polygon, circle, ellipse';
+function noacgPlateUnder(look, x, y) {
+  var shapes = [].slice.call(look.querySelectorAll(NOACG_SHAPES));
+  if (look.matches && look.matches(NOACG_SHAPES)) shapes.unshift(look);
+  for (var i = shapes.length - 1; i >= 0; i--) {
+    var b = shapes[i].getBoundingClientRect();
+    if (x < b.left || x > b.right || y < b.top || y > b.bottom) continue;
+    var s = getComputedStyle(shapes[i]);
+    if (s.display === 'none' || parseFloat(s.fillOpacity) < 0.5) continue;
+    var l = noacgLuminance(s.fill);
+    if (l !== null) return l;
+  }
+  return null;
+}
+
+// noacgReadoutInk(el, plates): the ink a readout should wear over the lit looks of its row, set
+// only when it differs from what it wears now. The drawn ink is read once, the first time a look
+// is lit in its row, so a readout with nothing ever lit under it costs nothing.
+function noacgReadoutInk(el, plates) {
+  if (el.noacgDrawnFill === undefined) {
+    if (!plates.length) return;
+    el.noacgDrawnFill = el.style.getPropertyValue('fill');
+    el.noacgDrawnInk = noacgLuminance(getComputedStyle(el).fill);
+  }
+  var want = el.noacgDrawnFill;
+  if (plates.length && el.noacgDrawnInk !== null) {
+    var box = el.getBoundingClientRect();
+    var cx = box.left + box.width / 2;
+    var cy = box.top + box.height / 2;
+    for (var i = 0; i < plates.length; i++) {
+      if (plates[i].contains(el)) continue;      // a look that IS the readout's own drawing
+      var under = noacgPlateUnder(plates[i], cx, cy);
+      if (under === null || noacgContrast(el.noacgDrawnInk, under) >= 3) continue;
+      want = noacgContrast(under, NOACG_INK_DARK_L) >= noacgContrast(under, NOACG_INK_LIGHT_L) ? NOACG_INK_DARK : NOACG_DEFAULT_INK;
+      break;
+    }
+  }
+  if (el.noacgInk !== want) {
+    el.noacgInk = want;
+    el.style.fill = want;
+  }
 }
 
 // noacgRepaint(): a STATE was entered - named by every recipe state's timeline. Snap replays

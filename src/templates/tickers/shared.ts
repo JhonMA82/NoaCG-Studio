@@ -118,6 +118,16 @@ function tickerKickerMark(line) {
   return (mark > 0 && mark <= KICKER_LABEL_MAX) ? mark : -1;
 }
 
+// tickerTag(items, label, story): one tagged line, and the kicker it leaves open. A line with
+// a story after its tag is ONE story under that tag, and it closes any run above it, since it is
+// the next kicker. Only a tag with nothing after it ("SPORT:") opens a run for the lines beneath,
+// which is what docs/TICKERS.md promises: an inline tag never files the stories below it.
+function tickerTag(items, label, story) {
+  if (!story) return label;
+  items.push({ kicker: label, text: story });
+  return '';
+}
+
 function parseTickerItems(text) {
   var items = [];
   var open = '';                       // the kicker the following bare lines inherit
@@ -130,20 +140,14 @@ function parseTickerItems(text) {
     // operator has said outright which half is which.
     var tab = line.indexOf('\\t');
     if (tab > 0) {
-      open = line.slice(0, tab).trim();
-      var tabbed = line.slice(tab + 1).trim();
-      if (tabbed) items.push({ kicker: open, text: tabbed });
+      open = tickerTag(items, line.slice(0, tab).trim(), line.slice(tab + 1).trim());
       return;
     }
 
-    // The colon rule, in ONE branch: text before the colon is the kicker, whatever follows it
-    // on the same line is that kicker's first story. "SPORT:" simply has nothing after it,
-    // which is what leaves the kicker open for the lines beneath.
+    // The colon rule: text before the colon is the kicker.
     var mark = tickerKickerMark(line);
     if (mark > 0) {
-      open = line.slice(0, mark).trim();
-      var inline = line.slice(mark + 1).trim();
-      if (inline) items.push({ kicker: open, text: inline });
+      open = tickerTag(items, line.slice(0, mark).trim(), line.slice(mark + 1).trim());
       return;
     }
 

@@ -83,13 +83,14 @@ green run - measured, eight of them), and NIGHTLY. Off CI it refuses a whole-sui
 focus escalation, or `--all`) and leaves the catalog gate to CI; the job queue refuses
 `npm run test:e2e` with no spec named. Locally, name the one or two specs that cover the change.
 
-**During the student-release sprint, `npm run test:e2e:focus` is THE student-critical suite
-command** (`--focus`, or `E2E_SPRINT_FOCUS=1`, which is what ci.yml sets): a core-file change runs
-the focus set (every spec whose header says `// focus`) instead of the whole suite; the nightly still runs
-everything and its verdict separates focus failures from paused-area drift. Prefer the npm script -
-the env-var spelling cannot be baked into a package script, because Windows runs those through
-`cmd.exe` where a `VAR=1 cmd` prefix is a syntax error, which is why every local run escalated to
-103 files while CI quietly ran 34.
+**A change to shared or uncertain code runs the shared-change set, not the whole suite**: every
+spec whose header says `// focus` (the name is the student-release sprint's, which closed on
+2026-08-22; the set stayed because the question it answers is standing). Since 2026-10-12 that is
+the planner's default on every pull request, merge group and local run - the `E2E_SPRINT_FOCUS`
+env is gone, so a laptop and CI plan the same change the same way - and `--full-escalation` asks
+for the whole suite by name. The nightly still runs everything and its verdict separates
+shared-set failures from the rest. `npm run test:e2e:focus` still works and now means the same
+as `test:e2e:affected`.
 
 **The mapping lives in each spec's own header**, the way `scripts/gates.mjs` reads `// gate:` and
 `// guards:` off a gate. A spec's leading comment block says which source it covers:

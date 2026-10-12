@@ -63,8 +63,13 @@ Owner walk 2026-08-28, and it holds for anything in here that moves:
   `timeScale` (`creditsApplySpeed()`), never a rebuild, which would snap the roll to its start.
   Two things make that hold, and both are measured: the parent step timeline has no
   `smoothChildTiming`, so the flag is lent for the call or the roll jumps (196px on cr01); and
-  `update()` leaves the rows alone when their markup is unchanged, because a page swap tweens the
-  `.credits-page` nodes themselves and replacing them on air drew every page at once.
+  `update()` never replaces the blocks on air lightly, because a page swap tweens the
+  `.credits-page` nodes themselves and a reel moves its clones (replacing them drew every page at
+  once, #784): unchanged markup is left alone, a correction is written INTO the blocks
+  (`creditsPatchRows`), and only a change of shape (a section added or removed) replaces them.
+  After a replacement or a change of a block's size, `creditsRestartLive()` builds the page swap
+  or reel again at the same point, inside the same step timeline.
+  `scripts/on-air-corrections.test.mjs` holds every credits design and motion to that.
 - **`creditsRoll()` and `creditsCrawl()` run the LIST off the frame**, then bring the
   `.credits-end` block in as its own beat (`creditsEndBeat()`), centred, with the pages faded
   out. The travel therefore measures to the end block's position, not the track's full extent.

@@ -60,6 +60,9 @@ export interface BoundBehaviour {
    *  number reserves the behaviour's `fN` ids in the binder's `taken` set, and written by hand
    *  it goes stale the moment a behaviour appends a field - silently, on air. */
   fieldCount: number;
+  /** Whether any rule fills a gauge, which is what ships the point shifters a gauge drawn as a
+   *  path or a polygon fills by (svg.ts SHAPE_SHIFT_JS). Derived from the rules, like the count. */
+  fillsGauge: boolean;
   /** Stamp the picked drawings. Called from the markup bind, while the candidate markers are
    *  still in place - that is what they are for. */
   markLayers(root: Element): void;
@@ -500,6 +503,7 @@ export function composeParts(artworkFields: SpxField[], bindings: BehaviourBindi
   return {
     layerIds: [],
     fieldCount: owned.length,
+    fillsGauge: parts.some((p) => (p.table.paint as PaintRule[]).some((rule) => 'gauge' in rule)),
     markLayers: (root) => {
       for (const part of parts) part.markLayers(root);
     },
