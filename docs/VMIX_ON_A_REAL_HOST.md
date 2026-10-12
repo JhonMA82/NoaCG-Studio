@@ -115,3 +115,44 @@ The state XML lists 16 `<overlay>` elements on vMix 29, numbered 1 to 16.
   untouched.
 - The walk's production was unpublished (its `control_shows` row deleted). Its document stays in
   the E2E account's library.
+
+## 7. The TCP API under the Bridge (the same night, later)
+
+The first slice of the Bridge's vMix adapter
+(`docs/work-specs/bridge-vmix-adapter/evidence/slice-1.md`) was built against what vMix's TCP API
+said on 127.0.0.1:8099, read byte for byte by a probe and then driven by the built Bridge. vMix
+29.0.0.49 (Trial), blank session each start.
+
+- **The greeting** is `VERSION OK 29.0.0.49`, about 20 ms after the socket opens.
+- **`XML`** answers `XML <n>` and then `n` bytes of UTF-8, ending in `\r\n`: with a title holding
+  "ÄÖ" the header said 2090 and the body was 2090 bytes and 2084 characters.
+- **`FUNCTION OK Completed`** is the answer to every function, including one vMix does not have
+  (`NoSuchFunction`) and an `OverlayInput2In` with a key no input has. An unknown command is
+  `HELLO ER Unknown Command`. So an OK proves nothing; the Bridge reads the XML back.
+- **`ACTS` lines** came before or after the `FUNCTION OK` of the call that caused them, never
+  inside an XML body.
+- **Parameters are URL-decoded:** `Value=NoaCG%3A%20Probe%20A%20%26%20co` named an input
+  `NoaCG: Probe A & co`, and an encoded `Browser|http://…/output?production=probe&name=vMix`
+  loaded that whole address in a Web Browser input (its server saw the request with `&name=`).
+  That input's XML type is `Browser`.
+- **`OverlayInput2Out Input=<A>` and `OverlayInput2Off Input=<A>`** while input B was on Overlay 2
+  took B off: they ignore `Input=`.
+- **Keys across sessions:** a preset saved with two image inputs and opened in a freshly started
+  vMix had both keys as before.
+- **A preset opened with inputs on overlays** sent `ACTS OK Overlay3 1 1` and `ACTS OK Overlay4 2
+  1` about a second after the burst's first line (`Fullscreen 0`), after `MasterVolume 1` and
+  `MasterHeadphones 1`, and right after the `OpenPreset`'s own `FUNCTION OK`.
+- **The built Bridge** (`noacg bridge --no-open`) with vMix closed answered `/status` with
+  `not-running`; once vMix started it read "Trial, 8 overlay channels"; Put on air added
+  `NoaCG Real Run ÄÖ & co` as a Web Browser input and the watching client saw `ACTS OK Overlay8 1
+  1`; a second Put on air reused it; Take off sent `OverlayInput8Out` (the `0` came 510 ms
+  later), a second one sent nothing; Clear sent `OverlayInput8Off`; with another input on Overlay
+  8, Take off and Clear sent nothing and it stayed; a name held by an Image input was refused with
+  the input count unchanged. vMix force-closed under the running Bridge read `not-running` at
+  once, and the first request after vMix started again connected anew.
+- Not tried: a Cut overlay transition, enhanced security, a Basic HD or vMix 28 edition, the
+  Browser input's size against a production of another resolution, and the cue input's thumbnail.
+
+As in §6, `last.vmix` and its `user.config` were backed up before each of the six starts and put
+back after each close (SHA-256 as before, `last.vmix` keeping its 2026-10-01 time); vMix was
+force-closed without saving each time; its background service was untouched.

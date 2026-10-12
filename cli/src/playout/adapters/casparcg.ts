@@ -38,6 +38,8 @@ import type {
   SlotState,
   Target,
   TargetCapability,
+  VmixInfo,
+  VmixOverlayState,
 } from '../protocol.js';
 import { UsageError } from '../../output.js';
 
@@ -74,7 +76,8 @@ export interface PlayoutAdapter<T extends Target = Target> {
   /** `target` is what `/status` reports for a server of this `version` (docs/CLIP_PLAYBACK_PLAN.md
    *  §6.9): the page offers a control only when the target can honour it. */
   capabilities(version?: string): { lists: ItemKind[]; thumbnails: boolean; verbs: PlayoutVerb[]; target: TargetCapability[] };
-  status(target: T): Promise<AdapterResult<{ version: string }>>;
+  /** `vmix` is what a vMix target is, which `/status` and `/connect` pass on. */
+  status(target: T): Promise<AdapterResult<{ version: string; vmix?: VmixInfo }>>;
   list(target: T, kind: ItemKind, path?: string): Promise<AdapterResult<ListItem[]>>;
   /** Where the library can play, for a target that has renderers of its own (OGraf). */
   renderers?(target: T): Promise<AdapterResult<PlayoutRenderer[]>>;
@@ -84,6 +87,8 @@ export interface PlayoutAdapter<T extends Target = Target> {
   channels?(target: T): Promise<AdapterResult<ServerChannel[]>>;
   /** What each layer of one channel holds, for a target that can say (`/state`). */
   state?(target: T, channel: number): Promise<AdapterResult<SlotReading[]>>;
+  /** What each overlay channel holds, for a target that has them (vMix's `/state`). */
+  overlays?(target: T): Promise<AdapterResult<VmixOverlayState[]>>;
   /** Queue what plays when the clip on the slot ends, for a target that runs sequences. */
   follow?(target: T, slot: Slot, next: FollowWith): Promise<ActResult>;
 }

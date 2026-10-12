@@ -6,11 +6,13 @@
 // playoutLink.ts re-exports both functions, so every caller that already imports them from there
 // keeps doing so.
 
-import type { CasparSlot, OgrafSlot, Slot } from './playoutProtocol';
+import type { CasparSlot, OgrafSlot, Slot, VmixSlot } from './playoutProtocol';
 
 /** `1-20` - what the operator sees on the button, and what CasparCG calls the layer. An OGraf
- *  slot reads as its renderer and the render target's own fields: `renderer-0 layerId=1`. */
-export function slotAddress(slot: Pick<CasparSlot, 'channel' | 'layer'> | OgrafSlot): string {
+ *  slot reads as its renderer and the render target's own fields: `renderer-0 layerId=1`; a vMix
+ *  slot as its overlay channel, `Overlay 8`. */
+export function slotAddress(slot: Pick<CasparSlot, 'channel' | 'layer'> | OgrafSlot | VmixSlot): string {
+  if ('overlay' in slot) return `Overlay ${slot.overlay}`;
   if ('rendererId' in slot) {
     return [slot.rendererId, ...Object.entries(slot.renderTarget).map(([k, v]) => `${k}=${String(v)}`)].join(' ');
   }

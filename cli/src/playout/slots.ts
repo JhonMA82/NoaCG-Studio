@@ -114,10 +114,12 @@ export const LOADING_GRACE_MS = 1500;
 const ARRIVAL_SLACK_S = 0.5;
 
 function targetKey(target: Target): string {
+  if (target.adapter === 'vmix') return `vmix ${target.port ?? ''}`;
   return target.adapter === 'ograf' ? `ograf ${target.baseUrl}` : `casparcg ${target.host}:${target.port}`;
 }
 
 function slotKey(slot: Slot): string {
+  if (slot.adapter === 'vmix') return `overlay ${slot.overlay}`;
   return slot.adapter === 'ograf' ? `${slot.rendererId} ${JSON.stringify(slot.renderTarget)}` : `${slot.channel}-${slot.layer}`;
 }
 

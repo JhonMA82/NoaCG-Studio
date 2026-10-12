@@ -26,14 +26,16 @@ import { isIP } from 'node:net';
 import { amcpSend } from './amcp.js';
 import type { ActResult, PlayoutAdapter } from './adapters/casparcg.js';
 import { ografApiBase } from './adapters/ograf.js';
+import type { VmixAdapter } from './adapters/vmix.js';
 import {
   MAX_SEQUENCE_ENTRIES,
+  MAX_VMIX_OVERLAYS,
   MIN_SEQUENCE_MEMBER_S,
   PLAYOUT_V,
   playedSeconds,
   type AgentError,
   type BridgeFeature,
-  type ItemKind,
+  type ItemRef,
   type MediaPlayback,
   type PlayoutAction,
   type RememberedServer,
@@ -156,6 +158,13 @@ export function readTarget(body: Record<string, unknown>, adapters: PlayoutAdapt
   if (!isRecord(t)) throw new UsageError('The request names no target.');
   const adapter = typeof t.adapter === 'string' ? t.adapter : '';
   if (!adapters.some((a) => a.id === adapter)) throw new UsageError(`This Bridge has no adapter "${adapter}".`);
+  if (adapter === 'vmix') {
+    // Always this computer: only the port can be named, and none means the Bridge's own, filled in
+    // here so the slots of one vMix are one target however a page names it.
+    if (t.port === undefined) return { adapter: 'vmix', port: adapters.find((a): a is VmixAdapter => a.id === 'vmix')!.port };
+    if (typeof t.port !== 'number' || !Number.isInteger(t.port) || t.port < 1 || t.port > 65535) throw new UsageError("A vmix target's port is a whole number from 1 to 65535.");
+    return { adapter: 'vmix', port: t.port };
+  }
   if (adapter === 'ograf') {
     const baseUrl = typeof t.baseUrl === 'string' ? t.baseUrl.trim() : '';
     if (!baseUrl) throw new UsageError('The target has no base URL.');
@@ -170,6 +179,7 @@ export function readTarget(body: Record<string, unknown>, adapters: PlayoutAdapt
 
 /** How a target is named in the Bridge's own log. */
 function targetLabel(target: Target): string {
+  if (target.adapter === 'vmix') return `vMix :${target.port}`;
   return target.adapter === 'ograf' ? target.baseUrl : `${target.host}:${target.port}`;
 }
 
@@ -190,20 +200,27 @@ function readSlot(v: unknown): Slot {
     if (!rendererId) throw new UsageError('An ograf slot names its renderer.');
     return { adapter: 'ograf', rendererId, renderTarget: readRenderTarget(v.renderTarget) };
   }
-  if (!isRecord(v) || v.adapter !== 'casparcg') throw new UsageError('The action has no casparcg or ograf slot.');
+  if (isRecord(v) && v.adapter === 'vmix') {
+    const overlay = v.overlay;
+    if (typeof overlay !== 'number' || !Number.isInteger(overlay) || overlay < 1 || overlay > MAX_VMIX_OVERLAYS) throw new UsageError(`A vmix slot names an overlay channel from 1 to ${MAX_VMIX_OVERLAYS}.`);
+    return { adapter: 'vmix', overlay };
+  }
+  if (!isRecord(v) || v.adapter !== 'casparcg') throw new UsageError('The action has no casparcg, ograf or vmix slot.');
   const channel = typeof v.channel === 'number' ? v.channel : NaN;
   const layer = typeof v.layer === 'number' ? v.layer : NaN;
   if (!Number.isInteger(channel) || !Number.isInteger(layer)) throw new UsageError('A slot needs a whole channel and layer.');
   return { adapter: 'casparcg', channel, layer };
 }
 
-function readItem(v: unknown): { kind: ItemKind; name: string } {
+function readItem(v: unknown): ItemRef {
   if (!isRecord(v)) throw new UsageError('The action has no item.');
   const kind = v.kind;
   if (kind !== 'template' && kind !== 'media' && kind !== 'url') throw new UsageError(`Unknown item kind "${String(kind)}".`);
   const name = typeof v.name === 'string' ? v.name : '';
   if (!name.trim()) throw new UsageError('The item has no name.');
-  return { kind, name };
+  if (v.label !== undefined && typeof v.label !== 'string') throw new UsageError("An item's label is text.");
+  const label = typeof v.label === 'string' && v.label.trim() ? v.label.trim().slice(0, 200) : undefined;
+  return { kind, name, ...(label ? { label } : {}) };
 }
 
 /** The longest fade a clip takes, seconds. The page offers half a second and a second. */
@@ -354,7 +371,7 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
     case 'resume':
       return { verb: a.verb, slot, item: isRecord(a.item) ? readItem(a.item) : undefined };
     case 'clear':
-      return { verb: 'clear', slot };
+      return { verb: 'clear', slot, ...(isRecord(a.item) ? { item: readItem(a.item) } : {}) };
     case 'sequence': {
       const entries = a.entries;
       if (!Array.isArray(entries) || entries.length < 2) throw new UsageError('A sequence plays at least two files.');
@@ -539,7 +556,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         // poll are `/status` and never do - and neither sends anything else, so neither touches a layer.
         if (url === '/status' || url === '/connect') {
           const connect = url === '/connect';
-          if (connect && target.adapter !== 'casparcg') throw new UsageError('Only a CasparCG server is connected to and remembered.');
+          if (connect && target.adapter === 'ograf') throw new UsageError('An OGraf server is not connected to: name it in each request.');
           const r = await adapter.status(target);
           log(`${at} ${connect ? 'connect' : 'status'} -> ${r.ok ? r.raw : r.error.code}`);
           if (!r.ok) {
@@ -554,7 +571,8 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
               version: r.value.version,
               raw: r.raw,
               capabilities: adapter.capabilities(r.value.version).target,
-              ...(connect && target.adapter === 'casparcg' ? { servers: await rememberServer({ host: target.host, port: target.port }) } : {}),
+              ...(r.value.vmix ? { vmix: r.value.vmix } : {}),
+              ...(connect ? { servers: target.adapter === 'casparcg' ? await rememberServer({ host: target.host, port: target.port }) : await servers.list() } : {}),
             },
             true,
           );
@@ -571,6 +589,17 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           const r = await adapter.channels(target);
           log(`${at} channels -> ${r.ok ? r.value.map((c) => `${c.channel} ${c.mode}`).join(', ') : r.error.code}`);
           send(200, r.ok ? { ok: true, v: PLAYOUT_V, channels: r.value } : { ok: false, v: PLAYOUT_V, error: r.error }, true);
+          return;
+        }
+        if (url === '/state' && adapter.overlays) {
+          // What each overlay channel holds, read off vMix's XML over the one connection. Productions
+          // linked to this Bridge come with the overlay presses (docs/work-specs/bridge-vmix-adapter).
+          const r = await adapter.overlays(target);
+          send(
+            200,
+            r.ok ? { ok: true, v: PLAYOUT_V, session: memory.session, observedAt: Math.round(performance.now()), overlays: r.value, linked: [] } : { ok: false, v: PLAYOUT_V, error: r.error },
+            true,
+          );
           return;
         }
         if (url === '/state') {
